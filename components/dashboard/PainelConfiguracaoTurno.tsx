@@ -22,7 +22,6 @@ export function PainelConfiguracaoTurno({
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-blue-700">Sprint 4</p>
             <h1 className="text-2xl font-bold text-slate-900">Dashboard em tempo real</h1>
             <p className="max-w-2xl text-sm text-slate-600">
               A configuração diária do turno define operadores ativos, minutos produtivos e o
@@ -74,7 +73,7 @@ export function PainelConfiguracaoTurno({
       {!configuracaoAtual ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
           O dashboard completo depende da configuração do turno. Preencha os três campos para
-          liberar as próximas métricas da Sprint 4.
+          liberar as próximas métricas do painel.
         </div>
       ) : (
         <MonitorRealtimeProducao />
