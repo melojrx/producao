@@ -13,9 +13,12 @@
 | 1 | Banco de dados | ✅ Concluída | 1 |
 | 2 | Cadastros (CRUD) | ✅ Concluída | 2 |
 | 3 | Scanner mobile | ✅ Concluída | 2 |
-| 4 | Dashboard em tempo real | 🚧 Em andamento | 2 |
+| 4 | Dashboard em tempo real | ✅ Concluída | 2 |
 | 5 | Alertas e relatórios | ⏳ Não iniciado | 1 |
 | 6 | Multi-produto no mesmo dia | 🔭 Proposta pós-MVP | 2 |
+| 7 | Escala do painel de máquinas | 🔭 Proposta pós-MVP | 1 |
+| 8 | Escala dos CRUDs admin | 🔭 Proposta pós-MVP | 1 |
+| 9 | Exportação CSV de relatórios | 🔭 Proposta pós-MVP | 1 |
 
 **Total estimado: 9 dias úteis**
 
@@ -81,7 +84,7 @@
 ## SPRINT 4 — Dashboard em tempo real
 **Objetivo:** Supervisor acompanha a produção ao vivo com metas calculadas.
 **Entregável:** Dashboard atualiza automaticamente. Modal de configuração do turno funcionando.
-**Status:** 🚧 Em andamento
+**Status:** ✅ Concluída
 
 - Hook useRealtimeProducao (Supabase Realtime)
 - Modal de configuração do turno (3 campos + cálculo de Meta Grupo)
@@ -95,11 +98,10 @@
 
 ## SPRINT 5 — Alertas e relatórios
 **Objetivo:** Sistema completo pronto para uso em produção.
-**Entregável:** Deploy na Vercel + relatório diário exportável.
+**Entregável:** Deploy na Vercel + relatório diário navegável.
 
 - Página de relatórios com filtros
 - Comparativo meta grupo vs realizado por dia
-- Exportação CSV
 - Testes de responsividade final
 - Testes de carga (20 operadores simultâneos)
 - Deploy Vercel + Supabase produção
@@ -121,6 +123,45 @@
 
 ---
 
+## SPRINT 7 — Escala do painel de máquinas
+**Objetivo:** Tornar o monitoramento de máquinas eficiente em operações com 20, 30 ou mais máquinas.
+**Entregável:** Dashboard com busca, filtros, modos de visualização e navegação mais eficiente para o grid de máquinas.
+**Status:** 🔭 Proposta pós-MVP
+
+- Adicionar filtro por status e por tipo de máquina
+- Adicionar busca por código da máquina
+- Permitir alternância entre modo `cards` e modo `tabela`
+- Permitir agrupamento por status com prioridade para máquinas em alerta
+- Adicionar paginação ou virtualização para parques maiores
+- Preservar o alerta visual prioritário para máquinas acima do limite de parada
+
+---
+
+## SPRINT 8 — Escala dos CRUDs admin
+**Objetivo:** Escalar operadores, máquinas, operações e produtos para bases maiores, com listagens mais performáticas e consistentes.
+**Entregável:** Todos os CRUDs admin usando busca, filtros e paginação server-side com URL como fonte de verdade.
+**Status:** 🔭 Proposta pós-MVP
+
+- Padronizar paginação server-side nos quatro módulos
+- Adicionar busca persistida na URL
+- Adicionar filtros server-side por módulo
+- Preservar filtros e paginação em refresh, compartilhamento de link e navegação
+- Criar um padrão único de tabela paginada para a área admin
+
+---
+
+## SPRINT 9 — Exportação CSV de relatórios
+**Objetivo:** Permitir exportação de relatórios em CSV para análise externa e abertura em planilhas.
+**Entregável:** Relatório filtrado exportável com colunas em português e compatibilidade com Excel.
+**Status:** 🔭 Proposta pós-MVP
+
+- Criar utilitário nativo de exportação CSV
+- Mapear colunas com cabeçalhos em português
+- Permitir exportar o resultado filtrado da tela de relatórios
+- Garantir abertura correta no Excel e similares
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -128,6 +169,9 @@ Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
                                      └──► Sprint 6 (pós-MVP)
+                                     └──► Sprint 7 (pós-MVP)
+                                     └──► Sprint 8 (pós-MVP)
+                                     └──► Sprint 9 (pós-MVP)
 ```
 
 Sprints 3 e 4 podem ser desenvolvidas em paralelo após Sprint 2.

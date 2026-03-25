@@ -262,6 +262,28 @@ AÇÃO DO SUPERVISOR:
   → Intervém (ajuda técnica, troca de operação, aciona manutenção)
 ```
 
+### 7.1 Evolução futura — painel de máquinas para parque maior
+
+O MVP usa um grid simples de cards, adequado para linhas pequenas. Quando a operação cresce para 20, 30 ou mais máquinas, o painel precisa ganhar recursos de navegação e filtragem.
+
+Evolução recomendada:
+- **filtro por status**: `ativas`, `paradas`, `manutenção`, `em alerta`
+- **filtro por tipo**: reta, overloque, galoneira, manual etc.
+- **busca por código**: localizar rapidamente uma máquina específica
+- **modo tabela**: visão densa para auditoria e conferência rápida
+- **modo cards**: visão operacional para alertas visuais
+- **agrupamento por status**: blocos como `Em alerta`, `Ativas`, `Paradas`, `Manutenção`
+- **paginação ou janela virtual**: evitar listas longas demais em dashboards com muitas máquinas
+
+Regra de produto:
+- o modo padrão continua sendo **cards**
+- tabela é complementar, voltada a supervisão detalhada
+- agrupamento por status deve priorizar primeiro as máquinas com alerta
+
+Critério para ativar essa evolução:
+- quando a quantidade de máquinas tornar o grid atual longo demais para leitura operacional contínua
+- ou quando o supervisor precisar localizar máquinas específicas com frequência durante o turno
+
 ---
 
 ## 8. MÓDULOS DO SISTEMA
@@ -314,7 +336,28 @@ Interface para supervisores em tempo real.
 - Produção por máquina
 - Eficiência por operação
 - Comparativo meta grupo vs realizado por dia
-- Exportação em CSV
+- Exportação em CSV (evolução pós-MVP)
+
+### 8.8 Evolução futura — escala dos CRUDs administrativos
+
+No MVP, as listagens de operadores, máquinas, operações e produtos podem funcionar sem paginação. Quando a base crescer, a evolução correta é migrar para listagens paginadas com filtros server-side e URL como fonte de verdade.
+
+Evolução recomendada:
+- **paginação server-side** em todos os CRUDs admin
+- **busca server-side** por campo principal de cada módulo
+- **filtros persistidos na URL** para refresh, compartilhamento de link e navegação por histórico
+- **ordenação estável** por campo principal do módulo
+
+Filtros esperados por módulo:
+- `Operadores`: nome, matrícula, status
+- `Máquinas`: código, modelo, marca, status, tipo
+- `Operações`: código, descrição, status, tipo
+- `Produtos`: referência, nome, status
+
+Regra de UX:
+- a URL é a fonte de verdade para `q`, `page`, `pageSize` e filtros
+- a paginação deve preservar filtros e busca ativos
+- o comportamento precisa ser consistente entre os quatro módulos
 
 ---
 
@@ -347,3 +390,5 @@ Interface para supervisores em tempo real.
 - Múltiplas fábricas ou filiais
 - Histórico de manutenção de máquinas
 - Múltiplos produtos por dia (MVP assume 1 produto por configuração de turno; evolução proposta no backlog pós-MVP)
+- Paginação e filtros server-side nos CRUDs admin (evolução proposta no backlog pós-MVP)
+- Exportação CSV de relatórios (evolução proposta no backlog pós-MVP)

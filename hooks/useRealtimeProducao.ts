@@ -6,16 +6,19 @@ import {
   buscarConfiguracaoTurnoHojeClient,
   listarProducaoHoje,
   listarProducaoPorHora,
+  listarStatusMaquinas,
 } from '@/lib/queries/producao'
 import type {
   ConfiguracaoTurno,
   ProducaoHojeRegistro,
   ProducaoPorHoraRegistro,
+  StatusMaquinaRegistro,
 } from '@/types'
 
 interface SnapshotProducao {
   registros: ProducaoHojeRegistro[]
   producaoPorHora: ProducaoPorHoraRegistro[]
+  statusMaquinas: StatusMaquinaRegistro[]
   configuracaoTurno: ConfiguracaoTurno | null
 }
 
@@ -24,6 +27,7 @@ export type StatusConexaoRealtime = 'conectando' | 'ativo' | 'erro'
 export interface UseRealtimeProducaoResultado {
   registros: ProducaoHojeRegistro[]
   producaoPorHora: ProducaoPorHoraRegistro[]
+  statusMaquinas: StatusMaquinaRegistro[]
   totalPecas: number
   eficienciaMedia: number
   configuracaoTurno: ConfiguracaoTurno | null
@@ -48,15 +52,17 @@ function calcularEficienciaMedia(registros: ProducaoHojeRegistro[]): number {
 }
 
 async function carregarSnapshot(): Promise<SnapshotProducao> {
-  const [registros, producaoPorHora, configuracaoTurno] = await Promise.all([
+  const [registros, producaoPorHora, statusMaquinas, configuracaoTurno] = await Promise.all([
     listarProducaoHoje(),
     listarProducaoPorHora(),
+    listarStatusMaquinas(),
     buscarConfiguracaoTurnoHojeClient(),
   ])
 
   return {
     registros,
     producaoPorHora,
+    statusMaquinas,
     configuracaoTurno,
   }
 }
@@ -64,6 +70,7 @@ async function carregarSnapshot(): Promise<SnapshotProducao> {
 export function useRealtimeProducao(): UseRealtimeProducaoResultado {
   const [registros, setRegistros] = useState<ProducaoHojeRegistro[]>([])
   const [producaoPorHora, setProducaoPorHora] = useState<ProducaoPorHoraRegistro[]>([])
+  const [statusMaquinas, setStatusMaquinas] = useState<StatusMaquinaRegistro[]>([])
   const [configuracaoTurno, setConfiguracaoTurno] = useState<ConfiguracaoTurno | null>(null)
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null)
   const [statusConexao, setStatusConexao] = useState<StatusConexaoRealtime>('conectando')
@@ -75,6 +82,7 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
     startTransition(() => {
       setRegistros(snapshot.registros)
       setProducaoPorHora(snapshot.producaoPorHora)
+      setStatusMaquinas(snapshot.statusMaquinas)
       setConfiguracaoTurno(snapshot.configuracaoTurno)
       setUltimaAtualizacao(new Date())
       setErro(null)
@@ -131,6 +139,17 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
           void recarregar()
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'maquinas',
+        },
+        () => {
+          void recarregar()
+        }
+      )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setStatusConexao('ativo')
@@ -152,6 +171,7 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
   return {
     registros,
     producaoPorHora,
+    statusMaquinas,
     totalPecas: calcularTotalPecas(registros),
     eficienciaMedia: calcularEficienciaMedia(registros),
     configuracaoTurno,

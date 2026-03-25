@@ -574,7 +574,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 4 — Dashboard em tempo real
-**Status:** 🚧 Em andamento
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 2 concluída. (Pode rodar em paralelo com Sprint 3)
 **Objetivo:** Dashboard atualiza automaticamente. Metas calculadas com base na configuração do turno.
 
@@ -637,49 +637,41 @@ Nunca avance de sprint sem confirmação explícita minha.
   **Evidência:** Gráfico exibe curva de produção corretamente.
   `components/dashboard/GraficoProducaoPorHora.tsx` implementado com `ResponsiveContainer` e `LineChart` do Recharts, integrado ao `useRealtimeProducao`; gráfico validado no dashboard com curva por hora, tooltip correto e atualização automática após novo registro no scanner.
 
-- [ ] **4.6 — Ranking de operadores**
+- [x] **4.6 — Ranking de operadores**
   Criar `components/dashboard/RankingOperadores.tsx`.
   Dados de `vw_producao_hoje`. Cores: verde ≥ 70%, amarelo 50–69%, vermelho < 50%.
   **Evidência:** Ranking ordenado com cores corretas.
+  `components/dashboard/RankingOperadores.tsx` implementado e integrado ao dashboard com dados de `vw_producao_hoje`; validação feita com ranking ordenado pela eficiência e faixas visuais corretas: verde ≥ 70%, amarelo entre 50% e 69,99% e vermelho abaixo de 50%.
 
-- [ ] **4.7 — Grid de status das máquinas**
+- [x] **4.7 — Grid de status das máquinas**
   Criar `components/dashboard/StatusMaquinas.tsx`.
   Dados de `vw_status_maquinas`.
   Card pisca vermelho se `minutos_sem_uso > ALERTA_MAQUINA_PARADA`.
   **Evidência:** Máquina sem registro há 20 min aparece com card piscando.
+  `components/dashboard/StatusMaquinas.tsx` implementado com dados de `vw_status_maquinas`, integrado ao `useRealtimeProducao` e ao dashboard; grid validado com código, tipo, último uso, minutos sem uso e diferenciação visual por status, incluindo alerta vermelho pulsante quando `minutos_sem_uso` ultrapassa `ALERTA_MAQUINA_PARADA`.
 
-- [ ] **4.8 — Página do dashboard**
+- [x] **4.8 — Página do dashboard**
   Criar `app/(admin)/dashboard/page.tsx`.
   Se não houver configuração hoje: renderiza o `ModalConfiguracaoTurno` bloqueando o dashboard.
   Se houver: renderiza os 4 cards + gráfico + ranking + máquinas.
   Responsivo: 1 coluna mobile, 2 tablet, grid completo desktop.
   **Evidência:** Dashboard renderiza corretamente em 375px, 768px e 1280px.
+  `app/admin/dashboard/page.tsx` consolidado como página final do dashboard, com carregamento server-side da configuração do turno e composição completa dos blocos da Sprint 4; responsividade validada em 375px, 768px e 1280px sem quebra de layout.
 
 ---
 
 ## SPRINT 5 — Alertas e relatórios
-**Status:** ⏳ Não iniciado
+**Status:** 🚧 Em andamento
 **Pré-requisito:** Sprints 3 e 4 concluídas.
 **Objetivo:** Sistema completo pronto para deploy.
 
-- [ ] **5.1 — Página de relatórios**
+- [x] **5.1 — Página de relatórios**
   Criar `app/(admin)/relatorios/page.tsx`.
   Filtros: data início/fim, operador, operação.
   Tabela paginada: operador, operação, máquina, quantidade, data/hora.
   Card extra: comparativo Meta Grupo vs Realizado por dia (gráfico de barras).
   **Evidência:** Filtrar por operador e período, dados corretos na tabela.
-
-- [ ] **5.2 — Exportação CSV**
-  Criar `lib/utils/exportacao.ts`:
-  ```typescript
-  export function exportarCSV(
-    dados: Record<string, unknown>[],
-    cabecalhos: Record<string, string>,
-    nomeArquivo: string
-  ): void
-  ```
-  Usar apenas Web APIs nativas. Cabeçalhos em português.
-  **Evidência:** Download abre corretamente no Excel com colunas nomeadas em português.
+  `app/admin/relatorios/page.tsx` implementado com filtros por período, operador e operação via `searchParams`, tabela paginada e gráfico de barras comparando `Meta Grupo vs Realizado`; validação feita filtrando por operador e período, com dados corretos na tabela e filtros preservados na paginação.
 
 - [ ] **5.3 — Testes de responsividade final**
   Testar todas as telas em: 375px, 390px, 768px, 1280px.
@@ -788,3 +780,191 @@ Nunca avance de sprint sem confirmação explícita minha.
   - criar bloco único de migração quando necessário
   - relatórios históricos continuam consistentes
   **Evidência:** Relatórios antigos e novos coexistem sem quebrar consultas nem métricas.
+
+---
+
+## SPRINT 7 — Escala do painel de máquinas (Pós-MVP)
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 5 concluída.
+**Objetivo:** Escalar o painel de máquinas para operações com parque maior, sem perder legibilidade operacional.
+
+- [ ] **7.1 — Busca por código e filtros por status/tipo**
+  Evoluir o painel de máquinas com:
+  - busca textual por `codigo`
+  - filtro por `status`
+  - filtro por `tipo_nome`
+
+  Regras:
+  - filtros devem combinar entre si
+  - o estado dos filtros deve sobreviver a atualizações realtime
+  - filtros rápidos devem incluir `em alerta`
+  **Evidência:** Supervisor encontra uma máquina específica digitando o código e consegue restringir o grid para `manutenção` ou `em alerta`.
+
+- [ ] **7.2 — Agrupamento por status**
+  Permitir agrupar o painel em seções:
+  - `Em alerta`
+  - `Ativas`
+  - `Paradas`
+  - `Manutenção`
+
+  Regras:
+  - `Em alerta` sempre aparece primeiro
+  - agrupamento deve respeitar os filtros ativos
+  - cada grupo exibe contador de máquinas
+  **Evidência:** Painel mostra grupos ordenados por prioridade operacional, com máquinas em alerta no topo.
+
+- [ ] **7.3 — Alternância entre modo cards e modo tabela**
+  Adicionar um toggle de visualização:
+  - `cards` para acompanhamento operacional
+  - `tabela` para leitura densa e auditoria rápida
+
+  Colunas mínimas do modo tabela:
+  - código
+  - tipo
+  - status
+  - minutos sem uso
+  - último uso
+  - indicador visual de alerta
+  **Evidência:** Supervisor alterna entre cards e tabela sem perder filtros nem contexto.
+
+- [ ] **7.4 — Paginação ou virtualização**
+  Implementar navegação eficiente para cenários com 20, 30 ou mais máquinas.
+
+  Estratégia:
+  - usar paginação simples se a densidade visual do modo tabela for suficiente
+  - avaliar virtualização se o modo cards crescer demais
+
+  Regras:
+  - a experiência não pode esconder alertas críticos
+  - máquinas em alerta devem continuar visíveis ou destacadas mesmo com paginação
+  **Evidência:** Painel continua utilizável com 30+ máquinas sem scroll excessivo nem perda de alertas.
+
+- [ ] **7.5 — Prioridade operacional e experiência do supervisor**
+  Refinar a UX do painel escalado:
+  - resumo por status no topo
+  - contador de máquinas filtradas
+  - preservação do tempo real sem resetar scroll e filtros
+
+  Regras:
+  - atualizações realtime não devem "pular" a tela do supervisor
+  - alertas críticos devem ter prioridade visual
+  **Evidência:** Com o dashboard aberto durante o turno, novos eventos não quebram o contexto de navegação do supervisor.
+
+---
+
+## SPRINT 8 — Escala dos CRUDs admin (Pós-MVP)
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 5 concluída.
+**Objetivo:** Padronizar paginação, busca e filtros server-side nos CRUDs de operadores, máquinas, operações e produtos.
+
+- [ ] **8.1 — Padrão de paginação administrativa**
+  Criar um padrão compartilhado de listagem paginada para a área admin.
+
+  Contrato recomendado:
+  ```typescript
+  interface ResultadoPaginado<T> {
+    itens: T[]
+    total: number
+    page: number
+    pageSize: number
+    totalPaginas: number
+  }
+  ```
+
+  Regras:
+  - `searchParams` são a fonte de verdade para `q`, `page`, `pageSize`
+  - paginação preserva busca e filtros ativos
+  - renderização inicial acontece no servidor
+  **Evidência:** Um padrão único de paginação é reutilizado em pelo menos dois módulos admin.
+
+- [ ] **8.2 — Operadores com paginação e filtro por status**
+  Evoluir `/admin/operadores` para:
+  - busca server-side por `nome` e `matricula`
+  - filtro por `status`
+  - paginação server-side
+
+  Regras:
+  - ordenação padrão por `nome`
+  - busca e filtros persistem na URL
+  **Evidência:** Filtrar operadores por status e navegar páginas mantendo os filtros.
+
+- [ ] **8.3 — Máquinas com paginação e filtros por status/tipo**
+  Evoluir `/admin/maquinas` para:
+  - busca server-side por `codigo`, `modelo`, `marca`
+  - filtro por `status`
+  - filtro por `tipo_maquina_codigo`
+  - paginação server-side
+
+  Regras:
+  - ordenação padrão por `codigo`
+  - estado da listagem sobrevive a refresh
+  **Evidência:** Buscar uma máquina por código e paginar mantendo filtros por status/tipo.
+
+- [ ] **8.4 — Operações com paginação e filtros por status/tipo**
+  Evoluir `/admin/operacoes` para:
+  - busca server-side por `codigo` e `descricao`
+  - filtro por `ativa/inativa`
+  - filtro por `tipo_maquina_codigo`
+  - paginação server-side
+
+  Regras:
+  - ordenação padrão por `codigo`
+  - o comportamento segue o mesmo padrão dos demais CRUDs
+  **Evidência:** Buscar uma operação por código e navegar entre páginas sem perder os filtros.
+
+- [ ] **8.5 — Produtos com paginação e filtro por status**
+  Evoluir `/admin/produtos` para:
+  - busca server-side por `referencia` e `nome`
+  - filtro por `ativo/inativo`
+  - paginação server-side
+
+  Regras:
+  - ordenação padrão por `nome`
+  - paginação preserva filtros e busca
+  **Evidência:** Filtrar produtos por status e navegar páginas mantendo o contexto.
+
+- [ ] **8.6 — Padronização de UX e navegação**
+  Consolidar a experiência dos quatro CRUDs:
+  - contador de resultados
+  - ações `Anterior` e `Próxima`
+  - estado vazio consistente
+  - limpeza de filtros
+
+  Regras:
+  - nenhuma listagem deve depender de filtro apenas em `useState`
+  - links devem ser compartilháveis e reabrir o mesmo estado de listagem
+  **Evidência:** Copiar a URL de uma listagem filtrada e reabrir a página preserva o mesmo estado.
+
+---
+
+## SPRINT 9 — Exportação CSV de relatórios (Pós-MVP)
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 5 concluída.
+**Objetivo:** Exportar relatórios filtrados em CSV com compatibilidade prática para Excel.
+
+- [ ] **9.1 — Utilitário de exportação CSV**
+  Criar `lib/utils/exportacao.ts`:
+  ```typescript
+  export function exportarCSV(
+    dados: Record<string, unknown>[],
+    cabecalhos: Record<string, string>,
+    nomeArquivo: string
+  ): void
+  ```
+  Regras:
+  - usar apenas Web APIs nativas
+  - cabeçalhos em português
+  - preservar ordem de colunas
+  **Evidência:** Download abre corretamente no Excel com colunas nomeadas em português.
+
+- [ ] **9.2 — Integração com a página de relatórios**
+  Adicionar ação de exportar na tela `/admin/relatorios`.
+  A exportação deve respeitar os filtros ativos:
+  - data início/fim
+  - operador
+  - operação
+
+  Regras:
+  - exportar o conjunto filtrado correto
+  - manter nomenclatura de arquivo legível
+  **Evidência:** Aplicar filtros na página e gerar CSV contendo somente os registros visíveis ao filtro.

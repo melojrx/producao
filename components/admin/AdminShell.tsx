@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Factory,
+  FileBarChart2,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ const navLinks = [
   { href: '/admin/maquinas', label: 'Máquinas', icon: Settings2 },
   { href: '/admin/operacoes', label: 'Operações', icon: Wrench },
   { href: '/admin/produtos', label: 'Produtos', icon: Package },
+  { href: '/admin/relatorios', label: 'Relatórios', icon: FileBarChart2 },
 ]
 
 interface AdminShellProps {

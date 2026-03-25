@@ -8,11 +8,11 @@ export default async function AdminDashboardPage() {
   ])
 
   return (
-    <div className="space-y-6">
+    <main className="w-full space-y-6">
       <PainelConfiguracaoTurno
         configuracaoAtual={configuracaoAtual}
         produtos={produtos}
       />
-    </div>
+    </main>
   )
 }

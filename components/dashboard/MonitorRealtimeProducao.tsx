@@ -4,6 +4,8 @@ import { useMemo } from 'react'
 import { Activity, Gauge, RefreshCw, Signal, Target, Users } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { GraficoProducaoPorHora } from '@/components/dashboard/GraficoProducaoPorHora'
+import { RankingOperadores } from '@/components/dashboard/RankingOperadores'
+import { StatusMaquinas } from '@/components/dashboard/StatusMaquinas'
 import { useRealtimeProducao } from '@/hooks'
 
 function formatarUltimaAtualizacao(data: Date | null): string {
@@ -25,6 +27,7 @@ export function MonitorRealtimeProducao() {
     totalPecas,
     eficienciaMedia,
     producaoPorHora,
+    statusMaquinas,
     configuracaoTurno,
     ultimaAtualizacao,
     statusConexao,
@@ -123,43 +126,10 @@ export function MonitorRealtimeProducao() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr,0.85fr]">
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-slate-900">Top operadores hoje</h3>
-            {estaCarregando ? (
-              <span className="text-xs text-slate-500">Sincronizando...</span>
-            ) : null}
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {registros.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum registro encontrado para hoje.</p>
-            ) : (
-              registros.slice(0, 5).map((registro) => (
-                <div
-                  key={registro.operadorId}
-                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">
-                      {registro.operadorNome}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {registro.totalPecas} peças • {registro.totalRegistros} registros
-                    </p>
-                  </div>
-                  <p
-                    className="text-sm font-semibold text-slate-900"
-                    title="Eficiência % do operador no dia"
-                    aria-label={`Eficiência do operador ${registro.operadorNome}: ${registro.eficienciaPct.toFixed(2)} por cento`}
-                  >
-                    {registro.eficienciaPct.toFixed(2)}%
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <RankingOperadores
+          registros={registros}
+          estaCarregando={estaCarregando}
+        />
 
         <div className="rounded-2xl border border-slate-200 p-4">
           <h3 className="text-sm font-semibold text-slate-900">Snapshot do turno</h3>
@@ -189,6 +159,11 @@ export function MonitorRealtimeProducao() {
           </div>
         </div>
       </div>
+
+      <StatusMaquinas
+        maquinas={statusMaquinas}
+        estaCarregando={estaCarregando}
+      />
     </section>
   )
 }

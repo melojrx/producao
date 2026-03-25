@@ -4,6 +4,7 @@ import type {
   ConfiguracaoTurno,
   ProducaoHojeRegistro,
   ProducaoPorHoraRegistro,
+  StatusMaquinaRegistro,
 } from '@/types'
 
 export async function listarProducaoHoje(): Promise<ProducaoHojeRegistro[]> {
@@ -49,6 +50,28 @@ export async function listarProducaoPorHora(): Promise<ProducaoPorHoraRegistro[]
       totalRegistros: registro.total_registros ?? 0,
       totalPecas: registro.total_pecas ?? 0,
     }))
+}
+
+export async function listarStatusMaquinas(): Promise<StatusMaquinaRegistro[]> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('vw_status_maquinas')
+    .select('*')
+    .order('codigo', { ascending: true })
+
+  if (error) {
+    throw new Error(`Erro ao buscar status das máquinas: ${error.message}`)
+  }
+
+  return (data ?? []).map((registro) => ({
+    id: registro.id ?? '',
+    codigo: registro.codigo ?? 'Máquina sem código',
+    tipoNome: registro.tipo_nome ?? 'Tipo não informado',
+    status: (registro.status ?? 'parada') as StatusMaquinaRegistro['status'],
+    ultimoUso: registro.ultimo_uso,
+    minutosSemUso: registro.minutos_sem_uso ?? 0,
+  }))
 }
 
 export async function buscarConfiguracaoTurnoHojeClient(): Promise<ConfiguracaoTurno | null> {

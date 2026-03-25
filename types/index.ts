@@ -74,6 +74,41 @@ export interface ProducaoPorHoraRegistro {
   totalPecas: number
 }
 
+export interface StatusMaquinaRegistro {
+  id: string
+  codigo: string
+  tipoNome: string
+  status: MaquinaStatus
+  ultimoUso: string | null
+  minutosSemUso: number
+}
+
+export interface RelatorioRegistroItem {
+  id: string
+  operadorId: string | null
+  operadorNome: string
+  operacaoId: string | null
+  operacaoCodigo: string
+  operacaoDescricao: string
+  maquinaCodigo: string | null
+  quantidade: number
+  dataProducao: string
+  horaRegistro: string
+}
+
+export interface ComparativoMetaGrupoItem {
+  data: string
+  metaGrupo: number
+  realizado: number
+}
+
+export interface RelatorioFiltros {
+  dataInicio: string
+  dataFim: string
+  operadorId: string
+  operacaoId: string
+}
+
 export interface TipoMaquinaOption extends Tables<'tipos_maquina'> {}
 
 export interface MaquinaListItem extends Tables<'maquinas'> {
