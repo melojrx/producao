@@ -185,6 +185,44 @@ O supervisor preenche **3 campos** no início de cada turno. Esses valores alime
 - Só é permitida **uma configuração por dia** (UNIQUE por data)
 - Se não houver configuração para hoje, o dashboard exibe um modal solicitando o preenchimento antes de mostrar os dados
 
+### 6.3.1 Evolução futura — múltiplos produtos no mesmo dia
+
+O MVP assume **1 produto por dia**. Quando a confecção alterna produtos no mesmo turno, a modelagem correta não é guardar vários `produto_id` no mesmo registro diário.
+
+A evolução recomendada é separar:
+
+1. **Cabeçalho do dia**
+   - continua representando o turno do dia (`data`, linha/célula, observações gerais)
+
+2. **Blocos de produção do dia**
+   - cada bloco representa um produto planejado ou em execução naquele dia
+   - campos sugeridos:
+     - `configuracao_turno_id`
+     - `produto_id`
+     - `sequencia`
+     - `funcionarios_ativos`
+     - `minutos_planejados`
+     - `tp_produto_min`
+     - `meta_grupo`
+     - `status` = `planejado | ativo | concluido`
+     - `iniciado_em` / `encerrado_em` (opcional)
+
+Fórmulas nessa evolução:
+
+```text
+Meta Grupo do bloco = floor((funcionarios_ativos × minutos_planejados) / tp_produto)
+
+Meta Grupo do dia = soma(meta_grupo de todos os blocos do dia)
+```
+
+Regra operacional:
+- o supervisor planeja 1 ou mais blocos para o dia
+- apenas **1 bloco fica ativo por vez** em cada linha/célula
+- o scanner registra produção no **bloco ativo**, não em um `produto_id` global do dia
+- o dashboard mostra o total do dia e também o progresso por bloco
+
+Essa modelagem cobre bem trocas sequenciais de produto no mesmo dia. Se no futuro houver produção simultânea de produtos diferentes em linhas distintas, a modelagem deve ganhar também a dimensão de `linha` ou `celula`.
+
 ### 6.4 Onde as metas aparecem
 
 | Local | Meta exibida |
@@ -308,4 +346,4 @@ Interface para supervisores em tempo real.
 - App nativo (iOS/Android) — PWA é suficiente para o MVP
 - Múltiplas fábricas ou filiais
 - Histórico de manutenção de máquinas
-- Múltiplos produtos por dia (MVP assume 1 produto por configuração de turno)
+- Múltiplos produtos por dia (MVP assume 1 produto por configuração de turno; evolução proposta no backlog pós-MVP)

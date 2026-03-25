@@ -13,8 +13,9 @@
 | 1 | Banco de dados | ✅ Concluída | 1 |
 | 2 | Cadastros (CRUD) | ✅ Concluída | 2 |
 | 3 | Scanner mobile | ✅ Concluída | 2 |
-| 4 | Dashboard em tempo real | ⏳ Não iniciado | 2 |
+| 4 | Dashboard em tempo real | 🚧 Em andamento | 2 |
 | 5 | Alertas e relatórios | ⏳ Não iniciado | 1 |
+| 6 | Multi-produto no mesmo dia | 🔭 Proposta pós-MVP | 2 |
 
 **Total estimado: 9 dias úteis**
 
@@ -80,6 +81,7 @@
 ## SPRINT 4 — Dashboard em tempo real
 **Objetivo:** Supervisor acompanha a produção ao vivo com metas calculadas.
 **Entregável:** Dashboard atualiza automaticamente. Modal de configuração do turno funcionando.
+**Status:** 🚧 Em andamento
 
 - Hook useRealtimeProducao (Supabase Realtime)
 - Modal de configuração do turno (3 campos + cálculo de Meta Grupo)
@@ -105,12 +107,27 @@
 
 ---
 
+## SPRINT 6 — Multi-produto no mesmo dia
+**Objetivo:** Permitir mais de um produto no mesmo dia sem perder consistência de meta e rastreabilidade.
+**Entregável:** Supervisor planeja múltiplos blocos por dia, ativa um bloco por vez e o scanner registra produção no bloco ativo.
+**Status:** 🔭 Proposta pós-MVP
+
+- Refatorar a configuração diária para suportar **blocos de produção**
+- Calcular `meta_grupo` por bloco e somar o total do dia
+- Permitir planejar sequência de produtos no dashboard
+- Registrar produção vinculada ao bloco ativo
+- Exibir no dashboard: total do dia + progresso por bloco
+- Manter compatibilidade com histórico do MVP de 1 produto por dia
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
+                                     └──► Sprint 6 (pós-MVP)
 ```
 
 Sprints 3 e 4 podem ser desenvolvidas em paralelo após Sprint 2.

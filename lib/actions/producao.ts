@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { obterDataHojeLocal } from '@/lib/utils/data'
 import type { MaquinaStatus, OperadorStatus } from '@/types'
 
 export interface RegistrarProducaoInput {
@@ -29,12 +30,6 @@ interface MaquinaValidacaoRow {
 interface OperacaoValidacaoRow {
   id: string
   ativa: boolean | null
-}
-
-function obterDataHojeLocal(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Fortaleza',
-  }).format(new Date())
 }
 
 function quantidadeValida(quantidade: number): boolean {

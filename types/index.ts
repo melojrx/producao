@@ -51,6 +51,29 @@ export interface ConfiguracaoTurno {
   metaGrupo: number | null
 }
 
+export interface ProdutoTurnoOption {
+  id: string
+  nome: string
+  referencia: string
+  tpProdutoMin: number
+}
+
+export interface ProducaoHojeRegistro {
+  operadorId: string
+  operadorNome: string
+  operadorStatus: OperadorStatus
+  totalRegistros: number
+  totalPecas: number
+  minutosProdutivos: number
+  eficienciaPct: number
+}
+
+export interface ProducaoPorHoraRegistro {
+  hora: string
+  totalRegistros: number
+  totalPecas: number
+}
+
 export interface TipoMaquinaOption extends Tables<'tipos_maquina'> {}
 
 export interface MaquinaListItem extends Tables<'maquinas'> {

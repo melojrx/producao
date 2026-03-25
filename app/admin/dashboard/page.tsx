@@ -1,3 +1,18 @@
-export default function AdminDashboardPage() {
-  return <p className="text-gray-500">Dashboard — Sprint 4</p>
+import { PainelConfiguracaoTurno } from '@/components/dashboard/PainelConfiguracaoTurno'
+import { buscarConfiguracaoHoje, listarProdutosAtivosParaTurno } from '@/lib/queries/turno'
+
+export default async function AdminDashboardPage() {
+  const [configuracaoAtual, produtos] = await Promise.all([
+    buscarConfiguracaoHoje(),
+    listarProdutosAtivosParaTurno(),
+  ])
+
+  return (
+    <div className="space-y-6">
+      <PainelConfiguracaoTurno
+        configuracaoAtual={configuracaoAtual}
+        produtos={produtos}
+      />
+    </div>
+  )
 }

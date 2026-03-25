@@ -1,19 +1,11 @@
 import { createClient } from '@/lib/supabase/client'
+import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurno,
   MaquinaScaneada,
   OperacaoScaneada,
   OperadorScaneado,
 } from '@/types'
-
-function formatarDataAtual(): string {
-  const agora = new Date()
-  const ano = agora.getFullYear()
-  const mes = String(agora.getMonth() + 1).padStart(2, '0')
-  const dia = String(agora.getDate()).padStart(2, '0')
-
-  return `${ano}-${mes}-${dia}`
-}
 
 export async function buscarOperadorScaneadoPorToken(
   token: string
@@ -106,7 +98,7 @@ export async function buscarConfiguracaoTurnoHoje(): Promise<ConfiguracaoTurno |
     .select(
       'id, data, funcionarios_ativos, minutos_turno, produto_id, tp_produto_min, meta_grupo'
     )
-    .eq('data', formatarDataAtual())
+    .eq('data', obterDataHojeLocal())
     .maybeSingle()
 
   if (error || !data) {

@@ -60,7 +60,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 1 — Banco de dados
-**Status:** ✅ Concluída (pendente: 1.10 Realtime — habilitar manualmente no Dashboard)
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 0 concluída.
 **Objetivo:** Schema completo no Supabase com views, configuração de turno e Realtime habilitado.
 
@@ -294,11 +294,11 @@ Nunca avance de sprint sem confirmação explícita minha.
   ```
   **Evidência:** RLS ativo em 5 tabelas. Políticas de leitura pública e inserção aberta para o scanner. ✅
 
-- [ ] **1.10 — Habilitar Realtime**
+- [x] **1.10 — Habilitar Realtime**
   No Supabase Dashboard → Database → Replication → Tables:
   - Habilitar `registros_producao` (INSERT)
   - Habilitar `maquinas` (UPDATE)
-  **Evidência:** ⚠️ Pendente — habilitar manualmente no Supabase Dashboard → Database → Replication.
+  **Evidência:** `public.registros_producao` e `public.maquinas` adicionadas à publication `supabase_realtime`; validação feita com `pg_publication_tables`, retornando ambas as tabelas.
 
 - [x] **1.11 — Gerar types TypeScript e criar types de domínio**
   ```bash
@@ -574,11 +574,11 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 4 — Dashboard em tempo real
-**Status:** ⏳ Não iniciado
+**Status:** 🚧 Em andamento
 **Pré-requisito:** Sprint 2 concluída. (Pode rodar em paralelo com Sprint 3)
 **Objetivo:** Dashboard atualiza automaticamente. Metas calculadas com base na configuração do turno.
 
-- [ ] **4.1 — Server Action e query de configuração do turno**
+- [x] **4.1 — Server Action e query de configuração do turno**
   Criar `lib/actions/turno.ts`:
   ```typescript
   export async function salvarConfiguracaoTurno(input: {
@@ -598,8 +598,9 @@ Nunca avance de sprint sem confirmação explícita minha.
   export async function buscarConfiguracaoHoje(): Promise<ConfiguracaoTurno | null>
   ```
   **Evidência:** Salvar configuração com 20 funcionários, 540 min, produto com T.P total 13.89 → `meta_grupo = 777` no banco.
+  `lib/actions/turno.ts` e `lib/queries/turno.ts` implementados com cálculo de `tpProduto` e `metaGrupo`, `upsert` por data e leitura server-side da configuração atual; persistência confirmada no Supabase em `2026-03-25` com `funcionarios_ativos = 25`, `minutos_turno = 540`, `tp_produto_min = 1.43` e `meta_grupo = 9440`.
 
-- [ ] **4.2 — Modal de configuração do turno**
+- [x] **4.2 — Modal de configuração do turno**
   Criar `components/dashboard/ModalConfiguracaoTurno.tsx`.
   3 campos:
   - `funcionarios_ativos` — input numérico
@@ -609,15 +610,17 @@ Nunca avance de sprint sem confirmação explícita minha.
   Ao salvar: chama `salvarConfiguracaoTurno()`.
   Modal abre automaticamente se `buscarConfiguracaoHoje()` retornar `null`.
   **Evidência:** Preencher os 3 campos, Meta Grupo exibida antes de salvar, confirmar valor no banco após salvar.
+  `components/dashboard/ModalConfiguracaoTurno.tsx` implementado e integrado ao `/admin/dashboard`, com preview em tempo real de `T.P Produto` e `Meta Grupo`, abertura automática quando não há configuração do dia e ajuste visual dos campos; salvamento validado pela UI e conferido no banco.
 
-- [ ] **4.3 — Hook useRealtimeProducao**
+- [x] **4.3 — Hook useRealtimeProducao**
   Criar `hooks/useRealtimeProducao.ts`:
   Assina INSERT em `registros_producao` via Supabase Realtime.
   A cada evento: refetch de `vw_producao_hoje` e `vw_producao_por_hora`.
   Retorna: `{ registros, totalPecas, eficienciaMedia, configuracaoTurno, ultimaAtualizacao }`.
   **Evidência:** Dashboard aberto + registro criado pelo scanner → dashboard atualiza em menos de 2 segundos.
+  `hooks/useRealtimeProducao.ts` implementado com assinatura `postgres_changes` em `registros_producao`, queries client-side para `vw_producao_hoje` e `vw_producao_por_hora` e consumidor real no `/admin/dashboard`; validação feita com registro criado pelo scanner e atualização automática do dashboard em menos de 2 segundos.
 
-- [ ] **4.4 — Cards de KPI**
+- [x] **4.4 — Cards de KPI**
   Criar `components/dashboard/CardKPI.tsx`.
   4 cards:
   - Meta Grupo do dia (de `configuracao_turno.meta_grupo`)
@@ -626,11 +629,13 @@ Nunca avance de sprint sem confirmação explícita minha.
   - Peças produzidas hoje
   Animação de contagem (Framer Motion) quando valor muda.
   **Evidência:** Cards exibem valores corretos. Progresso % atualiza após novo registro.
+  `components/dashboard/CardKPI.tsx` implementado com animação de contagem e integrado ao dashboard via `useRealtimeProducao`; cards de Meta Grupo, Progresso %, Eficiência média e Peças produzidas validados na UI, com atualização automática após novo registro do scanner.
 
-- [ ] **4.5 — Gráfico de produção por hora**
+- [x] **4.5 — Gráfico de produção por hora**
   Criar `components/dashboard/GraficoProducaoPorHora.tsx`.
   Usar Recharts `LineChart`. Dados de `vw_producao_por_hora`.
   **Evidência:** Gráfico exibe curva de produção corretamente.
+  `components/dashboard/GraficoProducaoPorHora.tsx` implementado com `ResponsiveContainer` e `LineChart` do Recharts, integrado ao `useRealtimeProducao`; gráfico validado no dashboard com curva por hora, tooltip correto e atualização automática após novo registro no scanner.
 
 - [ ] **4.6 — Ranking de operadores**
   Criar `components/dashboard/RankingOperadores.tsx`.
@@ -691,3 +696,95 @@ Nunca avance de sprint sem confirmação explícita minha.
   Criar `docs/MANUAL_OPERADOR.md` em linguagem simples, sem termos técnicos.
   Incluir: passo a passo com screenshots, o que fazer se o QR não ler, quem chamar em caso de problema.
   **Evidência:** Pessoa sem experiência técnica consegue registrar produção lendo apenas o manual.
+
+---
+
+## SPRINT 6 — Multi-produto no mesmo dia (Pós-MVP)
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 5 concluída.
+**Objetivo:** Suportar mais de um produto no mesmo dia com metas corretas por bloco de produção.
+
+- [ ] **6.1 — Refatorar modelagem da configuração do turno**
+  Evoluir a modelagem para separar:
+  - cabeçalho do dia (`configuracao_turno`)
+  - blocos do dia (`configuracao_turno_blocos`)
+
+  Estrutura proposta para `configuracao_turno_blocos`:
+  ```sql
+  CREATE TABLE configuracao_turno_blocos (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    configuracao_turno_id UUID NOT NULL REFERENCES configuracao_turno(id) ON DELETE CASCADE,
+    produto_id UUID NOT NULL REFERENCES produtos(id),
+    sequencia INTEGER NOT NULL,
+    funcionarios_ativos INTEGER NOT NULL CHECK (funcionarios_ativos > 0),
+    minutos_planejados INTEGER NOT NULL CHECK (minutos_planejados > 0),
+    tp_produto_min DECIMAL(10,4) NOT NULL,
+    meta_grupo INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('planejado', 'ativo', 'concluido')),
+    iniciado_em TIMESTAMPTZ,
+    encerrado_em TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(configuracao_turno_id, sequencia)
+  );
+  ```
+  Regra: apenas 1 bloco `ativo` por vez em cada configuração do dia.
+  **Evidência:** Dia com 2 blocos planejados salvos no banco, cada um com `tp_produto_min` e `meta_grupo` próprios.
+
+- [ ] **6.2 — Server Actions e queries para blocos do dia**
+  Criar:
+  - `lib/actions/turno-blocos.ts`
+  - `lib/queries/turno-blocos.ts`
+
+  Ações:
+  - criar bloco
+  - editar bloco
+  - ativar bloco
+  - concluir bloco
+  - reordenar sequência
+
+  Regras:
+  - `meta_grupo_bloco = floor((funcionarios_ativos × minutos_planejados) / tp_produto)`
+  - `meta_grupo_dia = soma(meta_grupo dos blocos)`
+  - ao ativar um bloco, os demais do dia ficam `planejado` ou `concluido`
+  **Evidência:** Ativar bloco 2 automaticamente desativa o bloco 1 como bloco corrente.
+
+- [ ] **6.3 — Modal de planejamento do dia com múltiplos produtos**
+  Evoluir o modal do turno para permitir adicionar vários blocos:
+  - produto
+  - minutos planejados
+  - funcionários ativos
+  - T.P Produto
+  - Meta Grupo do bloco
+
+  Exibir também:
+  - Meta total do dia = soma dos blocos
+  - Ordem dos blocos
+  - Bloco atualmente ativo
+  **Evidência:** Supervisor planeja 3 blocos no mesmo dia e vê a meta total consolidada antes de salvar.
+
+- [ ] **6.4 — Scanner registra no bloco ativo**
+  Ajustar o fluxo de produção para vincular cada registro ao bloco ativo do dia.
+  Adicionar `configuracao_turno_bloco_id` em `registros_producao`.
+
+  Regra:
+  - o scanner não usa mais apenas `configuracao_turno.produto_id`
+  - o produto do registro vem do bloco ativo
+  - se não houver bloco ativo, o registro é bloqueado com mensagem para o supervisor
+  **Evidência:** Trocar o bloco ativo muda o `produto_id` dos registros seguintes sem reiniciar a sessão do operador.
+
+- [ ] **6.5 — Dashboard consolidado por dia e por bloco**
+  Evoluir cards e gráficos para mostrar:
+  - realizado do dia
+  - meta total do dia
+  - progresso por bloco
+  - bloco atual
+  - blocos concluídos x pendentes
+  **Evidência:** Dashboard mostra 2 blocos concluídos e 1 ativo no mesmo dia, com totais corretos.
+
+- [ ] **6.6 — Compatibilidade e migração de histórico**
+  Definir migração para manter compatibilidade com dias antigos do MVP:
+  - dias antigos com 1 produto continuam legíveis
+  - criar bloco único de migração quando necessário
+  - relatórios históricos continuam consistentes
+  **Evidência:** Relatórios antigos e novos coexistem sem quebrar consultas nem métricas.
