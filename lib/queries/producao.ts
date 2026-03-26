@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/client'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurno,
+  ConfiguracaoTurnoComBlocos,
+  ProducaoBlocoResumo,
   ProducaoHojeRegistro,
   ProducaoPorHoraRegistro,
   StatusMaquinaRegistro,
@@ -98,4 +100,106 @@ export async function buscarConfiguracaoTurnoHojeClient(): Promise<ConfiguracaoT
     tpProdutoMin: data.tp_produto_min,
     metaGrupo: data.meta_grupo,
   }
+}
+
+export async function buscarConfiguracaoTurnoComBlocosHojeClient(): Promise<ConfiguracaoTurnoComBlocos | null> {
+  const supabase = createClient()
+
+  const { data: configuracao, error: configuracaoError } = await supabase
+    .from('configuracao_turno')
+    .select('id, data, funcionarios_ativos, minutos_turno, produto_id, tp_produto_min, meta_grupo')
+    .eq('data', obterDataHojeLocal())
+    .maybeSingle()
+
+  if (configuracaoError || !configuracao) {
+    return null
+  }
+
+  const { data: blocos, error: blocosError } = await supabase
+    .from('configuracao_turno_blocos')
+    .select(
+      'id, configuracao_turno_id, produto_id, descricao_bloco, sequencia, funcionarios_ativos, minutos_planejados, tp_produto_min, origem_tp, meta_grupo, status, iniciado_em, encerrado_em'
+    )
+    .eq('configuracao_turno_id', configuracao.id)
+    .order('sequencia', { ascending: true })
+
+  if (blocosError) {
+    throw new Error(`Erro ao buscar blocos do turno: ${blocosError.message}`)
+  }
+
+  const blocosMapeados = (blocos ?? []).map((bloco) => ({
+    id: bloco.id,
+    configuracaoTurnoId: bloco.configuracao_turno_id,
+    produtoId: bloco.produto_id,
+    descricaoBloco: bloco.descricao_bloco,
+    sequencia: bloco.sequencia,
+    funcionariosAtivos: bloco.funcionarios_ativos,
+    minutosPlanejados: bloco.minutos_planejados,
+    tpProdutoMin: bloco.tp_produto_min,
+    origemTp: bloco.origem_tp as ProducaoBlocoResumo['origemTp'],
+    metaGrupo: bloco.meta_grupo,
+    status: bloco.status as ProducaoBlocoResumo['status'],
+    iniciadoEm: bloco.iniciado_em,
+    encerradoEm: bloco.encerrado_em,
+  }))
+
+  const metaGrupoTotal = blocosMapeados.reduce((soma, bloco) => soma + bloco.metaGrupo, 0)
+  const blocoAtivo = blocosMapeados.find((bloco) => bloco.status === 'ativo') ?? null
+
+  return {
+    id: configuracao.id,
+    data: configuracao.data,
+    funcionariosAtivos: configuracao.funcionarios_ativos,
+    minutosTurno: configuracao.minutos_turno,
+    produtoId: configuracao.produto_id,
+    tpProdutoMin: configuracao.tp_produto_min,
+    metaGrupo: configuracao.meta_grupo,
+    blocos: blocosMapeados,
+    metaGrupoTotal,
+    blocoAtivo,
+  }
+}
+
+export async function listarResumoBlocosHoje(): Promise<ProducaoBlocoResumo[]> {
+  const supabase = createClient()
+  const configuracaoTurno = await buscarConfiguracaoTurnoComBlocosHojeClient()
+
+  if (!configuracaoTurno || configuracaoTurno.blocos.length === 0) {
+    return []
+  }
+
+  const { data: registros, error: registrosError } = await supabase
+    .from('registros_producao')
+    .select('configuracao_turno_bloco_id, quantidade')
+    .eq('data_producao', obterDataHojeLocal())
+    .not('configuracao_turno_bloco_id', 'is', null)
+
+  if (registrosError) {
+    throw new Error(`Erro ao buscar realizado por bloco: ${registrosError.message}`)
+  }
+
+  const realizadoPorBloco = new Map<string, number>()
+
+  for (const registro of registros ?? []) {
+    if (!registro.configuracao_turno_bloco_id) {
+      continue
+    }
+
+    realizadoPorBloco.set(
+      registro.configuracao_turno_bloco_id,
+      (realizadoPorBloco.get(registro.configuracao_turno_bloco_id) ?? 0) + registro.quantidade
+    )
+  }
+
+  return configuracaoTurno.blocos.map((bloco) => {
+    const realizado = realizadoPorBloco.get(bloco.id) ?? 0
+    const progressoPct =
+      bloco.metaGrupo > 0 ? Math.min((realizado / bloco.metaGrupo) * 100, 999.99) : 0
+
+    return {
+      ...bloco,
+      realizado,
+      progressoPct,
+    }
+  })
 }

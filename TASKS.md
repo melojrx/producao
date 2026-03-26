@@ -692,36 +692,60 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 6 — Multi-produto no mesmo dia (Pós-MVP)
-**Status:** 🔭 Proposta
+**Status:** 🚧 Em andamento
 **Pré-requisito:** Sprint 5 concluída.
-**Objetivo:** Suportar mais de um produto no mesmo dia com metas corretas por bloco de produção.
+**Objetivo:** Suportar um produto, vários produtos ou T.P manual no mesmo dia, com metas corretas por bloco de produção.
+
+**Ordem obrigatória de implementação da Sprint 6:**
+1. `6.1 — Refatorar modelagem da configuração do turno`
+2. `6.2 — Server Actions e queries para blocos do dia`
+3. `6.3 — Modal de planejamento do dia com múltiplos produtos`
+4. `6.4 — Scanner registra no bloco ativo`
+5. `6.5 — Dashboard consolidado por dia e por bloco`
+6. `6.6 — Compatibilidade e migração de histórico`
+
+Regra de execução:
+- não começar pela UI do modal
+- a modelagem por blocos e os contratos de dados vêm antes da interface
+- o modal deve refletir a modelagem persistida, não definir a regra de negócio por conta própria
 
 - [ ] **6.1 — Refatorar modelagem da configuração do turno**
   Evoluir a modelagem para separar:
   - cabeçalho do dia (`configuracao_turno`)
   - blocos do dia (`configuracao_turno_blocos`)
 
+  Regra de negócio:
+  - um bloco pode vir de um produto cadastrado
+  - ou pode ser um bloco manual, sem `produto_id`
+  - a interface pode permitir escolher 1 produto, vários produtos ou nenhum produto, mas a persistência continua sendo por blocos
+
   Estrutura proposta para `configuracao_turno_blocos`:
   ```sql
   CREATE TABLE configuracao_turno_blocos (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     configuracao_turno_id UUID NOT NULL REFERENCES configuracao_turno(id) ON DELETE CASCADE,
-    produto_id UUID NOT NULL REFERENCES produtos(id),
+    produto_id UUID REFERENCES produtos(id),
+    descricao_bloco VARCHAR(200) NOT NULL,
     sequencia INTEGER NOT NULL,
     funcionarios_ativos INTEGER NOT NULL CHECK (funcionarios_ativos > 0),
     minutos_planejados INTEGER NOT NULL CHECK (minutos_planejados > 0),
     tp_produto_min DECIMAL(10,4) NOT NULL,
+    origem_tp VARCHAR(20) NOT NULL CHECK (origem_tp IN ('produto', 'manual')),
     meta_grupo INTEGER NOT NULL,
     status VARCHAR(20) NOT NULL CHECK (status IN ('planejado', 'ativo', 'concluido')),
     iniciado_em TIMESTAMPTZ,
     encerrado_em TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(configuracao_turno_id, sequencia)
+    UNIQUE(configuracao_turno_id, sequencia),
+    CHECK (
+      (origem_tp = 'produto' AND produto_id IS NOT NULL) OR
+      (origem_tp = 'manual' AND produto_id IS NULL)
+    )
   );
   ```
   Regra: apenas 1 bloco `ativo` por vez em cada configuração do dia.
-  **Evidência:** Dia com 2 blocos planejados salvos no banco, cada um com `tp_produto_min` e `meta_grupo` próprios.
+  **Evidência:** Dia salvo com 3 blocos no banco: 2 de produtos cadastrados e 1 manual, cada um com `tp_produto_min` e `meta_grupo` próprios.
 
 - [ ] **6.2 — Server Actions e queries para blocos do dia**
   Criar:
@@ -738,32 +762,43 @@ Nunca avance de sprint sem confirmação explícita minha.
   Regras:
   - `meta_grupo_bloco = floor((funcionarios_ativos × minutos_planejados) / tp_produto)`
   - `meta_grupo_dia = soma(meta_grupo dos blocos)`
+  - se `origem_tp = produto`, `tp_produto_min` vem do roteiro do produto
+  - se `origem_tp = manual`, `tp_produto_min` vem do valor digitado pelo supervisor/admin
   - ao ativar um bloco, os demais do dia ficam `planejado` ou `concluido`
-  **Evidência:** Ativar bloco 2 automaticamente desativa o bloco 1 como bloco corrente.
+  **Evidência:** Ativar um bloco manual depois de um bloco com produto desativa o bloco anterior e mantém o total do dia coerente.
 
 - [ ] **6.3 — Modal de planejamento do dia com múltiplos produtos**
-  Evoluir o modal do turno para permitir adicionar vários blocos:
-  - produto
+  Evoluir o modal do turno para permitir três fluxos:
+  - escolher 1 produto
+  - escolher vários produtos
+  - não escolher produto e informar o `T.P Produto` manualmente
+
+  O modal deve gerar e editar blocos com:
+  - produto opcional
+  - descrição do bloco
   - minutos planejados
   - funcionários ativos
   - T.P Produto
+  - origem do T.P (`produto` ou `manual`)
   - Meta Grupo do bloco
 
   Exibir também:
   - Meta total do dia = soma dos blocos
   - Ordem dos blocos
   - Bloco atualmente ativo
-  **Evidência:** Supervisor planeja 3 blocos no mesmo dia e vê a meta total consolidada antes de salvar.
+  **Evidência:** Supervisor consegue salvar no mesmo dia 1 bloco com produto, 2 blocos com produtos diferentes e 1 bloco manual sem produto, vendo a meta total consolidada antes de salvar.
 
-- [ ] **6.4 — Scanner registra no bloco ativo**
+- [x] **6.4 — Scanner registra no bloco ativo**
   Ajustar o fluxo de produção para vincular cada registro ao bloco ativo do dia.
   Adicionar `configuracao_turno_bloco_id` em `registros_producao`.
 
   Regra:
   - o scanner não usa mais apenas `configuracao_turno.produto_id`
-  - o produto do registro vem do bloco ativo
+  - se o bloco ativo tiver produto, o `produto_id` do registro vem dele
+  - se o bloco ativo for manual, o registro fica vinculado ao bloco e pode seguir com `produto_id` nulo
   - se não houver bloco ativo, o registro é bloqueado com mensagem para o supervisor
-  **Evidência:** Trocar o bloco ativo muda o `produto_id` dos registros seguintes sem reiniciar a sessão do operador.
+  **Evidência:** Trocar de um bloco com produto para um bloco manual muda os registros seguintes sem reiniciar a sessão do operador.
+  Scanner validado com registro no bloco ativo, bloqueio sem bloco ativo e persistência em `registros_producao` com `configuracao_turno_bloco_id` e `produto_id` conforme o bloco corrente.
 
 - [ ] **6.5 — Dashboard consolidado por dia e por bloco**
   Evoluir cards e gráficos para mostrar:
@@ -771,13 +806,15 @@ Nunca avance de sprint sem confirmação explícita minha.
   - meta total do dia
   - progresso por bloco
   - bloco atual
+  - origem do bloco (`produto` ou `manual`)
   - blocos concluídos x pendentes
-  **Evidência:** Dashboard mostra 2 blocos concluídos e 1 ativo no mesmo dia, com totais corretos.
+  **Evidência:** Dashboard mostra blocos de produto e manual no mesmo dia, com totais corretos por bloco e no consolidado do turno.
 
 - [ ] **6.6 — Compatibilidade e migração de histórico**
   Definir migração para manter compatibilidade com dias antigos do MVP:
   - dias antigos com 1 produto continuam legíveis
   - criar bloco único de migração quando necessário
+  - dias antigos sem bloco explícito continuam legíveis nos relatórios
   - relatórios históricos continuam consistentes
   **Evidência:** Relatórios antigos e novos coexistem sem quebrar consultas nem métricas.
 

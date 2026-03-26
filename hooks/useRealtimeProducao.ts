@@ -3,13 +3,15 @@
 import { startTransition, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  buscarConfiguracaoTurnoHojeClient,
+  buscarConfiguracaoTurnoComBlocosHojeClient,
   listarProducaoHoje,
   listarProducaoPorHora,
+  listarResumoBlocosHoje,
   listarStatusMaquinas,
 } from '@/lib/queries/producao'
 import type {
-  ConfiguracaoTurno,
+  ConfiguracaoTurnoComBlocos,
+  ProducaoBlocoResumo,
   ProducaoHojeRegistro,
   ProducaoPorHoraRegistro,
   StatusMaquinaRegistro,
@@ -19,7 +21,8 @@ interface SnapshotProducao {
   registros: ProducaoHojeRegistro[]
   producaoPorHora: ProducaoPorHoraRegistro[]
   statusMaquinas: StatusMaquinaRegistro[]
-  configuracaoTurno: ConfiguracaoTurno | null
+  configuracaoTurno: ConfiguracaoTurnoComBlocos | null
+  blocosResumo: ProducaoBlocoResumo[]
 }
 
 export type StatusConexaoRealtime = 'conectando' | 'ativo' | 'erro'
@@ -30,7 +33,8 @@ export interface UseRealtimeProducaoResultado {
   statusMaquinas: StatusMaquinaRegistro[]
   totalPecas: number
   eficienciaMedia: number
-  configuracaoTurno: ConfiguracaoTurno | null
+  configuracaoTurno: ConfiguracaoTurnoComBlocos | null
+  blocosResumo: ProducaoBlocoResumo[]
   ultimaAtualizacao: Date | null
   statusConexao: StatusConexaoRealtime
   estaCarregando: boolean
@@ -52,11 +56,12 @@ function calcularEficienciaMedia(registros: ProducaoHojeRegistro[]): number {
 }
 
 async function carregarSnapshot(): Promise<SnapshotProducao> {
-  const [registros, producaoPorHora, statusMaquinas, configuracaoTurno] = await Promise.all([
+  const [registros, producaoPorHora, statusMaquinas, configuracaoTurno, blocosResumo] = await Promise.all([
     listarProducaoHoje(),
     listarProducaoPorHora(),
     listarStatusMaquinas(),
-    buscarConfiguracaoTurnoHojeClient(),
+    buscarConfiguracaoTurnoComBlocosHojeClient(),
+    listarResumoBlocosHoje(),
   ])
 
   return {
@@ -64,6 +69,7 @@ async function carregarSnapshot(): Promise<SnapshotProducao> {
     producaoPorHora,
     statusMaquinas,
     configuracaoTurno,
+    blocosResumo,
   }
 }
 
@@ -71,7 +77,8 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
   const [registros, setRegistros] = useState<ProducaoHojeRegistro[]>([])
   const [producaoPorHora, setProducaoPorHora] = useState<ProducaoPorHoraRegistro[]>([])
   const [statusMaquinas, setStatusMaquinas] = useState<StatusMaquinaRegistro[]>([])
-  const [configuracaoTurno, setConfiguracaoTurno] = useState<ConfiguracaoTurno | null>(null)
+  const [configuracaoTurno, setConfiguracaoTurno] = useState<ConfiguracaoTurnoComBlocos | null>(null)
+  const [blocosResumo, setBlocosResumo] = useState<ProducaoBlocoResumo[]>([])
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null)
   const [statusConexao, setStatusConexao] = useState<StatusConexaoRealtime>('conectando')
   const [estaCarregando, setEstaCarregando] = useState(true)
@@ -84,6 +91,7 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
       setProducaoPorHora(snapshot.producaoPorHora)
       setStatusMaquinas(snapshot.statusMaquinas)
       setConfiguracaoTurno(snapshot.configuracaoTurno)
+      setBlocosResumo(snapshot.blocosResumo)
       setUltimaAtualizacao(new Date())
       setErro(null)
       setEstaCarregando(false)
@@ -175,6 +183,7 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
     totalPecas: calcularTotalPecas(registros),
     eficienciaMedia: calcularEficienciaMedia(registros),
     configuracaoTurno,
+    blocosResumo,
     ultimaAtualizacao,
     statusConexao,
     estaCarregando,

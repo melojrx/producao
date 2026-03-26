@@ -32,6 +32,15 @@ interface OperacaoValidacaoRow {
   ativa: boolean | null
 }
 
+interface ConfiguracaoTurnoHojeRow {
+  id: string
+}
+
+interface BlocoTurnoAtivoRow {
+  id: string
+  produto_id: string | null
+}
+
 function quantidadeValida(quantidade: number): boolean {
   return Number.isInteger(quantidade) && quantidade >= 1
 }
@@ -68,9 +77,9 @@ export async function registrarProducao(
       .single<OperacaoValidacaoRow>(),
     supabase
       .from('configuracao_turno')
-      .select('produto_id')
+      .select('id')
       .eq('data', obterDataHojeLocal())
-      .maybeSingle(),
+      .maybeSingle<ConfiguracaoTurnoHojeRow>(),
   ])
 
   if (operadorError || !operador || operador.status !== 'ativo') {
@@ -97,11 +106,40 @@ export async function registrarProducao(
     return { sucesso: false, erro: `Erro ao buscar configuração do turno: ${configuracaoError.message}` }
   }
 
+  if (!configuracaoTurno) {
+    return {
+      sucesso: false,
+      erro: 'Configuração do turno de hoje não encontrada. Solicite o preenchimento ao supervisor.',
+    }
+  }
+
+  const { data: blocoAtivo, error: blocoAtivoError } = await supabase
+    .from('configuracao_turno_blocos')
+    .select('id, produto_id')
+    .eq('configuracao_turno_id', configuracaoTurno.id)
+    .eq('status', 'ativo')
+    .maybeSingle<BlocoTurnoAtivoRow>()
+
+  if (blocoAtivoError) {
+    return {
+      sucesso: false,
+      erro: `Erro ao buscar bloco ativo do turno: ${blocoAtivoError.message}`,
+    }
+  }
+
+  if (!blocoAtivo) {
+    return {
+      sucesso: false,
+      erro: 'Nenhum bloco de produção está ativo para hoje. Solicite o ajuste ao supervisor.',
+    }
+  }
+
   const { error: insertError } = await supabase.from('registros_producao').insert({
     operador_id: input.operadorId,
     maquina_id: input.maquinaId,
     operacao_id: input.operacaoId,
-    produto_id: configuracaoTurno?.produto_id ?? null,
+    produto_id: blocoAtivo.produto_id,
+    configuracao_turno_bloco_id: blocoAtivo.id,
     quantidade: input.quantidade,
   })
 

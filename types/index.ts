@@ -3,6 +3,8 @@ import type { Tables } from '@/types/supabase'
 export type QRTipo = 'operador' | 'maquina' | 'operacao'
 export type OperadorStatus = 'ativo' | 'inativo' | 'afastado'
 export type MaquinaStatus = 'ativa' | 'parada' | 'manutencao'
+export type OrigemTpBloco = 'produto' | 'manual'
+export type StatusConfiguracaoTurnoBloco = 'planejado' | 'ativo' | 'concluido'
 
 export interface FormActionState {
   erro?: string
@@ -49,6 +51,33 @@ export interface ConfiguracaoTurno {
   produtoId: string | null
   tpProdutoMin: number | null
   metaGrupo: number | null
+}
+
+export interface ConfiguracaoTurnoBloco {
+  id: string
+  configuracaoTurnoId: string
+  produtoId: string | null
+  descricaoBloco: string
+  sequencia: number
+  funcionariosAtivos: number
+  minutosPlanejados: number
+  tpProdutoMin: number
+  origemTp: OrigemTpBloco
+  metaGrupo: number
+  status: StatusConfiguracaoTurnoBloco
+  iniciadoEm: string | null
+  encerradoEm: string | null
+}
+
+export interface ConfiguracaoTurnoComBlocos extends ConfiguracaoTurno {
+  blocos: ConfiguracaoTurnoBloco[]
+  metaGrupoTotal: number
+  blocoAtivo: ConfiguracaoTurnoBloco | null
+}
+
+export interface ProducaoBlocoResumo extends ConfiguracaoTurnoBloco {
+  realizado: number
+  progressoPct: number
 }
 
 export interface ProdutoTurnoOption {

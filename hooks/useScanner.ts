@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { calcularMetaIndividual } from '@/lib/utils/producao'
 import {
+  buscarBlocoAtivoHoje,
   buscarConfiguracaoTurnoHoje,
   buscarMaquinaScaneadaPorToken,
   buscarOperacaoBasePorToken,
@@ -125,9 +126,10 @@ export function useScanner(options: UseScannerOptions = {}) {
     setConfiguracaoTurnoAtual(null)
 
     try {
-      const [operacaoBase, configuracaoTurno] = await Promise.all([
+      const [operacaoBase, configuracaoTurno, blocoAtivo] = await Promise.all([
         buscarOperacaoBasePorToken(token),
         buscarConfiguracaoTurnoHoje(),
+        buscarBlocoAtivoHoje(),
       ])
 
       if (!operacaoBase) {
@@ -139,6 +141,13 @@ export function useScanner(options: UseScannerOptions = {}) {
       if (!configuracaoTurno) {
         const mensagem =
           'Configuração do turno de hoje não encontrada. Solicite o preenchimento ao supervisor.'
+        setErro(mensagem)
+        return { sucesso: false, erro: mensagem }
+      }
+
+      if (!blocoAtivo) {
+        const mensagem =
+          'Nenhum bloco de produção está ativo para hoje. Solicite o ajuste ao supervisor.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }

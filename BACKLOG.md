@@ -110,13 +110,14 @@
 ---
 
 ## SPRINT 6 — Multi-produto no mesmo dia
-**Objetivo:** Permitir mais de um produto no mesmo dia sem perder consistência de meta e rastreabilidade.
-**Entregável:** Supervisor planeja múltiplos blocos por dia, ativa um bloco por vez e o scanner registra produção no bloco ativo.
+**Objetivo:** Permitir planejar o turno com um produto, vários produtos ou T.P manual, sem perder consistência de meta e rastreabilidade.
+**Entregável:** Supervisor/admin configura o dia com blocos de produção, cada bloco podendo vir de um produto cadastrado ou de um T.P informado manualmente, e o scanner registra produção no bloco ativo.
 **Status:** 🔭 Proposta pós-MVP
 
 - Refatorar a configuração diária para suportar **blocos de produção**
+- Permitir blocos com `produto_id` ou com `T.P` manual
 - Calcular `meta_grupo` por bloco e somar o total do dia
-- Permitir planejar sequência de produtos no dashboard
+- Permitir configurar 1 produto, vários produtos ou nenhum produto no modal
 - Registrar produção vinculada ao bloco ativo
 - Exibir no dashboard: total do dia + progresso por bloco
 - Manter compatibilidade com histórico do MVP de 1 produto por dia

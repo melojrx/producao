@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
+  ConfiguracaoTurnoBloco,
   ConfiguracaoTurno,
   MaquinaScaneada,
   OperacaoScaneada,
@@ -113,5 +114,48 @@ export async function buscarConfiguracaoTurnoHoje(): Promise<ConfiguracaoTurno |
     produtoId: data.produto_id,
     tpProdutoMin: data.tp_produto_min,
     metaGrupo: data.meta_grupo,
+  }
+}
+
+export async function buscarBlocoAtivoHoje(): Promise<ConfiguracaoTurnoBloco | null> {
+  const supabase = createClient()
+
+  const { data: configuracao, error: configuracaoError } = await supabase
+    .from('configuracao_turno')
+    .select('id')
+    .eq('data', obterDataHojeLocal())
+    .maybeSingle()
+
+  if (configuracaoError || !configuracao) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('configuracao_turno_blocos')
+    .select(
+      'id, configuracao_turno_id, produto_id, descricao_bloco, sequencia, funcionarios_ativos, minutos_planejados, tp_produto_min, origem_tp, meta_grupo, status, iniciado_em, encerrado_em'
+    )
+    .eq('configuracao_turno_id', configuracao.id)
+    .eq('status', 'ativo')
+    .maybeSingle()
+
+  if (error || !data) {
+    return null
+  }
+
+  return {
+    id: data.id,
+    configuracaoTurnoId: data.configuracao_turno_id,
+    produtoId: data.produto_id,
+    descricaoBloco: data.descricao_bloco,
+    sequencia: data.sequencia,
+    funcionariosAtivos: data.funcionarios_ativos,
+    minutosPlanejados: data.minutos_planejados,
+    tpProdutoMin: data.tp_produto_min,
+    origemTp: data.origem_tp as ConfiguracaoTurnoBloco['origemTp'],
+    metaGrupo: data.meta_grupo,
+    status: data.status as ConfiguracaoTurnoBloco['status'],
+    iniciadoEm: data.iniciado_em,
+    encerradoEm: data.encerrado_em,
   }
 }

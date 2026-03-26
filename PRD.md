@@ -187,25 +187,46 @@ O supervisor preenche **3 campos** no início de cada turno. Esses valores alime
 
 ### 6.3.1 Evolução futura — múltiplos produtos no mesmo dia
 
-O MVP assume **1 produto por dia**. Quando a confecção alterna produtos no mesmo turno, a modelagem correta não é guardar vários `produto_id` no mesmo registro diário.
+O MVP assume **1 produto por dia**. Na evolução pós-MVP, a configuração do turno precisa suportar três cenários no mesmo fluxo:
 
-A evolução recomendada é separar:
+1. **Um produto**
+   - o supervisor escolhe 1 produto cadastrado
+   - o sistema calcula automaticamente o `T.P Produto` pela soma do roteiro
+
+2. **Mais de um produto no dia**
+   - o supervisor escolhe vários produtos para o mesmo turno
+   - cada produto vira um **bloco de produção** com sua própria meta
+
+3. **Nenhum produto cadastrado**
+   - o supervisor não seleciona produto
+   - o `T.P Produto` é informado manualmente
+   - esse bloco continua válido para cálculo de meta e acompanhamento do dia
+
+A modelagem correta continua sendo separar:
 
 1. **Cabeçalho do dia**
-   - continua representando o turno do dia (`data`, linha/célula, observações gerais)
+   - representa o turno do dia (`data`, linha/célula, observações gerais)
 
 2. **Blocos de produção do dia**
-   - cada bloco representa um produto planejado ou em execução naquele dia
+   - cada bloco representa uma etapa planejada ou em execução
+   - um bloco pode estar vinculado a um produto cadastrado ou a um `T.P` manual
    - campos sugeridos:
      - `configuracao_turno_id`
-     - `produto_id`
+     - `produto_id` opcional
+     - `descricao_bloco`
      - `sequencia`
      - `funcionarios_ativos`
      - `minutos_planejados`
      - `tp_produto_min`
+     - `origem_tp` = `produto | manual`
      - `meta_grupo`
      - `status` = `planejado | ativo | concluido`
      - `iniciado_em` / `encerrado_em` (opcional)
+
+Regras de consistência:
+- se `origem_tp = produto`, `produto_id` é obrigatório e `tp_produto_min` vem do roteiro
+- se `origem_tp = manual`, `produto_id` fica vazio e `tp_produto_min` é informado pelo supervisor
+- apenas **1 bloco fica ativo por vez** em cada configuração do dia
 
 Fórmulas nessa evolução:
 
@@ -216,12 +237,13 @@ Meta Grupo do dia = soma(meta_grupo de todos os blocos do dia)
 ```
 
 Regra operacional:
-- o supervisor planeja 1 ou mais blocos para o dia
-- apenas **1 bloco fica ativo por vez** em cada linha/célula
+- a interface pode permitir selecionar 1 produto, vários produtos ou nenhum produto
+- internamente, o sistema sempre converte isso em **1 ou mais blocos**
 - o scanner registra produção no **bloco ativo**, não em um `produto_id` global do dia
+- quando o bloco for manual, o registro continua vinculado ao bloco, mesmo sem `produto_id`
 - o dashboard mostra o total do dia e também o progresso por bloco
 
-Essa modelagem cobre bem trocas sequenciais de produto no mesmo dia. Se no futuro houver produção simultânea de produtos diferentes em linhas distintas, a modelagem deve ganhar também a dimensão de `linha` ou `celula`.
+Essa modelagem cobre bem trocas sequenciais de produto no mesmo dia e também dias em que a meta é planejada manualmente sem produto cadastrado. Se no futuro houver produção simultânea de produtos diferentes em linhas distintas, a modelagem deve ganhar também a dimensão de `linha` ou `celula`.
 
 ### 6.4 Onde as metas aparecem
 

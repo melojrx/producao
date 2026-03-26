@@ -5,6 +5,7 @@ import { Activity, Gauge, RefreshCw, Signal, Target, Users } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { GraficoProducaoPorHora } from '@/components/dashboard/GraficoProducaoPorHora'
 import { RankingOperadores } from '@/components/dashboard/RankingOperadores'
+import { ResumoBlocosTurno } from '@/components/dashboard/ResumoBlocosTurno'
 import { StatusMaquinas } from '@/components/dashboard/StatusMaquinas'
 import { useRealtimeProducao } from '@/hooks'
 
@@ -29,6 +30,7 @@ export function MonitorRealtimeProducao() {
     producaoPorHora,
     statusMaquinas,
     configuracaoTurno,
+    blocosResumo,
     ultimaAtualizacao,
     statusConexao,
     estaCarregando,
@@ -48,8 +50,10 @@ export function MonitorRealtimeProducao() {
     return 'bg-amber-400'
   }, [statusConexao])
 
-  const metaGrupo = configuracaoTurno?.metaGrupo ?? 0
+  const metaGrupo = configuracaoTurno?.metaGrupoTotal ?? configuracaoTurno?.metaGrupo ?? 0
   const progressoPct = metaGrupo > 0 ? Math.min((totalPecas / metaGrupo) * 100, 999.99) : 0
+  const blocoAtivo = configuracaoTurno?.blocoAtivo ?? null
+  const concluidos = blocosResumo.filter((bloco) => bloco.status === 'concluido').length
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -125,6 +129,11 @@ export function MonitorRealtimeProducao() {
         estaCarregando={estaCarregando}
       />
 
+      <ResumoBlocosTurno
+        blocos={blocosResumo}
+        estaCarregando={estaCarregando}
+      />
+
       <div className="grid gap-4 lg:grid-cols-[1.15fr,0.85fr]">
         <RankingOperadores
           registros={registros}
@@ -136,11 +145,29 @@ export function MonitorRealtimeProducao() {
           <div className="mt-4 space-y-3 text-sm text-slate-600">
             <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
               <span>Meta grupo</span>
-              <strong className="text-slate-900">{configuracaoTurno?.metaGrupo ?? '—'}</strong>
+              <strong className="text-slate-900">{metaGrupo || '—'}</strong>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
               <span>Minutos do turno</span>
               <strong className="text-slate-900">{configuracaoTurno?.minutosTurno ?? '—'}</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+              <span>Bloco atual</span>
+              <strong className="text-slate-900">
+                {blocoAtivo ? `#${blocoAtivo.sequencia} ${blocoAtivo.descricaoBloco}` : '—'}
+              </strong>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+              <span>Origem do bloco atual</span>
+              <strong className="text-slate-900">
+                {blocoAtivo ? (blocoAtivo.origemTp === 'produto' ? 'Produto' : 'Manual') : '—'}
+              </strong>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+              <span>Blocos concluídos</span>
+              <strong className="text-slate-900">
+                {concluidos}/{blocosResumo.length}
+              </strong>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
               <span>Pontos no gráfico por hora</span>

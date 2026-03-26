@@ -56,6 +56,75 @@ export type Database = {
           },
         ]
       }
+      configuracao_turno_blocos: {
+        Row: {
+          configuracao_turno_id: string
+          created_at: string | null
+          descricao_bloco: string
+          encerrado_em: string | null
+          funcionarios_ativos: number
+          id: string
+          iniciado_em: string | null
+          meta_grupo: number
+          minutos_planejados: number
+          origem_tp: string
+          produto_id: string | null
+          sequencia: number
+          status: string
+          tp_produto_min: number
+          updated_at: string | null
+        }
+        Insert: {
+          configuracao_turno_id: string
+          created_at?: string | null
+          descricao_bloco: string
+          encerrado_em?: string | null
+          funcionarios_ativos: number
+          id?: string
+          iniciado_em?: string | null
+          meta_grupo: number
+          minutos_planejados: number
+          origem_tp: string
+          produto_id?: string | null
+          sequencia: number
+          status: string
+          tp_produto_min: number
+          updated_at?: string | null
+        }
+        Update: {
+          configuracao_turno_id?: string
+          created_at?: string | null
+          descricao_bloco?: string
+          encerrado_em?: string | null
+          funcionarios_ativos?: number
+          id?: string
+          iniciado_em?: string | null
+          meta_grupo?: number
+          minutos_planejados?: number
+          origem_tp?: string
+          produto_id?: string | null
+          sequencia?: number
+          status?: string
+          tp_produto_min?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracao_turno_blocos_configuracao_turno_id_fkey"
+            columns: ["configuracao_turno_id"]
+            isOneToOne: false
+            referencedRelation: "configuracao_turno"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracao_turno_blocos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maquinas: {
         Row: {
           codigo: string
@@ -263,6 +332,7 @@ export type Database = {
       }
       registros_producao: {
         Row: {
+          configuracao_turno_bloco_id: string | null
           created_at: string | null
           data_producao: string | null
           hora_registro: string | null
@@ -276,6 +346,7 @@ export type Database = {
           turno: string | null
         }
         Insert: {
+          configuracao_turno_bloco_id?: string | null
           created_at?: string | null
           data_producao?: string | null
           hora_registro?: string | null
@@ -289,6 +360,7 @@ export type Database = {
           turno?: string | null
         }
         Update: {
+          configuracao_turno_bloco_id?: string | null
           created_at?: string | null
           data_producao?: string | null
           hora_registro?: string | null
@@ -302,6 +374,13 @@ export type Database = {
           turno?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registros_producao_configuracao_turno_bloco_id_fkey"
+            columns: ["configuracao_turno_bloco_id"]
+            isOneToOne: false
+            referencedRelation: "configuracao_turno_blocos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registros_producao_maquina_id_fkey"
             columns: ["maquina_id"]
