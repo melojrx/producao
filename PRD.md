@@ -119,12 +119,9 @@ Resultado:
 ### 5.3 Execução no chão de fábrica
 
 ```
-Operador ou supervisor abre o scanner no celular
+Supervisor ou operador abre o scanner no celular
 
-[Passo 1] Escaneia o QR do operador
-          → sistema identifica quem está usando a sessão
-
-[Passo 2] Escaneia o QR operacional do setor/OP
+[Passo 1] Escaneia o QR operacional do setor/OP
           → sistema identifica:
             - turno
             - OP
@@ -133,10 +130,18 @@ Operador ou supervisor abre o scanner no celular
             - operações previstas naquele setor
             - quantidade planejada
 
-[Passo 3] Durante o dia, o supervisor passa nos setores
-          → verifica o envelope, folha ou apontamento físico do setor
-          → registra quantas unidades cada operador concluiu em cada operação daquele setor
-          → salva um ou mais lançamentos incrementais no contexto da seção
+[Passo 2] Escaneia o QR do operador
+          → sistema identifica o executor do apontamento produtivo
+
+[Passo 3] Scanner lista as operações planejadas daquela seção
+          → supervisor escolhe qual operação será apontada
+          → sistema mostra realizado e saldo da operação
+
+[Passo 4] Supervisor informa a quantidade incremental
+          → quantidade concluída pelo operador naquela operação
+          → lançamento sempre incremental, nunca total acumulado
+
+[Passo 5] Sistema registra o apontamento atômico
           → cada lançamento identifica:
             - operador executor
             - operação executada
@@ -144,13 +149,24 @@ Operador ou supervisor abre o scanner no celular
             - quantidade incremental
             - autoria do lançamento (`supervisor_manual` ou `operador_qr`)
 
-[Passo 4] Sistema confronta o apontamento com o planejamento
+[Passo 6] Sistema confronta o apontamento com o planejamento
           → atualiza o realizado da operação dentro da seção
           → recalcula o realizado consolidado da seção
           → recalcula o andamento da OP
           → recalcula o andamento do turno em tempo real
           → bloqueia qualquer lançamento que ultrapasse a quantidade planejada
 ```
+
+Regra operacional:
+- a quantidade registrada no scanner é atribuída ao `operador_id` do QR escaneado
+- se o scanner estiver em sessão autenticada de supervisor, o sistema também deve auditar `usuario_sistema_id`
+- o executor da produção e o usuário que lançou o dado não são o mesmo conceito
+
+Saídas após cada registro:
+- nova quantidade na mesma operação
+- trocar operação mantendo a mesma seção e o mesmo operador
+- trocar operador mantendo a mesma seção
+- reiniciar tudo para abrir outra seção
 
 ### 5.4 Encerramentos
 
@@ -335,12 +351,102 @@ Interface principal do supervisor e do administrador.
 ### 8.2 Scanner (/scanner)
 
 Interface operacional individual ou híbrida de apontamento.
-- scan do operador
 - scan do QR operacional `setor + OP`
+- scan do operador
 - identificação da seção operacional aberta
+- listagem das operações planejadas da seção
+- seleção da operação a apontar
 - input de quantidade executada na operação selecionada
 - bloqueio de excesso sobre a quantidade planejada
 - feedback visual de sucesso e erro
+
+#### 8.2.1 Máquina de estados alvo do scanner
+
+Estados obrigatórios:
+- `scan_secao`
+- `scan_operador`
+- `selecionar_operacao`
+- `informar_quantidade`
+- `registrar`
+- `trocar_operador`
+- `reiniciar_total`
+
+Transições:
+- `scan_secao -> scan_operador`
+- `scan_operador -> selecionar_operacao`
+- `selecionar_operacao -> informar_quantidade`
+- `informar_quantidade -> registrar`
+- `registrar -> informar_quantidade`
+  quando o supervisor quiser repetir nova quantidade na mesma operação
+- `registrar -> selecionar_operacao`
+  quando o supervisor quiser trocar de operação mantendo o mesmo operador
+- `registrar -> trocar_operador -> scan_operador`
+  quando o supervisor quiser trocar de operador mantendo a mesma seção
+- qualquer estado -> `reiniciar_total -> scan_secao`
+
+#### 8.2.2 Payload da action do scanner
+
+Payload alvo:
+- `operadorId`
+- `turnoSetorOperacaoId`
+- `quantidade`
+- `origemApontamento`
+- `usuarioSistemaId?`
+- `observacao?`
+
+Regras:
+- `operadorId` é sempre o operador do QR escaneado
+- `turnoSetorOperacaoId` é a operação escolhida dentro da seção já aberta
+- `quantidade` é sempre incremental e inteira
+- `origemApontamento` deve sair como `operador_qr` no scanner
+- `usuarioSistemaId` só é enviado quando houver sessão autenticada do supervisor
+
+#### 8.2.3 Layout alvo das telas
+
+Tela `scan_secao`:
+- leitor de QR
+- card fixo explicando o setor/OP esperado
+- feedback claro de QR inválido
+
+Tela `scan_operador`:
+- leitor de QR
+- card fixo com contexto da seção já aberta
+- feedback claro de operador inválido ou inelegível
+
+Tela `selecionar_operacao`:
+- cabeçalho com seção, OP, produto e operador
+- lista das operações derivadas da seção
+- cada operação mostra realizado, saldo, status e sequência
+
+Tela `informar_quantidade`:
+- resumo da seção
+- resumo do operador
+- operação selecionada em destaque
+- input de quantidade incremental
+- CTA de registrar
+
+Tela pós-registro:
+- feedback visual de sucesso
+- CTA `Nova quantidade`
+- CTA `Trocar operação`
+- CTA `Trocar operador`
+- CTA `Reiniciar tudo`
+
+#### 8.2.4 Reaproveitamento e remoção
+
+Reaproveitar do código atual:
+- leitura de QR
+- validação de tipos de QR
+- feedback visual de sucesso e erro
+- action transacional V2
+- busca do contexto da seção do turno
+
+Remover ou evoluir como legado:
+- fluxo que registra apenas `seção + operador + quantidade`
+- tela de confirmação sem seleção explícita da operação
+- botão `Reiniciar` como única saída operacional
+
+O scanner híbrido não substitui a tela `/admin/apontamentos`; ele passa a ser a opção móvel especializada para o chão de fábrica, enquanto `/admin/apontamentos` continua como rota administrativa segura para supervisão e contingência.
 
 ### 8.3 Apontamentos do Supervisor (/admin/apontamentos)
 

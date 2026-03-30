@@ -138,6 +138,21 @@ function parseLancamentosSupervisor(raw: string): { data?: LancamentoSupervisorP
   }
 }
 
+async function resolverUsuarioSistemaAutenticadoOpcional(): Promise<string | null> {
+  const supabaseServer = await createClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabaseServer.auth.getUser()
+
+  if (userError || !user) {
+    return null
+  }
+
+  const usuarioSistema = await buscarUsuarioSistemaPorAuthUserId(supabaseServer, user.id)
+  return usuarioSistema?.id ?? null
+}
+
 export async function registrarProducao(
   input: RegistrarProducaoInput
 ): Promise<RegistrarProducaoResultado> {
@@ -205,13 +220,18 @@ export async function registrarProducaoOperacao(
     return { sucesso: false, erro: 'A quantidade deve ser um número inteiro maior ou igual a 1.' }
   }
 
+  const usuarioSistemaId =
+    input.usuarioSistemaId === undefined
+      ? await resolverUsuarioSistemaAutenticadoOpcional()
+      : input.usuarioSistemaId
+
   const supabase = createAdminClient()
 
   const { data, error } = await supabase.rpc('registrar_producao_turno_setor_operacao', {
     p_operador_id: input.operadorId,
     p_turno_setor_operacao_id: input.turnoSetorOperacaoId,
     p_quantidade: input.quantidade,
-    p_usuario_sistema_id: input.usuarioSistemaId ?? null,
+    p_usuario_sistema_id: usuarioSistemaId ?? null,
     p_origem_apontamento: input.origemApontamento ?? 'operador_qr',
     p_maquina_id: input.maquinaId ?? null,
     p_observacao: input.observacao ?? null,
@@ -236,6 +256,7 @@ export async function registrarProducaoOperacao(
   revalidatePath('/scanner')
   revalidatePath('/admin/dashboard')
   revalidatePath('/admin/apontamentos')
+  revalidatePath('/admin/relatorios')
 
   return {
     sucesso: true,

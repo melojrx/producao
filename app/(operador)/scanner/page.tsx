@@ -13,31 +13,98 @@ import {
 } from 'lucide-react'
 import { ConfirmacaoRegistro } from '@/components/scanner/ConfirmacaoRegistro'
 import { QRScanner } from '@/components/scanner/QRScanner'
+import { SelecaoOperacaoScanner } from '@/components/scanner/SelecaoOperacaoScanner'
 import { useScanner } from '@/hooks'
-import { registrarProducao } from '@/lib/actions/producao'
+import { registrarProducaoOperacao } from '@/lib/actions/producao'
 import { isScannerV2Enabled } from '@/lib/utils/feature-flags'
 import { descreverTipoQRCode } from '@/lib/utils/qrcode'
 import type { QRScanResult, QRTipo } from '@/types'
 
+const ETAPAS_FLUXO = [
+  { id: 'scan_secao', label: 'Seção' },
+  { id: 'scan_operador', label: 'Operador' },
+  { id: 'selecionar_operacao', label: 'Operação' },
+  { id: 'informar_quantidade', label: 'Quantidade' },
+] as const
+
 const ETAPAS_CONFIG = {
-  scan_operador: {
-    tipoEsperado: 'operador' as QRTipo,
-    titulo: 'Escaneie seu crachá',
-    descricao: 'Aponte a câmera para o QR Code do operador para iniciar a sessão.',
-  },
-  scan_setor_op: {
+  scan_secao: {
     tipoEsperado: 'setor-op' as QRTipo,
     titulo: 'Escaneie o QR operacional',
-    descricao:
-      'Depois de identificar o operador, leia o QR temporário do setor e da OP para abrir a seção do turno.',
+    descricao: 'Leia o QR temporário do setor e da OP para abrir a seção do turno.',
   },
-  confirmar: {
-    tipoEsperado: 'setor-op' as QRTipo,
+  scan_operador: {
+    tipoEsperado: 'operador' as QRTipo,
+    titulo: 'Escaneie o operador',
+    descricao: 'Com a seção já aberta, leia o QR do operador que executou a produção.',
+  },
+  selecionar_operacao: {
+    tipoEsperado: null,
+    titulo: 'Selecione a operação',
+    descricao:
+      'Revise as operações planejadas da seção, escolha o trabalho executado e siga para informar a quantidade incremental.',
+  },
+  informar_quantidade: {
+    tipoEsperado: null,
     titulo: 'Confirmar quantidade',
     descricao:
-      'Revise o contexto da seção do turno, informe a quantidade executada e siga para o lançamento.',
+      'Revise a operação escolhida na seção aberta, informe a quantidade executada e siga para o lançamento atômico.',
+  },
+  registrar: {
+    tipoEsperado: null,
+    titulo: 'Registrando',
+    descricao: 'Aguarde o envio transacional do apontamento atômico da operação.',
   },
 } as const
+
+function etapaFluxoAtual(etapa: keyof typeof ETAPAS_CONFIG): (typeof ETAPAS_FLUXO)[number]['id'] {
+  if (etapa === 'registrar') {
+    return 'informar_quantidade'
+  }
+
+  return etapa
+}
+
+function IndicadorFluxoScanner({ etapa }: { etapa: keyof typeof ETAPAS_CONFIG }) {
+  const etapaAtual = etapaFluxoAtual(etapa)
+  const indiceAtual = ETAPAS_FLUXO.findIndex((item) => item.id === etapaAtual)
+
+  return (
+    <section className="rounded-[28px] border border-white/10 bg-slate-950/40 p-4 backdrop-blur-md">
+      <div className="flex items-center justify-between gap-2">
+        {ETAPAS_FLUXO.map((item, indice) => {
+          const concluida = indice < indiceAtual
+          const ativa = item.id === etapaAtual
+
+          return (
+            <div key={item.id} className="flex min-w-0 flex-1 items-center gap-2">
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                  ativa
+                    ? 'border-emerald-300 bg-emerald-400/20 text-emerald-100'
+                    : concluida
+                      ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100'
+                      : 'border-white/12 bg-white/5 text-slate-400'
+                }`}
+              >
+                {indice + 1}
+              </div>
+              <div className="min-w-0">
+                <p
+                  className={`truncate text-xs font-semibold uppercase tracking-[0.18em] ${
+                    ativa || concluida ? 'text-white' : 'text-slate-500'
+                  }`}
+                >
+                  {item.label}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 function formatarTurnoResumido(iniciadoEm: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -54,12 +121,14 @@ export default function ScannerPage() {
     estado,
     erro,
     estaCarregando,
+    scanSecao,
     scanOperador,
-    scanSetorOp,
+    selecionarOperacao,
     registrar,
-    resetarOperacao,
-    resetarTudo,
-  } = useScanner({ onRegistrar: registrarProducao })
+    trocarOperacao,
+    trocarOperador,
+    reiniciarTotal,
+  } = useScanner({ onRegistrar: registrarProducaoOperacao })
 
   const etapaAtual = ETAPAS_CONFIG[estado.etapa]
 
@@ -78,6 +147,10 @@ export default function ScannerPage() {
   async function handleScan(resultado: QRScanResult) {
     setMensagemTela(null)
 
+    if (!etapaAtual.tipoEsperado) {
+      return
+    }
+
     if (resultado.tipo !== etapaAtual.tipoEsperado) {
       const tipoLido = descreverTipoQRCode(resultado.tipo)
       const tipoEsperado = descreverTipoQRCode(etapaAtual.tipoEsperado)
@@ -90,9 +163,9 @@ export default function ScannerPage() {
     }
 
     const resposta =
-      estado.etapa === 'scan_operador'
-        ? await scanOperador(resultado.token)
-        : await scanSetorOp(resultado.token)
+      estado.etapa === 'scan_secao'
+        ? await scanSecao(resultado.token)
+        : await scanOperador(resultado.token)
 
     if (!resposta.sucesso && resposta.erro) {
       setTipoMensagem('erro')
@@ -100,7 +173,7 @@ export default function ScannerPage() {
     }
   }
 
-  const secaoAtual = estado.etapa === 'confirmar' ? estado.secao : null
+  const secaoAtual = 'secao' in estado ? estado.secao : null
 
   if (!scannerV2Habilitado) {
     return (
@@ -166,13 +239,15 @@ export default function ScannerPage() {
 
             <button
               type="button"
-              onClick={resetarTudo}
+              onClick={reiniciarTotal}
               className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-white/25 hover:bg-white/8"
             >
               Reiniciar
             </button>
           </div>
         </section>
+
+        <IndicadorFluxoScanner etapa={estado.etapa} />
 
         <section className="grid grid-cols-2 gap-3">
           <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 backdrop-blur-md">
@@ -246,35 +321,76 @@ export default function ScannerPage() {
           </section>
         ) : null}
 
-        {estado.etapa !== 'confirmar' ? (
-          <QRScanner
-            ativa={!estaCarregando}
-            onScan={handleScan}
-            onCodigoInvalido={() => {
-              setTipoMensagem('erro')
-              setMensagemTela('QR inválido. Use apenas os códigos gerados pelo sistema.')
-            }}
-            onErro={(mensagem) => {
-              setTipoMensagem('erro')
-              setMensagemTela(mensagem)
-            }}
+        {estado.etapa === 'scan_secao' || estado.etapa === 'scan_operador' ? (
+          <section className="space-y-4">
+            <div className="rounded-[28px] border border-cyan-400/15 bg-cyan-400/8 p-4 text-sm leading-6 text-cyan-50">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100/80">
+                Etapa ativa
+              </p>
+              <p className="mt-2 font-semibold text-white">{etapaAtual.titulo}</p>
+              <p className="mt-2">
+                {estado.etapa === 'scan_secao'
+                  ? 'Aponte a câmera para o QR temporário do setor + OP. Depois disso, a mesma seção fica aberta para as próximas leituras.'
+                  : 'Com a seção aberta, leia o QR do operador que executou esta produção. O scanner avança sozinho para a escolha da operação.'}
+              </p>
+            </div>
+
+            <QRScanner
+              ativa={!estaCarregando}
+              onScan={handleScan}
+              onCodigoInvalido={() => {
+                setTipoMensagem('erro')
+                setMensagemTela('QR inválido. Use apenas os códigos gerados pelo sistema.')
+              }}
+              onErro={(mensagem) => {
+                setTipoMensagem('erro')
+                setMensagemTela(mensagem)
+              }}
+            />
+          </section>
+        ) : estado.etapa === 'selecionar_operacao' ? (
+          <SelecaoOperacaoScanner
+            operacoes={estado.operacoes}
+            operador={estado.operador}
+            onSelecionarOperacao={selecionarOperacao}
+            onTrocarOperador={trocarOperador}
+            secao={estado.secao}
           />
         ) : (
           <ConfirmacaoRegistro
+            operacaoSelecionada={estado.operacaoSelecionada}
+            operador={estado.operador}
             secao={estado.secao}
             estaRegistrando={estaCarregando}
-            onRegistrar={registrar}
-            onRegistroConcluido={() => {
-              setTipoMensagem('sucesso')
-              setMensagemTela('Quantidade validada. Escaneie a próxima seção do turno.')
-              resetarOperacao()
+            onNovaQuantidade={() => {
+              setMensagemTela(null)
             }}
+            onRegistrar={registrar}
             onErro={(mensagem) => {
               setTipoMensagem('erro')
               setMensagemTela(mensagem)
             }}
+            onReiniciarTudo={reiniciarTotal}
+            onTrocarOperacao={trocarOperacao}
+            onTrocarOperador={trocarOperador}
           />
         )}
+
+        <section className="rounded-3xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300 backdrop-blur-md">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Contingência
+          </p>
+          <p className="mt-2 leading-6">
+            Se o fluxo móvel precisar ser interrompido, o supervisor pode continuar os lançamentos
+            pela tela administrativa sem perder o contexto atômico da V2.
+          </p>
+          <Link
+            href="/admin/apontamentos"
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+          >
+            Abrir /admin/apontamentos
+          </Link>
+        </section>
       </div>
     </main>
   )

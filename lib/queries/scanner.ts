@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { listarTurnoSetorOperacoesPorSecaoComClient } from '@/lib/queries/turno-setor-operacoes-base'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurnoBloco,
@@ -6,6 +7,7 @@ import type {
   MaquinaScaneada,
   OperacaoScaneada,
   OperadorScaneado,
+  TurnoSetorOperacaoApontamentoV2,
   TurnoSetorOpScaneado,
 } from '@/types'
 
@@ -191,4 +193,11 @@ export async function buscarTurnoSetorOpScaneadoPorToken(
     qrCodeToken: secao.qr_code_token,
     status: secao.status as TurnoSetorOpScaneado['status'],
   }
+}
+
+export async function buscarOperacoesScaneadasPorSecao(
+  turnoSetorOpId: string
+): Promise<TurnoSetorOperacaoApontamentoV2[]> {
+  const supabase = createClient()
+  return listarTurnoSetorOperacoesPorSecaoComClient(supabase, turnoSetorOpId)
 }

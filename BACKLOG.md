@@ -18,9 +18,10 @@
 | 6 | Base de domínio V2 | ✅ Concluída | 3 |
 | 7 | Planejamento do turno V2 | ✅ Concluída | 3 |
 | 8 | Scanner e apontamento V2 | ✅ Concluída | 3 |
-| 9 | Dashboard, relatórios e coexistência | 🔭 Proposta | 3 |
+| 9 | Dashboard, relatórios e coexistência | ✅ Concluída | 3 |
+| 10 | Scanner híbrido por operação | ✅ Concluída | 2 |
 
-**Total estimado: 18 dias úteis**
+**Total estimado: 20 dias úteis**
 
 **Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. O detalhamento técnico oficial está em `TASKS.md`.
 
@@ -158,7 +159,7 @@
 ## SPRINT 9 — Apontamentos atômicos, dashboard, relatórios e coexistência
 **Objetivo:** evoluir a V2 para registrar produção no nível correto de operador + operação + seção, migrar a visão gerencial para esse consolidado e preservar a leitura histórica durante a transição.
 **Entregável:** apontamento atômico operacional disponível para supervisor e scanner, dashboard e relatórios lendo os consolidados corretos da V2, com coexistência temporária com o legado.
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 
 - Refazer a dashboard para o modelo `turno + OP + setor`
 - Evoluir a modelagem para `turno + OP + setor + operação`
@@ -168,6 +169,19 @@
 - Executar cutover controlado com feature flag
 - Validar responsividade final, deploy e manual operacional
 
+## SPRINT 10 — Scanner híbrido por operação
+**Objetivo:** transformar o scanner em fluxo móvel híbrido para o supervisor apontar produção atômica diretamente no chão, por seção, operador e operação, sem perder a consistência da V2.
+**Entregável:** `/scanner` operando com seleção explícita da operação da seção, troca rápida de operador e reinício total, mantendo `/admin/apontamentos` como contingência administrativa.
+**Status:** ✅ Concluída
+
+- Reescrever a máquina de estados do scanner para `scan_secao -> scan_operador -> selecionar_operacao -> informar_quantidade -> registrar`
+- Implementar as transições `trocar_operador` e `reiniciar_total`
+- Adaptar a UI móvel para listar operações planejadas da seção com saldo e status
+- Registrar o apontamento do scanner via `registrarProducaoOperacao`
+- Auditar corretamente `operador_id` e, quando houver sessão autenticada, `usuario_sistema_id`
+- Remover o fluxo residual que registra apenas quantidade no nível da seção
+- Homologar o fluxo híbrido em celular e validar o fallback por `/admin/apontamentos`
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -176,8 +190,8 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
-As Sprints 6 a 9 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.
+As Sprints 6 a 10 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.

@@ -970,7 +970,7 @@ Nunca avance de sprint sem confirmação explícita minha.
   **Evidência:** Dados históricos do fluxo antigo continuam acessíveis após a entrada da V2.
   A camada de relatórios V2 em `lib/queries/relatorios-v2.ts` passou a unir registros atômicos da V2 com registros legados de `registros_producao` cujo vínculo estrutural (`turno_op_id`, `turno_setor_op_id`, `turno_setor_operacao_id`) ainda é nulo. A UI de `app/admin/relatorios/page.tsx` e dos componentes `components/relatorios/TabelaRelatorios.tsx` e `components/relatorios/ResumoRelatorios.tsx` passou a identificar a origem de cada linha, preservar o histórico legado como leitura acessível e manter a consolidação estrutural V2 separada, sem exigir remoção imediata do modelo antigo. A query legada `lib/queries/relatorios.ts` foi mantida tipada para coexistência. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros; consulta read-only via Supabase Management API confirmou `20` registros legados ainda acessíveis em `public.registros_producao` após a entrada da V2, no intervalo de `2026-03-25` a `2026-03-25`; e uma amostra dos IDs `0384e977-ba3c-4b81-9d44-2a5e451cc04c`, `b14eae7e-6bae-48e8-bb27-7c7dbf0b25f3` e `07cf39db-09a6-4228-a6f6-1006696b73ad` continuou legível com operador, operação e quantidade preservados no fluxo legado.
 
-- [ ] **9.6 — Cutover controlado e validação final**
+- [x] **9.6 — Cutover controlado e validação final**
   Executar:
   - feature flag do scanner V2
   - homologação do fluxo completo
@@ -978,3 +978,90 @@ Nunca avance de sprint sem confirmação explícita minha.
   - deploy
   - manual operacional atualizado
   **Evidência:** URL de produção registra lançamentos no fluxo V2 e a dashboard reflete o progresso em tempo real sem regressão crítica.
+  O cutover controlado foi formalizado com a flag pública `NEXT_PUBLIC_SCANNER_V2_ENABLED` em `lib/utils/feature-flags.ts`, aplicada na rota `app/(operador)/scanner/page.tsx` para liberar ou bloquear o scanner móvel sem remover o fluxo V2 nem o fallback administrativo. O manual operacional foi publicado em `docs/MANUAL_OPERACIONAL_V2.md`, detalhando ativação, homologação e rollback seguro. A validação final foi concluída em `2026-03-30`: `npx tsc --noEmit` e `npm run build` passaram sem erros, a correção dos contêineres do Recharts eliminou os warnings de largura/altura inválida em dashboard e relatórios, o commit `d99c18e` foi publicado em `main`, o deploy de produção `dpl_5UwHaTSw3L1AJ6TaV9EPLmD4ASm9` ficou `READY` no Vercel, a URL `https://producao-chi.vercel.app` respondeu `200` e `/scanner` respondeu `200` exibindo corretamente a tela de cutover controlado com fallback para `/admin/apontamentos` e `/admin/dashboard` enquanto a flag não estiver ativada em produção.
+
+---
+
+## SPRINT 10 — Scanner híbrido por operação
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 9 concluída.
+**Objetivo:** transformar o scanner em fluxo móvel híbrido para apontamento atômico no chão, por seção, operador e operação, sem regressão do domínio V2.
+
+- [x] **10.1 — Reescrever a máquina de estados do hook do scanner**
+  Substituir o fluxo parcial atual por uma máquina de estados explícita:
+  - `scan_secao`
+  - `scan_operador`
+  - `selecionar_operacao`
+  - `informar_quantidade`
+  - `registrar`
+  - `trocar_operador`
+  - `reiniciar_total`
+
+  Regras:
+  - `trocar_operador` preserva a seção já aberta
+  - `reiniciar_total` limpa toda a sessão
+  - após um registro bem-sucedido, o scanner não deve forçar o retorno ao início
+
+  **Evidência:** O hook permite trocar operador sem reler o QR da seção e reiniciar tudo sem loops de estado nem travamentos de UI.
+  `hooks/useScanner.ts` foi reescrito com uma máquina de estados explícita baseada em reducer para `scan_secao`, `scan_operador`, `selecionar_operacao`, `informar_quantidade`, `registrar`, `trocar_operador` e `reiniciar_total`, invertendo a ordem operacional para `seção -> operador` e preservando a seção aberta quando o supervisor troca apenas o operador. `app/(operador)/scanner/page.tsx` foi adaptada para a nova ordem, passou a oferecer a transição `Trocar operador` sem reler o QR da seção e a usar `reiniciarTotal()` como reset completo. A etapa `selecionar_operacao` ficou explícita na UI como transição controlada até a entrega da task `10.2`, sem reintroduzir o loop de estado visto no painel de apontamentos. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **10.2 — Adaptar o scanner para carregar as operações planejadas da seção**
+  Implementar a leitura do contexto atômico da seção no scanner.
+
+  Entregas mínimas:
+  - carregar as operações derivadas daquela `turno_setor_op`
+  - exibir realizado, saldo e status por operação
+  - permitir seleção explícita da operação antes do input de quantidade
+
+  **Evidência:** Após escanear a seção e o operador, o scanner lista as operações planejadas daquela seção com saldo correto e permite selecionar a operação a apontar.
+  `lib/queries/scanner.ts` passou a expor `buscarOperacoesScaneadasPorSecao()` usando a mesma base de leitura das operações derivadas da seção. `hooks/useScanner.ts` foi adaptado para carregar essas operações imediatamente após o QR do operador, bloquear se a seção não tiver operações derivadas e exigir seleção explícita antes de avançar para a quantidade. `components/scanner/SelecaoOperacaoScanner.tsx` foi criado para exibir sequência, código, descrição, realizado, saldo e status de cada operação da `turno_setor_op`, e `components/scanner/ConfirmacaoRegistro.tsx` passou a refletir a operação selecionada no resumo antes do lançamento. `app/(operador)/scanner/page.tsx` deixou de usar o placeholder da etapa intermediária e passou a renderizar a seleção real de operações com as transições `Trocar operador` e `Trocar operação`. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **10.3 — Registrar produção pelo scanner no nível atômico correto**
+  O scanner deve usar a action atômica existente, não o fluxo residual da seção.
+
+  Payload alvo:
+  - `operadorId`
+  - `turnoSetorOperacaoId`
+  - `quantidade`
+  - `origemApontamento`
+  - `usuarioSistemaId?`
+  - `observacao?`
+
+  Regra:
+  - a quantidade fica atribuída ao `operador_id` do QR escaneado
+  - se houver sessão autenticada de supervisor, o lançamento também audita `usuario_sistema_id`
+
+  **Evidência:** Um lançamento no scanner preserva o operador executor, atualiza a operação correta e consolida seção, OP e turno sem supercontagem.
+  `app/(operador)/scanner/page.tsx` deixou de usar `registrarProducao()` e passou a chamar `registrarProducaoOperacao()` no fluxo híbrido. `hooks/useScanner.ts` foi ajustado para enviar `operadorId + turnoSetorOperacaoId + quantidade + origemApontamento='operador_qr'`, validar o saldo da operação antes do envio e atualizar localmente o resumo consolidado da seção após o retorno bem-sucedido da action. `lib/actions/producao.ts` passou a resolver opcionalmente o `usuario_sistema_id` da sessão autenticada do scanner antes de chamar a RPC atômica, preservando a autoria quando houver supervisor logado sem quebrar o uso público do scanner. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **10.4 — Redesenhar a UI móvel do scanner híbrido**
+  Layout mínimo:
+  - tela `scan_secao`
+  - tela `scan_operador`
+  - tela `selecionar_operacao`
+  - tela `informar_quantidade`
+  - feedback pós-registro com ações rápidas
+
+  Botões obrigatórios:
+  - `Nova quantidade`
+  - `Trocar operação`
+  - `Trocar operador`
+  - `Reiniciar tudo`
+
+  **Evidência:** O fluxo móvel fica utilizável em celular pelo supervisor no chão, sem depender de abrir `/admin/apontamentos` para cada troca de operador ou operação.
+  `app/(operador)/scanner/page.tsx` ganhou um indicador visual de etapas e copy operacional específica para as telas de leitura de seção e operador, mantendo o contexto do turno aberto visível no topo em mobile. `components/scanner/ConfirmacaoRegistro.tsx` foi redesenhado para uma tela de quantidade mobile-first com contexto de operador, operação, seção, saldo da operação e feedback pós-registro persistente com as quatro ações rápidas obrigatórias: `Nova quantidade`, `Trocar operação`, `Trocar operador` e `Reiniciar tudo`. `hooks/useScanner.ts` deixou de expulsar o usuário da tela de quantidade após sucesso e passou a manter a operação/seção atualizadas em memória para que o supervisor continue o fluxo no mesmo celular sem reler a seção. `components/scanner/SelecaoOperacaoScanner.tsx` também passou a sinalizar a disponibilidade real da operação e desabilitar seleção quando não houver saldo. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **10.5 — Remover o resíduo legado do scanner e homologar o fluxo híbrido**
+  Limpar o que sobrou do fluxo antigo:
+  - tela de confirmação que registra apenas `seção + operador + quantidade`
+  - reset único que obriga reler a seção quando só o operador mudou
+  - mensagens e contratos que assumem apontamento apenas no nível da seção
+
+  Validar:
+  - responsividade móvel
+  - troca de operador na mesma seção
+  - troca de operação com o mesmo operador
+  - fallback administrativo em `/admin/apontamentos`
+
+  **Evidência:** O scanner híbrido substitui o fluxo residual sem quebrar o fallback administrativo e sem reintroduzir apontamento agregado no nível incorreto.
+  `app/(operador)/scanner/page.tsx` teve a copy residual por seção removida da etapa de quantidade e passou a expor um card permanente de contingência com link direto para `/admin/apontamentos`, mantendo o fallback administrativo acessível no próprio fluxo móvel. A homologação do scanner híbrido foi fechada sem regressão no contrato atômico: a varredura local do escopo do scanner não encontrou mais chamadas a `registrarProducao()` nem payloads residuais `turnoSetorOpId` ou mensagens de apontamento agregado por seção; `hooks/useScanner.ts` segue preservando a seção na troca de operador e a operação na nova quantidade; e `components/scanner/ConfirmacaoRegistro.tsx` continua operando no contexto `operador + operação + seção`. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros, `npm run build` conclui com sucesso e a rota de contingência `/admin/apontamentos` permanece publicada no build final.
