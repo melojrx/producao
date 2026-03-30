@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ClipboardList,
@@ -132,6 +132,7 @@ export function PainelApontamentosSupervisor({
     registrarApontamentosSupervisor,
     estadoInicial
   )
+  const pendenciaAnteriorRef = useRef(pendente)
   const [erroLocal, setErroLocal] = useState<string | null>(null)
   const [filtroOp, setFiltroOp] = useState('')
   const [filtroSetor, setFiltroSetor] = useState('')
@@ -256,7 +257,10 @@ export function PainelApontamentosSupervisor({
   }, [operacoesDaSecao, operadoresDaSecao, secaoSelecionada])
 
   useEffect(() => {
-    if (!estado.sucesso) {
+    const finalizouComSucesso = pendenciaAnteriorRef.current && !pendente && estado.sucesso
+    pendenciaAnteriorRef.current = pendente
+
+    if (!finalizouComSucesso) {
       return
     }
 
@@ -265,7 +269,7 @@ export function PainelApontamentosSupervisor({
       setLancamentos([criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao)])
     }
     router.refresh()
-  }, [estado.sucesso, router, secaoSelecionada, operadoresDaSecao, operacoesDaSecao])
+  }, [estado.sucesso, operacoesDaSecao, operadoresDaSecao, pendente, router, secaoSelecionada])
 
   function selecionarSecao(secaoId: string): void {
     setSecaoSelecionadaId(secaoId)
