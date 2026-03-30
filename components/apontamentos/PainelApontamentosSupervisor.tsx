@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ClipboardList,
@@ -136,48 +136,65 @@ export function PainelApontamentosSupervisor({
   const [filtroOp, setFiltroOp] = useState('')
   const [filtroSetor, setFiltroSetor] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
-  const secoes = montarSecoesComContexto(planejamento)
-  const secoesFiltradas = secoes.filter((secao) => {
-    const correspondeOp = !filtroOp || secao.turnoOpId === filtroOp
-    const correspondeSetor = !filtroSetor || secao.setorId === filtroSetor
-    const correspondeProduto = !filtroProduto || secao.produtoReferencia === filtroProduto
+  const secoes = useMemo(() => montarSecoesComContexto(planejamento), [planejamento])
+  const secoesFiltradas = useMemo(
+    () =>
+      secoes.filter((secao) => {
+        const correspondeOp = !filtroOp || secao.turnoOpId === filtroOp
+        const correspondeSetor = !filtroSetor || secao.setorId === filtroSetor
+        const correspondeProduto = !filtroProduto || secao.produtoReferencia === filtroProduto
 
-    return correspondeOp && correspondeSetor && correspondeProduto
-  })
+        return correspondeOp && correspondeSetor && correspondeProduto
+      }),
+    [filtroOp, filtroProduto, filtroSetor, secoes]
+  )
   const [secaoSelecionadaId, setSecaoSelecionadaId] = useState<string>(
     secoesFiltradas[0]?.id ?? secoes[0]?.id ?? ''
   )
   const [lancamentos, setLancamentos] = useState<LancamentoDraft[]>([])
 
-  const secaoSelecionada =
-    secoes.find((secao) => secao.id === secaoSelecionadaId) ?? secoesFiltradas[0] ?? null
+  const secaoSelecionada = useMemo(
+    () => secoes.find((secao) => secao.id === secaoSelecionadaId) ?? secoesFiltradas[0] ?? null,
+    [secaoSelecionadaId, secoes, secoesFiltradas]
+  )
 
-  const operacoesDaSecao = secaoSelecionada
-    ? operacoesTurno.filter((operacao) => operacao.turnoSetorOpId === secaoSelecionada.id)
-    : []
+  const operacoesDaSecao = useMemo(
+    () =>
+      secaoSelecionada
+        ? operacoesTurno.filter((operacao) => operacao.turnoSetorOpId === secaoSelecionada.id)
+        : [],
+    [operacoesTurno, secaoSelecionada]
+  )
 
-  const operadoresDaSecaoBase = secaoSelecionada
-    ? planejamento.operadores.filter(
-        (operador) => operador.setorId === secaoSelecionada.setorId || operador.setorId === null
-      )
-    : []
+  const operadoresDaSecao = useMemo(() => {
+    if (!secaoSelecionada) {
+      return [] as TurnoOperadorV2[]
+    }
 
-  const operadoresDaSecao =
-    operadoresDaSecaoBase.length > 0 ? operadoresDaSecaoBase : planejamento.operadores
+    const operadoresDaSecaoBase = planejamento.operadores.filter(
+      (operador) => operador.setorId === secaoSelecionada.setorId || operador.setorId === null
+    )
 
-  const payloadLancamentos = JSON.stringify(
-    lancamentos
-      .filter(
-        (lancamento) =>
-          lancamento.operadorId &&
-          lancamento.turnoSetorOperacaoId &&
-          Number.parseInt(lancamento.quantidade, 10) > 0
-      )
-      .map((lancamento) => ({
-        operadorId: lancamento.operadorId,
-        turnoSetorOperacaoId: lancamento.turnoSetorOperacaoId,
-        quantidade: Number.parseInt(lancamento.quantidade, 10),
-      }))
+    return operadoresDaSecaoBase.length > 0 ? operadoresDaSecaoBase : planejamento.operadores
+  }, [planejamento.operadores, secaoSelecionada])
+
+  const payloadLancamentos = useMemo(
+    () =>
+      JSON.stringify(
+        lancamentos
+          .filter(
+            (lancamento) =>
+              lancamento.operadorId &&
+              lancamento.turnoSetorOperacaoId &&
+              Number.parseInt(lancamento.quantidade, 10) > 0
+          )
+          .map((lancamento) => ({
+            operadorId: lancamento.operadorId,
+            turnoSetorOperacaoId: lancamento.turnoSetorOperacaoId,
+            quantidade: Number.parseInt(lancamento.quantidade, 10),
+          }))
+      ),
+    [lancamentos]
   )
 
   useEffect(() => {
@@ -208,7 +225,7 @@ export function PainelApontamentosSupervisor({
 
     setLancamentos((estadoAtual) => {
       if (estadoAtual.length > 0) {
-        return estadoAtual.map((lancamento) => ({
+        const proximoEstado = estadoAtual.map((lancamento) => ({
           ...lancamento,
           operadorId:
             operadoresDaSecao.some((operador) => operador.operadorId === lancamento.operadorId)
@@ -220,6 +237,14 @@ export function PainelApontamentosSupervisor({
             ? lancamento.turnoSetorOperacaoId
             : (operacoesDaSecao[0]?.id ?? ''),
         }))
+
+        const estadoMudou = proximoEstado.some(
+          (lancamento, index) =>
+            lancamento.operadorId !== estadoAtual[index]?.operadorId ||
+            lancamento.turnoSetorOperacaoId !== estadoAtual[index]?.turnoSetorOperacaoId
+        )
+
+        return estadoMudou ? proximoEstado : estadoAtual
       }
 
       if (operadoresDaSecao.length === 0 || operacoesDaSecao.length === 0) {

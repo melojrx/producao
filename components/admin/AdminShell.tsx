@@ -59,6 +59,10 @@ export function AdminShell({
     setSidebarCollapsed(storedValue === 'true')
   }, [])
 
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
   function toggleSidebarCollapsed() {
     setSidebarCollapsed((currentValue) => {
       const nextValue = !currentValue
