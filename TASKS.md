@@ -983,7 +983,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 10 — Scanner híbrido por operação
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 9 concluída.
 **Objetivo:** transformar o scanner em fluxo móvel híbrido para apontamento atômico no chão, por seção, operador e operação, sem regressão do domínio V2.
 
@@ -1065,3 +1065,77 @@ Nunca avance de sprint sem confirmação explícita minha.
 
   **Evidência:** O scanner híbrido substitui o fluxo residual sem quebrar o fallback administrativo e sem reintroduzir apontamento agregado no nível incorreto.
   `app/(operador)/scanner/page.tsx` teve a copy residual por seção removida da etapa de quantidade e passou a expor um card permanente de contingência com link direto para `/admin/apontamentos`, mantendo o fallback administrativo acessível no próprio fluxo móvel. A homologação do scanner híbrido foi fechada sem regressão no contrato atômico: a varredura local do escopo do scanner não encontrou mais chamadas a `registrarProducao()` nem payloads residuais `turnoSetorOpId` ou mensagens de apontamento agregado por seção; `hooks/useScanner.ts` segue preservando a seção na troca de operador e a operação na nova quantidade; e `components/scanner/ConfirmacaoRegistro.tsx` continua operando no contexto `operador + operação + seção`. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros, `npm run build` conclui com sucesso e a rota de contingência `/admin/apontamentos` permanece publicada no build final.
+
+---
+
+## SPRINT 11 — Edição do turno aberto
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 10 concluída.
+**Objetivo:** permitir que supervisor/admin incluam novas OPs em um turno já aberto, refletindo isso em toda a cadeia derivada sem exigir encerramento do turno.
+
+- [x] **11.1 — Formalizar a edição do turno aberto na dashboard**
+  Entregas mínimas:
+  - CTA `Editar turno` visível apenas para turno `aberto`
+  - modal ou drawer de edição do turno atual
+  - listagem das OPs existentes no turno
+  - ação explícita `Adicionar OP`
+
+  Regras:
+  - turno encerrado não pode entrar em edição
+  - o cabeçalho do turno permanece somente leitura neste incremento
+  - a edição do turno não pode esconder o monitoramento em tempo real da dashboard
+
+  **Evidência:** Com turno aberto, a dashboard expõe a edição do turno e permite iniciar a inclusão de nova OP sem sair do contexto do turno atual.
+  `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` passou a expor o CTA `Editar turno` apenas quando existe um turno `aberto`, sem substituir os fluxos de `Novo Turno` e `Encerrar Turno`. O novo modal `components/dashboard/ModalEditarTurnoAbertoV2.tsx` formaliza a edição do turno em andamento com cabeçalho em leitura, listagem das OPs já planejadas com status/planejado/realizado/saldo e um bloco local `Incluir nova OP` que já permite iniciar uma ou mais novas linhas de OP sem sair do contexto do turno atual. Neste incremento a gravação ainda não acontece, mas a UX da dashboard e o contrato visual do fluxo de edição ficaram definidos para a task `11.2`. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **11.2 — Permitir incluir nova OP no turno aberto com derivação imediata**
+  Entregas mínimas:
+  - formulário com `numeroOp`, `produtoId` e `quantidadePlanejada`
+  - uso da action existente `adicionarOpAoTurno()`
+  - recarga imediata do planejamento após salvar
+
+  Regras:
+  - apenas turnos `abertos` aceitam nova OP
+  - `numero_op` deve seguir único dentro do turno
+  - produto precisa estar ativo, com roteiro válido e setores válidos
+
+  **Evidência:** Ao adicionar uma nova OP em turno aberto, o sistema cria a linha em `turno_ops` e deriva automaticamente suas seções e operações sem fechar o turno.
+  `components/dashboard/ModalEditarTurnoAbertoV2.tsx` passou a executar a inclusão real de novas OPs via `adicionarOpAoTurno()`, com formulário para `numeroOp`, `produtoId` e `quantidadePlanejada`, validação local, tratamento explícito de sucesso parcial e recarga imediata do planejamento via `recarregar()` da dashboard. `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` agora entrega esse refresh para o modal, mantendo o turno aberto enquanto a cadeia derivada é atualizada. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **11.3 — Endurecer as restrições de edição de OP existente**
+  Entregas mínimas:
+  - expor edição de OP existente apenas quando permitido
+  - bloquear alteração estrutural em OP com produção
+  - mensagens claras de bloqueio na UI
+
+  Regras:
+  - `produto` e `quantidadePlanejada` só podem mudar se a OP ainda não tiver produção
+  - `numeroOp` não pode colidir com outra OP do mesmo turno
+  - nenhuma edição pode apagar ou reescrever produção já apontada
+
+  **Evidência:** Uma OP sem produção pode ser ajustada; uma OP com produção recebe bloqueio explícito para alterações estruturais.
+  `components/dashboard/ModalEditarTurnoAbertoV2.tsx` passou a expor `Editar OP` somente para OPs sem produção detectada nas seções derivadas do turno, com formulário de edição para `numeroOp`, `produtoId` e `quantidadePlanejada` e mensagem explícita de bloqueio nas OPs que já possuem apontamento. `lib/actions/turnos.ts` endureceu `editarOpDoTurno()` para exigir turno `aberto` e rejeitar qualquer alteração estrutural quando já existir produção na OP. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [x] **11.4 — Refletir a nova OP em toda a cadeia operacional**
+  Entregas mínimas:
+  - novos QRs de seção disponíveis na dashboard
+  - nova OP visível no scanner
+  - nova OP visível em `/admin/apontamentos`
+  - dashboard e relatórios recalculados com o novo planejado do turno
+
+  Regras:
+  - a inclusão de nova OP não pode afetar a produção já consolidada das OPs anteriores
+  - os agregados do turno devem aumentar de forma consistente com o novo planejado
+
+  **Evidência:** Após incluir nova OP, dashboard, scanner, apontamentos e relatórios passam a enxergá-la no mesmo turno aberto, com QRs e saldos corretos.
+  `lib/actions/turnos.ts` passou a revalidar também `/admin/apontamentos` e `/admin/relatorios` no mesmo evento de inclusão ou edição de OP, além de `/admin/dashboard` e `/scanner`. Com isso, a nova OP já nasce refletida na dashboard com seus QRs operacionais, fica disponível para leitura no scanner pelo QR derivado da seção, aparece no contexto do turno aberto em `/admin/apontamentos` e entra no escopo dos filtros e agregados de `/admin/relatorios` sem exigir fechamento do turno. `components/dashboard/ModalEditarTurnoAbertoV2.tsx` também passou a confirmar explicitamente essa propagação operacional após salvar. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
+
+- [ ] **11.5 — Homologar o fluxo de edição do turno aberto**
+  Validar:
+  - inclusão de OP durante turno já em andamento
+  - geração de novas seções e operações derivadas
+  - leitura do novo QR no scanner
+  - fallback por `/admin/apontamentos`
+  - manutenção do turno aberto até encerramento manual
+
+  **Evidência:** Um turno em andamento recebe nova OP sem ser encerrado, a nova cadeia operacional fica utilizável imediatamente e o fechamento do turno continua funcionando sem regressão.

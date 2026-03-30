@@ -13,6 +13,7 @@ import {
   TimerReset,
 } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
+import { ModalEditarTurnoAbertoV2 } from '@/components/dashboard/ModalEditarTurnoAbertoV2'
 import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurno'
 import { ModalEncerrarTurno } from '@/components/dashboard/ModalEncerrarTurno'
 import { ModalNovoTurnoV2 } from '@/components/dashboard/ModalNovoTurnoV2'
@@ -124,6 +125,7 @@ export function MonitorPlanejamentoTurnoV2({
   maquinas,
 }: MonitorPlanejamentoTurnoV2Props) {
   const [modalAberto, setModalAberto] = useState(initialPlanning === null)
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false)
   const [modalEncerramentoAberto, setModalEncerramentoAberto] = useState(false)
   const [turnoOpSelecionadaId, setTurnoOpSelecionadaId] = useState<string | null>(null)
   const [encerrandoTurno, iniciarEncerramentoTurno] = useTransition()
@@ -252,6 +254,16 @@ export function MonitorPlanejamentoTurnoV2({
               <PencilLine size={18} />
               {planejamento ? 'Novo Turno' : 'Abrir primeiro turno'}
             </button>
+            {podeEncerrarTurno ? (
+              <button
+                type="button"
+                onClick={() => setModalEdicaoAberto(true)}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2.5 text-sm font-medium text-cyan-900 transition-colors hover:bg-cyan-100"
+              >
+                <PencilLine size={16} />
+                Editar turno
+              </button>
+            ) : null}
             {podeEncerrarTurno ? (
               <button
                 type="button"
@@ -526,6 +538,15 @@ export function MonitorPlanejamentoTurnoV2({
           produtos={produtos}
           bloqueante={planejamento === null}
           aoFechar={() => setModalAberto(false)}
+        />
+      ) : null}
+
+      {modalEdicaoAberto && planejamento && podeEncerrarTurno ? (
+        <ModalEditarTurnoAbertoV2
+          planejamento={planejamento}
+          produtos={produtos}
+          aoAtualizarPlanejamento={recarregar}
+          aoFechar={() => setModalEdicaoAberto(false)}
         />
       ) : null}
 

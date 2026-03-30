@@ -545,6 +545,8 @@ export async function adicionarOpAoTurno(
   }
 
   revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/apontamentos')
+  revalidatePath('/admin/relatorios')
   revalidatePath('/scanner')
 
   return {
@@ -579,11 +581,27 @@ export async function editarOpDoTurno(
     return { sucesso: false, erro: 'OP do turno não encontrada para edição.' }
   }
 
+  const { data: turnoAtual, error: turnoError } = await supabase
+    .from('turnos')
+    .select('id, status')
+    .eq('id', turnoOpAtual.turno_id)
+    .maybeSingle<Pick<TurnoRow, 'id' | 'status'>>()
+
+  if (turnoError || !turnoAtual) {
+    return { sucesso: false, erro: 'Turno não encontrado para editar a OP.' }
+  }
+
+  if (turnoAtual.status !== 'aberto') {
+    return { sucesso: false, erro: 'Somente turnos abertos permitem editar OP existente.' }
+  }
+
   const numeroOp = normalizarTexto(input.numeroOp)
+  const mudouNumero = turnoOpAtual.numero_op !== numeroOp
   const mudouProduto = turnoOpAtual.produto_id !== input.produtoId
   const mudouQuantidade = turnoOpAtual.quantidade_planejada !== input.quantidadePlanejada
+  const houveMudancaEstrutural = mudouNumero || mudouProduto || mudouQuantidade
 
-  if (mudouProduto || mudouQuantidade) {
+  if (houveMudancaEstrutural) {
     const { erro: erroProduto } = await validarProdutoPlanejado(input.produtoId)
     if (erroProduto) {
       return { sucesso: false, erro: erroProduto }
@@ -606,7 +624,7 @@ export async function editarOpDoTurno(
     if (possuiRealizado) {
       return {
         sucesso: false,
-        erro: 'Não é possível alterar produto ou quantidade de uma OP que já possui produção apontada.',
+        erro: 'Esta OP já possui produção apontada e não pode mais receber alterações estruturais.',
       }
     }
   }
@@ -648,6 +666,8 @@ export async function editarOpDoTurno(
   }
 
   revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/apontamentos')
+  revalidatePath('/admin/relatorios')
   revalidatePath('/scanner')
 
   return {

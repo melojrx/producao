@@ -116,6 +116,44 @@ Resultado:
 - o supervisor informa apenas a demanda do dia
 - o sistema deriva automaticamente a estrutura operacional necessária
 
+### 5.2.1 Edição do turno aberto
+
+Durante a execução do dia, o supervisor ou admin pode precisar incluir uma nova OP sem encerrar o turno atual.
+
+Fluxo alvo:
+- supervisor abre a dashboard do turno ainda `aberto`
+- acessa a ação `Editar turno`
+- adiciona uma nova OP com:
+  - número da OP
+  - produto
+  - quantidade planejada
+- sistema valida a nova demanda e deriva imediatamente:
+  - a nova linha em `turno_ops`
+  - as novas seções `setor + OP`
+  - as novas operações derivadas da seção
+  - os novos QRs operacionais das seções adicionadas
+- dashboard, scanner, apontamentos e relatórios passam a enxergar a nova OP sem exigir fechamento do turno
+
+Objetivo:
+- permitir ajuste operacional realista durante o turno
+- evitar fechamento artificial do turno apenas para incluir nova demanda
+- preservar a continuidade do monitoramento em tempo real
+
+Restrições obrigatórias:
+- apenas turnos com status `aberto` podem receber novas OPs
+- o `numero_op` deve continuar único dentro do turno
+- o produto da nova OP precisa estar ativo e com roteiro/setores válidos
+- a inclusão de nova OP não pode alterar nem apagar produção já registrada de outras OPs do turno
+- a edição de uma OP já existente só pode alterar `produto` ou `quantidade_planejada` se ainda não houver produção apontada naquela OP
+- se a OP já tiver produção, ela pode no máximo receber ajustes administrativos não estruturais, nunca regeração destrutiva da cadeia derivada
+
+Impacto esperado:
+- o turno continua o mesmo
+- o planejamento total do turno aumenta
+- novas seções entram como pendentes/abertas
+- novos QRs precisam ficar imediatamente disponíveis para impressão ou consulta
+- scanner e `/admin/apontamentos` passam a aceitar lançamentos para a nova OP assim que ela for salva
+
 ### 5.3 Execução no chão de fábrica
 
 ```
@@ -195,6 +233,12 @@ Durante a execução, a dashboard acompanha em tempo real:
 - andamento por operação dentro da seção quando necessário
 - quantidade planejada versus realizada
 - pendências e seções encerradas
+
+Com edição de turno aberto, a dashboard também precisa:
+- permitir incluir novas OPs sem perder o contexto do turno atual
+- recalcular imediatamente os agregados do turno após cada inclusão
+- destacar visualmente as OPs recém-adicionadas até a primeira produção
+- expor os novos QRs operacionais das seções derivadas
 
 ---
 
@@ -344,9 +388,44 @@ Responsabilidades principais do supervisor:
 Interface principal do supervisor e do administrador.
 - visualizar turno aberto ou último turno encerrado
 - abrir novo turno
+- editar turno aberto
 - acompanhar OPs e setores em tempo real
 - encerrar turno, OPs e setores
 - visualizar planejado x realizado
+
+#### 8.1.1 UX alvo para edição do turno aberto
+
+Quando existir um turno `aberto`, a dashboard deve expor:
+- CTA `Editar turno`
+- ação `Adicionar OP`
+- listagem das OPs já planejadas com status, planejado, realizado e saldo
+
+Fluxo mínimo da edição:
+- abrir modal ou drawer de edição do turno atual
+- mostrar o cabeçalho do turno como somente leitura:
+  - iniciado em
+  - operadores disponíveis
+  - minutos do turno
+- permitir incluir uma ou mais novas OPs
+- permitir editar OP existente apenas quando ela ainda não tiver produção
+- ao salvar, recarregar o planejamento do turno e destacar o que foi incluído
+
+Campos mínimos por nova OP:
+- número da OP
+- produto
+- quantidade planejada
+
+Saídas obrigatórias após salvar:
+- confirmação de que a OP entrou no turno atual
+- atualização imediata da dashboard
+- disponibilidade dos novos QRs por seção derivada
+- nova OP visível no scanner e em `/admin/apontamentos`
+
+Mensagens de bloqueio obrigatórias:
+- turno encerrado não pode ser editado
+- OP duplicada no mesmo turno
+- produto sem roteiro/setores válidos
+- OP existente com produção não pode ter produto ou quantidade alterados
 
 ### 8.2 Scanner (/scanner)
 

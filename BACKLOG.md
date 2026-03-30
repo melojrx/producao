@@ -20,8 +20,9 @@
 | 8 | Scanner e apontamento V2 | ✅ Concluída | 3 |
 | 9 | Dashboard, relatórios e coexistência | ✅ Concluída | 3 |
 | 10 | Scanner híbrido por operação | ✅ Concluída | 2 |
+| 11 | Edição do turno aberto | 🔭 Proposta | 2 |
 
-**Total estimado: 20 dias úteis**
+**Total estimado: 22 dias úteis**
 
 **Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. O detalhamento técnico oficial está em `TASKS.md`.
 
@@ -182,6 +183,19 @@
 - Remover o fluxo residual que registra apenas quantidade no nível da seção
 - Homologar o fluxo híbrido em celular e validar o fallback por `/admin/apontamentos`
 
+## SPRINT 11 — Edição do turno aberto
+**Objetivo:** permitir que supervisor/admin incluam novas OPs em um turno já aberto, refletindo isso em dashboard, scanner, QRs, apontamentos e relatórios sem fechar o turno.
+**Entregável:** turno aberto editável na dashboard, com inclusão segura de novas OPs e propagação imediata da cadeia derivada `OP -> seção -> operação`.
+**Status:** 🔭 Proposta
+
+- Expor ação `Editar turno` na dashboard do turno aberto
+- Permitir `Adicionar OP` ao turno atual sem encerrá-lo
+- Reusar a derivação automática existente para seções e operações
+- Exibir imediatamente os novos QRs das seções geradas
+- Permitir editar OP existente apenas quando ainda não houver produção
+- Recalcular planejado vs realizado do turno após a inclusão
+- Homologar scanner, `/admin/apontamentos` e dashboard com OP adicionada durante o turno
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -190,8 +204,8 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
-As Sprints 6 a 10 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.
+As Sprints 6 a 11 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.
