@@ -196,6 +196,7 @@ export function ModalProduto({ produto, operacoes, aoFechar }: ModalProdutoProps
               <div className="max-h-[360px] overflow-y-auto">
                 {operacoes.map((operacao) => {
                   const selecionada = roteiroIds.includes(operacao.id)
+                  const operacaoSemSetor = !operacao.setor_id
 
                   return (
                     <div
@@ -206,23 +207,28 @@ export function ModalProduto({ produto, operacoes, aoFechar }: ModalProdutoProps
                         <p className="font-medium text-gray-900">{operacao.codigo}</p>
                         <p className="truncate text-sm text-gray-600">{operacao.descricao}</p>
                         <p className="text-xs text-gray-500">
-                          {operacao.tipoNome ?? 'Sem tipo'} • T.P {operacao.tempo_padrao_min}
+                          {operacao.setorNome ?? 'Setor não definido'} • {operacao.tipoNome ?? 'Sem tipo'} • T.P {operacao.tempo_padrao_min}
                         </p>
                       </div>
                       <button
                         type="button"
+                        disabled={!selecionada && operacaoSemSetor}
                         onClick={() =>
                           selecionada
                             ? removerOperacao(operacao.id)
                             : adicionarOperacao(operacao.id)
                         }
                         title={
-                          selecionada
+                          operacaoSemSetor && !selecionada
+                            ? `Defina um setor para ${operacao.codigo} antes de usar no roteiro`
+                            : selecionada
                             ? `Remover ${operacao.codigo} do roteiro`
                             : `Adicionar ${operacao.codigo} ao roteiro`
                         }
                         className={`ml-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                          selecionada
+                          operacaoSemSetor && !selecionada
+                            ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                            : selecionada
                             ? 'bg-red-50 text-red-700 hover:bg-red-100'
                             : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                         }`}
@@ -270,7 +276,7 @@ export function ModalProduto({ produto, operacoes, aoFechar }: ModalProdutoProps
                             {operacao.descricao}
                           </p>
                           <p className="text-xs text-gray-500">
-                            T.P {operacao.tempo_padrao_min}
+                            {operacao.setorNome ?? 'Setor não definido'} • T.P {operacao.tempo_padrao_min}
                           </p>
                         </div>
 

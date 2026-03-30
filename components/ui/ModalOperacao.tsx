@@ -5,20 +5,18 @@ import { X } from 'lucide-react'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
 import { criarOperacao, editarOperacao } from '@/lib/actions/operacoes'
 import { calcularMetaDia, calcularMetaHora } from '@/lib/utils/producao'
-import type { FormActionState, TipoMaquinaOption } from '@/types'
-import type { Tables } from '@/types/supabase'
-
-type Operacao = Tables<'operacoes'>
+import type { FormActionState, OperacaoListItem, SetorOption, TipoMaquinaOption } from '@/types'
 
 interface ModalOperacaoProps {
-  operacao?: Operacao
+  operacao?: OperacaoListItem
   tiposMaquina: TipoMaquinaOption[]
+  setores: SetorOption[]
   aoFechar: () => void
 }
 
 const estadoInicial: FormActionState = { erro: undefined, sucesso: false }
 
-export function ModalOperacao({ operacao, tiposMaquina, aoFechar }: ModalOperacaoProps) {
+export function ModalOperacao({ operacao, tiposMaquina, setores, aoFechar }: ModalOperacaoProps) {
   const acao = operacao ? editarOperacao.bind(null, operacao.id) : criarOperacao
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
   const [tempoPadraoMin, setTempoPadraoMin] = useState(
@@ -75,17 +73,25 @@ export function ModalOperacao({ operacao, tiposMaquina, aoFechar }: ModalOperaca
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <label htmlFor="codigo" className="text-sm font-medium text-gray-700">
-                Código <span aria-hidden>*</span>
+              <label htmlFor="setor_id" className="text-sm font-medium text-gray-700">
+                Setor <span aria-hidden>*</span>
               </label>
-              <input
-                id="codigo"
-                name="codigo"
-                type="text"
+              <select
+                id="setor_id"
+                name="setor_id"
                 required
-                defaultValue={operacao?.codigo ?? ''}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+                defaultValue={operacao?.setor_id ?? ''}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="" disabled>
+                  Selecione um setor
+                </option>
+                {setores.map((setor) => (
+                  <option key={setor.id} value={setor.id}>
+                    {setor.nome}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -109,6 +115,13 @@ export function ModalOperacao({ operacao, tiposMaquina, aoFechar }: ModalOperaca
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Código</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {operacao?.codigo ?? 'Será gerado automaticamente ao salvar'}
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">

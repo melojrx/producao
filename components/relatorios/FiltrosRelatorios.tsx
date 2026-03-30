@@ -1,21 +1,30 @@
-import type { OperacaoListItem, RelatorioFiltros } from '@/types'
+import type {
+  RelatorioFiltros,
+  RelatorioSetorOption,
+  RelatorioTurnoOpOption,
+  RelatorioTurnoOption,
+} from '@/types'
 import type { Tables } from '@/types/supabase'
 
 interface FiltrosRelatoriosProps {
   filtros: RelatorioFiltros
+  ops: RelatorioTurnoOpOption[]
   operadores: Tables<'operadores'>[]
-  operacoes: OperacaoListItem[]
+  setores: RelatorioSetorOption[]
+  turnos: RelatorioTurnoOption[]
 }
 
 export function FiltrosRelatorios({
   filtros,
+  ops,
   operadores,
-  operacoes,
+  setores,
+  turnos,
 }: FiltrosRelatoriosProps) {
   return (
     <form
       method="get"
-      className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2 xl:grid-cols-6"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor="dataInicio" className="text-sm font-medium text-slate-700">
@@ -63,19 +72,57 @@ export function FiltrosRelatorios({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="operacaoId" className="text-sm font-medium text-slate-700">
-          Operação
+        <label htmlFor="turnoId" className="text-sm font-medium text-slate-700">
+          Turno
         </label>
         <select
-          id="operacaoId"
-          name="operacaoId"
-          defaultValue={filtros.operacaoId}
+          id="turnoId"
+          name="turnoId"
+          defaultValue={filtros.turnoId}
           className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="">Todas as operações</option>
-          {operacoes.map((operacao) => (
-            <option key={operacao.id} value={operacao.id}>
-              {operacao.codigo} • {operacao.descricao}
+          <option value="">Todos os turnos</option>
+          {turnos.map((turno) => (
+            <option key={turno.id} value={turno.id}>
+              {turno.label} • {turno.status}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="turnoOpId" className="text-sm font-medium text-slate-700">
+          OP
+        </label>
+        <select
+          id="turnoOpId"
+          name="turnoOpId"
+          defaultValue={filtros.turnoOpId}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Todas as OPs</option>
+          {ops.map((op) => (
+            <option key={op.id} value={op.id}>
+              {op.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="setorId" className="text-sm font-medium text-slate-700">
+          Setor
+        </label>
+        <select
+          id="setorId"
+          name="setorId"
+          defaultValue={filtros.setorId}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Todos os setores</option>
+          {setores.map((setor) => (
+            <option key={setor.id} value={setor.id}>
+              {setor.nome}
             </option>
           ))}
         </select>
@@ -83,7 +130,7 @@ export function FiltrosRelatorios({
 
       <input type="hidden" name="page" value="1" />
 
-      <div className="flex items-end gap-3 md:col-span-2 xl:col-span-4">
+      <div className="flex items-end gap-3 md:col-span-2 xl:col-span-6">
         <button
           type="submit"
           className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"

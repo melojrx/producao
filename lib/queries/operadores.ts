@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import type { OperadorListItem } from '@/types'
 
-export async function listarOperadores() {
+export async function listarOperadores(): Promise<OperadorListItem[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -12,7 +13,7 @@ export async function listarOperadores() {
   return data
 }
 
-export async function buscarOperadorPorId(id: string) {
+export async function buscarOperadorPorId(id: string): Promise<OperadorListItem | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -25,7 +26,7 @@ export async function buscarOperadorPorId(id: string) {
   return data
 }
 
-export async function buscarOperadorPorToken(token: string) {
+export async function buscarOperadorPorToken(token: string): Promise<OperadorListItem | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase

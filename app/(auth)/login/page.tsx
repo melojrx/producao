@@ -10,7 +10,7 @@ interface LoginPageProps {
 
 function getMensagemErro(erro?: string): string | null {
   if (erro === 'sem-permissao') {
-    return 'Sua conta está autenticada, mas não possui role admin/supervisor.'
+    return 'Sua conta está autenticada, mas não possui cadastro administrativo ativo.'
   }
 
   if (erro === 'sessao-expirada') {

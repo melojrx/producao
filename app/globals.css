@@ -26,3 +26,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans-app);
 }
+
+@layer base {
+  input,
+  select,
+  textarea {
+    color: #0f172a;
+    background-color: #ffffff;
+    color-scheme: light;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #94a3b8;
+  }
+}

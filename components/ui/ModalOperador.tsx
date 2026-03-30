@@ -4,12 +4,10 @@ import { useActionState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { criarOperador, editarOperador } from '@/lib/actions/operadores'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
-import { Tables } from '@/types/supabase'
-
-type Operador = Tables<'operadores'>
+import type { OperadorListItem } from '@/types'
 
 interface ModalOperadorProps {
-  operador?: Operador
+  operador?: OperadorListItem
   aoFechar: () => void
 }
 
@@ -88,16 +86,6 @@ export function ModalOperador({ operador, aoFechar }: ModalOperadorProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label htmlFor="setor" className="text-sm font-medium text-gray-700">Setor</label>
-              <input
-                id="setor"
-                name="setor"
-                type="text"
-                defaultValue={operador?.setor ?? ''}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
               <label htmlFor="funcao" className="text-sm font-medium text-gray-700">Função</label>
               <input
                 id="funcao"
@@ -107,6 +95,25 @@ export function ModalOperador({ operador, aoFechar }: ModalOperadorProps) {
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="carga_horaria_min" className="text-sm font-medium text-gray-700">
+                Carga horária (min) <span aria-hidden>*</span>
+              </label>
+              <input
+                id="carga_horaria_min"
+                name="carga_horaria_min"
+                type="number"
+                min="1"
+                step="1"
+                required
+                defaultValue={operador?.carga_horaria_min ?? 540}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            Na V2, o operador não pertence fixamente a um setor. A alocação passa a ser feita por turno.
           </div>
 
           {modoEdicao && (

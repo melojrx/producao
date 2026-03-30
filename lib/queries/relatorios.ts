@@ -76,19 +76,34 @@ function normalizarRelacao<T>(relacao: T | T[] | null): T | null {
 function mapearRegistroRelatorio(row: RegistroRelatorioRow): RelatorioRegistroItem {
   const operador = normalizarRelacao(row.operadores)
   const operacao = normalizarRelacao(row.operacoes)
-  const maquina = normalizarRelacao(row.maquinas)
 
   return {
     id: row.id,
-    operadorId: operador?.id ?? null,
+    origem: 'legado',
+    turnoId: '',
+    turnoLabel: 'Histórico legado',
+    turnoStatus: 'encerrado',
+    turnoOpId: '',
+    numeroOp: 'Histórico legado',
+    produtoReferencia: '—',
+    produtoNome: 'Produto não informado',
+    turnoSetorOpId: '',
+    setorId: '',
+    setorNome: 'Bloco legado',
+    turnoSetorOperacaoId: '',
+    operadorId: operador?.id ?? '',
     operadorNome: operador?.nome ?? 'Operador não informado',
-    operacaoId: operacao?.id ?? null,
+    operacaoId: operacao?.id ?? '',
     operacaoCodigo: operacao?.codigo ?? '—',
     operacaoDescricao: operacao?.descricao ?? 'Operação não informada',
-    maquinaCodigo: maquina?.codigo ?? null,
-    quantidade: row.quantidade ?? 0,
-    dataProducao: row.data_producao ?? '',
-    horaRegistro: row.hora_registro ?? '',
+    quantidadeApontada: row.quantidade ?? 0,
+    quantidadeRealizadaOperacao: 0,
+    quantidadeRealizadaSecao: 0,
+    quantidadeRealizadaOp: 0,
+    statusOperacao: 'planejada',
+    statusSecao: 'planejada',
+    statusOp: 'planejada',
+    ultimaLeituraEm: row.hora_registro ?? row.data_producao ?? '',
   }
 }
 
@@ -105,11 +120,6 @@ function aplicarFiltrosRelatorio<T extends {
   if (filtros.operadorId) {
     queryFiltrada = queryFiltrada.eq('operador_id', filtros.operadorId)
   }
-
-  if (filtros.operacaoId) {
-    queryFiltrada = queryFiltrada.eq('operacao_id', filtros.operacaoId)
-  }
-
   return queryFiltrada
 }
 
@@ -209,7 +219,7 @@ export async function buscarComparativoMetaGrupo(
     .sort((primeira, segunda) => primeira.localeCompare(segunda))
     .map((data) => ({
       data,
-      metaGrupo: metaGrupoPorData.get(data) ?? 0,
+      planejado: metaGrupoPorData.get(data) ?? 0,
       realizado: realizadoPorData.get(data) ?? 0,
     }))
 }

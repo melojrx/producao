@@ -1,41 +1,26 @@
 'use client'
 
 import { useState } from 'react'
-import { calcularMetaIndividual } from '@/lib/utils/producao'
 import {
-  buscarBlocoAtivoHoje,
-  buscarConfiguracaoTurnoHoje,
-  buscarMaquinaScaneadaPorToken,
-  buscarOperacaoBasePorToken,
   buscarOperadorScaneadoPorToken,
+  buscarTurnoSetorOpScaneadoPorToken,
 } from '@/lib/queries/scanner'
-import type {
-  ConfiguracaoTurno,
-  MaquinaScaneada,
-  OperacaoScaneada,
-  OperadorScaneado,
-} from '@/types'
+import type { OperadorScaneado, TurnoSetorOpScaneado } from '@/types'
 
 export type EstadoScanner =
   | { etapa: 'scan_operador' }
-  | { etapa: 'scan_maquina'; operador: OperadorScaneado }
-  | {
-      etapa: 'scan_operacao'
-      operador: OperadorScaneado
-      maquina: MaquinaScaneada
-    }
+  | { etapa: 'scan_setor_op'; operador: OperadorScaneado }
   | {
       etapa: 'confirmar'
       operador: OperadorScaneado
-      maquina: MaquinaScaneada
-      operacao: OperacaoScaneada
+      secao: TurnoSetorOpScaneado
     }
 
 export interface RegistroProducaoInput {
   operadorId: string
-  maquinaId: string
-  operacaoId: string
+  turnoSetorOpId: string
   quantidade: number
+  maquinaId?: string | null
 }
 
 export interface ResultadoScannerAction {
@@ -51,15 +36,12 @@ const ESTADO_INICIAL: EstadoScanner = { etapa: 'scan_operador' }
 
 export function useScanner(options: UseScannerOptions = {}) {
   const [estado, setEstado] = useState<EstadoScanner>(ESTADO_INICIAL)
-  const [configuracaoTurnoAtual, setConfiguracaoTurnoAtual] =
-    useState<ConfiguracaoTurno | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [estaCarregando, setEstaCarregando] = useState(false)
 
   async function scanOperador(token: string): Promise<ResultadoScannerAction> {
     setEstaCarregando(true)
     setErro(null)
-    setConfiguracaoTurnoAtual(null)
 
     try {
       const operador = await buscarOperadorScaneadoPorToken(token)
@@ -70,16 +52,16 @@ export function useScanner(options: UseScannerOptions = {}) {
         return { sucesso: false, erro: mensagem }
       }
 
-      setEstado({ etapa: 'scan_maquina', operador })
+      setEstado({ etapa: 'scan_setor_op', operador })
       return { sucesso: true }
     } finally {
       setEstaCarregando(false)
     }
   }
 
-  async function scanMaquina(token: string): Promise<ResultadoScannerAction> {
-    if (estado.etapa !== 'scan_maquina') {
-      const mensagem = 'Escaneie um operador antes de escanear a máquina.'
+  async function scanSetorOp(token: string): Promise<ResultadoScannerAction> {
+    if (estado.etapa !== 'scan_setor_op') {
+      const mensagem = 'Escaneie um operador antes de abrir a seção do turno.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -88,84 +70,30 @@ export function useScanner(options: UseScannerOptions = {}) {
     setErro(null)
 
     try {
-      const maquina = await buscarMaquinaScaneadaPorToken(token)
+      const secao = await buscarTurnoSetorOpScaneadoPorToken(token)
 
-      if (!maquina) {
-        const mensagem = 'Máquina não encontrada.'
+      if (!secao) {
+        const mensagem = 'QR operacional não encontrado ou sem turno aberto.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      if (maquina.status === 'manutencao') {
-        const mensagem = 'Máquina em manutenção. Solicite outra máquina ao supervisor.'
+      if (secao.status === 'concluida' || secao.status === 'encerrada_manualmente') {
+        const mensagem = 'Esta seção já está encerrada e não aceita novos apontamentos.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      setEstado({
-        etapa: 'scan_operacao',
-        operador: estado.operador,
-        maquina,
-      })
-
-      return { sucesso: true }
-    } finally {
-      setEstaCarregando(false)
-    }
-  }
-
-  async function scanOperacao(token: string): Promise<ResultadoScannerAction> {
-    if (estado.etapa !== 'scan_operacao') {
-      const mensagem = 'Escaneie operador e máquina antes da operação.'
-      setErro(mensagem)
-      return { sucesso: false, erro: mensagem }
-    }
-
-    setEstaCarregando(true)
-    setErro(null)
-    setConfiguracaoTurnoAtual(null)
-
-    try {
-      const [operacaoBase, configuracaoTurno, blocoAtivo] = await Promise.all([
-        buscarOperacaoBasePorToken(token),
-        buscarConfiguracaoTurnoHoje(),
-        buscarBlocoAtivoHoje(),
-      ])
-
-      if (!operacaoBase) {
-        const mensagem = 'Operação não encontrada ou inativa.'
+      if (secao.saldoRestante <= 0) {
+        const mensagem = 'Esta seção não possui saldo restante para lançamento.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      if (!configuracaoTurno) {
-        const mensagem =
-          'Configuração do turno de hoje não encontrada. Solicite o preenchimento ao supervisor.'
-        setErro(mensagem)
-        return { sucesso: false, erro: mensagem }
-      }
-
-      if (!blocoAtivo) {
-        const mensagem =
-          'Nenhum bloco de produção está ativo para hoje. Solicite o ajuste ao supervisor.'
-        setErro(mensagem)
-        return { sucesso: false, erro: mensagem }
-      }
-
-      const operacao: OperacaoScaneada = {
-        ...operacaoBase,
-        metaIndividual: calcularMetaIndividual(
-          configuracaoTurno.minutosTurno,
-          operacaoBase.tempoPadraoMin
-        ),
-      }
-
-      setConfiguracaoTurnoAtual(configuracaoTurno)
       setEstado({
         etapa: 'confirmar',
         operador: estado.operador,
-        maquina: estado.maquina,
-        operacao,
+        secao,
       })
 
       return { sucesso: true }
@@ -176,13 +104,20 @@ export function useScanner(options: UseScannerOptions = {}) {
 
   async function registrar(quantidade: number): Promise<ResultadoScannerAction> {
     if (estado.etapa !== 'confirmar') {
-      const mensagem = 'Escaneie uma operação antes de registrar a produção.'
+      const mensagem = 'Escaneie uma seção do turno antes de registrar a produção.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
 
-    if (quantidade < 1) {
-      const mensagem = 'A quantidade deve ser maior ou igual a 1.'
+    if (!Number.isInteger(quantidade) || quantidade < 1) {
+      const mensagem = 'A quantidade deve ser um número inteiro maior ou igual a 1.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    if (!options.onRegistrar) {
+      const mensagem =
+        'A sessão V2 já está pronta. O lançamento transacional será concluído na task 8.3.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -191,18 +126,15 @@ export function useScanner(options: UseScannerOptions = {}) {
     setErro(null)
 
     try {
-      if (options.onRegistrar) {
-        const resultado = await options.onRegistrar({
-          operadorId: estado.operador.id,
-          maquinaId: estado.maquina.id,
-          operacaoId: estado.operacao.id,
-          quantidade,
-        })
+      const resultado = await options.onRegistrar({
+        operadorId: estado.operador.id,
+        turnoSetorOpId: estado.secao.id,
+        quantidade,
+      })
 
-        if (!resultado.sucesso) {
-          setErro(resultado.erro ?? 'Não foi possível registrar a produção.')
-          return resultado
-        }
+      if (!resultado.sucesso) {
+        setErro(resultado.erro ?? 'Não foi possível registrar a produção.')
+        return resultado
       }
 
       return { sucesso: true }
@@ -213,18 +145,16 @@ export function useScanner(options: UseScannerOptions = {}) {
 
   function resetarOperacao() {
     setErro(null)
-    setConfiguracaoTurnoAtual(null)
 
-    if (estado.etapa === 'confirmar' || estado.etapa === 'scan_operacao') {
+    if (estado.etapa === 'confirmar') {
       setEstado({
-        etapa: 'scan_operacao',
+        etapa: 'scan_setor_op',
         operador: estado.operador,
-        maquina: estado.maquina,
       })
       return
     }
 
-    if (estado.etapa === 'scan_maquina') {
+    if (estado.etapa === 'scan_setor_op') {
       setEstado(estado)
       return
     }
@@ -234,18 +164,15 @@ export function useScanner(options: UseScannerOptions = {}) {
 
   function resetarTudo() {
     setErro(null)
-    setConfiguracaoTurnoAtual(null)
     setEstado(ESTADO_INICIAL)
   }
 
   return {
     estado,
-    configuracaoTurnoAtual,
     erro,
     estaCarregando,
     scanOperador,
-    scanMaquina,
-    scanOperacao,
+    scanSetorOp,
     registrar,
     resetarOperacao,
     resetarTudo,

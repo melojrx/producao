@@ -4,10 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { ModalMaquina } from '@/components/ui/ModalMaquina'
-import type { MaquinaListItem, MaquinaStatus, TipoMaquinaOption } from '@/types'
-import type { Tables } from '@/types/supabase'
-
-type Maquina = Tables<'maquinas'>
+import type { MaquinaListItem, MaquinaStatus, SetorOption, TipoMaquinaOption } from '@/types'
 
 const CORES_STATUS: Record<MaquinaStatus, string> = {
   ativa: 'bg-green-100 text-green-800',
@@ -18,11 +15,12 @@ const CORES_STATUS: Record<MaquinaStatus, string> = {
 interface ListaMaquinasProps {
   maquinasIniciais: MaquinaListItem[]
   tiposMaquina: TipoMaquinaOption[]
+  setores: SetorOption[]
 }
 
-export function ListaMaquinas({ maquinasIniciais, tiposMaquina }: ListaMaquinasProps) {
+export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: ListaMaquinasProps) {
   const [modalAberto, setModalAberto] = useState(false)
-  const [maquinaEditando, setMaquinaEditando] = useState<Maquina | undefined>()
+  const [maquinaEditando, setMaquinaEditando] = useState<MaquinaListItem | undefined>()
   const [busca, setBusca] = useState('')
 
   const maquinasFiltradas = maquinasIniciais.filter((maquina) => {
@@ -31,7 +29,8 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina }: ListaMaquinasP
       maquina.codigo.toLowerCase().includes(termo) ||
       (maquina.modelo ?? '').toLowerCase().includes(termo) ||
       (maquina.marca ?? '').toLowerCase().includes(termo) ||
-      (maquina.tipoNome ?? '').toLowerCase().includes(termo)
+      (maquina.tipoNome ?? '').toLowerCase().includes(termo) ||
+      (maquina.setorNome ?? '').toLowerCase().includes(termo)
     )
   })
 
@@ -40,7 +39,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina }: ListaMaquinasP
     setModalAberto(true)
   }
 
-  function abrirEditar(maquina: Maquina) {
+  function abrirEditar(maquina: MaquinaListItem) {
     setMaquinaEditando(maquina)
     setModalAberto(true)
   }
@@ -57,7 +56,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina }: ListaMaquinasP
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por código, modelo, marca ou tipo..."
+            placeholder="Buscar por código, modelo, marca, tipo ou setor..."
             aria-label="Buscar máquinas"
             className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -110,7 +109,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina }: ListaMaquinasP
                         {maquina.modelo ?? '—'}
                       </td>
                       <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
-                        {maquina.setor ?? '—'}
+                        {maquina.setorNome ?? '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -151,6 +150,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina }: ListaMaquinasP
         <ModalMaquina
           maquina={maquinaEditando}
           tiposMaquina={tiposMaquina}
+          setores={setores}
           aoFechar={() => setModalAberto(false)}
         />
       ) : null}

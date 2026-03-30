@@ -51,6 +51,7 @@ export default async function OperacaoDetalhePage({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <DetailField label="Descrição" value={operacao.descricao} />
         <DetailField label="Tipo de máquina" value={operacao.tipoNome ?? 'Não informado'} />
+        <DetailField label="Setor" value={operacao.setorNome ?? 'Não definido'} />
         <DetailField label="T.P Operação" value={String(operacao.tempo_padrao_min)} />
         <DetailField label="Meta / hora" value={String(operacao.meta_hora ?? 0)} />
         <DetailField label="Meta / dia" value={String(operacao.meta_dia ?? 0)} />

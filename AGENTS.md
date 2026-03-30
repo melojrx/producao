@@ -329,11 +329,31 @@ export type QRTipo = typeof QR_TIPOS[number]
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...    # server-side only — jamais expor ao cliente
+MCP_API_KEY=...                     # usar para Supabase Management API
 ```
 
 ---
 
-## 14. COMANDOS DO PROJETO
+## 14. SUPABASE MANAGEMENT API — OBRIGATÓRIO PARA SQL REMOTO
+
+Sempre que o agente precisar executar schema, migração, validação SQL ou qualquer ação administrativa remota no Supabase, deve preferir a rota oficial da Supabase Management API:
+
+```text
+POST /v1/projects/{ref}/database/query
+```
+
+Regras:
+- usar `MCP_API_KEY` como credencial para a Management API
+- preferir essa rota quando precisar aplicar SQL remotamente no projeto
+- usar `POST /v1/projects/{ref}/database/query/read-only` para consultas de validação sem escrita
+- não depender do host direto do Postgres quando a ação puder ser feita pela Management API
+
+Referência oficial:
+- https://supabase.com/docs/reference/api/v1-run-a-query
+
+---
+
+## 15. COMANDOS DO PROJETO
 
 ```bash
 npm run dev                                                      # dev server
@@ -346,7 +366,7 @@ npx supabase db reset                                            # resetar banco
 
 ---
 
-## 15. PROIBIÇÕES ABSOLUTAS
+## 16. PROIBIÇÕES ABSOLUTAS
 
 O Codex nunca deve fazer nenhum dos itens abaixo, independente do que for pedido:
 

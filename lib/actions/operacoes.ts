@@ -58,21 +58,21 @@ export async function criarOperacao(
 
   const supabase = createAdminClient()
 
-  const codigo = obterTexto(formData, 'codigo')
   const descricao = obterTexto(formData, 'descricao')
+  const setorId = obterTexto(formData, 'setor_id')
   const tipoMaquinaCodigo = obterTextoOpcional(formData, 'tipo_maquina_codigo')
   const tempoPadraoMin = obterNumero(formData, 'tempo_padrao_min')
 
-  if (!codigo || !descricao || !tipoMaquinaCodigo || tempoPadraoMin <= 0) {
-    return { erro: 'Código, descrição, tipo da máquina e T.P válido são obrigatórios' }
+  if (!descricao || !setorId || !tipoMaquinaCodigo || tempoPadraoMin <= 0) {
+    return { erro: 'Setor, descrição, tipo da máquina e T.P válido são obrigatórios' }
   }
 
   const metaHora = calcularMetaHora(tempoPadraoMin)
   const metaDia = calcularMetaDia(tempoPadraoMin, MINUTOS_TURNO_PADRAO)
 
   const { error } = await supabase.from('operacoes').insert({
-    codigo,
     descricao,
+    setor_id: setorId,
     tipo_maquina_codigo: tipoMaquinaCodigo,
     tempo_padrao_min: tempoPadraoMin,
     meta_hora: metaHora,
@@ -177,14 +177,14 @@ export async function editarOperacao(
 
   const supabase = createAdminClient()
 
-  const codigo = obterTexto(formData, 'codigo')
   const descricao = obterTexto(formData, 'descricao')
+  const setorId = obterTexto(formData, 'setor_id')
   const tipoMaquinaCodigo = obterTextoOpcional(formData, 'tipo_maquina_codigo')
   const tempoPadraoMin = obterNumero(formData, 'tempo_padrao_min')
   const ativa = obterAtiva(formData)
 
-  if (!codigo || !descricao || !tipoMaquinaCodigo || tempoPadraoMin <= 0) {
-    return { erro: 'Código, descrição, tipo da máquina e T.P válido são obrigatórios' }
+  if (!descricao || !setorId || !tipoMaquinaCodigo || tempoPadraoMin <= 0) {
+    return { erro: 'Setor, descrição, tipo da máquina e T.P válido são obrigatórios' }
   }
 
   const metaHora = calcularMetaHora(tempoPadraoMin)
@@ -193,8 +193,8 @@ export async function editarOperacao(
   const { error } = await supabase
     .from('operacoes')
     .update({
-      codigo,
       descricao,
+      setor_id: setorId,
       tipo_maquina_codigo: tipoMaquinaCodigo,
       tempo_padrao_min: tempoPadraoMin,
       meta_hora: metaHora,
@@ -212,5 +212,6 @@ export async function editarOperacao(
   }
 
   revalidatePath('/admin/operacoes')
+  revalidatePath(`/admin/operacoes/${id}`)
   return { sucesso: true }
 }

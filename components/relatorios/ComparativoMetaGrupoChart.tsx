@@ -18,7 +18,7 @@ interface ComparativoMetaGrupoChartProps {
 
 interface PontoComparativo {
   data: string
-  metaGrupo: number
+  planejado: number
   realizado: number
 }
 
@@ -30,7 +30,7 @@ function formatarData(data: string): string {
 function mapearDados(dados: ComparativoMetaGrupoItem[]): PontoComparativo[] {
   return dados.map((item) => ({
     data: formatarData(item.data),
-    metaGrupo: item.metaGrupo,
+    planejado: item.planejado,
     realizado: item.realizado,
   }))
 }
@@ -41,11 +41,11 @@ export function ComparativoMetaGrupoChart({
   const dadosGrafico = mapearDados(dados)
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
-        <h2 className="text-sm font-semibold text-slate-900">Meta Grupo vs Realizado</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Planejado vs Realizado</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Comparativo diário do período filtrado.
+          Comparativo diário do escopo filtrado sem supercontar operações internas.
         </p>
       </div>
 
@@ -54,8 +54,8 @@ export function ComparativoMetaGrupoChart({
           Não há dados suficientes para montar o comparativo no período selecionado.
         </div>
       ) : (
-        <div className="mt-6 h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="mt-6 h-80 w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
             <BarChart data={dadosGrafico} margin={{ top: 8, right: 12, bottom: 8, left: -12 }}>
               <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
               <XAxis
@@ -78,7 +78,7 @@ export function ComparativoMetaGrupoChart({
                 }}
               />
               <Legend />
-              <Bar dataKey="metaGrupo" name="Meta Grupo" fill="#2563EB" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="planejado" name="Planejado" fill="#2563EB" radius={[8, 8, 0, 0]} />
               <Bar dataKey="realizado" name="Realizado" fill="#10B981" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

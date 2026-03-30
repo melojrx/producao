@@ -2,12 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, Minus, Plus, ScanQrCode } from 'lucide-react'
-import type { OperacaoScaneada } from '@/types'
+import {
+  Boxes,
+  CheckCircle2,
+  ClipboardList,
+  Factory,
+  Minus,
+  Plus,
+  ScanQrCode,
+} from 'lucide-react'
 import type { ResultadoScannerAction } from '@/hooks'
+import type { TurnoSetorOpScaneado } from '@/types'
 
 interface ConfirmacaoRegistroProps {
-  operacao: OperacaoScaneada
+  secao: TurnoSetorOpScaneado
   estaRegistrando: boolean
   onRegistrar: (quantidade: number) => Promise<ResultadoScannerAction>
   onRegistroConcluido: () => void
@@ -16,8 +24,17 @@ interface ConfirmacaoRegistroProps {
 
 const DURACAO_FEEDBACK_SUCESSO_MS = 800
 
+const FORMATADOR_DATA_HORA_TURNO = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+})
+
+function formatarTurno(iniciadoEm: string): string {
+  return FORMATADOR_DATA_HORA_TURNO.format(new Date(iniciadoEm))
+}
+
 export function ConfirmacaoRegistro({
-  operacao,
+  secao,
   estaRegistrando,
   onRegistrar,
   onRegistroConcluido,
@@ -29,7 +46,7 @@ export function ConfirmacaoRegistro({
 
   useEffect(() => {
     setQuantidade(1)
-  }, [operacao.id])
+  }, [secao.id])
 
   useEffect(() => {
     return () => {
@@ -85,33 +102,67 @@ export function ConfirmacaoRegistro({
               <CheckCircle2 size={36} />
             </motion.div>
             <p className="text-xl font-semibold">Registro salvo</p>
-            <p className="text-sm font-medium">Preparando a próxima operação...</p>
+            <p className="text-sm font-medium">Preparando a próxima seção...</p>
           </motion.div>
         ) : null}
       </AnimatePresence>
 
       <div className="flex items-center gap-2 text-sm text-emerald-300">
         <ScanQrCode size={18} />
-        Operação carregada
+        Seção do turno carregada
       </div>
 
-      <h2 className="mt-3 text-xl font-semibold text-white">{operacao.descricao}</h2>
+      <h2 className="mt-3 text-xl font-semibold text-white">
+        {secao.produtoReferencia} · {secao.produtoNome}
+      </h2>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Meta do dia</p>
-          <p className="mt-2 text-2xl font-semibold text-white">{operacao.metaIndividual}</p>
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+            <ClipboardList size={14} />
+            Turno
+          </div>
+          <p className="mt-2 text-sm font-semibold text-white">
+            {formatarTurno(secao.turnoIniciadoEm)}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Meta/hora</p>
-          <p className="mt-2 text-2xl font-semibold text-white">{operacao.metaHora}</p>
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+            <Factory size={14} />
+            Setor
+          </div>
+          <p className="mt-2 text-sm font-semibold text-white">{secao.setorNome}</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+            <Boxes size={14} />
+            OP
+          </div>
+          <p className="mt-2 text-sm font-semibold text-white">{secao.numeroOp}</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Saldo restante</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{secao.saldoRestante}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+        <div className="flex items-center justify-between gap-3 text-sm text-cyan-100">
+          <span>Planejado</span>
+          <strong>{secao.quantidadePlanejada}</strong>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-3 text-sm text-cyan-100">
+          <span>Realizado</span>
+          <strong>{secao.quantidadeRealizada}</strong>
         </div>
       </div>
 
       <div className="mt-5">
         <label className="text-sm font-medium text-slate-200" htmlFor="quantidade-producao">
-          Quantidade produzida
+          Quantidade executada
         </label>
 
         <div className="mt-3 flex items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-3">
@@ -156,7 +207,7 @@ export function ConfirmacaoRegistro({
         disabled={estaRegistrando || exibindoSucesso}
         className="mt-5 flex min-h-14 w-full items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {estaRegistrando ? 'Registrando...' : 'Registrar'}
+        {estaRegistrando ? 'Validando...' : 'Registrar quantidade'}
       </button>
     </section>
   )

@@ -74,6 +74,9 @@ export function ListaProdutos({ produtosIniciais, operacoes }: ListaProdutosProp
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
                   Operações
                 </th>
+                <th className="hidden px-4 py-3 text-left font-medium text-gray-600 lg:table-cell">
+                  Setores
+                </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-600">Ações</th>
               </tr>
@@ -81,7 +84,7 @@ export function ListaProdutos({ produtosIniciais, operacoes }: ListaProdutosProp
             <tbody>
               {produtosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-400">
+                  <td colSpan={7} className="py-12 text-center text-gray-400">
                     Nenhum produto encontrado
                   </td>
                 </tr>
@@ -97,6 +100,11 @@ export function ListaProdutos({ produtosIniciais, operacoes }: ListaProdutosProp
                     </td>
                     <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
                       {produto.roteiro.length}
+                    </td>
+                    <td className="hidden px-4 py-3 text-gray-600 lg:table-cell">
+                      {produto.setoresEnvolvidos.length > 0
+                        ? produto.setoresEnvolvidos.join(', ')
+                        : 'Não derivados'}
                     </td>
                     <td className="px-4 py-3">
                       <span

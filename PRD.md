@@ -35,382 +35,553 @@ Sistema web de coleta e monitoramento de produção via QR Code que transforma d
 
 ---
 
-## 4. MODELO FÍSICO — OS 3 OBJETOS DO SISTEMA
+## 4. MODELO OPERACIONAL — OBJETOS FÍSICOS E CONTEXTO DE CHÃO
 
-O sistema inteiro gira em torno de 3 tipos de objetos físicos impressos e plastificados. Nenhum operador precisa digitar nada.
+O sistema passa a girar em torno de dois QRs operacionais e um cadastro estrutural forte. O operador não precisa interpretar roteiro, OP ou sequência de produção: o sistema deriva isso a partir do produto planejado no turno.
 
 ### 4.1 Crachá do Operador
 
-- **O que é:** cartão plastificado com QR Code e nome do operador
-- **Onde fica:** pendurado no pescoço do operador, o dia todo
-- **Quando é usado:** uma única vez ao chegar no trabalho
-- **Quem controla:** o próprio operador (é dele, como um crachá de acesso)
+- **O que é:** cartão plastificado com QR Code e identificação do operador
+- **Onde fica:** com o operador durante todo o expediente
+- **Quando é usado:** para abrir ou trocar a sessão de scanner
+- **Quem controla:** o próprio operador
 - **Quantidade:** 1 por operador
-- **Reimpressão:** apenas se o operador for desligado ou o crachá for perdido
-- **Tamanho sugerido:** cartão de visita (85mm × 54mm)
-- **Conteúdo impresso:** nome completo, função, foto (opcional), QR Code
+- **Reimpressão:** quando houver perda, troca de cadastro ou desligamento
+- **Conteúdo impresso:** matrícula, nome, função, QR Code
 
-### 4.2 Etiqueta da Máquina
+### 4.2 QR Operacional do Setor/OP
 
-- **O que é:** etiqueta adesiva plastificada com QR Code e identificação da máquina
-- **Onde fica:** colada permanentemente na lateral da máquina, em posição visível
-- **Quando é usado:** uma única vez ao chegar no trabalho (ou ao trocar de máquina)
-- **Quem controla:** fixo — nunca sai da máquina
+- **O que é:** QR temporário gerado no momento da abertura do turno para um contexto específico de `setor + OP`
+- **Onde fica:** impresso pelo supervisor e deixado no setor correspondente
+- **Quando é usado:** durante aquele turno, para abrir a seção operacional do setor
+- **Quem controla:** o supervisor
+- **Quantidade:** 1 por combinação `turno + OP + setor`
+- **Reimpressão:** quando o turno for recriado, a OP for alterada ou o QR físico se perder
+- **Conteúdo lógico:** identifica o setor, a OP e o turno atual
+
+### 4.3 Etiqueta da Máquina
+
+- **O que é:** etiqueta patrimonial permanente da máquina
+- **Onde fica:** colada na máquina
+- **Quando é usada:** para rastreabilidade, apoio de auditoria e futuras evoluções
+- **Quem controla:** a empresa
 - **Quantidade:** 1 por máquina
-- **Reimpressão:** apenas se a etiqueta for danificada ou a máquina for substituída
-- **Tamanho sugerido:** 60mm × 60mm
-- **Conteúdo impresso:** código da máquina, tipo, QR Code
-
-### 4.3 Cartão de Operação
-
-- **O que é:** cartão plastificado com QR Code e descrição da operação de costura
-- **Onde fica:** sobre a bancada do operador, ao lado da máquina
-- **Quando é usado:** a cada lote produzido (scan rápido, segundos)
-- **Quem controla:** o SUPERVISOR — ele troca os cartões conforme o lote muda
-- **Quantidade:** 1 por operação cadastrada no sistema (reutilizáveis)
-- **Reimpressão:** quando uma nova operação for cadastrada
-- **Tamanho sugerido:** cartão de visita (85mm × 54mm) ou A6 (148mm × 105mm)
-- **Conteúdo impresso:** descrição da operação, tipo de máquina, T.P, meta/hora, QR Code
-
-**Exemplo prático com 20 operadores, 20 máquinas, 40 operações:**
-- 20 crachás (impressos uma vez)
-- 20 etiquetas (coladas uma vez)
-- 40 cartões de operação (reutilizados conforme o lote do dia)
-- Total: 80 itens fixos + 40 cartões reutilizáveis
+- **Observação:** a máquina continua importante no domínio, mas deixa de ser obrigatória no apontamento operacional da V2
 
 ---
 
-## 5. FLUXO COMPLETO DO OPERADOR
+## 5. FLUXO OPERACIONAL DO DIA
 
-### 5.1 Momento 1 — Chegada ao trabalho (feito uma única vez)
+### 5.1 Pré-condição — cadastro estrutural pronto
 
-```
-Operador chega → pega o celular → abre o sistema (/scanner)
+Antes de abrir um turno, o sistema precisa ter:
+- operações cadastradas com `tempo padrão`, `situação` e `setor`
+- produtos cadastrados com roteiro completo
+- setores cadastrados
+- operadores cadastrados
+- máquinas cadastradas por setor
 
-[Passo 1] Aponta o celular para o próprio crachá
-          → Sistema exibe: foto + nome + "Olá, Pedro!"
-          → Operador fica em memória na sessão
+O ponto central é este:
+- um **produto** possui várias **operações**
+- cada **operação** pertence a um **setor**
+- então o roteiro do produto informa automaticamente **quais setores precisam atuar**
 
-[Passo 2] Aponta o celular para a etiqueta da sua máquina
-          → Sistema exibe: tipo + código + status
-          → Se status = "manutenção": exibe bloqueio com mensagem
-          → Máquina fica em memória na sessão
-
-Resultado: sistema sabe QUEM está em QUAL máquina.
-Operador e máquina ficam salvos — não precisam ser escaneados de novo.
-```
-
-### 5.2 Momento 2 — Registrando produção (repetido a cada lote)
+### 5.2 Abertura do turno
 
 ```
-Operador termina um lote de peças
+Supervisor chega → abre a dashboard → vê os dados do turno anterior ou do turno ainda aberto
 
-[Passo 3] Aponta o celular para o cartão de operação na bancada
-          → Sistema exibe: descrição + meta individual do dia + meta/hora
+[Passo 1] Clica em "Novo Turno"
 
-[Passo 4] Informa a quantidade produzida
-          → Tela mostra botões − e + com número grande
-          → Padrão = 1 peça
-          → Pode ajustar se costurou mais de 1 de vez
+[Passo 2] Informa o cabeçalho do turno
+          → data/hora (automática)
+          → operadores disponíveis no dia
+          → minutos do turno
 
-[Passo 5] Toca no botão verde "Registrar"
-          → Feedback: tela pisca verde + vibração do celular
-          → Registro salvo no banco
-          → Dashboard do supervisor atualiza em tempo real
-          → Volta automaticamente ao passo 3
+[Passo 3] Adiciona uma ou mais OPs ao turno
+          → número da OP
+          → produto
+          → quantidade planejada de peças
+
+[Passo 4] Sistema expande automaticamente cada OP
+          → lê o roteiro do produto
+          → identifica os setores envolvidos
+          → identifica as operações previstas em cada setor
+          → cria as seções operacionais do turno
+          → gera um QR temporário para cada combinação setor + OP
 ```
 
-### 5.3 Momento 3 — Troca de operação ou máquina
+Resultado:
+- o planejamento do dia nasce do cadastro mestre do produto
+- o supervisor informa apenas a demanda do dia
+- o sistema deriva automaticamente a estrutura operacional necessária
+
+### 5.3 Execução no chão de fábrica
 
 ```
-Supervisor decide mudar o operador de operação ou máquina
+Operador ou supervisor abre o scanner no celular
 
-TROCA DE OPERAÇÃO (mais comum):
-  → Supervisor vai até a bancada e troca o cartão de operação
-  → Operador não faz nada diferente — apenas escaneia o novo cartão
-  → Sistema registra a nova operação automaticamente
+[Passo 1] Escaneia o QR do operador
+          → sistema identifica quem está usando a sessão
 
-TROCA DE MÁQUINA:
-  → Operador vai até a nova máquina
-  → Aponta o celular para a etiqueta da nova máquina (refaz o Passo 2)
-  → Sistema atualiza qual máquina está em uso
-  → Continua registrando normalmente
+[Passo 2] Escaneia o QR operacional do setor/OP
+          → sistema identifica:
+            - turno
+            - OP
+            - produto
+            - setor
+            - operações previstas naquele setor
+            - quantidade planejada
+
+[Passo 3] Durante o dia, o supervisor passa nos setores
+          → verifica o envelope, folha ou apontamento físico do setor
+          → registra quantas unidades cada operador concluiu em cada operação daquele setor
+          → salva um ou mais lançamentos incrementais no contexto da seção
+          → cada lançamento identifica:
+            - operador executor
+            - operação executada
+            - seção `setor + OP`
+            - quantidade incremental
+            - autoria do lançamento (`supervisor_manual` ou `operador_qr`)
+
+[Passo 4] Sistema confronta o apontamento com o planejamento
+          → atualiza o realizado da operação dentro da seção
+          → recalcula o realizado consolidado da seção
+          → recalcula o andamento da OP
+          → recalcula o andamento do turno em tempo real
+          → bloqueia qualquer lançamento que ultrapasse a quantidade planejada
 ```
+
+### 5.4 Encerramentos
+
+Encerramento do setor:
+- automático quando todas as operações obrigatórias daquele `setor + OP` atingirem a quantidade planejada
+- pode ser ajustado manualmente pelo supervisor/admin
+
+Encerramento da OP:
+- automático quando todos os setores obrigatórios da OP forem concluídos
+- pode ser ajustado manualmente pelo supervisor/admin
+
+Encerramento do turno:
+- manual pelo supervisor/admin
+- automático na abertura de um novo turno posterior, se o turno anterior ainda estiver aberto
+
+### 5.5 Comportamento da dashboard
+
+Ao abrir a dashboard, o supervisor deve ver:
+- o turno aberto atual, se existir
+- ou os dados consolidados do último turno encerrado
+
+Durante a execução, a dashboard acompanha em tempo real:
+- andamento do turno
+- andamento por OP
+- andamento por setor
+- andamento por operação dentro da seção quando necessário
+- quantidade planejada versus realizada
+- pendências e seções encerradas
 
 ---
 
-## 6. METAS DE PRODUÇÃO
+## 6. PLANEJAMENTO E MÉTRICAS
 
-### 6.1 Dois tipos de tempo padrão
+### 6.1 Cadeia de derivação do planejamento
+
+O planejamento diário segue esta ordem lógica:
+
+1. **Operações** definem o trabalho atômico
+2. **Setores** agrupam as operações
+3. **Produtos** agrupam operações em um roteiro
+4. **Turno** define a capacidade do dia
+5. **OPs do turno** definem a demanda do dia
+6. **Seções setor + OP do turno** definem o que precisa ser executado no chão
+
+### 6.2 O que o sistema deriva automaticamente
+
+Ao informar `OP + produto + quantidade planejada`, o sistema precisa derivar:
+- quais setores participam da confecção do produto
+- quais operações serão executadas em cada setor
+- quantas seções `setor + OP` serão abertas
+- quais QRs operacionais precisam ser gerados
+
+### 6.3 Tempos padrão
 
 | Tipo | O que é | Onde vive |
 |---|---|---|
-| **T.P Operação** | Tempo padrão de uma operação isolada em minutos | `operacoes.tempo_padrao_min` |
-| **T.P Produto** | Soma dos T.P de todas as operações do roteiro | Calculado a partir de `produto_operacoes` |
+| **T.P Operação** | Tempo padrão da operação em minutos | `operacoes.tempo_padrao_min` |
+| **T.P Produto** | Soma dos tempos padrão das operações do roteiro | `produtos.tp_produto_min` |
 
-### 6.2 Dois tipos de meta
-
-**Meta Individual** — quanto cada operador deve produzir na SUA operação durante o turno:
-
-```
-Meta Individual = minutos_turno ÷ T.P_operacao
-```
-
-Exemplo: operação "unir etiquetas" (T.P = 0.28 min), turno de 540 min:
-`540 ÷ 0.28 = 1.928 peças`
-
----
-
-**Meta Grupo** — quantos produtos COMPLETOS a linha deve entregar no dia:
-
-```
-Meta Grupo = (funcionarios_ativos × minutos_turno) ÷ T.P_produto
-```
-
-Exemplo: 20 funcionários, 540 min de turno, produto com T.P total de 13.89 min:
-`(20 × 540) ÷ 13.89 = 777 produtos/dia`
-
-### 6.3 Configuração diária do turno
-
-O supervisor preenche **3 campos** no início de cada turno. Esses valores alimentam todas as metas do dia.
-
-| Campo | Descrição | Exemplo |
-|---|---|---|
-| `funcionarios_ativos` | Quantos operadores presentes hoje | 18 |
-| `minutos_turno` | Minutos efetivos de trabalho do dia | 480 |
-| `produto_id` | Qual produto está sendo produzido hoje | ref. 31040050 |
-
-- O sistema calcula automaticamente o `T.P Produto` ao selecionar o produto (soma das operações do roteiro)
-- O sistema calcula automaticamente a `Meta Grupo` ao salvar a configuração
-- Só é permitida **uma configuração por dia** (UNIQUE por data)
-- Se não houver configuração para hoje, o dashboard exibe um modal solicitando o preenchimento antes de mostrar os dados
-
-### 6.3.1 Evolução futura — múltiplos produtos no mesmo dia
-
-O MVP assume **1 produto por dia**. Na evolução pós-MVP, a configuração do turno precisa suportar três cenários no mesmo fluxo:
-
-1. **Um produto**
-   - o supervisor escolhe 1 produto cadastrado
-   - o sistema calcula automaticamente o `T.P Produto` pela soma do roteiro
-
-2. **Mais de um produto no dia**
-   - o supervisor escolhe vários produtos para o mesmo turno
-   - cada produto vira um **bloco de produção** com sua própria meta
-
-3. **Nenhum produto cadastrado**
-   - o supervisor não seleciona produto
-   - o `T.P Produto` é informado manualmente
-   - esse bloco continua válido para cálculo de meta e acompanhamento do dia
-
-A modelagem correta continua sendo separar:
-
-1. **Cabeçalho do dia**
-   - representa o turno do dia (`data`, linha/célula, observações gerais)
-
-2. **Blocos de produção do dia**
-   - cada bloco representa uma etapa planejada ou em execução
-   - um bloco pode estar vinculado a um produto cadastrado ou a um `T.P` manual
-   - campos sugeridos:
-     - `configuracao_turno_id`
-     - `produto_id` opcional
-     - `descricao_bloco`
-     - `sequencia`
-     - `funcionarios_ativos`
-     - `minutos_planejados`
-     - `tp_produto_min`
-     - `origem_tp` = `produto | manual`
-     - `meta_grupo`
-     - `status` = `planejado | ativo | concluido`
-     - `iniciado_em` / `encerrado_em` (opcional)
-
-Regras de consistência:
-- se `origem_tp = produto`, `produto_id` é obrigatório e `tp_produto_min` vem do roteiro
-- se `origem_tp = manual`, `produto_id` fica vazio e `tp_produto_min` é informado pelo supervisor
-- apenas **1 bloco fica ativo por vez** em cada configuração do dia
-
-Fórmulas nessa evolução:
+Fórmula:
 
 ```text
-Meta Grupo do bloco = floor((funcionarios_ativos × minutos_planejados) / tp_produto)
-
-Meta Grupo do dia = soma(meta_grupo de todos os blocos do dia)
+T.P Produto = soma(tempo_padrao_min das operações do roteiro)
 ```
 
-Regra operacional:
-- a interface pode permitir selecionar 1 produto, vários produtos ou nenhum produto
-- internamente, o sistema sempre converte isso em **1 ou mais blocos**
-- o scanner registra produção no **bloco ativo**, não em um `produto_id` global do dia
-- quando o bloco for manual, o registro continua vinculado ao bloco, mesmo sem `produto_id`
-- o dashboard mostra o total do dia e também o progresso por bloco
+### 6.4 Quantidades planejadas
 
-Essa modelagem cobre bem trocas sequenciais de produto no mesmo dia e também dias em que a meta é planejada manualmente sem produto cadastrado. Se no futuro houver produção simultânea de produtos diferentes em linhas distintas, a modelagem deve ganhar também a dimensão de `linha` ou `celula`.
+Regras:
+- a quantidade planejada da **OP** é informada pelo supervisor
+- a quantidade planejada de cada **setor + OP** é a mesma quantidade planejada total da OP
+- a quantidade planejada de cada **operação derivada da seção** também é a mesma quantidade planejada total da OP
+- o sistema acompanha o realizado por operação, por setor e por OP
+- um lançamento nunca pode fazer o realizado da operação ultrapassar o planejado
 
-### 6.4 Onde as metas aparecem
+### 6.5 Semântica do apontamento
 
-| Local | Meta exibida |
+A unidade lançada na V2 não representa produto acabado e também não pode ser a soma cega das operações do setor.
+
+Ela passa a significar:
+
+- **registro de produção**: quantas unidades um operador concluiu em uma operação específica da seção
+- **realizado da operação da seção**: soma dos lançamentos daquela operação
+- **realizado da seção `setor + OP`**: menor realizado entre as operações obrigatórias daquele setor
+- **realizado da OP**: menor realizado entre as seções obrigatórias da OP
+- **realizado do turno**: soma do realizado consolidado das OPs do turno
+
+Exemplo:
+
+- Preparação / OP-123
+- Operação A = `20`
+- Operação B = `15`
+
+Então:
+
+- realizado da operação A = `20`
+- realizado da operação B = `15`
+- realizado da seção Preparação = `15`
+- não `35`
+
+Essa regra evita supercontagem e preserva a leitura correta do funil produtivo.
+
+### 6.6 Capacidade e progresso
+
+Indicadores base:
+
+```text
+Capacidade nominal do turno = operadores_disponiveis × minutos_turno
+
+Progresso da operação da seção = quantidade_realizada_turno_setor_operacao / quantidade_planejada
+
+Realizado da seção = MIN(quantidade_realizada_turno_setor_operacao obrigatória)
+
+Realizado da OP = MIN(quantidade_realizada_turno_setor_op obrigatória)
+
+Realizado do turno = SUM(quantidade_realizada_turno_op)
+```
+
+Regra de consolidação:
+- o progresso de uma seção não deve ser calculado pela soma simples das operações do setor
+- o progresso de uma OP não deve ser calculado pela soma simples dos registros de todos os setores
+- a seção só é considerada concluída quando todas as operações obrigatórias do setor tiverem atingido sua quantidade planejada
+- a OP só é considerada concluída quando todos os setores obrigatórios tiverem atingido sua quantidade planejada
+
+### 6.7 Onde os números aparecem
+
+| Local | Informação principal |
 |---|---|
-| **Dashboard — card KPI** | Meta Grupo do dia e progresso em % |
-| **Dashboard — ranking operadores** | Eficiência individual de cada operador |
-| **Tela do operador — após scan** | Meta Individual da operação escaneada |
-| **Cartão de operação (físico impresso)** | Meta/hora da operação |
+| **Dashboard** | turno aberto, OPs em andamento, realizado vs planejado, status por setor |
+| **Apontamentos** | lançamentos incrementais por operador + operação + seção |
+| **Scanner** | operador ativo, seção ativa e lançamento individual no contexto operacional |
+| **Relatórios** | histórico por turno, OP, setor, operador, produto |
+| **QR operacional** | contexto temporário de execução do turno |
 
 ---
 
 ## 7. FLUXO DO SUPERVISOR
 
 ```
-Supervisor abre o dashboard em TV ou tablet (/dashboard)
+Supervisor abre a dashboard
 
-AO ABRIR (se não houver configuração para hoje):
-  → Modal solicita os 3 campos: funcionários ativos, minutos do turno, produto do dia
-  → Ao salvar, dashboard carrega com as metas calculadas
+SE HOUVER TURNO ABERTO:
+  → continua monitorando o turno atual
 
-VISÃO EM TEMPO REAL:
-  → Meta Grupo do dia + progresso atual (%)
-  → Peças produzidas no dia (contador ao vivo)
-  → Eficiência média da linha
-  → Ranking de operadores por eficiência
-  → Status de cada máquina (ativa / parada / em manutenção)
-  → Gráfico de produção por hora
+SE NÃO HOUVER TURNO ABERTO:
+  → vê os dados consolidados do último turno
+  → clica em "Novo Turno"
 
-ALERTAS AUTOMÁTICOS:
-  → Máquina sem registro há mais de 15 minutos → card vermelho piscando
-  → Operador com eficiência < 70% → destaque amarelo no ranking
-  → Operador com eficiência < 50% → destaque vermelho
+NO NOVO TURNO:
+  → informa capacidade do dia
+  → adiciona as OPs do dia
+  → sistema cria automaticamente as seções por setor
+  → sistema gera os QRs operacionais setor + OP
 
-AÇÃO DO SUPERVISOR:
-  → Identifica o gargalo no dashboard
-  → Vai fisicamente até o operador ou máquina
-  → Intervém (ajuda técnica, troca de operação, aciona manutenção)
+AO LONGO DO DIA:
+  → acompanha o progresso por OP e por setor
+  → passa pelos setores e abre a tela de apontamentos
+  → registra lançamentos incrementais por operador e operação dentro de cada seção
+  → corrige encerramentos e ajustes quando necessário
 ```
 
-### 7.1 Evolução futura — painel de máquinas para parque maior
-
-O MVP usa um grid simples de cards, adequado para linhas pequenas. Quando a operação cresce para 20, 30 ou mais máquinas, o painel precisa ganhar recursos de navegação e filtragem.
-
-Evolução recomendada:
-- **filtro por status**: `ativas`, `paradas`, `manutenção`, `em alerta`
-- **filtro por tipo**: reta, overloque, galoneira, manual etc.
-- **busca por código**: localizar rapidamente uma máquina específica
-- **modo tabela**: visão densa para auditoria e conferência rápida
-- **modo cards**: visão operacional para alertas visuais
-- **agrupamento por status**: blocos como `Em alerta`, `Ativas`, `Paradas`, `Manutenção`
-- **paginação ou janela virtual**: evitar listas longas demais em dashboards com muitas máquinas
-
-Regra de produto:
-- o modo padrão continua sendo **cards**
-- tabela é complementar, voltada a supervisão detalhada
-- agrupamento por status deve priorizar primeiro as máquinas com alerta
-
-Critério para ativar essa evolução:
-- quando a quantidade de máquinas tornar o grid atual longo demais para leitura operacional contínua
-- ou quando o supervisor precisar localizar máquinas específicas com frequência durante o turno
+Responsabilidades principais do supervisor:
+- abrir e encerrar turno
+- informar a demanda diária em forma de OPs
+- imprimir e distribuir os QRs operacionais do turno
+- acompanhar o realizado em tempo real
+- registrar apontamentos incrementais por setor, operação e operador
+- corrigir exceções operacionais
 
 ---
 
 ## 8. MÓDULOS DO SISTEMA
 
-### 8.1 Scanner (/scanner) — mobile
-Interface exclusiva para operadores. Prioridade: velocidade e simplicidade.
-- Câmera ativa para leitura de QR Code
-- Estado visual claro do que foi escaneado (operador, máquina, operação)
-- Exibe meta individual da operação após o scan
-- Botão de quantidade com toque fácil em tela touchscreen
-- Botão de registro grande e verde
-- Feedback visual e háptico no sucesso
+### 8.1 Dashboard (/admin/dashboard)
 
-### 8.2 Dashboard (/admin/dashboard) — TV/tablet
-Interface para supervisores em tempo real.
-- Modal de configuração do turno (abre automaticamente se não configurado)
-- KPIs: meta grupo, progresso %, peças/dia, eficiência média
-- Gráfico de produção por hora (linha)
-- Ranking de operadores com eficiência colorida
-- Grid de status das máquinas
-- Alertas visuais de gargalos
+Interface principal do supervisor e do administrador.
+- visualizar turno aberto ou último turno encerrado
+- abrir novo turno
+- acompanhar OPs e setores em tempo real
+- encerrar turno, OPs e setores
+- visualizar planejado x realizado
 
-### 8.3 Cadastro de Operadores (/admin/operadores)
-- Listagem com busca e filtros
-- Criar/editar operador (nome, matrícula, setor, função, status, foto)
-- Geração automática do QR Code ao salvar
-- Download do QR Code como PNG para impressão do crachá
+### 8.2 Scanner (/scanner)
 
-### 8.4 Cadastro de Máquinas (/admin/maquinas)
-- Listagem com busca e filtros por tipo/status
-- Criar/editar máquina (código, tipo, modelo, patrimônio, setor)
-- Troca de status com um clique (ativa / parada / manutenção)
-- Geração automática do QR Code
-- Download do QR Code como PNG para impressão da etiqueta
+Interface operacional individual ou híbrida de apontamento.
+- scan do operador
+- scan do QR operacional `setor + OP`
+- identificação da seção operacional aberta
+- input de quantidade executada na operação selecionada
+- bloqueio de excesso sobre a quantidade planejada
+- feedback visual de sucesso e erro
+
+### 8.3 Apontamentos do Supervisor (/admin/apontamentos)
+
+Interface administrativa de captura incremental da produção.
+- turno aberto fixo como contexto
+- filtros por OP, setor e produto
+- lista de seções com planejado, realizado, saldo e progresso
+- detalhe da seção com operações previstas e operadores do turno
+- múltiplas linhas de lançamento no mesmo envio
+- cada linha contém operador, operação e quantidade
+- gravação transacional dos lançamentos
+- atualização imediata da operação, seção, OP, turno, dashboard e relatórios
+
+### 8.4 Cadastro de Setores (/admin/setores)
+
+Novo CRUD obrigatório.
+- código sequencial automático
+- nome
+- situação
+
+Setores iniciais:
+- Preparação
+- Frente
+- Costa
+- Montagem
+- Finalização
 
 ### 8.5 Cadastro de Operações (/admin/operacoes)
-- Campos: código, descrição, tipo de máquina, T.P Operação
-- Meta/hora calculada automaticamente ao digitar T.P
-- Geração automática do QR Code
-- Download do QR Code como PNG para impressão do cartão
+
+- código sequencial automático
+- descrição
+- máquina ou tipo de máquina
+- setor
+- situação
+- tempo padrão manual
+- QR de cadastro
 
 ### 8.6 Cadastro de Produtos (/admin/produtos)
-- Campos: referência, nome, imagem
-- Associação de operações em sequência (roteiro)
-- T.P Produto calculado automaticamente (soma dos T.P das operações)
-- T.P Produto exibido em destaque (usado para calcular Meta Grupo)
 
-### 8.7 Relatórios (/admin/relatorios)
-- Produção por operador (dia, semana, período)
-- Produção por máquina
-- Eficiência por operação
-- Comparativo meta grupo vs realizado por dia
-- Exportação em CSV (evolução pós-MVP)
+- referência
+- nome
+- situação
+- roteiro com múltiplas operações
+- T.P Produto calculado automaticamente
 
-### 8.8 Evolução futura — escala dos CRUDs administrativos
+### 8.7 Cadastro de Máquinas (/admin/maquinas)
 
-No MVP, as listagens de operadores, máquinas, operações e produtos podem funcionar sem paginação. Quando a base crescer, a evolução correta é migrar para listagens paginadas com filtros server-side e URL como fonte de verdade.
+- código sequencial automático
+- modelo
+- marca
+- patrimônio
+- setor
+- situação
+- QR patrimonial
 
-Evolução recomendada:
-- **paginação server-side** em todos os CRUDs admin
-- **busca server-side** por campo principal de cada módulo
-- **filtros persistidos na URL** para refresh, compartilhamento de link e navegação por histórico
-- **ordenação estável** por campo principal do módulo
+### 8.8 Cadastro de Operadores (/admin/operadores)
 
-Filtros esperados por módulo:
-- `Operadores`: nome, matrícula, status
-- `Máquinas`: código, modelo, marca, status, tipo
-- `Operações`: código, descrição, status, tipo
-- `Produtos`: referência, nome, status
+- matrícula sequencial automática
+- nome
+- função
+- status
+- carga horária em minutos
+- QR do operador
 
-Regra de UX:
-- a URL é a fonte de verdade para `q`, `page`, `pageSize` e filtros
-- a paginação deve preservar filtros e busca ativos
-- o comportamento precisa ser consistente entre os quatro módulos
+### 8.9 Cadastro de Usuários do Sistema (/admin/usuarios)
+
+Novo CRUD obrigatório.
+- vínculo com autenticação
+- nome
+- email
+- papel: `admin` ou `supervisor`
+- situação
+
+Regras:
+- o primeiro `admin` entra por bootstrap técnico no banco
+- em desenvolvimento, o cadastro com `senha inicial` pode existir apenas como bootstrap interno e apoio operacional temporário
+- em produção, o fluxo alvo não deve expor senha ao `admin`
+- depois disso, novos `admins` e `supervisores` são cadastrados pela interface
+- apenas usuários com papel `admin` podem gerenciar `/admin/usuarios`
+
+Fluxo profissional de produção:
+- `admin` informa apenas nome, email e papel
+- o sistema cria o usuário com status `pendente_ativacao`
+- o sistema envia convite ou link de definição/recuperação de senha para o email informado
+- o próprio usuário define sua senha no primeiro acesso
+- o `admin` nunca visualiza nem escolhe a senha final do usuário
+- o sistema deve permitir reenviar convite enquanto o usuário estiver pendente
+- após a definição da senha e primeiro acesso válido, o status muda para `ativo`
+
+### 8.10 Relatórios (/admin/relatorios)
+
+- produção por turno
+- produção por OP
+- produção por setor
+- produção por operação dentro do setor
+- produção por operador
+- comparativo planejado x realizado
+- encerramentos manuais e automáticos
 
 ---
 
-## 9. REGRAS DE NEGÓCIO
+## 9. ENTIDADES E REGRAS DE NEGÓCIO
 
-1. Um registro de produção exige sempre: operador + máquina + operação + quantidade
-2. Operador e máquina ficam em memória na sessão do scanner — só operação e quantidade são informados a cada registro
-3. Máquina com status "manutenção" bloqueia o registro — exibe mensagem ao operador
-4. QR Code inválido (token não encontrado) exibe erro sem travar o fluxo
-5. **Meta Individual** = `Math.floor(minutos_turno / tp_operacao)` — usa os minutos do turno do dia
-6. **Meta Grupo** = `Math.floor((funcionarios_ativos × minutos_turno) / tp_produto)` — calculada ao salvar a configuração do turno
-7. **T.P Produto** = soma dos `tempo_padrao_min` de todas as operações do roteiro do produto
-8. Eficiência individual = `(qtd_produzida × tp_operacao / minutos_trabalhados) × 100`
-9. Máquina sem registro por mais de `ALERTA_MAQUINA_PARADA` minutos gera alerta visual
-10. Operador com eficiência abaixo de `ALERTA_EFICIENCIA_BAIXA` gera destaque amarelo
-11. O dashboard atualiza em tempo real via Supabase Realtime — sem refresh manual
-12. Apenas uma configuração de turno por dia (UNIQUE por data) — pode ser editada pelo supervisor
-13. Se não houver configuração para o dia, o dashboard bloqueia com modal de preenchimento
-14. Apenas usuários com role "admin" ou "supervisor" acessam rotas `/admin/*`
-15. A rota `/scanner` é acessível sem autenticação — o QR do crachá é a identificação
+### 9.1 Entidades principais
+
+`setores`
+- código sequencial
+- nome
+- situação
+
+`operacoes`
+- código sequencial
+- máquina ou tipo de máquina
+- descrição
+- situação
+- tempo padrão
+- setor
+- QR de cadastro
+
+`produtos`
+- referência
+- nome
+- situação
+- T.P Produto
+
+`produto_operacoes`
+- produto
+- operação
+- sequência
+
+`maquinas`
+- código sequencial
+- modelo
+- marca
+- patrimônio
+- setor
+- situação
+- QR patrimonial
+
+`operadores`
+- matrícula sequencial
+- nome
+- função
+- status
+- carga horária em minutos
+- QR do operador
+
+`usuarios_sistema`
+- usuário autenticado
+- nome
+- email
+- papel
+- situação
+- somente `admin` gerencia usuários do sistema
+- em produção, a credencial final é definida pelo próprio usuário via convite/ativação
+
+`turnos`
+- data/hora de abertura
+- data/hora de encerramento
+- operadores disponíveis
+- minutos do turno
+- status
+
+`turno_ops`
+- turno
+- número da OP
+- produto
+- quantidade planejada
+- status
+
+`turno_setor_ops`
+- turno
+- OP
+- setor
+- quantidade planejada
+- quantidade realizada
+- status
+- QR operacional temporário
+
+`turno_setor_operacoes`
+- turno
+- OP
+- seção `setor + OP`
+- produto_operacao
+- operação
+- setor
+- sequência
+- tempo padrão snapshot
+- quantidade planejada
+- quantidade realizada
+- status
+
+`registros_producao`
+- turno
+- OP
+- setor
+- operação da seção
+- operador
+- máquina opcional
+- quantidade
+- data/hora do lançamento
+- autoria do lançamento
+- origem do lançamento (`operador_qr` ou `supervisor_manual`)
+
+### 9.2 Regras obrigatórias
+
+1. O roteiro do produto é a fonte de verdade para descobrir os setores e operações envolvidos.
+2. O supervisor informa a demanda diária; o sistema deriva a estrutura operacional do turno.
+3. O QR operacional é sempre da combinação `turno + OP + setor`.
+4. O QR operacional muda a cada novo turno.
+5. Um apontamento de produção registra unidades concluídas por um operador em uma operação específica da seção.
+6. Máquina não é obrigatória no apontamento da V2, mas continua relevante no cadastro e em relatórios.
+7. Operador pode ser alocado dinamicamente por turno.
+8. Uma OP pode atravessar mais de um turno e mais de um dia.
+9. A quantidade realizada de cada operação da seção nunca pode ultrapassar a quantidade planejada.
+10. A quantidade realizada consolidada de `setor + OP` é o menor realizado entre as operações obrigatórias daquela seção.
+11. A quantidade realizada consolidada da OP é o menor realizado entre as seções obrigatórias da OP.
+12. O realizado do turno é a soma do realizado consolidado das OPs do turno.
+13. O encerramento automático do setor ocorre quando todas as operações obrigatórias daquele setor atingem o planejado.
+14. O encerramento automático da OP ocorre quando todos os setores obrigatórios forem concluídos.
+15. O QR do operador deve continuar identificando o executor real da produção para sustentar rastreabilidade e relatórios por operador.
+16. O sistema deve persistir quem lançou o apontamento e a origem do lançamento (`operador_qr` ou `supervisor_manual`).
+17. O encerramento do turno pode ser manual ou automático na abertura do próximo turno.
+18. Encerramentos automáticos podem ser ajustados manualmente por supervisor ou admin.
+19. A dashboard deve atualizar em tempo real sem refresh manual.
+20. Apenas usuários com papel `admin` ou `supervisor` acessam a área administrativa.
+21. O primeiro usuário `admin` é criado por bootstrap técnico diretamente no banco.
+22. Em desenvolvimento, o cadastro com senha inicial pode ser usado apenas como mecanismo interno temporário.
+23. Em produção, o `admin` não deve conhecer a senha final de outros usuários.
+24. Em produção, após o bootstrap, o cadastro de novos `admins` e `supervisores` deve acontecer pela tela `/admin/usuarios` com convite e ativação por email.
+25. Apenas usuários com papel `admin` podem criar, editar ou inativar usuários do sistema.
 
 ---
 
-## 10. FORA DO ESCOPO (MVP)
+## 10. FORA DO ESCOPO (V2)
 
-- Folha de ponto ou controle de jornada
-- Pagamento por produção ou comissões
-- Integração com ERP ou sistema contábil
-- App nativo (iOS/Android) — PWA é suficiente para o MVP
-- Múltiplas fábricas ou filiais
-- Histórico de manutenção de máquinas
-- Múltiplos produtos por dia (MVP assume 1 produto por configuração de turno; evolução proposta no backlog pós-MVP)
-- Paginação e filtros server-side nos CRUDs admin (evolução proposta no backlog pós-MVP)
-- Exportação CSV de relatórios (evolução proposta no backlog pós-MVP)
+- folha de ponto ou controle de jornada
+- pagamento por produção ou comissão
+- integração com ERP ou sistema contábil
+- múltiplas fábricas ou filiais
+- app nativo iOS/Android
+- planejamento simultâneo multi-linha com balanceamento automático entre células
+- otimização automática de alocação de operadores por setor
+- APS/MRP avançado ou sequenciamento automático de ordens

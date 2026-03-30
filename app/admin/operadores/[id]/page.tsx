@@ -50,8 +50,12 @@ export default async function OperadorDetalhePage({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <DetailField label="Matrícula" value={operador.matricula} />
-        <DetailField label="Setor" value={operador.setor ?? 'Não informado'} />
         <DetailField label="Função" value={operador.funcao ?? 'Não informada'} />
+        <DetailField
+          label="Carga horária"
+          value={operador.carga_horaria_min ? `${operador.carga_horaria_min} min` : 'Não informada'}
+        />
+        <DetailField label="Alocação setorial" value="Dinâmica por turno" />
         <DetailField label="Status" value={operador.status ?? 'ativo'} />
         <DetailField label="Criado em" value={new Date(operador.created_at ?? '').toLocaleString('pt-BR')} />
         <DetailField label="Atualizado em" value={new Date(operador.updated_at ?? '').toLocaleString('pt-BR')} />

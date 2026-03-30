@@ -3,14 +3,17 @@ import 'server-only'
 import type { User } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { extractAdminRole, type AdminRole } from '@/lib/auth/roles'
+import type { AdminRole } from '@/lib/auth/roles'
+import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 
 export class AdminAuthorizationError extends Error {
-  constructor(public readonly reason: 'unauthenticated' | 'unauthorized') {
+  constructor(public readonly reason: 'unauthenticated' | 'unauthorized' | 'admin-only') {
     super(
       reason === 'unauthenticated'
         ? 'Usuário não autenticado'
-        : 'Usuário sem permissão para área administrativa'
+        : reason === 'admin-only'
+          ? 'Usuário sem permissão de administrador do sistema'
+          : 'Usuário sem permissão para área administrativa'
     )
     this.name = 'AdminAuthorizationError'
   }
@@ -30,6 +33,10 @@ export function getAuthorizationErrorMessage(error: unknown): string | null {
     return 'Sua sessão expirou. Faça login novamente.'
   }
 
+  if (error.reason === 'admin-only') {
+    return 'Apenas administradores podem gerenciar usuários do sistema.'
+  }
+
   return 'Sua conta não tem permissão para acessar a área administrativa.'
 }
 
@@ -44,7 +51,7 @@ export async function getOptionalAdminSession(): Promise<AdminSession | null> {
     return null
   }
 
-  const role = extractAdminRole(user)
+  const role = await buscarPapelAdminPorAuthUserId(supabase, user.id)
   if (!role) {
     return null
   }
@@ -75,7 +82,7 @@ export async function requireAdminUser(
     throw new AdminAuthorizationError('unauthenticated')
   }
 
-  const role = extractAdminRole(user)
+  const role = await buscarPapelAdminPorAuthUserId(supabase, user.id)
 
   if (!role) {
     if (redirectOnFail) {
@@ -86,4 +93,22 @@ export async function requireAdminUser(
   }
 
   return { user, role }
+}
+
+export async function requireSystemAdmin(
+  options: RequireAdminUserOptions = {}
+): Promise<AdminSession> {
+  const sessao = await requireAdminUser(options)
+
+  if (sessao.role !== 'admin') {
+    const { redirectOnFail = true, redirectTo = '/admin/dashboard' } = options
+
+    if (redirectOnFail) {
+      redirect(redirectTo)
+    }
+
+    throw new AdminAuthorizationError('admin-only')
+  }
+
+  return sessao
 }

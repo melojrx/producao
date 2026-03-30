@@ -4,20 +4,18 @@ import { useActionState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
 import { criarMaquina, editarMaquina } from '@/lib/actions/maquinas'
-import type { FormActionState, TipoMaquinaOption } from '@/types'
-import type { Tables } from '@/types/supabase'
-
-type Maquina = Tables<'maquinas'>
+import type { FormActionState, MaquinaListItem, SetorOption, TipoMaquinaOption } from '@/types'
 
 interface ModalMaquinaProps {
-  maquina?: Maquina
+  maquina?: MaquinaListItem
   tiposMaquina: TipoMaquinaOption[]
+  setores: SetorOption[]
   aoFechar: () => void
 }
 
 const estadoInicial: FormActionState = { erro: undefined, sucesso: false }
 
-export function ModalMaquina({ maquina, tiposMaquina, aoFechar }: ModalMaquinaProps) {
+export function ModalMaquina({ maquina, tiposMaquina, setores, aoFechar }: ModalMaquinaProps) {
   const acao = maquina ? editarMaquina.bind(null, maquina.id) : criarMaquina
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
 
@@ -143,16 +141,25 @@ export function ModalMaquina({ maquina, tiposMaquina, aoFechar }: ModalMaquinaPr
             </div>
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="setor" className="text-sm font-medium text-gray-700">
-                Setor
+              <label htmlFor="setor_id" className="text-sm font-medium text-gray-700">
+                Setor <span aria-hidden>*</span>
               </label>
-              <input
-                id="setor"
-                name="setor"
-                type="text"
-                defaultValue={maquina?.setor ?? ''}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+              <select
+                id="setor_id"
+                name="setor_id"
+                required
+                defaultValue={maquina?.setor_id ?? ''}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="" disabled>
+                  Selecione um setor
+                </option>
+                {setores.map((setor) => (
+                  <option key={setor.id} value={setor.id}>
+                    {setor.nome}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

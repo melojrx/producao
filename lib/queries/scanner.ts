@@ -6,6 +6,7 @@ import type {
   MaquinaScaneada,
   OperacaoScaneada,
   OperadorScaneado,
+  TurnoSetorOpScaneado,
 } from '@/types'
 
 export async function buscarOperadorScaneadoPorToken(
@@ -157,5 +158,37 @@ export async function buscarBlocoAtivoHoje(): Promise<ConfiguracaoTurnoBloco | n
     status: data.status as ConfiguracaoTurnoBloco['status'],
     iniciadoEm: data.iniciado_em,
     encerradoEm: data.encerrado_em,
+  }
+}
+
+export async function buscarTurnoSetorOpScaneadoPorToken(
+  token: string
+): Promise<TurnoSetorOpScaneado | null> {
+  const supabase = createClient()
+
+  const { data: secao, error: secaoError } = await supabase
+    .rpc('buscar_turno_setor_op_scanner', { p_qr_code_token: token })
+    .maybeSingle()
+
+  if (secaoError || !secao) {
+    return null
+  }
+
+  return {
+    id: secao.id,
+    turnoId: secao.turno_id,
+    turnoIniciadoEm: secao.turno_iniciado_em,
+    turnoOpId: secao.turno_op_id,
+    setorId: secao.setor_id,
+    setorNome: secao.setor_nome,
+    numeroOp: secao.numero_op,
+    produtoId: secao.produto_id,
+    produtoNome: secao.produto_nome,
+    produtoReferencia: secao.produto_referencia,
+    quantidadePlanejada: secao.quantidade_planejada,
+    quantidadeRealizada: secao.quantidade_realizada,
+    saldoRestante: Math.max(secao.quantidade_planejada - secao.quantidade_realizada, 0),
+    qrCodeToken: secao.qr_code_token,
+    status: secao.status as TurnoSetorOpScaneado['status'],
   }
 }

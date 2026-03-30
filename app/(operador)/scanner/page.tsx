@@ -1,11 +1,22 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Factory, IdCard } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowRight,
+  Boxes,
+  CheckCircle2,
+  Factory,
+  IdCard,
+  ShieldAlert,
+} from 'lucide-react'
 import { ConfirmacaoRegistro } from '@/components/scanner/ConfirmacaoRegistro'
 import { QRScanner } from '@/components/scanner/QRScanner'
 import { useScanner } from '@/hooks'
 import { registrarProducao } from '@/lib/actions/producao'
+import { isScannerV2Enabled } from '@/lib/utils/feature-flags'
+import { descreverTipoQRCode } from '@/lib/utils/qrcode'
 import type { QRScanResult, QRTipo } from '@/types'
 
 const ETAPAS_CONFIG = {
@@ -14,24 +25,29 @@ const ETAPAS_CONFIG = {
     titulo: 'Escaneie seu crachá',
     descricao: 'Aponte a câmera para o QR Code do operador para iniciar a sessão.',
   },
-  scan_maquina: {
-    tipoEsperado: 'maquina' as QRTipo,
-    titulo: 'Escaneie a máquina',
-    descricao: 'Depois de identificar o operador, leia a etiqueta da máquina em uso.',
-  },
-  scan_operacao: {
-    tipoEsperado: 'operacao' as QRTipo,
-    titulo: 'Escaneie a operação',
-    descricao: 'Leia o cartão da operação para carregar meta individual e meta por hora.',
+  scan_setor_op: {
+    tipoEsperado: 'setor-op' as QRTipo,
+    titulo: 'Escaneie o QR operacional',
+    descricao:
+      'Depois de identificar o operador, leia o QR temporário do setor e da OP para abrir a seção do turno.',
   },
   confirmar: {
-    tipoEsperado: 'operacao' as QRTipo,
-    titulo: 'Confirmar produção',
-    descricao: 'Ajuste a quantidade produzida e confirme o registro.',
+    tipoEsperado: 'setor-op' as QRTipo,
+    titulo: 'Confirmar quantidade',
+    descricao:
+      'Revise o contexto da seção do turno, informe a quantidade executada e siga para o lançamento.',
   },
 } as const
 
+function formatarTurnoResumido(iniciadoEm: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(iniciadoEm))
+}
+
 export default function ScannerPage() {
+  const scannerV2Habilitado = isScannerV2Enabled()
   const [mensagemTela, setMensagemTela] = useState<string | null>(null)
   const [tipoMensagem, setTipoMensagem] = useState<'erro' | 'sucesso'>('erro')
   const {
@@ -39,8 +55,7 @@ export default function ScannerPage() {
     erro,
     estaCarregando,
     scanOperador,
-    scanMaquina,
-    scanOperacao,
+    scanSetorOp,
     registrar,
     resetarOperacao,
     resetarTudo,
@@ -64,9 +79,12 @@ export default function ScannerPage() {
     setMensagemTela(null)
 
     if (resultado.tipo !== etapaAtual.tipoEsperado) {
+      const tipoLido = descreverTipoQRCode(resultado.tipo)
+      const tipoEsperado = descreverTipoQRCode(etapaAtual.tipoEsperado)
+
       setTipoMensagem('erro')
       setMensagemTela(
-        `QR incorreto. Nesta etapa, escaneie um QR do tipo ${etapaAtual.tipoEsperado}.`
+        `QR incorreto. O scanner reconheceu ${tipoLido}, mas nesta etapa é esperado ${tipoEsperado}.`
       )
       return
     }
@@ -74,14 +92,63 @@ export default function ScannerPage() {
     const resposta =
       estado.etapa === 'scan_operador'
         ? await scanOperador(resultado.token)
-        : estado.etapa === 'scan_maquina'
-          ? await scanMaquina(resultado.token)
-          : await scanOperacao(resultado.token)
+        : await scanSetorOp(resultado.token)
 
     if (!resposta.sucesso && resposta.erro) {
       setTipoMensagem('erro')
       setMensagemTela(resposta.erro)
     }
+  }
+
+  const secaoAtual = estado.etapa === 'confirmar' ? estado.secao : null
+
+  if (!scannerV2Habilitado) {
+    return (
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,#0f172a_0%,#020617_100%)] px-4 py-6 text-white">
+        <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center gap-5">
+          <section className="rounded-[28px] border border-amber-400/20 bg-slate-950/70 p-6 shadow-[0_24px_60px_rgba(2,6,23,0.45)] backdrop-blur-xl">
+            <div className="flex items-center gap-3 text-amber-300">
+              <ShieldAlert size={22} />
+              <p className="text-xs font-semibold uppercase tracking-[0.28em]">
+                Cutover controlado
+              </p>
+            </div>
+
+            <h1 className="mt-4 text-2xl font-semibold text-white">Scanner V2 indisponível</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Este ambiente está com o fluxo operacional V2 bloqueado por feature flag. Para
+              liberar o scanner, configure <code>NEXT_PUBLIC_SCANNER_V2_ENABLED=true</code> e
+              publique novamente a aplicação.
+            </p>
+
+            <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+              <p className="font-medium text-white">Fallback operacional durante o cutover</p>
+              <p className="mt-2 leading-6 text-slate-300">
+                Enquanto a flag estiver desligada, o supervisor deve registrar os incrementos pela
+                tela administrativa de apontamentos e acompanhar o progresso na dashboard.
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/admin/apontamentos"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-3xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              >
+                Abrir apontamentos
+                <ArrowRight size={16} />
+              </Link>
+
+              <Link
+                href="/admin/dashboard"
+                className="inline-flex min-h-12 items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+              >
+                Ir para dashboard
+              </Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -121,13 +188,44 @@ export default function ScannerPage() {
           <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 backdrop-blur-md">
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <Factory size={16} className="text-amber-300" />
-              Máquina
+              Setor
             </div>
             <p className="mt-3 text-sm font-medium text-white">
-              {'maquina' in estado ? estado.maquina.codigo : 'Aguardando leitura'}
+              {secaoAtual ? secaoAtual.setorNome : 'Aguardando leitura'}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <Boxes size={16} className="text-emerald-300" />
+              OP
+            </div>
+            <p className="mt-3 text-sm font-medium text-white">
+              {secaoAtual ? secaoAtual.numeroOp : 'Aguardando leitura'}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <Boxes size={16} className="text-fuchsia-300" />
+              Saldo
+            </div>
+            <p className="mt-3 text-sm font-medium text-white">
+              {secaoAtual ? String(secaoAtual.saldoRestante) : 'Aguardando leitura'}
             </p>
           </div>
         </section>
+
+        {secaoAtual ? (
+          <section className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 text-sm text-slate-200 backdrop-blur-md">
+            <p className="font-semibold text-white">
+              {secaoAtual.produtoReferencia} · {secaoAtual.produtoNome}
+            </p>
+            <p className="mt-2 text-slate-300">
+              Turno aberto em {formatarTurnoResumido(secaoAtual.turnoIniciadoEm)}
+            </p>
+          </section>
+        ) : null}
 
         {mensagemAtiva ? (
           <section
@@ -163,12 +261,12 @@ export default function ScannerPage() {
           />
         ) : (
           <ConfirmacaoRegistro
-            operacao={estado.operacao}
+            secao={estado.secao}
             estaRegistrando={estaCarregando}
             onRegistrar={registrar}
             onRegistroConcluido={() => {
               setTipoMensagem('sucesso')
-              setMensagemTela('Produção registrada com sucesso. Escaneie a próxima operação.')
+              setMensagemTela('Quantidade validada. Escaneie a próxima seção do turno.')
               resetarOperacao()
             }}
             onErro={(mensagem) => {

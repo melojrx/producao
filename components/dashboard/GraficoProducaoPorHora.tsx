@@ -47,7 +47,7 @@ export function GraficoProducaoPorHora({
   const dadosGrafico = mapearDados(dados)
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Produção por hora</h3>
@@ -65,8 +65,8 @@ export function GraficoProducaoPorHora({
           Ainda não há registros suficientes para desenhar a curva de produção.
         </div>
       ) : (
-        <div className="mt-6 h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="mt-6 h-72 w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={288}>
             <LineChart
               data={dadosGrafico}
               margin={{ top: 8, right: 12, bottom: 8, left: -12 }}

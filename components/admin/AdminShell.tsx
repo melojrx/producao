@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
+  Building2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Factory,
   FileBarChart2,
   LayoutDashboard,
@@ -14,6 +16,7 @@ import {
   Package,
   Settings2,
   ShieldCheck,
+  ShieldUser,
   Users,
   Wrench,
   X,
@@ -23,11 +26,14 @@ import type { AdminRole } from '@/lib/auth/roles'
 
 const navLinks = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/apontamentos', label: 'Apontamentos', icon: ClipboardList },
+  { href: '/admin/setores', label: 'Setores', icon: Building2 },
   { href: '/admin/operadores', label: 'Operadores', icon: Users },
   { href: '/admin/maquinas', label: 'Máquinas', icon: Settings2 },
   { href: '/admin/operacoes', label: 'Operações', icon: Wrench },
   { href: '/admin/produtos', label: 'Produtos', icon: Package },
   { href: '/admin/relatorios', label: 'Relatórios', icon: FileBarChart2 },
+  { href: '/admin/usuarios', label: 'Usuários', icon: ShieldUser, adminOnly: true },
 ]
 
 interface AdminShellProps {
@@ -44,6 +50,9 @@ export function AdminShell({
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const navLinksDisponiveis = navLinks.filter(
+    (link) => !link.adminOnly || currentUserRole === 'admin'
+  )
 
   useEffect(() => {
     const storedValue = window.localStorage.getItem('admin-sidebar-collapsed')
@@ -105,7 +114,7 @@ export function AdminShell({
         </div>
 
         <nav className="mt-4 px-3">
-          {navLinks.map(({ href, label, icon: Icon }) => {
+          {navLinksDisponiveis.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href
 
             return (
@@ -157,7 +166,7 @@ export function AdminShell({
               )}
             </button>
             <h1 className="text-base font-semibold text-gray-800">
-              {navLinks.find((link) => link.href === pathname)?.label ?? 'Admin'}
+              {navLinksDisponiveis.find((link) => link.href === pathname)?.label ?? 'Admin'}
             </h1>
           </div>
 

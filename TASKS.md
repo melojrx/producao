@@ -11,8 +11,8 @@
 
 Antes de iniciar qualquer sprint, leia na ordem:
 1. `CLAUDE.md` — contexto técnico permanente (stack, padrões, convenções)
-2. `docs/PRD.md` — contexto de negócio (fluxos, regras, modelo físico dos QR Codes)
-3. `docs/TASKS.md` — este arquivo (sprints, tasks, evidências)
+2. `PRD.md` — contexto de negócio (fluxos, regras, modelo operacional e regras de domínio)
+3. `TASKS.md` — este arquivo (sprints, tasks, evidências)
 
 Só inicie a execução após confirmar a leitura dos 3 documentos.
 
@@ -23,7 +23,7 @@ Para cada task:
 4. Escreva uma linha abaixo descrevendo o que foi feito
 
 Ao concluir todas as tasks de uma sprint:
-1. Atualize o status da sprint no `docs/BACKLOG.md`
+1. Atualize o status da sprint no `BACKLOG.md`
 2. Informe quais evidências foram validadas
 3. Aguarde minha confirmação antes de avançar para a próxima sprint
 
@@ -660,348 +660,321 @@ Nunca avance de sprint sem confirmação explícita minha.
 
 ---
 
-## SPRINT 5 — Alertas e relatórios
-**Status:** 🚧 Em andamento
-**Pré-requisito:** Sprints 3 e 4 concluídas.
-**Objetivo:** Sistema completo pronto para deploy.
+## REBASELINE V2 — Turno + OP + Setor
 
-- [x] **5.1 — Página de relatórios**
-  Criar `app/(admin)/relatorios/page.tsx`.
-  Filtros: data início/fim, operador, operação.
-  Tabela paginada: operador, operação, máquina, quantidade, data/hora.
-  Card extra: comparativo Meta Grupo vs Realizado por dia (gráfico de barras).
-  **Evidência:** Filtrar por operador e período, dados corretos na tabela.
-  `app/admin/relatorios/page.tsx` implementado com filtros por período, operador e operação via `searchParams`, tabela paginada e gráfico de barras comparando `Meta Grupo vs Realizado`; validação feita filtrando por operador e período, com dados corretos na tabela e filtros preservados na paginação.
+> As sprints pendentes do plano antigo foram substituídas por este plano V2.
+> O histórico concluído das Sprints 0 a 4 permanece válido como fundação técnica.
+> A partir daqui, a fonte de verdade do produto passa a ser o modelo derivado de `turno + OP + setor`.
 
-- [ ] **5.3 — Testes de responsividade final**
-  Testar todas as telas em: 375px, 390px, 768px, 1280px.
-  **Evidência:** Nenhum overflow, texto cortado ou layout quebrado nas 4 resoluções.
+### Entidades V2
 
-- [ ] **5.4 — Deploy**
-  - Criar projeto na Vercel conectado ao repositório
-  - Configurar variáveis de ambiente de produção
-  - Criar projeto Supabase de produção separado do de desenvolvimento
-  - Executar todas as migrations no banco de produção
-  **Evidência:** URL de produção funciona. Registrar produção pelo celular e ver no dashboard.
+- `setores`: cadastro mestre dos setores produtivos
+- `usuarios_sistema`: usuários administrativos com papel `admin` ou `supervisor`
+- `turnos`: cabeçalho operacional do dia
+- `turno_operadores`: alocação dinâmica de operadores no turno
+- `turno_ops`: OPs planejadas no turno
+- `turno_setor_ops`: seções operacionais derivadas de `setor + OP` com QR temporário
+- `registros_producao`: apontamentos produtivos vinculados ao contexto operacional do turno
 
-- [ ] **5.5 — Manual do operador**
-  Criar `docs/MANUAL_OPERADOR.md` em linguagem simples, sem termos técnicos.
-  Incluir: passo a passo com screenshots, o que fazer se o QR não ler, quem chamar em caso de problema.
-  **Evidência:** Pessoa sem experiência técnica consegue registrar produção lendo apenas o manual.
+### Estratégia de migração
+
+1. **Migração aditiva**
+   - criar tabelas novas e colunas novas sem apagar o legado de imediato
+2. **Coexistência controlada**
+   - manter queries e relatórios antigos funcionando até o dashboard e o scanner V2 estabilizarem
+3. **Cutover por feature flag**
+   - só desligar o fluxo legado depois de validar a V2 ponta a ponta
+4. **Limpeza posterior**
+   - remover estruturas antigas apenas após homologação e validação de histórico
 
 ---
 
-## SPRINT 6 — Multi-produto no mesmo dia (Pós-MVP)
+## SPRINT 5 — Rebaseline documental V2
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 4 concluída.
+**Objetivo:** Consolidar oficialmente o novo domínio operacional antes de alterar código de produção.
+
+- [x] **5.1 — Atualizar PRD para o fluxo V2**
+  Reescrever o PRD para refletir:
+  - turno como contêiner operacional
+  - OPs do dia com produto e quantidade planejada
+  - derivação automática de setores e operações a partir do roteiro do produto
+  - QR operacional temporário por `setor + OP`
+  - encerramentos automáticos e manuais
+  **Evidência:** `PRD.md` atualizado com fluxo operacional, entidades, regras e módulos da V2.
+  Fluxo antigo centrado em `máquina + operação` substituído por `turno + OP + setor`, com regras de QR temporário, apontamento por setor e encerramentos automáticos documentadas em `PRD.md`.
+
+- [x] **5.2 — Reescrever o plano de execução para a V2**
+  Substituir as sprints pendentes do plano antigo por fases de implementação V2, com entidades, dependências e estratégia de migração.
+  **Evidência:** `TASKS.md` passa a refletir o plano V2 como única fonte de verdade para as próximas entregas.
+  Plano antigo de multi-produto/blocos substituído por fases V2 com migração aditiva, coexistência controlada e cutover posterior.
+
+---
+
+## SPRINT 6 — Base de domínio V2
 **Status:** 🚧 Em andamento
 **Pré-requisito:** Sprint 5 concluída.
-**Objetivo:** Suportar um produto, vários produtos ou T.P manual no mesmo dia, com metas corretas por bloco de produção.
+**Objetivo:** Criar a base de dados e os contratos da V2 sem quebrar o fluxo atual.
 
-**Ordem obrigatória de implementação da Sprint 6:**
-1. `6.1 — Refatorar modelagem da configuração do turno`
-2. `6.2 — Server Actions e queries para blocos do dia`
-3. `6.3 — Modal de planejamento do dia com múltiplos produtos`
-4. `6.4 — Scanner registra no bloco ativo`
-5. `6.5 — Dashboard consolidado por dia e por bloco`
-6. `6.6 — Compatibilidade e migração de histórico`
+- [x] **6.1 — Criar tabela e CRUD de setores**
+  Criar a tabela `setores` com código sequencial, nome e situação.
+  Seed inicial obrigatório:
+  - Preparação
+  - Frente
+  - Costa
+  - Montagem
+  - Finalização
 
-Regra de execução:
-- não começar pela UI do modal
-- a modelagem por blocos e os contratos de dados vêm antes da interface
-- o modal deve refletir a modelagem persistida, não definir a regra de negócio por conta própria
+  Também criar:
+  - `lib/actions/setores.ts`
+  - `lib/queries/setores.ts`
+  - `/admin/setores`
+  **Evidência:** CRUD de setores disponível e seed inicial carregado com os 5 setores base.
+  Migração `scripts/sprint6_setores.sql` aplicada no Supabase com seed inicial dos 5 setores; CRUD implementado em `lib/actions/setores.ts`, `lib/queries/setores.ts`, `components/ui/ModalSetor.tsx`, `app/(admin)/setores/ListaSetores.tsx` e `app/admin/setores/page.tsx`. `npx tsc --noEmit` passa sem erros.
 
-- [ ] **6.1 — Refatorar modelagem da configuração do turno**
-  Evoluir a modelagem para separar:
-  - cabeçalho do dia (`configuracao_turno`)
-  - blocos do dia (`configuracao_turno_blocos`)
-
-  Regra de negócio:
-  - um bloco pode vir de um produto cadastrado
-  - ou pode ser um bloco manual, sem `produto_id`
-  - a interface pode permitir escolher 1 produto, vários produtos ou nenhum produto, mas a persistência continua sendo por blocos
-
-  Estrutura proposta para `configuracao_turno_blocos`:
-  ```sql
-  CREATE TABLE configuracao_turno_blocos (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    configuracao_turno_id UUID NOT NULL REFERENCES configuracao_turno(id) ON DELETE CASCADE,
-    produto_id UUID REFERENCES produtos(id),
-    descricao_bloco VARCHAR(200) NOT NULL,
-    sequencia INTEGER NOT NULL,
-    funcionarios_ativos INTEGER NOT NULL CHECK (funcionarios_ativos > 0),
-    minutos_planejados INTEGER NOT NULL CHECK (minutos_planejados > 0),
-    tp_produto_min DECIMAL(10,4) NOT NULL,
-    origem_tp VARCHAR(20) NOT NULL CHECK (origem_tp IN ('produto', 'manual')),
-    meta_grupo INTEGER NOT NULL,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('planejado', 'ativo', 'concluido')),
-    iniciado_em TIMESTAMPTZ,
-    encerrado_em TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(configuracao_turno_id, sequencia),
-    CHECK (
-      (origem_tp = 'produto' AND produto_id IS NOT NULL) OR
-      (origem_tp = 'manual' AND produto_id IS NULL)
-    )
-  );
-  ```
-  Regra: apenas 1 bloco `ativo` por vez em cada configuração do dia.
-  **Evidência:** Dia salvo com 3 blocos no banco: 2 de produtos cadastrados e 1 manual, cada um com `tp_produto_min` e `meta_grupo` próprios.
-
-- [ ] **6.2 — Server Actions e queries para blocos do dia**
-  Criar:
-  - `lib/actions/turno-blocos.ts`
-  - `lib/queries/turno-blocos.ts`
-
-  Ações:
-  - criar bloco
-  - editar bloco
-  - ativar bloco
-  - concluir bloco
-  - reordenar sequência
-
-  Regras:
-  - `meta_grupo_bloco = floor((funcionarios_ativos × minutos_planejados) / tp_produto)`
-  - `meta_grupo_dia = soma(meta_grupo dos blocos)`
-  - se `origem_tp = produto`, `tp_produto_min` vem do roteiro do produto
-  - se `origem_tp = manual`, `tp_produto_min` vem do valor digitado pelo supervisor/admin
-  - ao ativar um bloco, os demais do dia ficam `planejado` ou `concluido`
-  **Evidência:** Ativar um bloco manual depois de um bloco com produto desativa o bloco anterior e mantém o total do dia coerente.
-
-- [ ] **6.3 — Modal de planejamento do dia com múltiplos produtos**
-  Evoluir o modal do turno para permitir três fluxos:
-  - escolher 1 produto
-  - escolher vários produtos
-  - não escolher produto e informar o `T.P Produto` manualmente
-
-  O modal deve gerar e editar blocos com:
-  - produto opcional
-  - descrição do bloco
-  - minutos planejados
-  - funcionários ativos
-  - T.P Produto
-  - origem do T.P (`produto` ou `manual`)
-  - Meta Grupo do bloco
-
-  Exibir também:
-  - Meta total do dia = soma dos blocos
-  - Ordem dos blocos
-  - Bloco atualmente ativo
-  **Evidência:** Supervisor consegue salvar no mesmo dia 1 bloco com produto, 2 blocos com produtos diferentes e 1 bloco manual sem produto, vendo a meta total consolidada antes de salvar.
-
-- [x] **6.4 — Scanner registra no bloco ativo**
-  Ajustar o fluxo de produção para vincular cada registro ao bloco ativo do dia.
-  Adicionar `configuracao_turno_bloco_id` em `registros_producao`.
+- [x] **6.2 — Criar tabela de usuários do sistema**
+  Criar `usuarios_sistema`, vinculada ao `auth.users`, com:
+  - nome
+  - email
+  - papel (`admin | supervisor`)
+  - situação
 
   Regra:
-  - o scanner não usa mais apenas `configuracao_turno.produto_id`
-  - se o bloco ativo tiver produto, o `produto_id` do registro vem dele
-  - se o bloco ativo for manual, o registro fica vinculado ao bloco e pode seguir com `produto_id` nulo
-  - se não houver bloco ativo, o registro é bloqueado com mensagem para o supervisor
-  **Evidência:** Trocar de um bloco com produto para um bloco manual muda os registros seguintes sem reiniciar a sessão do operador.
-  Scanner validado com registro no bloco ativo, bloqueio sem bloco ativo e persistência em `registros_producao` com `configuracao_turno_bloco_id` e `produto_id` conforme o bloco corrente.
+  - a autorização da área admin deve poder usar essa tabela como fonte de verdade, sem depender apenas de metadata do auth
+  - o primeiro `admin` entra por bootstrap técnico direto no banco
+  - a `senha inicial` atual pode existir apenas como bootstrap interno de desenvolvimento
+  - o fluxo profissional de produção deve ficar documentado como `convite por email + definição da própria senha pelo usuário`
+  - depois disso, apenas `admin` pode acessar e operar `/admin/usuarios`
+  - novos `admins` e `supervisores` devem ser cadastrados pela interface
+  **Evidência:** Usuário autenticado com papel `supervisor` acessa `/admin/*` mas não acessa `/admin/usuarios`; usuário `admin` consegue cadastrar um novo supervisor/admin pela interface; usuário sem cadastro administrativo é bloqueado.
+  Migração `scripts/sprint6_usuarios_sistema.sql` aplicada no Supabase; autenticação administrativa migrada para `usuarios_sistema`; CRUD `/admin/usuarios` implementado com restrição `admin-only`; validação funcional confirmada com acesso de `supervisor`, bloqueio de usuário sem cadastro ativo e cadastro de novos usuários via interface. Fluxo de produção com convite e senha definida pelo próprio usuário documentado no `PRD.md`.
 
-- [ ] **6.5 — Dashboard consolidado por dia e por bloco**
-  Evoluir cards e gráficos para mostrar:
-  - realizado do dia
-  - meta total do dia
-  - progresso por bloco
-  - bloco atual
-  - origem do bloco (`produto` ou `manual`)
-  - blocos concluídos x pendentes
-  **Evidência:** Dashboard mostra blocos de produto e manual no mesmo dia, com totais corretos por bloco e no consolidado do turno.
+- [x] **6.3 — Evoluir operações para dependerem de setor**
+  Ajustar `operacoes` para incluir:
+  - código sequencial automático
+  - setor obrigatório
+  - situação
+  - tempo padrão manual
 
-- [ ] **6.6 — Compatibilidade e migração de histórico**
-  Definir migração para manter compatibilidade com dias antigos do MVP:
-  - dias antigos com 1 produto continuam legíveis
-  - criar bloco único de migração quando necessário
-  - dias antigos sem bloco explícito continuam legíveis nos relatórios
-  - relatórios históricos continuam consistentes
-  **Evidência:** Relatórios antigos e novos coexistem sem quebrar consultas nem métricas.
+  Regra:
+  - o setor da operação será usado para derivar as seções `setor + OP` do turno
+  **Evidência:** Produto com roteiro completo permite identificar automaticamente os setores envolvidos a partir das operações vinculadas.
+  Migração `scripts/sprint6_operacoes_setor.sql` aplicada no Supabase com `setor_id` e geração automática de código; backfill dos setores das operações existentes validado; CRUD de operações atualizado para exigir setor e telas de produtos passaram a exibir os setores envolvidos derivados do roteiro. `npx tsc --noEmit` passa sem erros.
 
----
+- [x] **6.4 — Evoluir máquinas e operadores para a V2**
+  Ajustar:
+  - `maquinas` para usar `setor_id`
+  - `operadores` para incluir `carga_horaria_min`
 
-## SPRINT 7 — Escala do painel de máquinas (Pós-MVP)
-**Status:** 🔭 Proposta
-**Pré-requisito:** Sprint 5 concluída.
-**Objetivo:** Escalar o painel de máquinas para operações com parque maior, sem perder legibilidade operacional.
+  Regra:
+  - operador não pertence mais fixamente a um setor; a alocação passa a ser dinâmica por turno
+  **Evidência:** Operadores e máquinas mantêm cadastro válido com vínculo consistente a setores, sem quebra dos CRUDs existentes.
+  Migração `scripts/sprint6_maquinas_operadores_v2.sql` aplicada no Supabase com backfill inicial de `maquinas.setor_id` e `operadores.carga_horaria_min`; CRUD de máquinas atualizado para setor estruturado e CRUD de operadores atualizado para carga horária e alocação dinâmica por turno. Validação funcional confirmada na UI. `npx tsc --noEmit` passa sem erros.
 
-- [ ] **7.1 — Busca por código e filtros por status/tipo**
-  Evoluir o painel de máquinas com:
-  - busca textual por `codigo`
-  - filtro por `status`
-  - filtro por `tipo_nome`
-
-  Regras:
-  - filtros devem combinar entre si
-  - o estado dos filtros deve sobreviver a atualizações realtime
-  - filtros rápidos devem incluir `em alerta`
-  **Evidência:** Supervisor encontra uma máquina específica digitando o código e consegue restringir o grid para `manutenção` ou `em alerta`.
-
-- [ ] **7.2 — Agrupamento por status**
-  Permitir agrupar o painel em seções:
-  - `Em alerta`
-  - `Ativas`
-  - `Paradas`
-  - `Manutenção`
-
-  Regras:
-  - `Em alerta` sempre aparece primeiro
-  - agrupamento deve respeitar os filtros ativos
-  - cada grupo exibe contador de máquinas
-  **Evidência:** Painel mostra grupos ordenados por prioridade operacional, com máquinas em alerta no topo.
-
-- [ ] **7.3 — Alternância entre modo cards e modo tabela**
-  Adicionar um toggle de visualização:
-  - `cards` para acompanhamento operacional
-  - `tabela` para leitura densa e auditoria rápida
-
-  Colunas mínimas do modo tabela:
-  - código
-  - tipo
-  - status
-  - minutos sem uso
-  - último uso
-  - indicador visual de alerta
-  **Evidência:** Supervisor alterna entre cards e tabela sem perder filtros nem contexto.
-
-- [ ] **7.4 — Paginação ou virtualização**
-  Implementar navegação eficiente para cenários com 20, 30 ou mais máquinas.
-
-  Estratégia:
-  - usar paginação simples se a densidade visual do modo tabela for suficiente
-  - avaliar virtualização se o modo cards crescer demais
-
-  Regras:
-  - a experiência não pode esconder alertas críticos
-  - máquinas em alerta devem continuar visíveis ou destacadas mesmo com paginação
-  **Evidência:** Painel continua utilizável com 30+ máquinas sem scroll excessivo nem perda de alertas.
-
-- [ ] **7.5 — Prioridade operacional e experiência do supervisor**
-  Refinar a UX do painel escalado:
-  - resumo por status no topo
-  - contador de máquinas filtradas
-  - preservação do tempo real sem resetar scroll e filtros
-
-  Regras:
-  - atualizações realtime não devem "pular" a tela do supervisor
-  - alertas críticos devem ter prioridade visual
-  **Evidência:** Com o dashboard aberto durante o turno, novos eventos não quebram o contexto de navegação do supervisor.
+- [x] **6.5 — Regenerar types e contratos da V2**
+  Atualizar `types/supabase.ts` e `types/index.ts` com as entidades novas.
+  Introduzir os contratos de:
+  - turno
+  - OP do turno
+  - seção `setor + OP`
+  - usuário do sistema
+  **Evidência:** `npx tsc --noEmit` passa com os novos contratos e sem `any`.
+  `types/supabase.ts` alinhado ao estado atual do banco após as migrações da Sprint 6; `types/index.ts` consolidado com contratos V2 de `usuarios_sistema`, `turno`, `turno_op`, `turno_setor_op` e payloads de planejamento. `npx tsc --noEmit` passa sem erros.
 
 ---
 
-## SPRINT 8 — Escala dos CRUDs admin (Pós-MVP)
+## SPRINT 7 — Planejamento do turno V2
 **Status:** 🔭 Proposta
-**Pré-requisito:** Sprint 5 concluída.
-**Objetivo:** Padronizar paginação, busca e filtros server-side nos CRUDs de operadores, máquinas, operações e produtos.
+**Pré-requisito:** Sprint 6 concluída.
+**Objetivo:** Transformar o cadastro estrutural do produto em planejamento executável do dia.
 
-- [ ] **8.1 — Padrão de paginação administrativa**
-  Criar um padrão compartilhado de listagem paginada para a área admin.
-
-  Contrato recomendado:
-  ```typescript
-  interface ResultadoPaginado<T> {
-    itens: T[]
-    total: number
-    page: number
-    pageSize: number
-    totalPaginas: number
-  }
-  ```
+- [x] **7.1 — Criar schema de turnos, OPs e seções operacionais**
+  Criar tabelas:
+  - `turnos`
+  - `turno_operadores`
+  - `turno_ops`
+  - `turno_setor_ops`
 
   Regras:
-  - `searchParams` são a fonte de verdade para `q`, `page`, `pageSize`
-  - paginação preserva busca e filtros ativos
-  - renderização inicial acontece no servidor
-  **Evidência:** Um padrão único de paginação é reutilizado em pelo menos dois módulos admin.
+  - uma `turno_op` possui produto e quantidade planejada
+  - uma `turno_setor_op` nasce automaticamente dos setores do roteiro do produto
+  - `turno_setor_op` armazena `qr_code_token` temporário
+  **Evidência:** Criar um turno com uma OP gera automaticamente as seções por setor no banco.
+  `scripts/sprint7_turnos_schema.sql` aplicado via Supabase Management API (`POST /v1/projects/{ref}/database/query`). Validação concluída em `2026-03-28`: as tabelas `turnos`, `turno_operadores`, `turno_ops` e `turno_setor_ops` existem; um turno de teste para o produto `REF-002 / Polo com Botões` gerou automaticamente 4 seções (`Preparação`, `Frente`, `Montagem`, `Finalização`) com `quantidade_planejada = 100`, status `aberta` e `qr_code_token` distintos; o turno de validação foi removido ao final.
 
-- [ ] **8.2 — Operadores com paginação e filtro por status**
-  Evoluir `/admin/operadores` para:
-  - busca server-side por `nome` e `matricula`
-  - filtro por `status`
-  - paginação server-side
+- [x] **7.2 — Implementar actions e queries do planejamento**
+  Criar:
+  - `lib/actions/turnos.ts`
+  - `lib/queries/turnos.ts`
 
-  Regras:
-  - ordenação padrão por `nome`
-  - busca e filtros persistem na URL
-  **Evidência:** Filtrar operadores por status e navegar páginas mantendo os filtros.
+  Ações mínimas:
+  - abrir turno
+  - adicionar OP ao turno
+  - editar OP do turno
+  - encerrar turno
+  - listar turno aberto e último turno encerrado
+  **Evidência:** Dashboard consegue carregar o turno aberto atual ou, na ausência dele, o último turno encerrado.
+  `lib/actions/turnos.ts` implementado com `abrirTurno`, `adicionarOpAoTurno`, `editarOpDoTurno` e `encerrarTurno`, incluindo validação de produto roteirizado, encerramento automático do turno aberto anterior e recarga do dashboard. `lib/queries/turnos.ts` implementado com `buscarTurnoAberto`, `buscarUltimoTurnoEncerrado`, `buscarTurnoAbertoOuUltimoEncerrado` e composição completa de operadores, OPs e seções. `app/admin/dashboard/page.tsx` passou a carregar `buscarTurnoAbertoOuUltimoEncerrado()` e renderizar `components/dashboard/ResumoPlanejamentoTurnoV2.tsx`. Validação concluída via Supabase Management API em `2026-03-28`: a lógica retornou um turno `aberto` (`404135e9-e5bb-43c9-bb52-d4c2acb4cd77`) e o último `encerrado` (`8ed665e9-be6b-44f3-be5d-ff7c4e4e1245`, removido após o teste). `npx tsc --noEmit` passa sem erros.
 
-- [ ] **8.3 — Máquinas com paginação e filtros por status/tipo**
-  Evoluir `/admin/maquinas` para:
-  - busca server-side por `codigo`, `modelo`, `marca`
-  - filtro por `status`
-  - filtro por `tipo_maquina_codigo`
-  - paginação server-side
+- [x] **7.3 — Implementar modal "Novo Turno" V2**
+  Evoluir a dashboard para abrir turno com:
+  - data/hora automática
+  - operadores disponíveis
+  - minutos do turno
+  - múltiplas OPs
+  - produto e quantidade planejada por OP
 
-  Regras:
-  - ordenação padrão por `codigo`
-  - estado da listagem sobrevive a refresh
-  **Evidência:** Buscar uma máquina por código e paginar mantendo filtros por status/tipo.
+  Regra:
+  - o supervisor informa a demanda; o sistema deriva os setores automaticamente
+  **Evidência:** Salvar um turno com 2 OPs gera corretamente as seções `setor + OP` para os setores exigidos pelos produtos.
+  `components/dashboard/ModalNovoTurnoV2.tsx` implementado com data/hora automática, seleção de operadores ativos, minutos do turno, observação opcional e lista dinâmica de múltiplas OPs. `components/dashboard/PainelConfiguracaoTurno.tsx` passou a abrir o modal V2 e `app/admin/dashboard/page.tsx` passou a carregar operadores ativos para o fluxo. `lib/actions/turnos.ts` ganhou `abrirTurnoFormulario` para receber o payload serializado do modal. Validação concluída via Supabase Management API em `2026-03-28`: um turno de teste com 2 OPs gerou 7 seções `setor + OP` corretamente, sendo 4 para `OP-VALIDACAO-7.3-A` (`REF-002 / Polo com Botões` → `Preparação`, `Frente`, `Montagem`, `Finalização`, quantidade 150) e 3 para `OP-VALIDACAO-7.3-B` (`31030602 / CALÇA AMBEV` → `Preparação`, `Frente`, `Montagem`, quantidade 90). O turno temporário `3d24f905-d22a-4ccc-8716-e1c7f0f8b2b1` foi removido após o teste. `npx tsc --noEmit` passa sem erros.
 
-- [ ] **8.4 — Operações com paginação e filtros por status/tipo**
-  Evoluir `/admin/operacoes` para:
-  - busca server-side por `codigo` e `descricao`
-  - filtro por `ativa/inativa`
-  - filtro por `tipo_maquina_codigo`
-  - paginação server-side
-
-  Regras:
-  - ordenação padrão por `codigo`
-  - o comportamento segue o mesmo padrão dos demais CRUDs
-  **Evidência:** Buscar uma operação por código e navegar entre páginas sem perder os filtros.
-
-- [ ] **8.5 — Produtos com paginação e filtro por status**
-  Evoluir `/admin/produtos` para:
-  - busca server-side por `referencia` e `nome`
-  - filtro por `ativo/inativo`
-  - paginação server-side
-
-  Regras:
-  - ordenação padrão por `nome`
-  - paginação preserva filtros e busca
-  **Evidência:** Filtrar produtos por status e navegar páginas mantendo o contexto.
-
-- [ ] **8.6 — Padronização de UX e navegação**
-  Consolidar a experiência dos quatro CRUDs:
-  - contador de resultados
-  - ações `Anterior` e `Próxima`
-  - estado vazio consistente
-  - limpeza de filtros
-
-  Regras:
-  - nenhuma listagem deve depender de filtro apenas em `useState`
-  - links devem ser compartilháveis e reabrir o mesmo estado de listagem
-  **Evidência:** Copiar a URL de uma listagem filtrada e reabrir a página preserva o mesmo estado.
+- [x] **7.4 — Gerar QR operacional temporário por setor + OP**
+  Implementar geração de QR para cada `turno_setor_op`.
+  Regra:
+  - o QR muda a cada novo turno
+  - o QR identifica o contexto operacional do turno, não um cadastro mestre fixo
+  **Evidência:** Abrir um novo turno para a mesma OP gera um QR diferente do turno anterior.
+  `lib/utils/qrcode.ts` passou a expor `gerarValorQROperacionalSetorOp()` com o prefixo operacional temporário `setor-op:` para a V2. `components/dashboard/QROperacionaisTurnoV2.tsx` implementado e integrado em `app/admin/dashboard/page.tsx`, exibindo um QR por seção `setor + OP` com download em PNG, quantidade planejada, status e token temporário. Validação concluída via Supabase Management API em `2026-03-28`: a mesma OP `OP-VALIDACAO-QR-001` no produto `REF-002 / Polo com Botões`, no setor `Preparação`, gerou `qr_code_token` diferentes em dois turnos distintos (`4c24b3b7cb29ee26ef7b6f28bcf47bee8b9e0f42db19aa5c54609b7e85a9a49c` e `ab063df8894cc35936bebdcad21393e3a55582b3e5e321fab26fde17c856af10`). Os turnos temporários `5bc7b018-4a97-4864-a234-a0c1b4305491` e `e1efc824-7378-4b5b-92dd-4e39ab2bb5ee` foram removidos após o teste. `npx tsc --noEmit` passa sem erros.
 
 ---
 
-## SPRINT 9 — Exportação CSV de relatórios (Pós-MVP)
+## SPRINT 8 — Scanner e apontamento V2
 **Status:** 🔭 Proposta
-**Pré-requisito:** Sprint 5 concluída.
-**Objetivo:** Exportar relatórios filtrados em CSV com compatibilidade prática para Excel.
+**Pré-requisito:** Sprint 7 concluída.
+**Objetivo:** Registrar produção no contexto correto do turno, com bloqueios consistentes e sem excesso sobre o planejado.
 
-- [ ] **9.1 — Utilitário de exportação CSV**
-  Criar `lib/utils/exportacao.ts`:
-  ```typescript
-  export function exportarCSV(
-    dados: Record<string, unknown>[],
-    cabecalhos: Record<string, string>,
-    nomeArquivo: string
-  ): void
-  ```
+- [x] **8.1 — Evoluir o parser e os tipos de QR**
+  Ajustar `lib/utils/qrcode.ts` e os contratos da aplicação para suportar o QR operacional de `setor + OP`.
+  **Evidência:** Scanner reconhece separadamente QR de operador e QR operacional da seção do turno.
+  `lib/constants.ts` e `types/index.ts` atualizados para suportar o novo tipo `setor-op`, incluindo o contrato `TurnoSetorOpScaneado`. `lib/utils/qrcode.ts` passou a validar `setor-op:` no parser, expor `descreverTipoQRCode()` e manter `gerarValorQROperacionalSetorOp()`. `app/(operador)/scanner/page.tsx` passou a exibir mensagens específicas com o tipo reconhecido quando um QR é lido fora da etapa esperada. Validação concluída em `2026-03-28`: `parseQRCode('operador:abc123def456ghi789')` retornou `{ tipo: 'operador', token: 'abc123def456ghi789' }` e `parseQRCode('setor-op:xyz987uvw654rst321')` retornou `{ tipo: 'setor-op', token: 'xyz987uvw654rst321' }`, com descrições distintas no scanner. `npx tsc --noEmit` passa sem erros.
+
+- [x] **8.2 — Implementar sessão do scanner V2**
+  Novo fluxo:
+  - scan do operador
+  - scan do QR operacional `setor + OP`
+  - exibição do contexto da seção aberta
+  - input da quantidade executada
+
+  Regra:
+  - a máquina pode ser informada opcionalmente, mas não é obrigatória
+  **Evidência:** Sessão de scanner mostra turno, OP, produto, setor e saldo restante antes do lançamento.
+  `hooks/useScanner.ts` foi reestruturado para o fluxo `scan_operador -> scan_setor_op -> confirmar`, usando `buscarTurnoSetorOpScaneadoPorToken()` e removendo a obrigatoriedade de máquina na sessão V2. `app/(operador)/scanner/page.tsx` passou a exigir QR `setor-op` na segunda etapa e a exibir cards de operador, setor, OP, produto, turno e saldo antes do lançamento. `components/scanner/ConfirmacaoRegistro.tsx` foi adaptado para mostrar o contexto completo da seção do turno e o input de quantidade executada. Validação concluída em `2026-03-28`: `npx tsc --noEmit` passa sem erros e a consulta via Supabase Management API ao contexto operacional mais recente retornou `turno_iniciado_em = 2026-03-28 20:30:47.497507+00`, `numero_op = OP-VALIDACAO-7.1`, `referencia = REF-002`, `produto_nome = Polo com Botões`, `setor_nome = Preparação`, `saldo_restante = 100` e `qr_code_token = cf0531d04c6e5b64d78be890578e3e6154adb1233cfb37c69cd466b9c5215ebd`, que são exatamente os campos agora exibidos na sessão V2 antes do lançamento. O botão de lançamento permanece bloqueado por mensagem explícita até a task `8.3`, onde entra a transação de apontamento.
+
+- [x] **8.3 — Implementar apontamento transacional com bloqueio de excesso**
+  Ajustar `registros_producao` e criar a lógica transacional no backend para:
+  - registrar produção no contexto da seção do turno
+  - impedir ultrapassar a quantidade planejada
+  - atualizar o realizado do `turno_setor_op`
+
+  Regra:
+  - a validação final deve ficar no banco ou em operação transacional segura, não apenas no client
+  **Evidência:** Dois lançamentos concorrentes não conseguem ultrapassar a quantidade planejada da seção.
+  `scripts/sprint8_apontamento_v2.sql` criou a base transacional da V2: `registros_producao.turno_setor_op_id`, flexibilização de `operacao_id` para o fluxo legado/V2 coexistirem, `buscar_turno_setor_op_scanner()` para leitura pública do contexto do QR e `registrar_producao_turno_setor_op()` com `FOR UPDATE` na seção para serializar concorrência. `lib/queries/scanner.ts` passou a consultar o contexto do scanner por RPC, `lib/actions/producao.ts` passou a registrar via RPC transacional e `app/(operador)/scanner/page.tsx` voltou a enviar o lançamento real a partir da sessão V2. Validação concluída em `2026-03-28`: `npx tsc --noEmit` passa sem erros e, na seção temporária `65fc1ff3-72a3-4e2a-b39e-296e8a917866` com planejado `5`, dois lançamentos concorrentes via Supabase Management API (`4` e `3`) resultaram em apenas um sucesso (`registro_id = 5d7d9405-e676-4b00-a076-676cae08d982`, `quantidade_realizada = 4`, `saldo_restante = 1`) e o segundo falhou com `Quantidade excede o saldo restante da seção.`. A verificação final retornou `total_registros = 1` e `total_quantidade_registrada = 4`, provando que o total não ultrapassou o planejado. A OP temporária `OP-VALIDACAO-8.3-20260328-T1` e o registro de teste foram removidos ao final.
+
+- [x] **8.4 — Implementar encerramentos automáticos**
   Regras:
-  - usar apenas Web APIs nativas
-  - cabeçalhos em português
-  - preservar ordem de colunas
-  **Evidência:** Download abre corretamente no Excel com colunas nomeadas em português.
+  - setor encerra ao atingir o planejado
+  - OP encerra quando todos os setores obrigatórios estiverem concluídos
+  - turno pode ser encerrado manualmente ou ao abrir o próximo
+  **Evidência:** Atingir o planejado de um setor encerra a seção automaticamente e reflete isso no andamento da OP e do turno.
+  `scripts/sprint8_encerramentos_automaticos.sql` adicionou `sincronizar_andamento_turno_op()` e evoluiu `registrar_producao_turno_setor_op()` para encerrar a seção automaticamente ao atingir o planejado, atualizar `quantidade_realizada`, marcar a OP como `em_andamento` ou `concluida` conforme o estado agregado das seções e tocar o `updated_at` do turno para refletir progresso. `components/dashboard/ResumoPlanejamentoTurnoV2.tsx` passou a exibir `OPs concluídas` e `Seções concluídas`, deixando o andamento do turno visível na dashboard V2. Validação concluída em `2026-03-28`: `npx tsc --noEmit` passa sem erros e, na OP temporária `OP-VALIDACAO-8.4-20260328-T1` do turno aberto `404135e9-e5bb-43c9-bb52-d4c2acb4cd77`, quatro apontamentos de `2` encerraram automaticamente as seções `Preparação`, `Frente`, `Montagem` e `Finalização` com `status_turno_setor_op = concluida` e `saldo_restante = 0`. A verificação final retornou `turno_op_status = concluida`, `turno_op_realizada = 2`, `secoes_concluidas_da_op = 4/4`, `turno_status = aberto` e `secoes_concluidas_no_turno = 4/4`, demonstrando o reflexo no andamento da OP e do turno sem autoencerrar o turno. A OP temporária e os 4 registros de validação foram removidos ao final.
 
-- [ ] **9.2 — Integração com a página de relatórios**
-  Adicionar ação de exportar na tela `/admin/relatorios`.
-  A exportação deve respeitar os filtros ativos:
-  - data início/fim
-  - operador
-  - operação
+---
 
+## SPRINT 9 — Apontamentos atômicos, dashboard, relatórios e coexistência
+**Status:** 🔭 Proposta
+**Pré-requisito:** Sprint 8 concluída.
+**Objetivo:** Evoluir a V2 para registrar produção no nível correto de operador + operação + seção, trocar a leitura gerencial para esse consolidado e manter a base histórica consistente durante a transição.
+
+> Refinamento de plano da Sprint 9:
+> a modelagem entregue até a Sprint 8 consolidou `turno_setor_op` como unidade de execução, o que é suficiente para o andamento macro do turno, mas não preserva corretamente a produtividade por operador quando o supervisor faz lançamentos agregados do setor. A partir daqui, a fonte de verdade operacional passa a ser o apontamento atômico por `operador + operação + seção`, com consolidação ascendente para seção, OP e turno sem supercontagem.
+
+- [x] **9.1 — Refazer a dashboard para o modelo V2**
+  Mostrar:
+  - turno aberto ou último turno encerrado
+  - OPs em andamento
+  - progresso por OP
+  - progresso por setor
+  - planejado vs realizado
+  - seções concluídas e pendentes
+  **Evidência:** Dashboard acompanha em tempo real o planejamento derivado das OPs e setores do turno.
+  `lib/queries/turnos-client.ts` passou a oferecer o snapshot V2 no browser, `hooks/useRealtimePlanejamentoTurnoV2.ts` implementou recarga em tempo real por `turnos`, `turno_operadores`, `turno_ops`, `turno_setor_ops` e `registros_producao`, e `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` substituiu o monitor legado por uma dashboard V2 com turno aberto/último encerrado, KPIs de planejado vs realizado, OPs em andamento, progresso por OP, seções pendentes/concluídas e QRs operacionais do turno. `app/admin/dashboard/page.tsx` passou a usar o monitor V2 como bloco principal e `components/dashboard/PainelConfiguracaoTurno.tsx` foi simplificado para não misturar métricas legadas com a nova visão. Como ajuste final da `9.1`, o cabeçalho da dashboard passou a expor `Novo Turno` e `Encerrar Turno`, com o encerramento manual aparecendo apenas quando o turno atual está `aberto`, usando um modal dedicado de confirmação alinhado ao design do sistema e acionando a `encerrarTurno()` já existente no backend. `scripts/sprint9_dashboard_v2_realtime.sql` adicionou `turnos`, `turno_operadores`, `turno_ops` e `turno_setor_ops` à publication `supabase_realtime`. Validação concluída em `2026-03-28`: `npx tsc --noEmit` passa sem erros, `pg_publication_tables` retornou as 4 tabelas V2 na publication e a OP temporária `OP-VALIDACAO-9.1-20260328-T1` criada no turno aberto `404135e9-e5bb-43c9-bb52-d4c2acb4cd77` derivou `4` seções automaticamente, confirmando o snapshot operacional que a dashboard V2 agora consome e atualiza por Realtime. A OP temporária foi removida ao final.
+
+- [x] **9.2 — Evoluir o domínio V2 para operação dentro da seção**
+  Criar a camada `turno_setor_operacoes` como derivação aditiva da V2.
+
+  Estrutura mínima:
+  - uma linha por operação do roteiro dentro de cada `turno_setor_op`
+  - `quantidade_planejada` espelhando a quantidade planejada da OP
+  - `quantidade_realizada` como consolidado da operação dentro da seção
+  - `status`, `sequencia` e `tempo_padrao_min_snapshot`
+
+  Também evoluir `registros_producao` para registrar:
+  - `turno_op_id`
+  - `turno_setor_op_id`
+  - `turno_setor_operacao_id`
+  - `usuario_sistema_id`
+  - `origem_apontamento` (`operador_qr | supervisor_manual`)
+
+  Regra de consolidação:
+  - realizado da operação da seção = soma dos lançamentos daquela operação
+  - realizado da seção = menor realizado entre as operações obrigatórias do setor
+  - realizado da OP = menor realizado entre as seções obrigatórias da OP
+  - realizado do turno = soma do realizado das OPs do turno
+
+  **Evidência:** Uma seção com duas operações (`20` e `15`) consolida `15` no setor, sem supercontar `35`, e preserva os lançamentos por operador e operação.
+  Implementado em `scripts/sprint9_apontamento_atomico_v2.sql`, com a nova tabela `turno_setor_operacoes`, evolução aditiva de `registros_producao`, funções `sincronizar_turno_setor_operacoes()`, `sincronizar_andamento_turno_setor_op()` e `registrar_producao_turno_setor_operacao()`. Os contratos foram atualizados em `types/index.ts` e `types/supabase.ts`; a action atômica foi adicionada em `lib/actions/producao.ts`; e a primeira query server-side para a nova camada entrou em `lib/queries/apontamentos.ts`. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros, a migração foi aplicada via Supabase Management API e, em um cenário temporário no turno aberto `289f8096-f67d-499e-b54e-b3ef8444dae4`, dois lançamentos atômicos em uma seção com exatamente duas operações (`20` e `15`) consolidaram `realizado_secao = 15` com `status_secao = em_andamento`, sem supercontar `35`. Os dados temporários `OP-VALIDACAO-9.2-20260330-T1` foram removidos ao final.
+
+- [x] **9.3 — Implementar apontamento atômico do supervisor**
+  Criar a experiência administrativa `/admin/apontamentos` para captura incremental do chão.
+
+  Fluxo mínimo:
+  - contexto fixo do turno aberto
+  - filtros por OP, setor e produto
+  - lista de seções com planejado, realizado, saldo e progresso
+  - detalhe da seção com operações previstas e operadores do turno
+  - formulário com múltiplas linhas por envio:
+    - operador
+    - operação
+    - quantidade
+  - gravação transacional
+
+  Regra:
+  - o supervisor registra lançamentos atômicos por operador e operação; a seção, a OP e o turno são consolidados automaticamente após salvar
+
+  **Evidência:** O supervisor registra no mesmo envio `João + Operação A + 20` e `Maria + Operação B + 15`, e o sistema atualiza operação, seção, OP e turno com os consolidados corretos.
+  `components/apontamentos/PainelApontamentosSupervisor.tsx` implementou a interface administrativa com filtros por OP/setor/produto, lista de seções com planejado/realizado/saldo/progresso, detalhe da seção, múltiplas linhas `operador + operação + quantidade` no mesmo envio e submissão via `useActionState(registrarApontamentosSupervisor)`. A rota foi publicada em `app/admin/apontamentos/page.tsx` com espelho em `app/(admin)/apontamentos/page.tsx`, e o menu admin passou a expor `/admin/apontamentos` em `components/admin/AdminShell.tsx`. Como o turno aberto atual não possuía `turno_operadores`, a página ganhou fallback explícito para operadores ativos do cadastro, sem ocultar o problema operacional. No backend, `scripts/sprint9_apontamento_supervisor_v2.sql` adicionou a RPC `registrar_producao_supervisor_em_lote()`, `lib/actions/producao.ts` passou a autenticar o supervisor, validar o payload e revalidar dashboard/relatórios/apontamentos, e durante a validação foi corrigido um defeito estrutural em `scripts/sprint9_apontamento_atomico_v2.sql`: a função base `registrar_producao_turno_setor_operacao()` ainda validava `usuarios_sistema.status`, mas a tabela usa `ativo`. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros; as funções SQL foram aplicadas via Supabase Management API; e um cenário temporário no turno aberto `289f8096-f67d-499e-b54e-b3ef8444dae4`, com a OP `OP-VALIDACAO-9.3-20260330-T1`, registrou `Adriele + D1 + 20` e `Alef + D2 + 15` na seção `Frente`, consolidando `quantidade_realizada_secao = 15` para a seção, preservando `20` e `15` nas operações. Após repetir `15` nas demais seções do mesmo produto, a OP temporária chegou a `quantidade_realizada_turno_op = 15` com `status_turno_op = em_andamento`, e o consolidado do turno subiu de `0` para `15` sem supercontagem. Os dados temporários foram removidos ao final e a consulta de conferência retornou `total_restante = 0`.
+
+- [x] **9.4 — Adaptar dashboard e relatórios para os novos consolidados**
+  Leituras mínimas:
+  - dashboard do turno lendo o consolidado por operação, seção e OP
+  - relatório por turno
+  - relatório por OP
+  - relatório por setor
+  - relatório por operação dentro do setor
+  - relatório por operador
+  - comparativo planejado vs realizado
+
+  Regra explícita:
+  - filtros por turno, OP ou setor não podem supercontar produção ao somar operações internas ou seções paralelas
+
+  **Evidência:** Filtrar por turno ou OP retorna os dados corretos, preservando o detalhamento por operação e sem duplicar o realizado ao consolidar setor e OP.
+  A dashboard V2 passou a carregar `operacoesSecao` dentro de `PlanejamentoTurnoV2` em `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts`, usando a helper compartilhada `lib/queries/turno-setor-operacoes-base.ts`. O Realtime da dashboard foi ampliado em `hooks/useRealtimePlanejamentoTurnoV2.ts` para ouvir `turno_setor_operacoes`, e a publication foi atualizada em `scripts/sprint9_dashboard_v2_realtime.sql`. Os modais `components/dashboard/ModalDetalhesOpTurno.tsx` e `components/dashboard/ModalDetalhesSecaoTurno.tsx` deixaram de depender apenas do roteiro estático do produto e passaram a exibir realizado, saldo e status da operação derivada da seção. Nos relatórios, a página `app/admin/relatorios/page.tsx` foi reescrita para consumir `lib/queries/relatorios-v2.ts`, com filtros por período, turno, OP, setor e operador; `components/relatorios/FiltrosRelatorios.tsx`, `components/relatorios/TabelaRelatorios.tsx`, `components/relatorios/ComparativoMetaGrupoChart.tsx` e `components/relatorios/ResumoRelatorios.tsx` passaram a refletir o modelo V2 com resumo consolidado, tabela atômica por operador+operação e comparativo planejado vs realizado. A camada legada `lib/queries/relatorios.ts` foi ajustada apenas para compatibilidade de tipos até a 9.5. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros; `pg_publication_tables` confirmou `turno_setor_operacoes` na publication `supabase_realtime`; e um cenário temporário no turno aberto `289f8096-f67d-499e-b54e-b3ef8444dae4`, com a OP `OP-VALIDACAO-9.4-20260330-T1`, confirmou a regra de não supercontagem: na seção `Frente`, as operações `D1 = 20` e `D2 = 15` ficaram preservadas no detalhe, a seção consolidou `15`, a OP filtrada consolidou `15`, e o turno subiu de `0` para `15`. A mesma validação mostrou por contraste que a soma bruta das seções (`45`) e das operações (`95`) seria incorreta para o consolidado da OP, provando que o relatório por turno/OP agora precisa usar os consolidadores corretos. Os dados temporários foram removidos ao final e a conferência retornou `total_restante = 0`.
+
+- [x] **9.5 — Implementar compatibilidade temporária com o legado**
   Regras:
-  - exportar o conjunto filtrado correto
-  - manter nomenclatura de arquivo legível
-  **Evidência:** Aplicar filtros na página e gerar CSV contendo somente os registros visíveis ao filtro.
+  - registros antigos continuam legíveis
+  - relatórios não quebram durante a transição
+  - dashboard e apontamentos V2 não dependem de apagar imediatamente o modelo anterior
+  **Evidência:** Dados históricos do fluxo antigo continuam acessíveis após a entrada da V2.
+  A camada de relatórios V2 em `lib/queries/relatorios-v2.ts` passou a unir registros atômicos da V2 com registros legados de `registros_producao` cujo vínculo estrutural (`turno_op_id`, `turno_setor_op_id`, `turno_setor_operacao_id`) ainda é nulo. A UI de `app/admin/relatorios/page.tsx` e dos componentes `components/relatorios/TabelaRelatorios.tsx` e `components/relatorios/ResumoRelatorios.tsx` passou a identificar a origem de cada linha, preservar o histórico legado como leitura acessível e manter a consolidação estrutural V2 separada, sem exigir remoção imediata do modelo antigo. A query legada `lib/queries/relatorios.ts` foi mantida tipada para coexistência. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros; consulta read-only via Supabase Management API confirmou `20` registros legados ainda acessíveis em `public.registros_producao` após a entrada da V2, no intervalo de `2026-03-25` a `2026-03-25`; e uma amostra dos IDs `0384e977-ba3c-4b81-9d44-2a5e451cc04c`, `b14eae7e-6bae-48e8-bb27-7c7dbf0b25f3` e `07cf39db-09a6-4228-a6f6-1006696b73ad` continuou legível com operador, operação e quantidade preservados no fluxo legado.
+
+- [ ] **9.6 — Cutover controlado e validação final**
+  Executar:
+  - feature flag do scanner V2
+  - homologação do fluxo completo
+  - teste de responsividade final
+  - deploy
+  - manual operacional atualizado
+  **Evidência:** URL de produção registra lançamentos no fluxo V2 e a dashboard reflete o progresso em tempo real sem regressão crítica.

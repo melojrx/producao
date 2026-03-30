@@ -13,7 +13,7 @@ export default async function AdminProdutosPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Produtos</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Monte o roteiro do produto e acompanhe o T.P total usado para a meta do grupo.
+          Monte o roteiro do produto, visualize os setores envolvidos e acompanhe o T.P total usado para a meta do grupo.
         </p>
       </div>
 

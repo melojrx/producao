@@ -246,11 +246,30 @@ export type QRTipo = typeof QR_TIPOS[number]
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...   # apenas server-side, nunca expor
+MCP_API_KEY=...                    # usar para Supabase Management API
 ```
 
 ---
 
-## 9. COMANDOS ÚTEIS
+## 9. SUPABASE MANAGEMENT API
+
+Sempre que for necessário executar schema, migração, validação SQL ou outra operação remota de banco no Supabase, preferir a rota oficial da Supabase Management API:
+
+```text
+POST /v1/projects/{ref}/database/query
+```
+
+Regras:
+- usar `MCP_API_KEY` como credencial
+- usar `POST /v1/projects/{ref}/database/query/read-only` para consultas sem escrita
+- preferir a Management API ao acesso direto no host Postgres quando a operação puder ser feita por HTTP
+
+Referência oficial:
+- https://supabase.com/docs/reference/api/v1-run-a-query
+
+---
+
+## 10. COMANDOS ÚTEIS
 
 ```bash
 npm run dev
@@ -262,7 +281,7 @@ npx supabase db reset
 
 ---
 
-## 10. O QUE NUNCA FAZER
+## 11. O QUE NUNCA FAZER
 
 - ❌ Usar `any` explícito no TypeScript
 - ❌ Acessar Supabase diretamente em componentes (usar lib/ ou hooks/)

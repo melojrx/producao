@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { extractAdminRole } from '@/lib/auth/roles'
+import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 import type { Database } from '@/types/supabase'
 
 function redirecionarParaLogin(request: NextRequest, erro?: 'auth' | 'permissao') {
@@ -49,7 +49,7 @@ export async function updateSession(request: NextRequest) {
   const isScannerRoute = pathname.startsWith('/scanner')
   const isLoginRoute = pathname.startsWith('/login')
   const isPublicRoute = isScannerRoute || isLoginRoute
-  const role = user ? extractAdminRole(user) : null
+  const role = user ? await buscarPapelAdminPorAuthUserId(supabase, user.id) : null
 
   if (isAdminRoute) {
     if (!user) {

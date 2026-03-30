@@ -14,13 +14,15 @@
 | 2 | Cadastros (CRUD) | ✅ Concluída | 2 |
 | 3 | Scanner mobile | ✅ Concluída | 2 |
 | 4 | Dashboard em tempo real | ✅ Concluída | 2 |
-| 5 | Alertas e relatórios | ⏳ Não iniciado | 1 |
-| 6 | Multi-produto no mesmo dia | 🔭 Proposta pós-MVP | 2 |
-| 7 | Escala do painel de máquinas | 🔭 Proposta pós-MVP | 1 |
-| 8 | Escala dos CRUDs admin | 🔭 Proposta pós-MVP | 1 |
-| 9 | Exportação CSV de relatórios | 🔭 Proposta pós-MVP | 1 |
+| 5 | Rebaseline documental V2 | ✅ Concluída | 1 |
+| 6 | Base de domínio V2 | ✅ Concluída | 3 |
+| 7 | Planejamento do turno V2 | ✅ Concluída | 3 |
+| 8 | Scanner e apontamento V2 | ✅ Concluída | 3 |
+| 9 | Dashboard, relatórios e coexistência | 🔭 Proposta | 3 |
 
-**Total estimado: 9 dias úteis**
+**Total estimado: 18 dias úteis**
+
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -96,70 +98,75 @@
 
 ---
 
-## SPRINT 5 — Alertas e relatórios
-**Objetivo:** Sistema completo pronto para uso em produção.
-**Entregável:** Deploy na Vercel + relatório diário navegável.
+## SPRINT 5 — Rebaseline documental V2
+**Objetivo:** Consolidar oficialmente a mudança arquitetural antes de mexer no domínio de produção.
+**Entregável:** `PRD.md` e `TASKS.md` passam a refletir o modelo V2 como fonte de verdade.
+**Status:** ✅ Concluída
 
-- Página de relatórios com filtros
-- Comparativo meta grupo vs realizado por dia
-- Testes de responsividade final
-- Testes de carga (20 operadores simultâneos)
-- Deploy Vercel + Supabase produção
-- Manual do operador
-
----
-
-## SPRINT 6 — Multi-produto no mesmo dia
-**Objetivo:** Permitir planejar o turno com um produto, vários produtos ou T.P manual, sem perder consistência de meta e rastreabilidade.
-**Entregável:** Supervisor/admin configura o dia com blocos de produção, cada bloco podendo vir de um produto cadastrado ou de um T.P informado manualmente, e o scanner registra produção no bloco ativo.
-**Status:** 🔭 Proposta pós-MVP
-
-- Refatorar a configuração diária para suportar **blocos de produção**
-- Permitir blocos com `produto_id` ou com `T.P` manual
-- Calcular `meta_grupo` por bloco e somar o total do dia
-- Permitir configurar 1 produto, vários produtos ou nenhum produto no modal
-- Registrar produção vinculada ao bloco ativo
-- Exibir no dashboard: total do dia + progresso por bloco
-- Manter compatibilidade com histórico do MVP de 1 produto por dia
+- Reescrever o PRD para o fluxo `turno + OP + setor`
+- Documentar QR operacional temporário por `setor + OP`
+- Formalizar encerramentos automáticos e manuais
+- Replanejar as próximas sprints com estratégia de migração aditiva
 
 ---
 
-## SPRINT 7 — Escala do painel de máquinas
-**Objetivo:** Tornar o monitoramento de máquinas eficiente em operações com 20, 30 ou mais máquinas.
-**Entregável:** Dashboard com busca, filtros, modos de visualização e navegação mais eficiente para o grid de máquinas.
-**Status:** 🔭 Proposta pós-MVP
+## SPRINT 6 — Base de domínio V2
+**Objetivo:** Criar a base estrutural da V2 sem quebrar o fluxo atual.
+**Entregável:** novas entidades de domínio criadas, contratos tipados atualizados e CRUD de setores disponível.
+**Status:** ✅ Concluída
 
-- Adicionar filtro por status e por tipo de máquina
-- Adicionar busca por código da máquina
-- Permitir alternância entre modo `cards` e modo `tabela`
-- Permitir agrupamento por status com prioridade para máquinas em alerta
-- Adicionar paginação ou virtualização para parques maiores
-- Preservar o alerta visual prioritário para máquinas acima do limite de parada
-
----
-
-## SPRINT 8 — Escala dos CRUDs admin
-**Objetivo:** Escalar operadores, máquinas, operações e produtos para bases maiores, com listagens mais performáticas e consistentes.
-**Entregável:** Todos os CRUDs admin usando busca, filtros e paginação server-side com URL como fonte de verdade.
-**Status:** 🔭 Proposta pós-MVP
-
-- Padronizar paginação server-side nos quatro módulos
-- Adicionar busca persistida na URL
-- Adicionar filtros server-side por módulo
-- Preservar filtros e paginação em refresh, compartilhamento de link e navegação
-- Criar um padrão único de tabela paginada para a área admin
+- Criar tabela e CRUD de `setores`
+- Criar tabela `usuarios_sistema`
+- Documentar bootstrap do primeiro admin via SQL
+- Criar CRUD `/admin/usuarios`
+- Restringir a gestão de usuários a papel `admin`
+- Documentar fluxo profissional de produção com convite por email e senha definida pelo próprio usuário
+- Evoluir `operacoes` para dependerem de `setor`
+- Evoluir `maquinas` e `operadores` para a V2
+- Regenerar `types/supabase.ts` e contratos da aplicação
+- Manter compatibilidade com os CRUDs atuais durante a transição
 
 ---
 
-## SPRINT 9 — Exportação CSV de relatórios
-**Objetivo:** Permitir exportação de relatórios em CSV para análise externa e abertura em planilhas.
-**Entregável:** Relatório filtrado exportável com colunas em português e compatibilidade com Excel.
-**Status:** 🔭 Proposta pós-MVP
+## SPRINT 7 — Planejamento do turno V2
+**Objetivo:** Transformar o cadastro estrutural dos produtos em planejamento executável do dia.
+**Entregável:** supervisor abre um turno, adiciona OPs e o sistema deriva automaticamente as seções `setor + OP`.
+**Status:** ✅ Concluída
 
-- Criar utilitário nativo de exportação CSV
-- Mapear colunas com cabeçalhos em português
-- Permitir exportar o resultado filtrado da tela de relatórios
-- Garantir abertura correta no Excel e similares
+- Criar schema de `turnos`, `turno_operadores`, `turno_ops` e `turno_setor_ops`
+- Implementar actions e queries do planejamento
+- Evoluir a dashboard com o modal `Novo Turno` V2
+- Gerar QR operacional temporário para cada `setor + OP`
+- Permitir carregar o turno aberto atual ou o último turno encerrado
+
+---
+
+## SPRINT 8 — Scanner e apontamento V2
+**Objetivo:** Registrar produção no contexto correto do turno, com bloqueio de excesso sobre o planejado.
+**Entregável:** scanner V2 funcional com QR de operador + QR operacional e apontamento seguro por setor.
+**Status:** ✅ Concluída
+
+- Evoluir parser e tipos de QR para a V2
+- Implementar a nova sessão do scanner
+- Registrar produção no contexto da seção do turno
+- Tratar máquina como opcional no apontamento
+- Implementar bloqueio transacional para não ultrapassar o planejado
+- Implementar encerramentos automáticos de setor, OP e turno
+
+---
+
+## SPRINT 9 — Apontamentos atômicos, dashboard, relatórios e coexistência
+**Objetivo:** evoluir a V2 para registrar produção no nível correto de operador + operação + seção, migrar a visão gerencial para esse consolidado e preservar a leitura histórica durante a transição.
+**Entregável:** apontamento atômico operacional disponível para supervisor e scanner, dashboard e relatórios lendo os consolidados corretos da V2, com coexistência temporária com o legado.
+**Status:** 🔭 Proposta
+
+- Refazer a dashboard para o modelo `turno + OP + setor`
+- Evoluir a modelagem para `turno + OP + setor + operação`
+- Implementar tela `/admin/apontamentos` para o supervisor registrar incrementos por operador e operação
+- Adaptar dashboard e relatórios para turno, OP, setor, operação, operador e planejado vs realizado
+- Implementar compatibilidade temporária com dados do fluxo antigo
+- Executar cutover controlado com feature flag
+- Validar responsividade final, deploy e manual operacional
 
 ---
 
@@ -169,10 +176,8 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-                                     └──► Sprint 6 (pós-MVP)
-                                     └──► Sprint 7 (pós-MVP)
-                                     └──► Sprint 8 (pós-MVP)
-                                     └──► Sprint 9 (pós-MVP)
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9
 ```
 
-Sprints 3 e 4 podem ser desenvolvidas em paralelo após Sprint 2.
+Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
+As Sprints 6 a 9 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.

@@ -53,7 +53,7 @@ export default async function MaquinaDetalhePage({
         <DetailField label="Modelo" value={maquina.modelo ?? 'Não informado'} />
         <DetailField label="Marca" value={maquina.marca ?? 'Não informada'} />
         <DetailField label="Patrimônio" value={maquina.numero_patrimonio ?? 'Não informado'} />
-        <DetailField label="Setor" value={maquina.setor ?? 'Não informado'} />
+        <DetailField label="Setor" value={maquina.setorNome ?? 'Não informado'} />
         <DetailField label="Status" value={maquina.status ?? 'ativa'} />
       </div>
 

@@ -23,7 +23,7 @@ export function LoginForm() {
 
       <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
         <ShieldCheck size={18} className="shrink-0" />
-        <p>Acesso restrito a usuários com role <strong>admin</strong> ou <strong>supervisor</strong>.</p>
+        <p>Acesso restrito a usuários com cadastro administrativo ativo como <strong>admin</strong> ou <strong>supervisor</strong>.</p>
       </div>
 
       <div className="space-y-1">

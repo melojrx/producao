@@ -20,6 +20,10 @@ function obterTextoOpcional(formData: FormData, campo: string): string | null {
   return valor ? valor : null
 }
 
+function obterSetorId(formData: FormData): string {
+  return obterTexto(formData, 'setor_id')
+}
+
 function obterStatus(formData: FormData): MaquinaStatus {
   const status = obterTexto(formData, 'status')
   return STATUS_VALIDOS.includes(status as MaquinaStatus)
@@ -52,10 +56,10 @@ export async function criarMaquina(
   const modelo = obterTextoOpcional(formData, 'modelo')
   const marca = obterTextoOpcional(formData, 'marca')
   const numeroPatrimonio = obterTextoOpcional(formData, 'numero_patrimonio')
-  const setor = obterTextoOpcional(formData, 'setor')
+  const setorId = obterSetorId(formData)
 
-  if (!codigo || !tipoMaquinaCodigo) {
-    return { erro: 'Código e tipo da máquina são obrigatórios' }
+  if (!codigo || !tipoMaquinaCodigo || !setorId) {
+    return { erro: 'Código, tipo da máquina e setor são obrigatórios' }
   }
 
   const { error } = await supabase.from('maquinas').insert({
@@ -64,7 +68,7 @@ export async function criarMaquina(
     modelo,
     marca,
     numero_patrimonio: numeroPatrimonio,
-    setor,
+    setor_id: setorId,
   })
 
   if (error) {
@@ -97,11 +101,11 @@ export async function editarMaquina(
   const modelo = obterTextoOpcional(formData, 'modelo')
   const marca = obterTextoOpcional(formData, 'marca')
   const numeroPatrimonio = obterTextoOpcional(formData, 'numero_patrimonio')
-  const setor = obterTextoOpcional(formData, 'setor')
+  const setorId = obterSetorId(formData)
   const status = obterStatus(formData)
 
-  if (!codigo || !tipoMaquinaCodigo) {
-    return { erro: 'Código e tipo da máquina são obrigatórios' }
+  if (!codigo || !tipoMaquinaCodigo || !setorId) {
+    return { erro: 'Código, tipo da máquina e setor são obrigatórios' }
   }
 
   const { error } = await supabase
@@ -112,7 +116,7 @@ export async function editarMaquina(
       modelo,
       marca,
       numero_patrimonio: numeroPatrimonio,
-      setor,
+      setor_id: setorId,
       status,
       updated_at: new Date().toISOString(),
     })
@@ -127,6 +131,7 @@ export async function editarMaquina(
   }
 
   revalidatePath('/admin/maquinas')
+  revalidatePath(`/admin/maquinas/${id}`)
   return { sucesso: true }
 }
 

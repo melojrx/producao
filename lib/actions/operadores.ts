@@ -8,6 +8,26 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { FormActionState } from '@/types'
 
+function obterTexto(formData: FormData, campo: string): string {
+  const valor = formData.get(campo)
+  return typeof valor === 'string' ? valor.trim() : ''
+}
+
+function obterTextoOpcional(formData: FormData, campo: string): string | null {
+  const valor = obterTexto(formData, campo)
+  return valor ? valor : null
+}
+
+function obterNumeroInteiro(formData: FormData, campo: string): number {
+  const valor = formData.get(campo)
+
+  if (typeof valor !== 'string') {
+    return Number.NaN
+  }
+
+  return Number.parseInt(valor, 10)
+}
+
 function obterMensagemDependencia(totalRegistros: number): string | null {
   if (totalRegistros > 0) {
     return 'Este operador já possui registros de produção e não pode ser excluído permanentemente.'
@@ -28,18 +48,23 @@ export async function criarOperador(
 
   const supabase = createAdminClient()
 
-  const nome = formData.get('nome') as string
-  const matricula = formData.get('matricula') as string
-  const setor = (formData.get('setor') as string) || null
-  const funcao = (formData.get('funcao') as string) || null
+  const nome = obterTexto(formData, 'nome')
+  const matricula = obterTexto(formData, 'matricula')
+  const funcao = obterTextoOpcional(formData, 'funcao')
+  const cargaHorariaMin = obterNumeroInteiro(formData, 'carga_horaria_min')
 
-  if (!nome?.trim() || !matricula?.trim()) {
-    return { erro: 'Nome e matrícula são obrigatórios' }
+  if (!nome || !matricula || cargaHorariaMin <= 0) {
+    return { erro: 'Nome, matrícula e carga horária válida são obrigatórios' }
   }
 
   const { error } = await supabase
     .from('operadores')
-    .insert({ nome: nome.trim(), matricula: matricula.trim(), setor, funcao })
+    .insert({
+      nome,
+      matricula,
+      funcao,
+      carga_horaria_min: cargaHorariaMin,
+    })
 
   if (error) {
     if (error.code === '23505') return { erro: 'Matrícula já cadastrada' }
@@ -63,23 +88,23 @@ export async function editarOperador(
 
   const supabase = createAdminClient()
 
-  const nome = formData.get('nome') as string
-  const matricula = formData.get('matricula') as string
-  const setor = (formData.get('setor') as string) || null
-  const funcao = (formData.get('funcao') as string) || null
-  const status = formData.get('status') as string
+  const nome = obterTexto(formData, 'nome')
+  const matricula = obterTexto(formData, 'matricula')
+  const funcao = obterTextoOpcional(formData, 'funcao')
+  const cargaHorariaMin = obterNumeroInteiro(formData, 'carga_horaria_min')
+  const status = obterTexto(formData, 'status')
 
-  if (!nome?.trim() || !matricula?.trim()) {
-    return { erro: 'Nome e matrícula são obrigatórios' }
+  if (!nome || !matricula || cargaHorariaMin <= 0) {
+    return { erro: 'Nome, matrícula e carga horária válida são obrigatórios' }
   }
 
   const { error } = await supabase
     .from('operadores')
     .update({
-      nome: nome.trim(),
-      matricula: matricula.trim(),
-      setor,
+      nome,
+      matricula,
       funcao,
+      carga_horaria_min: cargaHorariaMin,
       status,
       updated_at: new Date().toISOString(),
     })
@@ -91,6 +116,7 @@ export async function editarOperador(
   }
 
   revalidatePath('/admin/operadores')
+  revalidatePath(`/admin/operadores/${id}`)
   return { sucesso: true }
 }
 

@@ -47,10 +47,14 @@ export default async function ProdutoDetalhePage({
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <DetailField label="Referência" value={produto.referencia} />
         <DetailField label="Imagem" value={produto.imagem_url ?? 'Não informada'} />
         <DetailField label="T.P Produto" value={produto.tp_produto_min?.toFixed(2) ?? '0.00'} />
+        <DetailField
+          label="Setores Envolvidos"
+          value={produto.setoresEnvolvidos.length > 0 ? produto.setoresEnvolvidos.join(', ') : 'Não derivados'}
+        />
         <DetailField label="Status" value={produto.ativo ?? true ? 'ativo' : 'inativo'} />
       </div>
 
@@ -58,7 +62,7 @@ export default async function ProdutoDetalhePage({
         <div className="border-b border-gray-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">Roteiro do produto</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Sequência de operações cadastradas para compor o T.P total.
+            Sequência de operações cadastradas para compor o T.P total e derivar os setores envolvidos.
           </p>
         </div>
 
@@ -69,13 +73,14 @@ export default async function ProdutoDetalhePage({
                 <th className="px-6 py-3 text-left font-medium text-gray-600">Seq.</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-600">Código</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-600">Descrição</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-600">Setor</th>
                 <th className="px-6 py-3 text-left font-medium text-gray-600">T.P</th>
               </tr>
             </thead>
             <tbody>
               {produto.roteiro.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     Nenhuma operação associada a este produto.
                   </td>
                 </tr>
@@ -85,6 +90,7 @@ export default async function ProdutoDetalhePage({
                     <td className="px-6 py-3 font-medium text-gray-900">{item.sequencia}</td>
                     <td className="px-6 py-3 text-gray-700">{item.codigo}</td>
                     <td className="px-6 py-3 text-gray-700">{item.descricao}</td>
+                    <td className="px-6 py-3 text-gray-700">{item.setorNome ?? 'Não definido'}</td>
                     <td className="px-6 py-3 text-gray-700">{item.tempoPadraoMin}</td>
                   </tr>
                 ))

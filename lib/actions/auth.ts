@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { extractAdminRole } from '@/lib/auth/roles'
+import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 import type { FormActionState } from '@/types'
 
 function obterTexto(formData: FormData, campo: string): string {
@@ -31,11 +31,11 @@ export async function entrarAdmin(
     return { erro: 'Email ou senha inválidos' }
   }
 
-  const role = extractAdminRole(data.user)
+  const role = await buscarPapelAdminPorAuthUserId(supabase, data.user.id)
 
   if (!role) {
     await supabase.auth.signOut()
-    return { erro: 'Sua conta não tem permissão para acessar a área administrativa.' }
+    return { erro: 'Sua conta não possui cadastro administrativo ativo.' }
   }
 
   redirect('/admin/dashboard')

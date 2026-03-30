@@ -115,6 +115,10 @@ async function carregarOperacoesDoRoteiro(roteiro: RoteiroPayloadItem[]): Promis
     .filter((operacao): operacao is OperacaoRow => Boolean(operacao))
 }
 
+function operacoesSemSetor(operacoes: OperacaoRow[]): boolean {
+  return operacoes.some((operacao) => !operacao.setor_id)
+}
+
 async function substituirRoteiro(
   produtoId: string,
   roteiro: RoteiroPayloadItem[]
@@ -197,6 +201,10 @@ export async function criarProduto(
     return { erro: 'Roteiro inválido. Selecione operações válidas.' }
   }
 
+  if (operacoesSemSetor(operacoes)) {
+    return { erro: 'Todas as operações do roteiro precisam ter setor definido para a V2.' }
+  }
+
   const tpProdutoMin = calcularTpProduto(
     operacoes.map((operacao) => ({ tempoPadraoMin: operacao.tempo_padrao_min }))
   )
@@ -258,6 +266,10 @@ export async function editarProduto(
 
   if (!operacoes) {
     return { erro: 'Roteiro inválido. Selecione operações válidas.' }
+  }
+
+  if (operacoesSemSetor(operacoes)) {
+    return { erro: 'Todas as operações do roteiro precisam ter setor definido para a V2.' }
   }
 
   const tpProdutoMin = calcularTpProduto(

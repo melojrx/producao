@@ -4,19 +4,17 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { ModalOperacao } from '@/components/ui/ModalOperacao'
-import type { OperacaoListItem, TipoMaquinaOption } from '@/types'
-import type { Tables } from '@/types/supabase'
-
-type Operacao = Tables<'operacoes'>
+import type { OperacaoListItem, SetorOption, TipoMaquinaOption } from '@/types'
 
 interface ListaOperacoesProps {
   operacoesIniciais: OperacaoListItem[]
   tiposMaquina: TipoMaquinaOption[]
+  setores: SetorOption[]
 }
 
-export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperacoesProps) {
+export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: ListaOperacoesProps) {
   const [modalAberto, setModalAberto] = useState(false)
-  const [operacaoEditando, setOperacaoEditando] = useState<Operacao | undefined>()
+  const [operacaoEditando, setOperacaoEditando] = useState<OperacaoListItem | undefined>()
   const [busca, setBusca] = useState('')
 
   const operacoesFiltradas = operacoesIniciais.filter((operacao) => {
@@ -24,7 +22,8 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
     return (
       operacao.codigo.toLowerCase().includes(termo) ||
       operacao.descricao.toLowerCase().includes(termo) ||
-      (operacao.tipoNome ?? '').toLowerCase().includes(termo)
+      (operacao.tipoNome ?? '').toLowerCase().includes(termo) ||
+      (operacao.setorNome ?? '').toLowerCase().includes(termo)
     )
   })
 
@@ -33,7 +32,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
     setModalAberto(true)
   }
 
-  function abrirEditar(operacao: Operacao) {
+  function abrirEditar(operacao: OperacaoListItem) {
     setOperacaoEditando(operacao)
     setModalAberto(true)
   }
@@ -50,7 +49,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por código, descrição ou tipo..."
+            placeholder="Buscar por código, descrição, tipo ou setor..."
             aria-label="Buscar operações"
             className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -77,6 +76,9 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
                   Tipo
                 </th>
+                <th className="hidden px-4 py-3 text-left font-medium text-gray-600 lg:table-cell">
+                  Setor
+                </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">T.P</th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
                   Meta/hora
@@ -91,7 +93,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
             <tbody>
               {operacoesFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400">
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
                     Nenhuma operação encontrada
                   </td>
                 </tr>
@@ -102,6 +104,9 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
                     <td className="px-4 py-3 text-gray-600">{operacao.descricao}</td>
                     <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
                       {operacao.tipoNome ?? '—'}
+                    </td>
+                    <td className="hidden px-4 py-3 text-gray-600 lg:table-cell">
+                      {operacao.setorNome ?? 'Não definido'}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{operacao.tempo_padrao_min}</td>
                     <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
@@ -152,6 +157,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina }: ListaOperaco
         <ModalOperacao
           operacao={operacaoEditando}
           tiposMaquina={tiposMaquina}
+          setores={setores}
           aoFechar={() => setModalAberto(false)}
         />
       ) : null}

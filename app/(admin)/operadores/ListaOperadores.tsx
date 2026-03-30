@@ -7,9 +7,7 @@ import { UserMinus, UserPlus, Pencil, Search, Eye } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ModalOperador } from '@/components/ui/ModalOperador'
 import { desativarOperador } from '@/lib/actions/operadores'
-import { Tables } from '@/types/supabase'
-
-type Operador = Tables<'operadores'>
+import type { OperadorListItem } from '@/types'
 
 const CORES_STATUS: Record<string, string> = {
   ativo: 'bg-green-100 text-green-800',
@@ -18,19 +16,20 @@ const CORES_STATUS: Record<string, string> = {
 }
 
 interface ListaOperadoresProps {
-  operadoresIniciais: Operador[]
+  operadoresIniciais: OperadorListItem[]
 }
 
 export function ListaOperadores({ operadoresIniciais }: ListaOperadoresProps) {
   const router = useRouter()
   const [modalAberto, setModalAberto] = useState(false)
-  const [operadorEditando, setOperadorEditando] = useState<Operador | undefined>()
+  const [operadorEditando, setOperadorEditando] = useState<OperadorListItem | undefined>()
   const [busca, setBusca] = useState('')
   const [, startTransition] = useTransition()
 
-  const operadoresFiltrados = operadoresIniciais.filter(op =>
-    op.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    op.matricula.toLowerCase().includes(busca.toLowerCase())
+  const operadoresFiltrados = operadoresIniciais.filter(
+    (operador) =>
+      operador.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      operador.matricula.toLowerCase().includes(busca.toLowerCase())
   )
 
   function abrirCriar() {
@@ -38,7 +37,7 @@ export function ListaOperadores({ operadoresIniciais }: ListaOperadoresProps) {
     setModalAberto(true)
   }
 
-  function abrirEditar(operador: Operador) {
+  function abrirEditar(operador: OperadorListItem) {
     setOperadorEditando(operador)
     setModalAberto(true)
   }
@@ -62,7 +61,7 @@ export function ListaOperadores({ operadoresIniciais }: ListaOperadoresProps) {
             placeholder="Buscar por nome ou matrícula..."
             aria-label="Buscar operadores"
             value={busca}
-            onChange={e => setBusca(e.target.value)}
+            onChange={(event) => setBusca(event.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -84,8 +83,8 @@ export function ListaOperadores({ operadoresIniciais }: ListaOperadoresProps) {
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Matrícula</th>
-              <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-gray-600">Setor</th>
               <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-gray-600">Função</th>
+              <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-gray-600">Carga horária</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Ações</th>
             </tr>
@@ -99,48 +98,50 @@ export function ListaOperadores({ operadoresIniciais }: ListaOperadoresProps) {
                   </td>
                 </tr>
               ) : (
-                operadoresFiltrados.map(op => (
+                operadoresFiltrados.map((operador) => (
                   <motion.tr
-                    key={op.id}
+                    key={operador.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                   >
-                    <td className="px-4 py-3 font-medium text-gray-900">{op.nome}</td>
-                    <td className="px-4 py-3 text-gray-600">{op.matricula}</td>
-                    <td className="hidden md:table-cell px-4 py-3 text-gray-600">{op.setor ?? '—'}</td>
-                    <td className="hidden md:table-cell px-4 py-3 text-gray-600">{op.funcao ?? '—'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{operador.nome}</td>
+                    <td className="px-4 py-3 text-gray-600">{operador.matricula}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-gray-600">{operador.funcao ?? '—'}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-gray-600">
+                      {operador.carga_horaria_min ? `${operador.carga_horaria_min} min` : '—'}
+                    </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CORES_STATUS[op.status ?? 'ativo']}`}>
-                        {op.status ?? 'ativo'}
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CORES_STATUS[operador.status ?? 'ativo']}`}>
+                        {operador.status ?? 'ativo'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => abrirEditar(op)}
-                          aria-label={`Editar ${op.nome}`}
-                          title={`Editar ${op.nome}`}
+                          onClick={() => abrirEditar(operador)}
+                          aria-label={`Editar ${operador.nome}`}
+                          title={`Editar ${operador.nome}`}
                           className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                         >
                           <Pencil size={15} />
                         </button>
                         <Link
-                          href={`/admin/operadores/${op.id}`}
-                          aria-label={`Ver detalhes de ${op.nome}`}
-                          title={`Ver detalhes de ${op.nome}`}
+                          href={`/admin/operadores/${operador.id}`}
+                          aria-label={`Ver detalhes de ${operador.nome}`}
+                          title={`Ver detalhes de ${operador.nome}`}
                           className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors"
                         >
                           <Eye size={15} />
                         </Link>
                         <button
                           type="button"
-                          onClick={() => confirmarDesativacao(op.id, op.nome, op.status)}
-                          aria-label={`Desativar ${op.nome}`}
-                          title={`Desativar ${op.nome}`}
-                          disabled={op.status === 'inativo'}
+                          onClick={() => confirmarDesativacao(operador.id, operador.nome, operador.status)}
+                          aria-label={`Desativar ${operador.nome}`}
+                          title={`Desativar ${operador.nome}`}
+                          disabled={operador.status === 'inativo'}
                           className="p-1.5 text-gray-400 hover:text-amber-600 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <UserMinus size={15} />
