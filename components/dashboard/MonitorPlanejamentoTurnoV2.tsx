@@ -118,6 +118,27 @@ function corStatus(status: PlanejamentoTurnoDashboardV2['turno']['status'] | Tur
   return 'bg-slate-100 text-slate-700'
 }
 
+function classeBotaoAcaoPainel(
+  variante: 'primario' | 'secundario' | 'alerta' | 'neutro'
+): string {
+  const base =
+    'inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:cursor-not-allowed disabled:opacity-70'
+
+  if (variante === 'primario') {
+    return `${base} bg-blue-600 text-white shadow-sm shadow-blue-200 hover:bg-blue-700`
+  }
+
+  if (variante === 'secundario') {
+    return `${base} border border-cyan-200 bg-white text-cyan-950 shadow-sm hover:border-cyan-300 hover:bg-cyan-50`
+  }
+
+  if (variante === 'alerta') {
+    return `${base} border border-amber-300 bg-white text-amber-900 shadow-sm hover:border-amber-400 hover:bg-amber-50`
+  }
+
+  return `${base} border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50`
+}
+
 export function MonitorPlanejamentoTurnoV2({
   configuracaoAtual,
   initialPlanning,
@@ -243,21 +264,22 @@ export function MonitorPlanejamentoTurnoV2({
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 lg:min-w-64 lg:items-end">
+          <div className="w-full rounded-2xl border border-white/80 bg-white/80 p-2.5 shadow-sm backdrop-blur-sm sm:max-w-xs lg:w-72 lg:flex-none">
+            <div className="flex flex-col gap-3">
             <button
               type="button"
               onClick={() => setModalAberto(true)}
               title="Abrir novo turno"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-base font-semibold text-white shadow-lg shadow-blue-200 transition-colors hover:bg-blue-700"
+              className={classeBotaoAcaoPainel('primario')}
             >
-              <PencilLine size={18} />
-              {planejamento ? 'Novo Turno' : 'Abrir primeiro turno'}
-            </button>
+                <PencilLine size={16} />
+                {planejamento ? 'Novo Turno' : 'Abrir primeiro turno'}
+              </button>
             {podeEncerrarTurno ? (
               <button
                 type="button"
                 onClick={() => setModalEdicaoAberto(true)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2.5 text-sm font-medium text-cyan-900 transition-colors hover:bg-cyan-100"
+                className={classeBotaoAcaoPainel('secundario')}
               >
                 <PencilLine size={16} />
                 Editar turno
@@ -268,7 +290,7 @@ export function MonitorPlanejamentoTurnoV2({
                 type="button"
                 onClick={() => setModalEncerramentoAberto(true)}
                 disabled={encerrandoTurno}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
+                className={classeBotaoAcaoPainel('alerta')}
               >
                 <OctagonX size={16} />
                 {encerrandoTurno ? 'Encerrando turno...' : 'Encerrar Turno'}
@@ -280,11 +302,12 @@ export function MonitorPlanejamentoTurnoV2({
                 void recarregar()
               }}
               disabled={estaCarregando}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+              className={classeBotaoAcaoPainel('neutro')}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={16} className={estaCarregando ? 'animate-spin' : undefined} />
               {estaCarregando ? 'Atualizando...' : 'Atualizar agora'}
             </button>
+            </div>
           </div>
         </div>
 
