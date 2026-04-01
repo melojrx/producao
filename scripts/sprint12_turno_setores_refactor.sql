@@ -521,8 +521,18 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
+  CREATE POLICY "leitura_turno_setores_publica_scanner" ON public.turno_setores
+    FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
   CREATE POLICY "leitura_turno_setor_demandas_autenticados" ON public.turno_setor_demandas
     FOR SELECT USING (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "leitura_turno_setor_demandas_publica_scanner" ON public.turno_setor_demandas
+    FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 COMMIT;
