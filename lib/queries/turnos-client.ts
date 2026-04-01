@@ -178,7 +178,7 @@ async function listarOperadoresAtividadeSetor(
   const { data: registros, error: registrosError } = await supabase
     .from('registros_producao')
     .select('operador_id, turno_setor_op_id, quantidade, created_at')
-    .eq('turno_id', turnoId)
+    .eq('turno', turnoId)
     .not('operador_id', 'is', null)
     .not('turno_setor_op_id', 'is', null)
     .returns<RegistroResumoSetorRow[]>()
