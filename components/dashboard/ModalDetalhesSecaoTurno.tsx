@@ -13,6 +13,7 @@ import {
 import type {
   MaquinaListItem,
   ProdutoListItem,
+  TurnoOperadorAtividadeSetorV2,
   TurnoOperadorV2,
   TurnoSetorOperacaoApontamentoV2,
   TurnoSetorOperacaoStatusV2,
@@ -30,6 +31,7 @@ interface ModalDetalhesSecaoTurnoProps {
   produto: ProdutoListItem | null
   maquinas: MaquinaListItem[]
   operadoresTurno: TurnoOperadorV2[]
+  operadoresAtividadeSetor: TurnoOperadorAtividadeSetorV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
   aoFechar: () => void
 }
@@ -75,6 +77,7 @@ export function ModalDetalhesSecaoTurno({
   produto,
   maquinas,
   operadoresTurno,
+  operadoresAtividadeSetor,
   operacoesSecao,
   aoFechar,
 }: ModalDetalhesSecaoTurnoProps) {
@@ -83,6 +86,9 @@ export function ModalDetalhesSecaoTurno({
   )
   const maquinasSetor = maquinas.filter((maquina) => maquina.setor_id === secao.setorId)
   const operadoresDoSetor = operadoresTurno.filter((operador) => operador.setorId === secao.setorId)
+  const operadoresComAtividade = operadoresAtividadeSetor.filter(
+    (atividade) => atividade.turnoSetorOpId === secao.id
+  )
   const operadoresSemSetor = operadoresTurno.filter((operador) => !operador.setorId)
   const saldoRestante = Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0)
   const progresso = calcularPercentual(secao.quantidadeRealizada, secao.quantidadePlanejada)
@@ -262,11 +268,74 @@ export function ModalDetalhesSecaoTurno({
               <div className="space-y-2">
                 <h3 className="text-base font-semibold text-slate-900">Operadores</h3>
                 <p className="text-sm text-slate-600">
-                  Alocações específicas do setor e operadores disponíveis no turno sem setor fixo.
+                  Alocações do planejamento e operadores que já registraram produção neste setor.
                 </p>
               </div>
 
               <div className="mt-5 space-y-3">
+                {operadoresComAtividade.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                      {operadoresComAtividade.length} operador(es) já registraram produção neste
+                      setor durante o turno.
+                    </div>
+
+                    {operadoresComAtividade.map((atividade) => (
+                      <article
+                        key={`atividade-${atividade.turnoSetorOpId}-${atividade.operadorId}`}
+                        className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-xl bg-emerald-100 p-2 text-emerald-700">
+                            <UserRound size={16} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900">
+                              {atividade.operadorNome}
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              Matrícula {atividade.matricula} ·{' '}
+                              {atividade.funcao ?? 'Função não informada'}
+                            </p>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                  Registros
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                  {atividade.totalRegistros}
+                                </p>
+                              </div>
+                              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                  Peças
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                  {atividade.totalPecas}
+                                </p>
+                              </div>
+                              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                  Último registro
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                  {atividade.ultimoRegistroEm
+                                    ? new Intl.DateTimeFormat('pt-BR', {
+                                        dateStyle: 'short',
+                                        timeStyle: 'short',
+                                        timeZone: 'America/Fortaleza',
+                                      }).format(new Date(atividade.ultimoRegistroEm))
+                                    : '—'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
                 {operadoresDoSetor.length > 0 ? (
                   operadoresDoSetor.map((operador) => (
                     <article
@@ -288,11 +357,11 @@ export function ModalDetalhesSecaoTurno({
                       </div>
                     </article>
                   ))
-                ) : (
+                ) : operadoresComAtividade.length === 0 ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                     Nenhum operador foi alocado especificamente a este setor.
                   </div>
-                )}
+                ) : null}
 
                 {operadoresSemSetor.length > 0 ? (
                   <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
@@ -301,7 +370,9 @@ export function ModalDetalhesSecaoTurno({
                   </div>
                 ) : null}
 
-                {operadoresDoSetor.length === 0 && operadoresSemSetor.length === 0 ? (
+                {operadoresComAtividade.length === 0 &&
+                operadoresDoSetor.length === 0 &&
+                operadoresSemSetor.length === 0 ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                     Este turno não possui operadores alocados nominalmente para o setor no
                     planejamento atual.

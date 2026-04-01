@@ -335,6 +335,17 @@ export interface TurnoOperadorV2 {
   cargaHorariaMin: number
 }
 
+export interface TurnoOperadorAtividadeSetorV2 {
+  turnoSetorOpId: string
+  operadorId: string
+  operadorNome: string
+  matricula: string
+  funcao: string | null
+  totalRegistros: number
+  totalPecas: number
+  ultimoRegistroEm: string | null
+}
+
 export interface TurnoV2 {
   id: string
   iniciadoEm: string
@@ -435,6 +446,7 @@ export interface TurnoSetorOperacaoApontamentoV2 extends TurnoSetorOperacaoV2 {
 export interface PlanejamentoTurnoV2 {
   turno: TurnoV2
   operadores: TurnoOperadorV2[]
+  operadoresAtividadeSetor?: TurnoOperadorAtividadeSetorV2[]
   ops: TurnoOpV2[]
   setoresAtivos?: TurnoSetorV2[]
   demandasSetor?: TurnoSetorDemandaV2[]

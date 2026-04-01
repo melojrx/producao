@@ -13,6 +13,7 @@ import { ModalDetalhesSecaoTurno } from '@/components/dashboard/ModalDetalhesSec
 import type {
   MaquinaListItem,
   ProdutoListItem,
+  TurnoOperadorAtividadeSetorV2,
   TurnoOpStatusV2,
   TurnoOpV2,
   TurnoOperadorV2,
@@ -34,6 +35,7 @@ interface ModalDetalhesOpTurnoProps {
   produtosCatalogo: ProdutoListItem[]
   maquinas: MaquinaListItem[]
   operadoresTurno: TurnoOperadorV2[]
+  operadoresAtividadeSetor: TurnoOperadorAtividadeSetorV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
   aoFechar: () => void
 }
@@ -81,6 +83,7 @@ export function ModalDetalhesOpTurno({
   produtosCatalogo,
   maquinas,
   operadoresTurno,
+  operadoresAtividadeSetor,
   operacoesSecao,
   aoFechar,
 }: ModalDetalhesOpTurnoProps) {
@@ -364,6 +367,7 @@ export function ModalDetalhesOpTurno({
           produto={produtoDetalhado}
           maquinas={maquinas}
           operadoresTurno={operadoresTurno}
+          operadoresAtividadeSetor={operadoresAtividadeSetor}
           operacoesSecao={operacoesSecao.filter(
             (operacao) => operacao.turnoSetorOpId === secaoSelecionada.id
           )}

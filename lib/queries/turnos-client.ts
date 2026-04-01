@@ -5,6 +5,7 @@ import type {
   PlanejamentoTurnoDashboardV2,
   PlanejamentoTurnoV2,
   TurnoOpV2,
+  TurnoOperadorAtividadeSetorV2,
   TurnoOperadorV2,
   TurnoSetorDemandaV2,
   TurnoSetorOpV2,
@@ -26,6 +27,10 @@ type OperadorResumoRow = Pick<
 >
 type ProdutoResumoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia'>
 type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'codigo' | 'nome'>
+type RegistroResumoSetorRow = Pick<
+  Tables<'registros_producao'>,
+  'operador_id' | 'turno_setor_op_id' | 'quantidade' | 'created_at'
+>
 
 interface QueryErrorLike {
   code?: string
@@ -163,6 +168,100 @@ async function listarTurnoOperadores(turnoId: string): Promise<TurnoOperadorV2[]
       }
     })
     .filter((alocacao): alocacao is TurnoOperadorV2 => Boolean(alocacao))
+}
+
+async function listarOperadoresAtividadeSetor(
+  turnoId: string
+): Promise<TurnoOperadorAtividadeSetorV2[]> {
+  const supabase = createClient()
+
+  const { data: registros, error: registrosError } = await supabase
+    .from('registros_producao')
+    .select('operador_id, turno_setor_op_id, quantidade, created_at')
+    .eq('turno_id', turnoId)
+    .not('operador_id', 'is', null)
+    .not('turno_setor_op_id', 'is', null)
+    .returns<RegistroResumoSetorRow[]>()
+
+  if (registrosError) {
+    throw new Error(
+      `Erro ao listar operadores com atividade por setor do turno: ${registrosError.message}`
+    )
+  }
+
+  const registrosValidos = (registros ?? []).filter(
+    (registro): registro is RegistroResumoSetorRow & {
+      operador_id: string
+      turno_setor_op_id: string
+    } => Boolean(registro.operador_id && registro.turno_setor_op_id)
+  )
+
+  if (registrosValidos.length === 0) {
+    return []
+  }
+
+  const operadorIds = Array.from(new Set(registrosValidos.map((registro) => registro.operador_id)))
+
+  const { data: operadores, error: operadoresError } = await supabase
+    .from('operadores')
+    .select('id, nome, matricula, funcao, carga_horaria_min')
+    .in('id', operadorIds)
+    .returns<OperadorResumoRow[]>()
+
+  if (operadoresError) {
+    throw new Error(
+      `Erro ao carregar operadores com atividade por setor do turno: ${operadoresError.message}`
+    )
+  }
+
+  const operadoresPorId = new Map((operadores ?? []).map((operador) => [operador.id, operador]))
+  const atividadePorChave = new Map<string, TurnoOperadorAtividadeSetorV2>()
+
+  for (const registro of registrosValidos) {
+    const operador = operadoresPorId.get(registro.operador_id)
+
+    if (!operador) {
+      continue
+    }
+
+    const chave = `${registro.turno_setor_op_id}:${registro.operador_id}`
+    const atividadeAtual = atividadePorChave.get(chave)
+
+    if (atividadeAtual) {
+      atividadeAtual.totalRegistros += 1
+      atividadeAtual.totalPecas += registro.quantidade
+      if (
+        registro.created_at &&
+        (!atividadeAtual.ultimoRegistroEm || registro.created_at > atividadeAtual.ultimoRegistroEm)
+      ) {
+        atividadeAtual.ultimoRegistroEm = registro.created_at
+      }
+      continue
+    }
+
+    atividadePorChave.set(chave, {
+      turnoSetorOpId: registro.turno_setor_op_id,
+      operadorId: registro.operador_id,
+      operadorNome: operador.nome,
+      matricula: operador.matricula,
+      funcao: operador.funcao,
+      totalRegistros: 1,
+      totalPecas: registro.quantidade,
+      ultimoRegistroEm: registro.created_at,
+    })
+  }
+
+  return [...atividadePorChave.values()].sort((primeiraAtividade, segundaAtividade) => {
+    if (primeiraAtividade.turnoSetorOpId !== segundaAtividade.turnoSetorOpId) {
+      return primeiraAtividade.turnoSetorOpId.localeCompare(segundaAtividade.turnoSetorOpId)
+    }
+
+    if (primeiraAtividade.totalPecas !== segundaAtividade.totalPecas) {
+      return segundaAtividade.totalPecas - primeiraAtividade.totalPecas
+    }
+
+    return primeiraAtividade.operadorNome.localeCompare(segundaAtividade.operadorNome)
+  })
 }
 
 async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
@@ -507,8 +606,9 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     return null
   }
 
-  const [operadores, ops, secoesSetorOp, operacoesSecao, setoresAtivos] = await Promise.all([
+  const [operadores, operadoresAtividadeSetor, ops, secoesSetorOp, operacoesSecao, setoresAtivos] = await Promise.all([
     listarTurnoOperadores(turno.id),
+    listarOperadoresAtividadeSetor(turno.id),
     listarTurnoOps(turno.id),
     listarTurnoSetorOps(turno.id),
     listarTurnoSetorOperacoesDoTurnoComClient(supabase, turno.id),
@@ -521,6 +621,7 @@ export async function buscarPlanejamentoTurnoPorIdClient(
   return {
     turno: mapearTurno(turno),
     operadores,
+    operadoresAtividadeSetor,
     ops: opsConsolidadas,
     setoresAtivos,
     demandasSetor,

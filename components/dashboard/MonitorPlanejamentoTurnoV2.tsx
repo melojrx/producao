@@ -619,6 +619,7 @@ export function MonitorPlanejamentoTurnoV2({
           produtosCatalogo={produtosCatalogo}
           maquinas={maquinas}
           operadoresTurno={planejamento.operadores}
+          operadoresAtividadeSetor={planejamento.operadoresAtividadeSetor ?? []}
           operacoesSecao={planejamento.operacoesSecao.filter(
             (operacao) => operacao.turnoOpId === opSelecionada.op.id
           )}
