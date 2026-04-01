@@ -183,8 +183,11 @@ export type Database = {
           numero_op: string
           produto_id: string
           quantidade_planejada: number
+          quantidade_planejada_original: number
+          quantidade_planejada_remanescente: number
           quantidade_realizada: number
           status: string
+          turno_op_origem_id: string | null
           turno_id: string
           updated_at: string | null
         }
@@ -196,8 +199,11 @@ export type Database = {
           numero_op: string
           produto_id: string
           quantidade_planejada: number
+          quantidade_planejada_original?: number
+          quantidade_planejada_remanescente?: number
           quantidade_realizada?: number
           status?: string
+          turno_op_origem_id?: string | null
           turno_id: string
           updated_at?: string | null
         }
@@ -209,8 +215,11 @@ export type Database = {
           numero_op?: string
           produto_id?: string
           quantidade_planejada?: number
+          quantidade_planejada_original?: number
+          quantidade_planejada_remanescente?: number
           quantidade_realizada?: number
           status?: string
+          turno_op_origem_id?: string | null
           turno_id?: string
           updated_at?: string | null
         }
@@ -224,6 +233,164 @@ export type Database = {
           },
           {
             foreignKeyName: "turno_ops_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_ops_turno_op_origem_id_fkey"
+            columns: ["turno_op_origem_id"]
+            isOneToOne: false
+            referencedRelation: "turno_ops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      turno_setor_demandas: {
+        Row: {
+          created_at: string | null
+          encerrado_em: string | null
+          id: string
+          iniciado_em: string | null
+          produto_id: string
+          quantidade_planejada: number
+          quantidade_realizada: number
+          setor_id: string
+          status: string
+          turno_id: string
+          turno_op_id: string
+          turno_setor_id: string
+          turno_setor_op_legacy_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          encerrado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          produto_id: string
+          quantidade_planejada: number
+          quantidade_realizada?: number
+          setor_id: string
+          status?: string
+          turno_id: string
+          turno_op_id: string
+          turno_setor_id: string
+          turno_setor_op_legacy_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          encerrado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          produto_id?: string
+          quantidade_planejada?: number
+          quantidade_realizada?: number
+          setor_id?: string
+          status?: string
+          turno_id?: string
+          turno_op_id?: string
+          turno_setor_id?: string
+          turno_setor_op_legacy_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turno_setor_demandas_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_demandas_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_demandas_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_demandas_turno_op_id_fkey"
+            columns: ["turno_op_id"]
+            isOneToOne: false
+            referencedRelation: "turno_ops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_demandas_turno_setor_id_fkey"
+            columns: ["turno_setor_id"]
+            isOneToOne: false
+            referencedRelation: "turno_setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_demandas_turno_setor_op_legacy_id_fkey"
+            columns: ["turno_setor_op_legacy_id"]
+            isOneToOne: true
+            referencedRelation: "turno_setor_ops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      turno_setores: {
+        Row: {
+          created_at: string | null
+          encerrado_em: string | null
+          id: string
+          iniciado_em: string | null
+          qr_code_token: string
+          quantidade_planejada: number
+          quantidade_realizada: number
+          setor_id: string
+          status: string
+          turno_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          encerrado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          qr_code_token?: string
+          quantidade_planejada?: number
+          quantidade_realizada?: number
+          setor_id: string
+          status?: string
+          turno_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          encerrado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          qr_code_token?: string
+          quantidade_planejada?: number
+          quantidade_realizada?: number
+          setor_id?: string
+          status?: string
+          turno_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turno_setores_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setores_turno_id_fkey"
             columns: ["turno_id"]
             isOneToOne: false
             referencedRelation: "turnos"
@@ -313,6 +480,8 @@ export type Database = {
           status: string
           tempo_padrao_min_snapshot: number
           turno_id: string
+          turno_setor_demanda_id: string | null
+          turno_setor_id: string | null
           turno_op_id: string
           turno_setor_op_id: string
           updated_at: string | null
@@ -331,6 +500,8 @@ export type Database = {
           status?: string
           tempo_padrao_min_snapshot: number
           turno_id: string
+          turno_setor_demanda_id?: string | null
+          turno_setor_id?: string | null
           turno_op_id: string
           turno_setor_op_id: string
           updated_at?: string | null
@@ -349,6 +520,8 @@ export type Database = {
           status?: string
           tempo_padrao_min_snapshot?: number
           turno_id?: string
+          turno_setor_demanda_id?: string | null
+          turno_setor_id?: string | null
           turno_op_id?: string
           turno_setor_op_id?: string
           updated_at?: string | null
@@ -380,6 +553,20 @@ export type Database = {
             columns: ["turno_id"]
             isOneToOne: false
             referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_operacoes_turno_setor_demanda_id_fkey"
+            columns: ["turno_setor_demanda_id"]
+            isOneToOne: false
+            referencedRelation: "turno_setor_demandas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turno_setor_operacoes_turno_setor_id_fkey"
+            columns: ["turno_setor_id"]
+            isOneToOne: false
+            referencedRelation: "turno_setores"
             referencedColumns: ["id"]
           },
           {
@@ -737,7 +924,9 @@ export type Database = {
           produto_id: string | null
           quantidade: number
           turno_op_id: string | null
+          turno_setor_demanda_id: string | null
           turno_setor_operacao_id: string | null
+          turno_setor_id: string | null
           turno_setor_op_id: string | null
           turno: string | null
           usuario_sistema_id: string | null
@@ -756,7 +945,9 @@ export type Database = {
           produto_id?: string | null
           quantidade?: number
           turno_op_id?: string | null
+          turno_setor_demanda_id?: string | null
           turno_setor_operacao_id?: string | null
+          turno_setor_id?: string | null
           turno_setor_op_id?: string | null
           turno?: string | null
           usuario_sistema_id?: string | null
@@ -775,7 +966,9 @@ export type Database = {
           produto_id?: string | null
           quantidade?: number
           turno_op_id?: string | null
+          turno_setor_demanda_id?: string | null
           turno_setor_operacao_id?: string | null
+          turno_setor_id?: string | null
           turno_setor_op_id?: string | null
           turno?: string | null
           usuario_sistema_id?: string | null
@@ -838,10 +1031,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "registros_producao_turno_setor_demanda_id_fkey"
+            columns: ["turno_setor_demanda_id"]
+            isOneToOne: false
+            referencedRelation: "turno_setor_demandas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "registros_producao_turno_setor_operacao_id_fkey"
             columns: ["turno_setor_operacao_id"]
             isOneToOne: false
             referencedRelation: "turno_setor_operacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_producao_turno_setor_id_fkey"
+            columns: ["turno_setor_id"]
+            isOneToOne: false
+            referencedRelation: "turno_setores"
             referencedColumns: ["id"]
           },
           {

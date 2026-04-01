@@ -24,6 +24,8 @@ function mapearOperacoesSecao(
         turnoId: operacaoSecao.turno_id,
         turnoOpId: operacaoSecao.turno_op_id,
         turnoSetorOpId: operacaoSecao.turno_setor_op_id,
+        turnoSetorId: operacaoSecao.turno_setor_id,
+        turnoSetorDemandaId: operacaoSecao.turno_setor_demanda_id,
         produtoOperacaoId: operacaoSecao.produto_operacao_id,
         operacaoId: operacaoSecao.operacao_id,
         setorId: operacaoSecao.setor_id,
@@ -44,13 +46,13 @@ function mapearOperacoesSecao(
 
 async function listarOperacoesBase(
   supabase: SupabaseClient<Database>,
-  coluna: 'turno_id' | 'turno_setor_op_id',
+  coluna: 'turno_id' | 'turno_setor_op_id' | 'turno_setor_demanda_id',
   valor: string
 ): Promise<TurnoSetorOperacaoApontamentoV2[]> {
   const { data: operacoesSecao, error: operacoesSecaoError } = await supabase
     .from('turno_setor_operacoes')
     .select(
-      'id, turno_id, turno_op_id, turno_setor_op_id, produto_operacao_id, operacao_id, setor_id, sequencia, tempo_padrao_min_snapshot, quantidade_planejada, quantidade_realizada, status, iniciado_em, encerrado_em'
+      'id, turno_id, turno_op_id, turno_setor_op_id, turno_setor_id, turno_setor_demanda_id, produto_operacao_id, operacao_id, setor_id, sequencia, tempo_padrao_min_snapshot, quantidade_planejada, quantidade_realizada, status, iniciado_em, encerrado_em'
     )
     .eq(coluna, valor)
     .order('turno_setor_op_id', { ascending: true })
@@ -96,4 +98,11 @@ export async function listarTurnoSetorOperacoesPorSecaoComClient(
   turnoSetorOpId: string
 ): Promise<TurnoSetorOperacaoApontamentoV2[]> {
   return listarOperacoesBase(supabase, 'turno_setor_op_id', turnoSetorOpId)
+}
+
+export async function listarTurnoSetorOperacoesPorDemandaComClient(
+  supabase: SupabaseClient<Database>,
+  turnoSetorDemandaId: string
+): Promise<TurnoSetorOperacaoApontamentoV2[]> {
+  return listarOperacoesBase(supabase, 'turno_setor_demanda_id', turnoSetorDemandaId)
 }

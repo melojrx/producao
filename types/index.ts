@@ -22,6 +22,18 @@ export type TurnoSetorOpStatusV2 =
   | 'em_andamento'
   | 'concluida'
   | 'encerrada_manualmente'
+export type TurnoSetorStatusV2 =
+  | 'planejada'
+  | 'aberta'
+  | 'em_andamento'
+  | 'concluida'
+  | 'encerrada_manualmente'
+export type TurnoSetorDemandaStatusV2 =
+  | 'planejada'
+  | 'aberta'
+  | 'em_andamento'
+  | 'concluida'
+  | 'encerrada_manualmente'
 export type TurnoSetorOperacaoStatusV2 =
   | 'planejada'
   | 'aberta'
@@ -55,6 +67,36 @@ export interface TurnoSetorOpScaneado {
   saldoRestante: number
   qrCodeToken: string
   status: TurnoSetorOpStatusV2
+}
+
+export interface TurnoSetorScaneado {
+  id: string
+  turnoId: string
+  turnoIniciadoEm: string
+  setorId: string
+  setorNome: string
+  quantidadePlanejada: number
+  quantidadeRealizada: number
+  saldoRestante: number
+  qrCodeToken: string
+  status: TurnoSetorStatusV2
+}
+
+export interface TurnoSetorDemandaScaneada {
+  id: string
+  turnoSetorId: string
+  turnoId: string
+  turnoOpId: string
+  setorId: string
+  numeroOp: string
+  produtoId: string
+  produtoNome: string
+  produtoReferencia: string
+  quantidadePlanejada: number
+  quantidadeRealizada: number
+  saldoRestante: number
+  status: TurnoSetorDemandaStatusV2
+  turnoSetorOpLegacyId: string | null
 }
 
 export interface OperadorScaneado {
@@ -312,9 +354,43 @@ export interface TurnoOpV2 {
   produtoNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadePlanejadaOriginal: number
+  quantidadePlanejadaRemanescente: number
+  turnoOpOrigemId: string | null
   status: TurnoOpStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null
+}
+
+export interface TurnoSetorV2 {
+  id: string
+  turnoId: string
+  setorId: string
+  setorNome: string
+  quantidadePlanejada: number
+  quantidadeRealizada: number
+  qrCodeToken: string
+  status: TurnoSetorStatusV2
+  iniciadoEm: string | null
+  encerradoEm: string | null
+}
+
+export interface TurnoSetorDemandaV2 {
+  id: string
+  turnoSetorId: string
+  turnoId: string
+  turnoOpId: string
+  setorId: string
+  produtoId: string
+  numeroOp: string
+  produtoReferencia: string
+  produtoNome: string
+  quantidadePlanejada: number
+  quantidadeRealizada: number
+  status: TurnoSetorDemandaStatusV2
+  iniciadoEm: string | null
+  encerradoEm: string | null
+  turnoSetorOpLegacyId: string | null
 }
 
 export interface TurnoSetorOpV2 {
@@ -336,6 +412,8 @@ export interface TurnoSetorOperacaoV2 {
   turnoId: string
   turnoOpId: string
   turnoSetorOpId: string
+  turnoSetorId: string | null
+  turnoSetorDemandaId: string | null
   produtoOperacaoId: string
   operacaoId: string
   setorId: string
@@ -358,6 +436,8 @@ export interface PlanejamentoTurnoV2 {
   turno: TurnoV2
   operadores: TurnoOperadorV2[]
   ops: TurnoOpV2[]
+  setoresAtivos?: TurnoSetorV2[]
+  demandasSetor?: TurnoSetorDemandaV2[]
   secoesSetorOp: TurnoSetorOpV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
 }
@@ -378,10 +458,19 @@ export interface CriarTurnoV2Input {
   observacao?: string
   operadorIds?: string[]
   ops: TurnoOpPlanejadaInput[]
+  carregarPendenciasTurnoAnterior?: boolean
+  turnoOrigemPendenciasId?: string | null
+  turnoOpIdsPendentes?: string[]
 }
 
 export interface AdicionarTurnoOpV2Input extends TurnoOpPlanejadaInput {
   turnoId: string
+}
+
+export interface CarregarPendenciasTurnoAnteriorInput {
+  turnoOrigemId: string
+  turnoDestinoId: string
+  turnoOpIds?: string[]
 }
 
 export interface EditarTurnoOpV2Input {

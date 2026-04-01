@@ -1,11 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
+import { consolidarOpsPorDemandas } from '@/lib/utils/consolidacao-turno'
 import type {
   PlanejamentoTurnoDashboardV2,
   PlanejamentoTurnoV2,
   TurnoOpV2,
   TurnoOperadorV2,
+  TurnoSetorDemandaV2,
   TurnoSetorOpV2,
+  TurnoSetorV2,
   TurnoV2,
 } from '@/types'
 import type { Tables } from '@/types/supabase'
@@ -13,7 +16,9 @@ import type { Tables } from '@/types/supabase'
 type TurnoRow = Tables<'turnos'>
 type TurnoOperadorRow = Tables<'turno_operadores'>
 type TurnoOpRow = Tables<'turno_ops'>
+type TurnoSetorDemandaRow = Tables<'turno_setor_demandas'>
 type TurnoSetorOpRow = Tables<'turno_setor_ops'>
+type TurnoSetorRow = Tables<'turno_setores'>
 
 type OperadorResumoRow = Pick<
   Tables<'operadores'>,
@@ -175,6 +180,9 @@ async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
         produtoNome: produto.nome,
         quantidadePlanejada: op.quantidade_planejada,
         quantidadeRealizada: op.quantidade_realizada,
+        quantidadePlanejadaOriginal: op.quantidade_planejada_original,
+        quantidadePlanejadaRemanescente: op.quantidade_planejada_remanescente,
+        turnoOpOrigemId: op.turno_op_origem_id,
         status: op.status as TurnoOpV2['status'],
         iniciadoEm: op.iniciado_em,
         encerradoEm: op.encerrado_em,
@@ -254,6 +262,164 @@ async function listarTurnoSetorOps(turnoId: string): Promise<TurnoSetorOpV2[]> {
     })
 }
 
+async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
+  const supabase = await createClient()
+
+  const { data: setoresTurno, error: setoresTurnoError } = await supabase
+    .from('turno_setores')
+    .select(
+      'id, turno_id, setor_id, quantidade_planejada, quantidade_realizada, qr_code_token, status, iniciado_em, encerrado_em'
+    )
+    .eq('turno_id', turnoId)
+    .order('created_at', { ascending: true })
+    .returns<TurnoSetorRow[]>()
+
+  if (setoresTurnoError) {
+    throw new Error(`Erro ao listar setores ativos do turno: ${setoresTurnoError.message}`)
+  }
+
+  const setorIds = Array.from(
+    new Set((setoresTurno ?? []).map((setorTurno) => setorTurno.setor_id).filter(Boolean))
+  )
+
+  if (setorIds.length === 0) {
+    return []
+  }
+
+  const { data: setores, error: setoresError } = await supabase
+    .from('setores')
+    .select('id, codigo, nome')
+    .in('id', setorIds)
+    .returns<SetorResumoRow[]>()
+
+  if (setoresError) {
+    throw new Error(`Erro ao carregar setores ativos do turno: ${setoresError.message}`)
+  }
+
+  const setoresPorId = new Map((setores ?? []).map((setor) => [setor.id, setor]))
+
+  return (setoresTurno ?? [])
+    .map((setorTurno) => {
+      const setor = setoresPorId.get(setorTurno.setor_id)
+      if (!setor) {
+        return null
+      }
+
+      return {
+        id: setorTurno.id,
+        turnoId: setorTurno.turno_id,
+        setorId: setorTurno.setor_id,
+        setorNome: setor.nome,
+        quantidadePlanejada: setorTurno.quantidade_planejada,
+        quantidadeRealizada: setorTurno.quantidade_realizada,
+        qrCodeToken: setorTurno.qr_code_token,
+        status: setorTurno.status as TurnoSetorV2['status'],
+        iniciadoEm: setorTurno.iniciado_em,
+        encerradoEm: setorTurno.encerrado_em,
+      }
+    })
+    .filter((setorTurno): setorTurno is TurnoSetorV2 => Boolean(setorTurno))
+    .sort((primeiroSetorTurno, segundoSetorTurno) => {
+      const primeiroSetor = setoresPorId.get(primeiroSetorTurno.setorId)
+      const segundoSetor = setoresPorId.get(segundoSetorTurno.setorId)
+
+      const primeiroCodigo = primeiroSetor?.codigo ?? Number.MAX_SAFE_INTEGER
+      const segundoCodigo = segundoSetor?.codigo ?? Number.MAX_SAFE_INTEGER
+
+      if (primeiroCodigo !== segundoCodigo) {
+        return primeiroCodigo - segundoCodigo
+      }
+
+      return primeiroSetorTurno.setorNome.localeCompare(segundoSetorTurno.setorNome)
+    })
+}
+
+async function listarTurnoSetorDemandas(
+  turnoId: string,
+  opsTurno: TurnoOpV2[]
+): Promise<TurnoSetorDemandaV2[]> {
+  const supabase = await createClient()
+
+  const { data: demandas, error: demandasError } = await supabase
+    .from('turno_setor_demandas')
+    .select(
+      'id, turno_setor_id, turno_id, turno_op_id, produto_id, setor_id, turno_setor_op_legacy_id, quantidade_planejada, quantidade_realizada, status, iniciado_em, encerrado_em'
+    )
+    .eq('turno_id', turnoId)
+    .order('created_at', { ascending: true })
+    .returns<TurnoSetorDemandaRow[]>()
+
+  if (demandasError) {
+    throw new Error(`Erro ao listar demandas dos setores do turno: ${demandasError.message}`)
+  }
+
+  if (!demandas || demandas.length === 0) {
+    return []
+  }
+
+  const setorIds = Array.from(new Set(demandas.map((demanda) => demanda.setor_id).filter(Boolean)))
+
+  const { data: setores, error: setoresError } = await supabase
+    .from('setores')
+    .select('id, codigo, nome')
+    .in('id', setorIds)
+    .returns<SetorResumoRow[]>()
+
+  if (setoresError) {
+    throw new Error(`Erro ao carregar setores das demandas do turno: ${setoresError.message}`)
+  }
+
+  const setoresPorId = new Map((setores ?? []).map((setor) => [setor.id, setor]))
+  const opsPorId = new Map(opsTurno.map((op) => [op.id, op]))
+
+  return demandas
+    .map((demanda) => {
+      const setor = setoresPorId.get(demanda.setor_id)
+      const op = opsPorId.get(demanda.turno_op_id)
+
+      if (!setor || !op) {
+        return null
+      }
+
+      return {
+        id: demanda.id,
+        turnoSetorId: demanda.turno_setor_id,
+        turnoId: demanda.turno_id,
+        turnoOpId: demanda.turno_op_id,
+        setorId: demanda.setor_id,
+        produtoId: demanda.produto_id,
+        numeroOp: op.numeroOp,
+        produtoReferencia: op.produtoReferencia,
+        produtoNome: op.produtoNome,
+        quantidadePlanejada: demanda.quantidade_planejada,
+        quantidadeRealizada: demanda.quantidade_realizada,
+        status: demanda.status as TurnoSetorDemandaV2['status'],
+        iniciadoEm: demanda.iniciado_em,
+        encerradoEm: demanda.encerrado_em,
+        turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+      }
+    })
+    .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
+    .sort((primeiraDemanda, segundaDemanda) => {
+      const primeiroSetor = setoresPorId.get(primeiraDemanda.setorId)
+      const segundoSetor = setoresPorId.get(segundaDemanda.setorId)
+
+      const primeiroCodigo = primeiroSetor?.codigo ?? Number.MAX_SAFE_INTEGER
+      const segundoCodigo = segundoSetor?.codigo ?? Number.MAX_SAFE_INTEGER
+
+      if (primeiroCodigo !== segundoCodigo) {
+        return primeiroCodigo - segundoCodigo
+      }
+
+      const comparacaoOp = primeiraDemanda.numeroOp.localeCompare(segundaDemanda.numeroOp)
+      if (comparacaoOp !== 0) {
+        return comparacaoOp
+      }
+
+      return primeiraDemanda.produtoNome.localeCompare(segundaDemanda.produtoNome)
+    })
+}
+
 export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<PlanejamentoTurnoV2 | null> {
   const supabase = await createClient()
 
@@ -269,17 +435,23 @@ export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<Pla
     return null
   }
 
-  const [operadores, ops, secoesSetorOp, operacoesSecao] = await Promise.all([
+  const [operadores, ops, secoesSetorOp, operacoesSecao, setoresAtivos] = await Promise.all([
     listarTurnoOperadores(turno.id),
     listarTurnoOps(turno.id),
     listarTurnoSetorOps(turno.id),
     listarTurnoSetorOperacoesDoTurnoComClient(supabase, turno.id),
+    listarTurnoSetores(turno.id),
   ])
+
+  const demandasSetor = await listarTurnoSetorDemandas(turno.id, ops)
+  const opsConsolidadas = consolidarOpsPorDemandas(ops, demandasSetor)
 
   return {
     turno: mapearTurno(turno),
     operadores,
-    ops,
+    ops: opsConsolidadas,
+    setoresAtivos,
+    demandasSetor,
     secoesSetorOp,
     operacoesSecao,
   }

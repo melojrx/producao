@@ -2,39 +2,53 @@
 
 import { useReducer, useState } from 'react'
 import {
-  buscarOperacoesScaneadasPorSecao,
+  buscarDemandasScaneadasPorTurnoSetor,
+  buscarOperacoesScaneadasPorDemanda,
   buscarOperadorScaneadoPorToken,
-  buscarTurnoSetorOpScaneadoPorToken,
+  buscarTurnoSetorScaneadoPorToken,
 } from '@/lib/queries/scanner'
 import type {
   OrigemApontamentoProducaoV2,
   OperadorScaneado,
+  TurnoSetorDemandaScaneada,
   TurnoSetorOperacaoApontamentoV2,
-  TurnoSetorOpScaneado,
+  TurnoSetorScaneado,
 } from '@/types'
 
 export type EstadoScanner =
-  | { etapa: 'scan_secao' }
-  | { etapa: 'scan_operador'; secao: TurnoSetorOpScaneado }
+  | { etapa: 'scan_setor' }
+  | { etapa: 'scan_operador'; setor: TurnoSetorScaneado }
+  | {
+      etapa: 'selecionar_demanda'
+      operador: OperadorScaneado
+      setor: TurnoSetorScaneado
+      demandas: TurnoSetorDemandaScaneada[]
+    }
   | {
       etapa: 'selecionar_operacao'
+      demandaSelecionada: TurnoSetorDemandaScaneada
+      demandas: TurnoSetorDemandaScaneada[]
       operador: OperadorScaneado
       operacoes: TurnoSetorOperacaoApontamentoV2[]
-      secao: TurnoSetorOpScaneado
+      setor: TurnoSetorScaneado
     }
   | {
       etapa: 'informar_quantidade'
+      demandaSelecionada: TurnoSetorDemandaScaneada
+      demandas: TurnoSetorDemandaScaneada[]
       operacaoSelecionada: TurnoSetorOperacaoApontamentoV2
       operador: OperadorScaneado
       operacoes: TurnoSetorOperacaoApontamentoV2[]
-      secao: TurnoSetorOpScaneado
+      setor: TurnoSetorScaneado
     }
   | {
       etapa: 'registrar'
+      demandaSelecionada: TurnoSetorDemandaScaneada
+      demandas: TurnoSetorDemandaScaneada[]
       operacaoSelecionada: TurnoSetorOperacaoApontamentoV2
       operador: OperadorScaneado
       operacoes: TurnoSetorOperacaoApontamentoV2[]
-      secao: TurnoSetorOpScaneado
+      setor: TurnoSetorScaneado
     }
 
 export interface RegistroProducaoInput {
@@ -56,6 +70,12 @@ export interface ResultadoScannerAction {
   quantidadeRealizadaSecao?: number
   saldoRestanteSecao?: number
   statusTurnoSetorOp?: string
+  quantidadeRealizadaDemanda?: number
+  saldoRestanteDemanda?: number
+  statusTurnoSetorDemanda?: string
+  quantidadeRealizadaSetor?: number
+  saldoRestanteSetor?: number
+  statusTurnoSetor?: string
 }
 
 interface UseScannerOptions {
@@ -63,10 +83,15 @@ interface UseScannerOptions {
 }
 
 type ScannerAction =
-  | { type: 'SECAO_IDENTIFICADA'; secao: TurnoSetorOpScaneado }
+  | { type: 'SETOR_IDENTIFICADO'; setor: TurnoSetorScaneado }
   | {
       type: 'OPERADOR_IDENTIFICADO'
       operador: OperadorScaneado
+      demandas: TurnoSetorDemandaScaneada[]
+    }
+  | {
+      type: 'DEMANDA_SELECIONADA'
+      demandaSelecionada: TurnoSetorDemandaScaneada
       operacoes: TurnoSetorOperacaoApontamentoV2[]
     }
   | { type: 'SELECIONAR_OPERACAO'; operacaoId: string }
@@ -74,22 +99,80 @@ type ScannerAction =
   | { type: 'FALHA_REGISTRO' }
   | {
       type: 'SUCESSO_REGISTRO'
+      demandaAtualizada: TurnoSetorDemandaScaneada
+      demandasAtualizadas: TurnoSetorDemandaScaneada[]
       operacaoAtualizada: TurnoSetorOperacaoApontamentoV2
       operacoesAtualizadas: TurnoSetorOperacaoApontamentoV2[]
-      secaoAtualizada: TurnoSetorOpScaneado
+      setorAtualizado: TurnoSetorScaneado
     }
-  | { type: 'TROCAR_OPERACAO' }
   | { type: 'TROCAR_OPERADOR' }
+  | { type: 'TROCAR_DEMANDA' }
+  | { type: 'TROCAR_OPERACAO' }
   | { type: 'REINICIAR_TOTAL' }
 
-const ESTADO_INICIAL: EstadoScanner = { etapa: 'scan_secao' }
+const ESTADO_INICIAL: EstadoScanner = { etapa: 'scan_setor' }
+
+function calcularSaldoRestante(quantidadePlanejada: number, quantidadeRealizada: number): number {
+  return Math.max(quantidadePlanejada - quantidadeRealizada, 0)
+}
+
+function derivarStatusDemanda(
+  statusAtual: TurnoSetorDemandaScaneada['status'],
+  quantidadePlanejada: number,
+  quantidadeRealizada: number
+): TurnoSetorDemandaScaneada['status'] {
+  if (statusAtual === 'encerrada_manualmente') {
+    return statusAtual
+  }
+
+  if (quantidadePlanejada > 0 && quantidadeRealizada >= quantidadePlanejada) {
+    return 'concluida'
+  }
+
+  if (quantidadeRealizada > 0) {
+    return 'em_andamento'
+  }
+
+  return statusAtual === 'planejada' ? 'planejada' : 'aberta'
+}
+
+function derivarStatusSetor(
+  demandas: TurnoSetorDemandaScaneada[],
+  statusAtual: TurnoSetorScaneado['status']
+): TurnoSetorScaneado['status'] {
+  if (demandas.length === 0) {
+    return statusAtual
+  }
+
+  if (demandas.every((demanda) => demanda.status === 'concluida')) {
+    return 'concluida'
+  }
+
+  if (demandas.every((demanda) => demanda.status === 'encerrada_manualmente')) {
+    return 'encerrada_manualmente'
+  }
+
+  if (
+    demandas.some(
+      (demanda) => demanda.status === 'em_andamento' || demanda.quantidadeRealizada > 0
+    )
+  ) {
+    return 'em_andamento'
+  }
+
+  if (demandas.some((demanda) => demanda.status === 'aberta')) {
+    return 'aberta'
+  }
+
+  return statusAtual === 'planejada' ? 'planejada' : 'aberta'
+}
 
 function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoScanner {
   switch (action.type) {
-    case 'SECAO_IDENTIFICADA':
+    case 'SETOR_IDENTIFICADO':
       return {
         etapa: 'scan_operador',
-        secao: action.secao,
+        setor: action.setor,
       }
     case 'OPERADOR_IDENTIFICADO':
       if (estado.etapa !== 'scan_operador') {
@@ -97,10 +180,23 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
       }
 
       return {
-        etapa: 'selecionar_operacao',
+        etapa: 'selecionar_demanda',
         operador: action.operador,
+        setor: estado.setor,
+        demandas: action.demandas,
+      }
+    case 'DEMANDA_SELECIONADA':
+      if (estado.etapa !== 'selecionar_demanda') {
+        return estado
+      }
+
+      return {
+        etapa: 'selecionar_operacao',
+        demandaSelecionada: action.demandaSelecionada,
+        demandas: estado.demandas,
+        operador: estado.operador,
         operacoes: action.operacoes,
-        secao: estado.secao,
+        setor: estado.setor,
       }
     case 'SELECIONAR_OPERACAO':
       if (estado.etapa !== 'selecionar_operacao') {
@@ -116,10 +212,12 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
 
       return {
         etapa: 'informar_quantidade',
+        demandaSelecionada: estado.demandaSelecionada,
+        demandas: estado.demandas,
         operacaoSelecionada,
         operador: estado.operador,
         operacoes: estado.operacoes,
-        secao: estado.secao,
+        setor: estado.setor,
       }
     case 'INICIAR_REGISTRO':
       if (estado.etapa !== 'informar_quantidade') {
@@ -128,10 +226,12 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
 
       return {
         etapa: 'registrar',
+        demandaSelecionada: estado.demandaSelecionada,
+        demandas: estado.demandas,
         operacaoSelecionada: estado.operacaoSelecionada,
         operador: estado.operador,
         operacoes: estado.operacoes,
-        secao: estado.secao,
+        setor: estado.setor,
       }
     case 'FALHA_REGISTRO':
       if (estado.etapa !== 'registrar') {
@@ -140,10 +240,12 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
 
       return {
         etapa: 'informar_quantidade',
+        demandaSelecionada: estado.demandaSelecionada,
+        demandas: estado.demandas,
         operacaoSelecionada: estado.operacaoSelecionada,
         operador: estado.operador,
         operacoes: estado.operacoes,
-        secao: estado.secao,
+        setor: estado.setor,
       }
     case 'SUCESSO_REGISTRO':
       if (estado.etapa !== 'registrar') {
@@ -152,24 +254,42 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
 
       return {
         etapa: 'informar_quantidade',
+        demandaSelecionada: action.demandaAtualizada,
+        demandas: action.demandasAtualizadas,
         operacaoSelecionada: action.operacaoAtualizada,
         operador: estado.operador,
         operacoes: action.operacoesAtualizadas,
-        secao: action.secaoAtualizada,
+        setor: action.setorAtualizado,
       }
     case 'TROCAR_OPERADOR':
       if (
+        estado.etapa === 'selecionar_demanda' ||
         estado.etapa === 'selecionar_operacao' ||
         estado.etapa === 'informar_quantidade' ||
         estado.etapa === 'registrar'
       ) {
         return {
           etapa: 'scan_operador',
-          secao: estado.secao,
+          setor: estado.setor,
         }
       }
 
       return estado
+    case 'TROCAR_DEMANDA':
+      if (
+        estado.etapa !== 'selecionar_operacao' &&
+        estado.etapa !== 'informar_quantidade' &&
+        estado.etapa !== 'registrar'
+      ) {
+        return estado
+      }
+
+      return {
+        etapa: 'selecionar_demanda',
+        operador: estado.operador,
+        setor: estado.setor,
+        demandas: estado.demandas,
+      }
     case 'TROCAR_OPERACAO':
       if (estado.etapa !== 'informar_quantidade' && estado.etapa !== 'registrar') {
         return estado
@@ -177,9 +297,11 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
 
       return {
         etapa: 'selecionar_operacao',
+        demandaSelecionada: estado.demandaSelecionada,
+        demandas: estado.demandas,
         operador: estado.operador,
         operacoes: estado.operacoes,
-        secao: estado.secao,
+        setor: estado.setor,
       }
     case 'REINICIAR_TOTAL':
       return ESTADO_INICIAL
@@ -193,32 +315,32 @@ export function useScanner(options: UseScannerOptions = {}) {
   const [erro, setErro] = useState<string | null>(null)
   const [estaCarregando, setEstaCarregando] = useState(false)
 
-  async function scanSecao(token: string): Promise<ResultadoScannerAction> {
+  async function scanSetor(token: string): Promise<ResultadoScannerAction> {
     setEstaCarregando(true)
     setErro(null)
 
     try {
-      const secao = await buscarTurnoSetorOpScaneadoPorToken(token)
+      const setor = await buscarTurnoSetorScaneadoPorToken(token)
 
-      if (!secao) {
-        const mensagem = 'QR operacional não encontrado ou sem turno aberto.'
+      if (!setor) {
+        const mensagem = 'QR operacional do setor não encontrado ou sem turno aberto.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      if (secao.status === 'concluida' || secao.status === 'encerrada_manualmente') {
-        const mensagem = 'Esta seção já está encerrada e não aceita novos apontamentos.'
+      if (setor.status === 'concluida' || setor.status === 'encerrada_manualmente') {
+        const mensagem = 'Este setor já está encerrado e não aceita novos apontamentos.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      if (secao.saldoRestante <= 0) {
-        const mensagem = 'Esta seção não possui saldo restante para lançamento.'
+      if (setor.saldoRestante <= 0) {
+        const mensagem = 'Este setor não possui saldo restante para lançamento.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      dispatch({ type: 'SECAO_IDENTIFICADA', secao })
+      dispatch({ type: 'SETOR_IDENTIFICADO', setor })
       return { sucesso: true }
     } finally {
       setEstaCarregando(false)
@@ -227,7 +349,7 @@ export function useScanner(options: UseScannerOptions = {}) {
 
   async function scanOperador(token: string): Promise<ResultadoScannerAction> {
     if (estado.etapa !== 'scan_operador') {
-      const mensagem = 'Escaneie uma seção antes de identificar o operador.'
+      const mensagem = 'Escaneie um setor antes de identificar o operador.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -244,15 +366,66 @@ export function useScanner(options: UseScannerOptions = {}) {
         return { sucesso: false, erro: mensagem }
       }
 
-      const operacoes = await buscarOperacoesScaneadasPorSecao(estado.secao.id)
+      const demandas = await buscarDemandasScaneadasPorTurnoSetor(estado.setor.id)
+      const demandasAtivas = demandas.filter(
+        (demanda) =>
+          demanda.status !== 'concluida' &&
+          demanda.status !== 'encerrada_manualmente' &&
+          demanda.saldoRestante > 0
+      )
 
-      if (operacoes.length === 0) {
-        const mensagem = 'A seção aberta não possui operações derivadas para apontamento.'
+      if (demandasAtivas.length === 0) {
+        const mensagem = 'O setor aberto não possui OPs/produtos com saldo para apontamento.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      dispatch({ type: 'OPERADOR_IDENTIFICADO', operador, operacoes })
+      dispatch({ type: 'OPERADOR_IDENTIFICADO', operador, demandas: demandasAtivas })
+      return { sucesso: true }
+    } finally {
+      setEstaCarregando(false)
+    }
+  }
+
+  async function selecionarDemanda(demandaId: string): Promise<ResultadoScannerAction> {
+    if (estado.etapa !== 'selecionar_demanda') {
+      const mensagem = 'Escaneie o operador antes de selecionar a OP/produto.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    const demandaSelecionada =
+      estado.demandas.find((demanda) => demanda.id === demandaId) ?? null
+
+    if (!demandaSelecionada) {
+      const mensagem = 'A demanda escolhida não foi encontrada no setor aberto.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    setEstaCarregando(true)
+    setErro(null)
+
+    try {
+      const operacoes = await buscarOperacoesScaneadasPorDemanda(demandaSelecionada)
+      const operacoesDisponiveis = operacoes.filter(
+        (operacao) =>
+          operacao.status !== 'concluida' &&
+          operacao.status !== 'encerrada_manualmente' &&
+          calcularSaldoRestante(operacao.quantidadePlanejada, operacao.quantidadeRealizada) > 0
+      )
+
+      if (operacoesDisponiveis.length === 0) {
+        const mensagem = 'A OP/produto escolhida não possui operações com saldo para apontamento.'
+        setErro(mensagem)
+        return { sucesso: false, erro: mensagem }
+      }
+
+      dispatch({
+        type: 'DEMANDA_SELECIONADA',
+        demandaSelecionada,
+        operacoes: operacoesDisponiveis,
+      })
       return { sucesso: true }
     } finally {
       setEstaCarregando(false)
@@ -277,9 +450,9 @@ export function useScanner(options: UseScannerOptions = {}) {
       return { sucesso: false, erro: mensagem }
     }
 
-    const saldoOperacao = Math.max(
-      estado.operacaoSelecionada.quantidadePlanejada - estado.operacaoSelecionada.quantidadeRealizada,
-      0
+    const saldoOperacao = calcularSaldoRestante(
+      estado.operacaoSelecionada.quantidadePlanejada,
+      estado.operacaoSelecionada.quantidadeRealizada
     )
 
     if (quantidade > saldoOperacao) {
@@ -313,26 +486,8 @@ export function useScanner(options: UseScannerOptions = {}) {
         return resultado
       }
 
-      const quantidadeRealizadaSecao =
-        resultado.quantidadeRealizadaSecao ?? estado.secao.quantidadeRealizada
-      const saldoRestanteSecao =
-        resultado.saldoRestanteSecao ??
-        Math.max(estado.secao.quantidadePlanejada - quantidadeRealizadaSecao, 0)
-
-      const secaoAtualizada: TurnoSetorOpScaneado = {
-        ...estado.secao,
-        quantidadeRealizada: quantidadeRealizadaSecao,
-        saldoRestante: saldoRestanteSecao,
-        status:
-          (resultado.statusTurnoSetorOp as TurnoSetorOpScaneado['status'] | undefined) ??
-          estado.secao.status,
-      }
-
       const quantidadeRealizadaOperacao =
         resultado.quantidadeRealizadaOperacao ?? estado.operacaoSelecionada.quantidadeRealizada
-      const saldoRestanteOperacao =
-        resultado.saldoRestanteOperacao ??
-        Math.max(estado.operacaoSelecionada.quantidadePlanejada - quantidadeRealizadaOperacao, 0)
 
       const operacaoAtualizada: TurnoSetorOperacaoApontamentoV2 = {
         ...estado.operacaoSelecionada,
@@ -347,37 +502,94 @@ export function useScanner(options: UseScannerOptions = {}) {
         operacao.id === operacaoAtualizada.id ? operacaoAtualizada : operacao
       )
 
+      const quantidadeRealizadaDemanda =
+        resultado.quantidadeRealizadaDemanda ??
+        resultado.quantidadeRealizadaSecao ??
+        estado.demandaSelecionada.quantidadeRealizada
+      const saldoRestanteDemanda =
+        resultado.saldoRestanteDemanda ??
+        resultado.saldoRestanteSecao ??
+        calcularSaldoRestante(estado.demandaSelecionada.quantidadePlanejada, quantidadeRealizadaDemanda)
+      const demandaAtualizada: TurnoSetorDemandaScaneada = {
+        ...estado.demandaSelecionada,
+        quantidadeRealizada: quantidadeRealizadaDemanda,
+        saldoRestante: saldoRestanteDemanda,
+        status:
+          (resultado.statusTurnoSetorDemanda as TurnoSetorDemandaScaneada['status'] | undefined) ??
+          (resultado.statusTurnoSetorOp as TurnoSetorDemandaScaneada['status'] | undefined) ??
+          derivarStatusDemanda(
+            estado.demandaSelecionada.status,
+            estado.demandaSelecionada.quantidadePlanejada,
+            quantidadeRealizadaDemanda
+          ),
+      }
+
+      const demandasAtualizadas = estado.demandas.map((demanda) =>
+        demanda.id === demandaAtualizada.id ? demandaAtualizada : demanda
+      )
+      const quantidadeRealizadaSetor =
+        resultado.quantidadeRealizadaSetor ??
+        demandasAtualizadas.reduce((soma, demanda) => soma + demanda.quantidadeRealizada, 0)
+      const saldoRestanteSetor =
+        resultado.saldoRestanteSetor ??
+        calcularSaldoRestante(estado.setor.quantidadePlanejada, quantidadeRealizadaSetor)
+      const setorAtualizado: TurnoSetorScaneado = {
+        ...estado.setor,
+        quantidadeRealizada: quantidadeRealizadaSetor,
+        saldoRestante: saldoRestanteSetor,
+        status:
+          (resultado.statusTurnoSetor as TurnoSetorScaneado['status'] | undefined) ??
+          derivarStatusSetor(demandasAtualizadas, estado.setor.status),
+      }
+
       dispatch({
         type: 'SUCESSO_REGISTRO',
+        demandaAtualizada,
+        demandasAtualizadas,
         operacaoAtualizada,
         operacoesAtualizadas,
-        secaoAtualizada,
+        setorAtualizado,
       })
+
       return {
         sucesso: true,
-        quantidadeRealizadaOperacao: quantidadeRealizadaOperacao,
-        saldoRestanteOperacao: saldoRestanteOperacao,
+        quantidadeRealizadaOperacao,
+        saldoRestanteOperacao: calcularSaldoRestante(
+          estado.operacaoSelecionada.quantidadePlanejada,
+          quantidadeRealizadaOperacao
+        ),
         statusTurnoSetorOperacao: operacaoAtualizada.status,
-        quantidadeRealizadaSecao: quantidadeRealizadaSecao,
-        saldoRestanteSecao: saldoRestanteSecao,
-        statusTurnoSetorOp: secaoAtualizada.status,
+        quantidadeRealizadaDemanda,
+        saldoRestanteDemanda,
+        statusTurnoSetorDemanda: demandaAtualizada.status,
+        quantidadeRealizadaSetor,
+        saldoRestanteSetor,
+        statusTurnoSetor: setorAtualizado.status,
+        quantidadeRealizadaSecao: quantidadeRealizadaDemanda,
+        saldoRestanteSecao: saldoRestanteDemanda,
+        statusTurnoSetorOp: demandaAtualizada.status,
       }
     } finally {
       setEstaCarregando(false)
     }
   }
 
-  function trocarOperador() {
+  function trocarOperador(): void {
     setErro(null)
     dispatch({ type: 'TROCAR_OPERADOR' })
   }
 
-  function trocarOperacao() {
+  function trocarDemanda(): void {
+    setErro(null)
+    dispatch({ type: 'TROCAR_DEMANDA' })
+  }
+
+  function trocarOperacao(): void {
     setErro(null)
     dispatch({ type: 'TROCAR_OPERACAO' })
   }
 
-  function reiniciarTotal() {
+  function reiniciarTotal(): void {
     setErro(null)
     dispatch({ type: 'REINICIAR_TOTAL' })
   }
@@ -386,10 +598,12 @@ export function useScanner(options: UseScannerOptions = {}) {
     estado,
     erro,
     estaCarregando,
-    scanSecao,
+    scanSetor,
     scanOperador,
+    selecionarDemanda,
     selecionarOperacao,
     registrar,
+    trocarDemanda,
     trocarOperacao,
     trocarOperador,
     reiniciarTotal,

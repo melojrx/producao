@@ -21,10 +21,11 @@
 | 9 | Dashboard, relatórios e coexistência | ✅ Concluída | 3 |
 | 10 | Scanner híbrido por operação | ✅ Concluída | 2 |
 | 11 | Edição do turno aberto | 🔭 Proposta | 2 |
+| 12 | Refatoração estrutural do turno por setor | ⏭️ Prioridade máxima | 4 |
 
-**Total estimado: 22 dias úteis**
+**Total estimado: 26 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a validação da Sprint 11, a próxima prioridade oficial passou a ser a refatoração estrutural para `turno + setor`, com `OP/produto` como demanda interna do setor. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -196,6 +197,21 @@
 - Recalcular planejado vs realizado do turno após a inclusão
 - Homologar scanner, `/admin/apontamentos` e dashboard com OP adicionada durante o turno
 
+**Nota de replanejamento:** a homologação desta sprint expôs uma inconsistência estrutural. A regra de negócio validada exige `setor` como estrutura física reaproveitada do turno, e não `setor + OP` como unidade operacional visível. Por isso, a próxima sprint oficial passa a ser a refatoração estrutural abaixo.
+
+## SPRINT 12 — Refatoração estrutural do turno por setor
+**Objetivo:** substituir a unidade operacional visível do sistema por `setor do turno`, reutilizando a estrutura física da fábrica e movendo a OP para dentro da demanda do setor.
+**Entregável:** QR operacional por setor do turno, scanner escolhendo `OP/produto` dentro do setor, dashboard consolidada por setor e carry-over de saldo entre turnos.
+**Status:** ⏭️ Prioridade máxima
+
+- Introduzir a estrutura `turno + setor + demanda setorial + operação`
+- Gerar QR operacional por `turno + setor`
+- Reaproveitar setores já ativos ao incluir nova OP
+- Refatorar dashboard e edição do turno para impedir duplicação visual
+- Refatorar scanner para `setor -> operador -> OP/produto -> operação -> quantidade`
+- Implementar carry-over de OPs pendentes entre turnos
+- Reabrir a homologação funcional ponta a ponta após a refatoração
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -204,8 +220,8 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
-As Sprints 6 a 11 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.
+As Sprints 6 a 12 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.

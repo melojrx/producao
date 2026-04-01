@@ -1,3 +1,4 @@
+import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
 interface ResumoPlanejamentoTurnoV2Props {
@@ -36,14 +37,13 @@ export function ResumoPlanejamentoTurnoV2({
   const tituloOrigem =
     planejamento.origem === 'aberto' ? 'Turno aberto atual' : 'Último turno encerrado'
   const opsConcluidas = planejamento.ops.filter((op) => op.status === 'concluida').length
-  const secoesConcluidas = planejamento.secoesSetorOp.filter(
-    (secao) => secao.status === 'concluida'
-  ).length
+  const setores = mapearSetoresTurnoParaDashboard(planejamento)
+  const setoresConcluidos = setores.filter((setor) => setor.status === 'concluida').length
   const progressoOps =
     planejamento.ops.length > 0 ? Math.round((opsConcluidas / planejamento.ops.length) * 100) : 0
-  const progressoSecoes =
-    planejamento.secoesSetorOp.length > 0
-      ? Math.round((secoesConcluidas / planejamento.secoesSetorOp.length) * 100)
+  const progressoSetores =
+    setores.length > 0
+      ? Math.round((setoresConcluidos / setores.length) * 100)
       : 0
 
   return (
@@ -132,19 +132,17 @@ export function ResumoPlanejamentoTurnoV2({
 
         <div className="rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Seções por setor
+            Setores ativos
           </p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {planejamento.secoesSetorOp.length}
-          </p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">{setores.length}</p>
         </div>
 
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-            Seções concluídas
+            Setores concluídos
           </p>
-          <p className="mt-2 text-3xl font-semibold text-blue-900">{secoesConcluidas}</p>
-          <p className="mt-1 text-xs font-medium text-blue-800">{progressoSecoes}% do turno</p>
+          <p className="mt-2 text-3xl font-semibold text-blue-900">{setoresConcluidos}</p>
+          <p className="mt-1 text-xs font-medium text-blue-800">{progressoSetores}% do turno</p>
         </div>
       </div>
     </section>

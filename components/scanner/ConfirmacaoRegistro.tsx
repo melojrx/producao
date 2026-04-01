@@ -16,19 +16,22 @@ import {
 import type { ResultadoScannerAction } from '@/hooks'
 import type {
   OperadorScaneado,
+  TurnoSetorDemandaScaneada,
   TurnoSetorOperacaoApontamentoV2,
-  TurnoSetorOpScaneado,
+  TurnoSetorScaneado,
 } from '@/types'
 
 interface ConfirmacaoRegistroProps {
+  demandaSelecionada: TurnoSetorDemandaScaneada
   operacaoSelecionada: TurnoSetorOperacaoApontamentoV2
   operador: OperadorScaneado
-  secao: TurnoSetorOpScaneado
+  setor: TurnoSetorScaneado
   estaRegistrando: boolean
   onNovaQuantidade: () => void
   onRegistrar: (quantidade: number) => Promise<ResultadoScannerAction>
   onErro: (mensagem: string) => void
   onReiniciarTudo: () => void
+  onTrocarDemanda: () => void
   onTrocarOperacao: () => void
   onTrocarOperador: () => void
 }
@@ -51,14 +54,16 @@ function limitarQuantidade(valor: number, saldoMaximo: number): number {
 }
 
 export function ConfirmacaoRegistro({
+  demandaSelecionada,
   operacaoSelecionada,
   operador,
-  secao,
+  setor,
   estaRegistrando,
   onNovaQuantidade,
   onRegistrar,
   onErro,
   onReiniciarTudo,
+  onTrocarDemanda,
   onTrocarOperacao,
   onTrocarOperador,
 }: ConfirmacaoRegistroProps) {
@@ -74,7 +79,7 @@ export function ConfirmacaoRegistro({
     setQuantidade(limitarQuantidade(1, saldoOperacao))
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
-  }, [operacaoSelecionada.id, operador.id, saldoOperacao, secao.id])
+  }, [demandaSelecionada.id, operacaoSelecionada.id, operador.id, saldoOperacao, setor.id])
 
   function ajustarQuantidade(valor: number) {
     setQuantidade((quantidadeAtual) =>
@@ -129,8 +134,8 @@ export function ConfirmacaoRegistro({
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-emerald-50/90">
                   {operador.nome} recebeu o apontamento na operação{' '}
-                  <strong>{operacaoSelecionada.operacaoCodigo}</strong>. O saldo da seção e da
-                  operação já foi atualizado.
+                  <strong>{operacaoSelecionada.operacaoCodigo}</strong>. O saldo da demanda e do
+                  setor já foi atualizado.
                 </p>
               </div>
             </div>
@@ -146,8 +151,8 @@ export function ConfirmacaoRegistro({
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saldo seção</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{secao.saldoRestante}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saldo setor</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{setor.saldoRestante}</p>
             </div>
           </div>
 
@@ -155,10 +160,19 @@ export function ConfirmacaoRegistro({
             <button
               type="button"
               onClick={handleNovaQuantidade}
-              disabled={estaRegistrando || saldoOperacao <= 0 || secao.saldoRestante <= 0}
+              disabled={estaRegistrando || saldoOperacao <= 0 || setor.saldoRestante <= 0}
               className="flex min-h-14 items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-base font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Nova quantidade
+            </button>
+
+            <button
+              type="button"
+              onClick={onTrocarDemanda}
+              disabled={estaRegistrando}
+              className="flex min-h-14 items-center justify-center rounded-3xl border border-white/15 px-4 py-4 text-base font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Trocar OP/produto
             </button>
 
             <button
@@ -183,7 +197,7 @@ export function ConfirmacaoRegistro({
               type="button"
               onClick={onReiniciarTudo}
               disabled={estaRegistrando}
-              className="flex min-h-14 items-center justify-center gap-2 rounded-3xl border border-white/15 px-4 py-4 text-base font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="sm:col-span-2 flex min-h-14 items-center justify-center gap-2 rounded-3xl border border-white/15 px-4 py-4 text-base font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RotateCcw size={18} />
               Reiniciar tudo
@@ -199,11 +213,11 @@ export function ConfirmacaoRegistro({
 
           <div>
             <h2 className="text-xl font-semibold text-white">
-              {secao.produtoReferencia} · {secao.produtoNome}
+              {demandaSelecionada.produtoReferencia} · {demandaSelecionada.produtoNome}
             </h2>
             <p className="mt-2 text-sm text-slate-300">
               Operador <strong className="text-white">{operador.nome}</strong> em{' '}
-              <strong className="text-white">{secao.setorNome}</strong>
+              <strong className="text-white">{setor.setorNome}</strong>
             </p>
           </div>
 
@@ -214,7 +228,7 @@ export function ConfirmacaoRegistro({
                 Turno
               </div>
               <p className="mt-2 text-sm font-semibold text-white">
-                {formatarTurno(secao.turnoIniciadoEm)}
+                {formatarTurno(setor.turnoIniciadoEm)}
               </p>
             </div>
 
@@ -231,7 +245,7 @@ export function ConfirmacaoRegistro({
                 <Factory size={14} />
                 Setor
               </div>
-              <p className="mt-2 text-sm font-semibold text-white">{secao.setorNome}</p>
+              <p className="mt-2 text-sm font-semibold text-white">{setor.setorNome}</p>
             </div>
 
             <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
@@ -239,7 +253,9 @@ export function ConfirmacaoRegistro({
                 <Boxes size={14} />
                 OP
               </div>
-              <p className="mt-2 text-sm font-semibold text-white">{secao.numeroOp}</p>
+              <p className="mt-2 text-sm font-semibold text-white">
+                {demandaSelecionada.numeroOp}
+              </p>
             </div>
           </div>
 
@@ -274,15 +290,19 @@ export function ConfirmacaoRegistro({
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Realizado seção
+                  Realizado demanda
                 </p>
-                <p className="mt-2 text-xl font-semibold text-white">{secao.quantidadeRealizada}</p>
+                <p className="mt-2 text-xl font-semibold text-white">
+                  {demandaSelecionada.quantidadeRealizada}
+                </p>
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Saldo seção
+                  Saldo demanda
                 </p>
-                <p className="mt-2 text-xl font-semibold text-white">{secao.saldoRestante}</p>
+                <p className="mt-2 text-xl font-semibold text-white">
+                  {demandaSelecionada.saldoRestante}
+                </p>
               </div>
             </div>
           </div>
@@ -341,14 +361,25 @@ export function ConfirmacaoRegistro({
 
           <button
             type="button"
-            onClick={() => void handleRegistrar()}
+            onClick={() => {
+              void handleRegistrar()
+            }}
             disabled={estaRegistrando || saldoOperacao <= 0}
             className="flex min-h-14 w-full items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {estaRegistrando ? 'Registrando...' : 'Registrar quantidade'}
           </button>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={onTrocarDemanda}
+              disabled={estaRegistrando}
+              className="flex min-h-12 items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Trocar OP/produto
+            </button>
+
             <button
               type="button"
               onClick={onTrocarOperacao}

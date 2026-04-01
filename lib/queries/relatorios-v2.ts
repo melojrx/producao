@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { consolidarOpsPorDemandas } from '@/lib/utils/consolidacao-turno'
 import type {
   ComparativoMetaGrupoItem,
   RelatorioFiltros,
@@ -42,9 +43,26 @@ type TurnoSetorOpRow = Pick<
   Tables<'turno_setor_ops'>,
   'id' | 'turno_op_id' | 'setor_id' | 'quantidade_planejada' | 'quantidade_realizada' | 'status'
 >
+type TurnoSetorDemandaRow = Pick<
+  Tables<'turno_setor_demandas'>,
+  | 'id'
+  | 'turno_setor_id'
+  | 'turno_op_id'
+  | 'setor_id'
+  | 'turno_setor_op_legacy_id'
+  | 'quantidade_planejada'
+  | 'quantidade_realizada'
+  | 'status'
+>
 type TurnoSetorOperacaoRow = Pick<
   Tables<'turno_setor_operacoes'>,
-  'id' | 'turno_op_id' | 'turno_setor_op_id' | 'operacao_id' | 'quantidade_realizada' | 'status'
+  | 'id'
+  | 'turno_op_id'
+  | 'turno_setor_op_id'
+  | 'turno_setor_demanda_id'
+  | 'operacao_id'
+  | 'quantidade_realizada'
+  | 'status'
 >
 type RegistroProducaoRow = Pick<
   Tables<'registros_producao'>,
@@ -75,6 +93,7 @@ interface BaseRelatorioV2 {
   produtos: ProdutoResumoRow[]
   registros: RegistroProducaoRow[]
   registrosLegados: RegistroProducaoRow[]
+  demandas: TurnoSetorDemandaRow[]
   secoes: TurnoSetorOpRow[]
   setores: SetorResumoRow[]
   turnos: TurnoRow[]
@@ -153,6 +172,47 @@ function normalizarStatusResumo(statuses: TurnoOpStatusV2[]): RelatorioResumoIte
   }
 
   return 'misto'
+}
+
+function consolidarTurnosOpsRelatorio(
+  turnosOps: TurnoOpRow[],
+  demandas: TurnoSetorDemandaRow[]
+): TurnoOpRow[] {
+  const opsConsolidadas = consolidarOpsPorDemandas(
+    turnosOps.map((op) => ({
+      id: op.id,
+      quantidadePlanejada: op.quantidade_planejada,
+      quantidadeRealizada: op.quantidade_realizada,
+      quantidadePlanejadaRemanescente: Math.max(
+        op.quantidade_planejada - op.quantidade_realizada,
+        0
+      ),
+      status: op.status as TurnoOpStatusV2,
+    })),
+    demandas.map((demanda) => ({
+      turnoOpId: demanda.turno_op_id,
+      quantidadeRealizada: demanda.quantidade_realizada,
+      status: demanda.status as 'planejada' | 'aberta' | 'em_andamento' | 'concluida' | 'encerrada_manualmente',
+    }))
+  )
+
+  const opOriginalPorId = new Map(turnosOps.map((op) => [op.id, op]))
+
+  return opsConsolidadas.reduce<TurnoOpRow[]>((acumulado, opConsolidada) => {
+    const opOriginal = opOriginalPorId.get(opConsolidada.id)
+
+    if (!opOriginal) {
+      return acumulado
+    }
+
+    acumulado.push({
+      ...opOriginal,
+      quantidade_realizada: opConsolidada.quantidadeRealizada,
+      status: opConsolidada.status,
+    })
+
+    return acumulado
+  }, [])
 }
 
 async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseRelatorioV2> {
@@ -249,28 +309,59 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
   }
 
   const turnoOpIds = (turnosOps ?? []).map((op) => op.id)
-  const { data: secoes, error: secoesError } =
+  const [{ data: secoes, error: secoesError }, { data: demandas, error: demandasError }] =
     turnoOpIds.length === 0
-      ? { data: [] as TurnoSetorOpRow[], error: null }
-      : await (() => {
-          let secoesQuery = supabase
-            .from('turno_setor_ops')
-            .select('id, turno_op_id, setor_id, quantidade_planejada, quantidade_realizada, status')
-            .in('turno_op_id', turnoOpIds)
-            .order('created_at', { ascending: true })
+      ? [
+          { data: [] as TurnoSetorOpRow[], error: null },
+          { data: [] as TurnoSetorDemandaRow[], error: null },
+        ]
+      : await Promise.all([
+          (() => {
+            let secoesQuery = supabase
+              .from('turno_setor_ops')
+              .select('id, turno_op_id, setor_id, quantidade_planejada, quantidade_realizada, status')
+              .in('turno_op_id', turnoOpIds)
+              .order('created_at', { ascending: true })
 
-          if (filtros.setorId) {
-            secoesQuery = secoesQuery.eq('setor_id', filtros.setorId)
-          }
+            if (filtros.setorId) {
+              secoesQuery = secoesQuery.eq('setor_id', filtros.setorId)
+            }
 
-          return secoesQuery.returns<TurnoSetorOpRow[]>()
-        })()
+            return secoesQuery.returns<TurnoSetorOpRow[]>()
+          })(),
+          (() => {
+            let demandasQuery = supabase
+              .from('turno_setor_demandas')
+              .select(
+                'id, turno_setor_id, turno_op_id, setor_id, turno_setor_op_legacy_id, quantidade_planejada, quantidade_realizada, status'
+              )
+              .in('turno_op_id', turnoOpIds)
+              .order('created_at', { ascending: true })
+
+            if (filtros.setorId) {
+              demandasQuery = demandasQuery.eq('setor_id', filtros.setorId)
+            }
+
+            return demandasQuery.returns<TurnoSetorDemandaRow[]>()
+          })(),
+        ])
 
   if (secoesError) {
     throw new Error(`Erro ao buscar seções do relatório V2: ${secoesError.message}`)
   }
 
+  if (demandasError) {
+    throw new Error(`Erro ao buscar demandas setoriais do relatório V2: ${demandasError.message}`)
+  }
+
   const secaoIds = (secoes ?? []).map((secao) => secao.id)
+  const setorIds = Array.from(
+    new Set(
+      [...(secoes ?? []).map((secao) => secao.setor_id), ...(demandas ?? []).map((demanda) => demanda.setor_id)].filter(
+        isStringPreenchida
+      )
+    )
+  )
   const [
     { data: turnosSetorOperacoes, error: operacoesTurnoError },
     { data: setores, error: setoresError },
@@ -279,16 +370,18 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
       ? Promise.resolve<{ data: TurnoSetorOperacaoRow[]; error: null }>({ data: [], error: null })
       : supabase
           .from('turno_setor_operacoes')
-          .select('id, turno_op_id, turno_setor_op_id, operacao_id, quantidade_realizada, status')
-          .in('turno_setor_op_id', secaoIds)
+          .select(
+            'id, turno_op_id, turno_setor_op_id, turno_setor_demanda_id, operacao_id, quantidade_realizada, status'
+          )
+          .in('turno_op_id', turnoOpIds)
           .order('created_at', { ascending: true })
           .returns<TurnoSetorOperacaoRow[]>(),
-    secaoIds.length === 0
+    setorIds.length === 0
       ? Promise.resolve<{ data: SetorResumoRow[]; error: null }>({ data: [], error: null })
       : supabase
           .from('setores')
           .select('id, nome')
-          .in('id', Array.from(new Set((secoes ?? []).map((secao) => secao.setor_id).filter(Boolean))))
+          .in('id', setorIds)
           .returns<SetorResumoRow[]>(),
   ])
 
@@ -303,6 +396,7 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
   }
 
   const turnoSetorOperacaoIds = (turnosSetorOperacoes ?? []).map((operacao) => operacao.id)
+  const turnosOpsConsolidadas = consolidarTurnosOpsRelatorio(turnosOps ?? [], demandas ?? [])
 
   const registrosResult = await (
     turnoSetorOperacaoIds.length === 0
@@ -407,10 +501,11 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
     produtos: produtosResult.data ?? [],
     registros: registrosFiltradosPorOperador,
     registrosLegados,
+    demandas: demandas ?? [],
     secoes: secoes ?? [],
     setores: setores ?? [],
     turnos: turnos ?? [],
-    turnosOps: turnosOps ?? [],
+    turnosOps: turnosOpsConsolidadas,
     turnosSetorOperacoes: turnosSetorOperacoes ?? [],
   }
 }
@@ -422,10 +517,10 @@ function construirResumoRelatorio(
   const comparativo = construirComparativoRelatorio(base, filtros)
   const totalPlanejado = comparativo.reduce((soma, item) => soma + item.planejado, 0)
   const totalRealizado = comparativo.reduce((soma, item) => soma + item.realizado, 0)
-  const secoesConcluidas = base.secoes.filter(
-    (secao) => secao.status === 'concluida' || secao.status === 'encerrada_manualmente'
+  const secoesConcluidas = base.demandas.filter(
+    (demanda) => demanda.status === 'concluida' || demanda.status === 'encerrada_manualmente'
   ).length
-  const secoesPendentes = Math.max(base.secoes.length - secoesConcluidas, 0)
+  const secoesPendentes = Math.max(base.demandas.length - secoesConcluidas, 0)
   const quantidadeApontadaFiltro = [...base.registros, ...base.registrosLegados].reduce(
     (soma, registro) => soma + (registro.quantidade ?? 0),
     0
@@ -465,8 +560,8 @@ function construirComparativoRelatorio(
   if (filtros.setorId) {
     const opPorId = new Map(base.turnosOps.map((op) => [op.id, op]))
 
-    for (const secao of base.secoes) {
-      const op = opPorId.get(secao.turno_op_id)
+    for (const demanda of base.demandas) {
+      const op = opPorId.get(demanda.turno_op_id)
       if (!op) {
         continue
       }
@@ -478,8 +573,8 @@ function construirComparativoRelatorio(
 
       const data = obterDataLocalTurno(turno.iniciado_em)
       const acumulado = comparativoPorData.get(data) ?? { data, planejado: 0, realizado: 0 }
-      acumulado.planejado += secao.quantidade_planejada
-      acumulado.realizado += secao.quantidade_realizada
+      acumulado.planejado += demanda.quantidade_planejada
+      acumulado.realizado += demanda.quantidade_realizada
       comparativoPorData.set(data, acumulado)
     }
   } else {
@@ -536,6 +631,12 @@ function construirItensRelatorio(base: BaseRelatorioV2): RelatorioRegistroItem[]
   const produtosPorId = new Map(base.produtos.map((produto) => [produto.id, produto]))
   const opsPorId = new Map(base.turnosOps.map((op) => [op.id, op]))
   const secoesPorId = new Map(base.secoes.map((secao) => [secao.id, secao]))
+  const demandasPorId = new Map(base.demandas.map((demanda) => [demanda.id, demanda]))
+  const demandasPorSecaoLegadaId = new Map(
+    base.demandas
+      .filter((demanda) => isStringPreenchida(demanda.turno_setor_op_legacy_id))
+      .map((demanda) => [demanda.turno_setor_op_legacy_id, demanda])
+  )
   const setoresPorId = new Map(base.setores.map((setor) => [setor.id, setor]))
   const blocosLegadosPorId = new Map(
     base.blocosLegados.map((bloco) => [bloco.id, bloco])
@@ -551,17 +652,20 @@ function construirItensRelatorio(base: BaseRelatorioV2): RelatorioRegistroItem[]
 
   for (const registro of base.registros) {
     const op = opsPorId.get(registro.turno_op_id ?? '')
-    const secao = secoesPorId.get(registro.turno_setor_op_id ?? '')
     const operacaoTurno = operacoesTurnoPorId.get(registro.turno_setor_operacao_id ?? '')
     const operador = operadoresPorId.get(registro.operador_id ?? '')
+    const demanda =
+      demandasPorId.get(operacaoTurno?.turno_setor_demanda_id ?? '') ??
+      demandasPorSecaoLegadaId.get(registro.turno_setor_op_id ?? '') ??
+      demandasPorSecaoLegadaId.get(operacaoTurno?.turno_setor_op_id ?? '')
 
-    if (!op || !secao || !operacaoTurno || !operador) {
+    if (!op || !demanda || !operacaoTurno || !operador) {
       continue
     }
 
     const turno = turnosPorId.get(op.turno_id)
     const produto = produtosPorId.get(op.produto_id)
-    const setor = setoresPorId.get(secao.setor_id)
+    const setor = setoresPorId.get(demanda.setor_id)
     const operacao = operacoesPorId.get(operacaoTurno.operacao_id)
 
     if (!turno || !produto || !setor || !operacao) {
@@ -592,7 +696,7 @@ function construirItensRelatorio(base: BaseRelatorioV2): RelatorioRegistroItem[]
       numeroOp: op.numero_op,
       produtoReferencia: produto.referencia,
       produtoNome: produto.nome,
-      turnoSetorOpId: secao.id,
+      turnoSetorOpId: demanda.turno_setor_op_legacy_id ?? operacaoTurno.turno_setor_op_id,
       setorId: setor.id,
       setorNome: setor.nome,
       turnoSetorOperacaoId: operacaoTurno.id,
@@ -603,10 +707,10 @@ function construirItensRelatorio(base: BaseRelatorioV2): RelatorioRegistroItem[]
       operadorNome: operador.nome,
       quantidadeApontada: registro.quantidade ?? 0,
       quantidadeRealizadaOperacao: operacaoTurno.quantidade_realizada,
-      quantidadeRealizadaSecao: secao.quantidade_realizada,
+      quantidadeRealizadaSecao: demanda.quantidade_realizada,
       quantidadeRealizadaOp: op.quantidade_realizada,
       statusOperacao: operacaoTurno.status as RelatorioRegistroItem['statusOperacao'],
-      statusSecao: secao.status as RelatorioRegistroItem['statusSecao'],
+      statusSecao: demanda.status as RelatorioRegistroItem['statusSecao'],
       statusOp: op.status as RelatorioRegistroItem['statusOp'],
       ultimaLeituraEm,
     })

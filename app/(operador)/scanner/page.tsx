@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { ConfirmacaoRegistro } from '@/components/scanner/ConfirmacaoRegistro'
 import { QRScanner } from '@/components/scanner/QRScanner'
+import { SelecaoDemandaScanner } from '@/components/scanner/SelecaoDemandaScanner'
 import { SelecaoOperacaoScanner } from '@/components/scanner/SelecaoOperacaoScanner'
 import { useScanner } from '@/hooks'
 import { registrarProducaoOperacao } from '@/lib/actions/producao'
@@ -21,34 +22,41 @@ import { descreverTipoQRCode } from '@/lib/utils/qrcode'
 import type { QRScanResult, QRTipo } from '@/types'
 
 const ETAPAS_FLUXO = [
-  { id: 'scan_secao', label: 'Seção' },
+  { id: 'scan_setor', label: 'Setor' },
   { id: 'scan_operador', label: 'Operador' },
+  { id: 'selecionar_demanda', label: 'OP/Produto' },
   { id: 'selecionar_operacao', label: 'Operação' },
   { id: 'informar_quantidade', label: 'Quantidade' },
 ] as const
 
 const ETAPAS_CONFIG = {
-  scan_secao: {
-    tipoEsperado: 'setor-op' as QRTipo,
+  scan_setor: {
+    tipoEsperado: 'turno-setor' as QRTipo,
     titulo: 'Escaneie o QR operacional',
-    descricao: 'Leia o QR temporário do setor e da OP para abrir a seção do turno.',
+    descricao: 'Leia o QR temporário do setor do turno para abrir a estrutura operacional ativa.',
   },
   scan_operador: {
     tipoEsperado: 'operador' as QRTipo,
     titulo: 'Escaneie o operador',
-    descricao: 'Com a seção já aberta, leia o QR do operador que executou a produção.',
+    descricao: 'Com o setor já aberto, leia o QR do operador que executou a produção.',
+  },
+  selecionar_demanda: {
+    tipoEsperado: null,
+    titulo: 'Selecione a OP/produto',
+    descricao:
+      'Escolha qual OP/produto será apontada dentro do setor aberto antes de selecionar a operação executada.',
   },
   selecionar_operacao: {
     tipoEsperado: null,
     titulo: 'Selecione a operação',
     descricao:
-      'Revise as operações planejadas da seção, escolha o trabalho executado e siga para informar a quantidade incremental.',
+      'Revise as operações planejadas da OP/produto escolhida, selecione o trabalho executado e siga para informar a quantidade incremental.',
   },
   informar_quantidade: {
     tipoEsperado: null,
     titulo: 'Confirmar quantidade',
     descricao:
-      'Revise a operação escolhida na seção aberta, informe a quantidade executada e siga para o lançamento atômico.',
+      'Revise a operação escolhida na demanda aberta, informe a quantidade executada e siga para o lançamento atômico.',
   },
   registrar: {
     tipoEsperado: null,
@@ -121,10 +129,12 @@ export default function ScannerPage() {
     estado,
     erro,
     estaCarregando,
-    scanSecao,
+    scanSetor,
     scanOperador,
+    selecionarDemanda,
     selecionarOperacao,
     registrar,
+    trocarDemanda,
     trocarOperacao,
     trocarOperador,
     reiniciarTotal,
@@ -163,8 +173,8 @@ export default function ScannerPage() {
     }
 
     const resposta =
-      estado.etapa === 'scan_secao'
-        ? await scanSecao(resultado.token)
+      estado.etapa === 'scan_setor'
+        ? await scanSetor(resultado.token)
         : await scanOperador(resultado.token)
 
     if (!resposta.sucesso && resposta.erro) {
@@ -173,7 +183,8 @@ export default function ScannerPage() {
     }
   }
 
-  const secaoAtual = 'secao' in estado ? estado.secao : null
+  const setorAtual = 'setor' in estado ? estado.setor : null
+  const demandaAtual = 'demandaSelecionada' in estado ? estado.demandaSelecionada : null
 
   if (!scannerV2Habilitado) {
     return (
@@ -266,7 +277,7 @@ export default function ScannerPage() {
               Setor
             </div>
             <p className="mt-3 text-sm font-medium text-white">
-              {secaoAtual ? secaoAtual.setorNome : 'Aguardando leitura'}
+              {setorAtual ? setorAtual.setorNome : 'Aguardando leitura'}
             </p>
           </div>
 
@@ -276,7 +287,7 @@ export default function ScannerPage() {
               OP
             </div>
             <p className="mt-3 text-sm font-medium text-white">
-              {secaoAtual ? secaoAtual.numeroOp : 'Aguardando leitura'}
+              {demandaAtual ? demandaAtual.numeroOp : 'Aguardando seleção'}
             </p>
           </div>
 
@@ -286,18 +297,25 @@ export default function ScannerPage() {
               Saldo
             </div>
             <p className="mt-3 text-sm font-medium text-white">
-              {secaoAtual ? String(secaoAtual.saldoRestante) : 'Aguardando leitura'}
+              {demandaAtual
+                ? String(demandaAtual.saldoRestante)
+                : setorAtual
+                  ? String(setorAtual.saldoRestante)
+                  : 'Aguardando leitura'}
             </p>
           </div>
         </section>
 
-        {secaoAtual ? (
+        {setorAtual ? (
           <section className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 text-sm text-slate-200 backdrop-blur-md">
             <p className="font-semibold text-white">
-              {secaoAtual.produtoReferencia} · {secaoAtual.produtoNome}
+              {setorAtual.setorNome}
+              {demandaAtual
+                ? ` · ${demandaAtual.produtoReferencia} · ${demandaAtual.produtoNome}`
+                : ''}
             </p>
             <p className="mt-2 text-slate-300">
-              Turno aberto em {formatarTurnoResumido(secaoAtual.turnoIniciadoEm)}
+              Turno aberto em {formatarTurnoResumido(setorAtual.turnoIniciadoEm)}
             </p>
           </section>
         ) : null}
@@ -321,7 +339,7 @@ export default function ScannerPage() {
           </section>
         ) : null}
 
-        {estado.etapa === 'scan_secao' || estado.etapa === 'scan_operador' ? (
+        {estado.etapa === 'scan_setor' || estado.etapa === 'scan_operador' ? (
           <section className="space-y-4">
             <div className="rounded-[28px] border border-cyan-400/15 bg-cyan-400/8 p-4 text-sm leading-6 text-cyan-50">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100/80">
@@ -329,9 +347,9 @@ export default function ScannerPage() {
               </p>
               <p className="mt-2 font-semibold text-white">{etapaAtual.titulo}</p>
               <p className="mt-2">
-                {estado.etapa === 'scan_secao'
-                  ? 'Aponte a câmera para o QR temporário do setor + OP. Depois disso, a mesma seção fica aberta para as próximas leituras.'
-                  : 'Com a seção aberta, leia o QR do operador que executou esta produção. O scanner avança sozinho para a escolha da operação.'}
+                {estado.etapa === 'scan_setor'
+                  ? 'Aponte a câmera para o QR temporário do setor do turno. Depois disso, o mesmo setor fica aberto para as próximas leituras.'
+                  : 'Com o setor aberto, leia o QR do operador que executou esta produção. O scanner avança sozinho para a escolha da OP/produto.'}
               </p>
             </div>
 
@@ -348,19 +366,37 @@ export default function ScannerPage() {
               }}
             />
           </section>
+        ) : estado.etapa === 'selecionar_demanda' ? (
+          <SelecaoDemandaScanner
+            demandas={estado.demandas}
+            operador={estado.operador}
+            onSelecionarDemanda={async (demandaId) => {
+              const resposta = await selecionarDemanda(demandaId)
+
+              if (!resposta.sucesso && resposta.erro) {
+                setTipoMensagem('erro')
+                setMensagemTela(resposta.erro)
+              }
+            }}
+            onTrocarOperador={trocarOperador}
+            setor={estado.setor}
+          />
         ) : estado.etapa === 'selecionar_operacao' ? (
           <SelecaoOperacaoScanner
+            demandaSelecionada={estado.demandaSelecionada}
             operacoes={estado.operacoes}
             operador={estado.operador}
             onSelecionarOperacao={selecionarOperacao}
+            onTrocarDemanda={trocarDemanda}
             onTrocarOperador={trocarOperador}
-            secao={estado.secao}
+            setor={estado.setor}
           />
         ) : (
           <ConfirmacaoRegistro
+            demandaSelecionada={estado.demandaSelecionada}
             operacaoSelecionada={estado.operacaoSelecionada}
             operador={estado.operador}
-            secao={estado.secao}
+            setor={estado.setor}
             estaRegistrando={estaCarregando}
             onNovaQuantidade={() => {
               setMensagemTela(null)
@@ -371,6 +407,7 @@ export default function ScannerPage() {
               setMensagemTela(mensagem)
             }}
             onReiniciarTudo={reiniciarTotal}
+            onTrocarDemanda={trocarDemanda}
             onTrocarOperacao={trocarOperacao}
             onTrocarOperador={trocarOperador}
           />

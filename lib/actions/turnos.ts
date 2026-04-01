@@ -9,6 +9,7 @@ import { buscarPlanejamentoTurnoPorId } from '@/lib/queries/turnos'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type {
   AdicionarTurnoOpV2Input,
+  CarregarPendenciasTurnoAnteriorInput,
   CriarTurnoV2Input,
   EditarTurnoOpV2Input,
   FormActionState,
@@ -24,6 +25,7 @@ type TurnoOperadorInsert = TablesInsert<'turno_operadores'>
 type TurnoOpRow = Tables<'turno_ops'>
 type TurnoOpInsert = TablesInsert<'turno_ops'>
 type TurnoOpUpdate = TablesUpdate<'turno_ops'>
+type TurnoSetorDemandaRow = Tables<'turno_setor_demandas'>
 type TurnoSetorOpRow = Tables<'turno_setor_ops'>
 
 type ProdutoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia' | 'ativo'>
@@ -43,6 +45,24 @@ interface ResultadoActionTurno<T> extends FormActionState {
 
 export interface AbrirTurnoV2ActionState extends FormActionState {
   turnoId?: string
+}
+
+interface TurnoOpInsercaoInput extends TurnoOpPlanejadaInput {
+  quantidadePlanejadaOriginal?: number
+  quantidadePlanejadaRemanescente?: number
+  turnoOpOrigemId?: string | null
+}
+
+interface TurnoOpCarryOver {
+  id: string
+  numeroOp: string
+  produtoId: string
+  quantidadePlanejada: number
+  quantidadePlanejadaOriginal: number
+  quantidadePlanejadaRemanescente: number
+  quantidadeRealizada: number
+  turnoOpOrigemId: string | null
+  status: TurnoOpRow['status']
 }
 
 function inteiroPositivo(valor: number): boolean {
@@ -66,6 +86,11 @@ function obterInteiro(formData: FormData, campo: string): number {
 function obterTexto(formData: FormData, campo: string): string {
   const valor = formData.get(campo)
   return typeof valor === 'string' ? valor.trim() : ''
+}
+
+function obterBooleano(formData: FormData, campo: string): boolean {
+  const valor = formData.get(campo)
+  return valor === 'true'
 }
 
 function validarTurnoOpPlanejada(value: unknown): value is TurnoOpPlanejadaInput {
@@ -100,7 +125,7 @@ function parseTurnoOpsPlanejadas(raw: string): { data?: TurnoOpPlanejadaInput[];
   }
 }
 
-function parseOperadorIds(raw: string): { data?: string[]; erro?: string } {
+function parseStringArray(raw: string, nomeCampo: string): { data?: string[]; erro?: string } {
   if (!raw) {
     return { data: [] }
   }
@@ -109,12 +134,12 @@ function parseOperadorIds(raw: string): { data?: string[]; erro?: string } {
     const parsed = JSON.parse(raw) as unknown
 
     if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) {
-      return { erro: 'A lista de operadores selecionados é inválida.' }
+      return { erro: `A lista de ${nomeCampo} é inválida.` }
     }
 
     return { data: parsed }
   } catch {
-    return { erro: 'Não foi possível ler os operadores selecionados do formulário.' }
+    return { erro: `Não foi possível ler ${nomeCampo} do formulário.` }
   }
 }
 
@@ -255,7 +280,7 @@ async function validarProdutoPlanejado(
   const possuiOperacaoSemSetor = operacoes.some((operacao) => operacao.setor_id === null)
   if (possuiOperacaoSemSetor) {
     return {
-      erro: `O produto ${produto.nome} possui operações sem setor e não pode derivar seções do turno.`,
+      erro: `O produto ${produto.nome} possui operações sem setor e não pode derivar demandas setoriais do turno.`,
     }
   }
 
@@ -286,9 +311,175 @@ async function buscarTurnoAbertoRow(): Promise<TurnoRow | null> {
   return data
 }
 
+async function buscarUltimoTurnoEncerradoRow(): Promise<TurnoRow | null> {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('turnos')
+    .select(
+      'id, iniciado_em, encerrado_em, operadores_disponiveis, minutos_turno, status, observacao, created_at, updated_at'
+    )
+    .eq('status', 'encerrado')
+    .order('encerrado_em', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .returns<TurnoRow[]>()
+
+  if (error || !data || data.length === 0) {
+    return null
+  }
+
+  return data[0]
+}
+
+async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
+  data?: TurnoOpCarryOver[]
+  erro?: string
+}> {
+  const supabase = createAdminClient()
+
+  const { data: ops, error: opsError } = await supabase
+    .from('turno_ops')
+    .select(
+      'id, numero_op, produto_id, quantidade_planejada, quantidade_planejada_original, quantidade_planejada_remanescente, quantidade_realizada, turno_op_origem_id, status'
+    )
+    .eq('turno_id', turnoId)
+    .order('created_at', { ascending: true })
+    .returns<
+      Pick<
+        TurnoOpRow,
+        | 'id'
+        | 'numero_op'
+        | 'produto_id'
+        | 'quantidade_planejada'
+        | 'quantidade_planejada_original'
+        | 'quantidade_planejada_remanescente'
+        | 'quantidade_realizada'
+        | 'turno_op_origem_id'
+        | 'status'
+      >[]
+    >()
+
+  if (opsError) {
+    return { erro: `Erro ao listar OPs para carry-over: ${opsError.message}` }
+  }
+
+  const { data: demandas, error: demandasError } = await supabase
+    .from('turno_setor_demandas')
+    .select('turno_op_id, quantidade_planejada, quantidade_realizada')
+    .eq('turno_id', turnoId)
+    .returns<
+      Pick<TurnoSetorDemandaRow, 'turno_op_id' | 'quantidade_planejada' | 'quantidade_realizada'>[]
+    >()
+
+  if (demandasError) {
+    return {
+      erro: `Erro ao consolidar demandas setoriais para carry-over: ${demandasError.message}`,
+    }
+  }
+
+  const demandasPorTurnoOpId = new Map<string, TurnoSetorDemandaRow[]>()
+
+  for (const demanda of demandas ?? []) {
+    const demandasTurnoOp = demandasPorTurnoOpId.get(demanda.turno_op_id) ?? []
+    demandasTurnoOp.push(demanda as TurnoSetorDemandaRow)
+    demandasPorTurnoOpId.set(demanda.turno_op_id, demandasTurnoOp)
+  }
+
+  return {
+    data: (ops ?? []).map((op) => {
+      const demandasTurnoOp = demandasPorTurnoOpId.get(op.id) ?? []
+      const quantidadeRealizadaConsolidada =
+        demandasTurnoOp.length > 0
+          ? Math.min(...demandasTurnoOp.map((demanda) => demanda.quantidade_realizada))
+          : op.quantidade_realizada
+
+      const quantidadeRealizada = Math.max(
+        0,
+        Math.min(op.quantidade_planejada, quantidadeRealizadaConsolidada)
+      )
+      const quantidadePlanejadaRemanescente = Math.max(op.quantidade_planejada - quantidadeRealizada, 0)
+
+      return {
+        id: op.id,
+        numeroOp: op.numero_op,
+        produtoId: op.produto_id,
+        quantidadePlanejada: op.quantidade_planejada,
+        quantidadePlanejadaOriginal: op.quantidade_planejada_original,
+        quantidadePlanejadaRemanescente,
+        quantidadeRealizada,
+        turnoOpOrigemId: op.turno_op_origem_id,
+        status: op.status,
+      }
+    }),
+  }
+}
+
+async function atualizarSaldosTurnoOps(turnoId: string): Promise<{ erro?: string }> {
+  const supabase = createAdminClient()
+  const { data: opsCarryOver, erro } = await listarTurnoOpsCarryOver(turnoId)
+
+  if (erro || !opsCarryOver) {
+    return { erro }
+  }
+
+  for (const op of opsCarryOver) {
+    const payload: TurnoOpUpdate = {
+      quantidade_realizada: op.quantidadeRealizada,
+      quantidade_planejada_remanescente: op.quantidadePlanejadaRemanescente,
+      quantidade_planejada_original: op.quantidadePlanejadaOriginal,
+      status: op.quantidadePlanejadaRemanescente === 0 ? 'concluida' : undefined,
+    }
+
+    const { error } = await supabase.from('turno_ops').update(payload).eq('id', op.id)
+    if (error) {
+      return { erro: `Erro ao atualizar saldo remanescente da OP ${op.numeroOp}: ${error.message}` }
+    }
+  }
+
+  return {}
+}
+
+async function selecionarPendenciasTurnoAnterior(
+  turnoOrigemId: string,
+  turnoOpIds?: string[]
+): Promise<{ data?: TurnoOpCarryOver[]; erro?: string }> {
+  const { data: opsCarryOver, erro } = await listarTurnoOpsCarryOver(turnoOrigemId)
+
+  if (erro || !opsCarryOver) {
+    return { erro }
+  }
+
+  const pendencias = opsCarryOver.filter((op) => op.quantidadePlanejadaRemanescente > 0)
+
+  if (pendencias.length === 0) {
+    return {
+      erro: 'O turno anterior não possui pendências com saldo remanescente para carry-over.',
+    }
+  }
+
+  if (!turnoOpIds || turnoOpIds.length === 0) {
+    return { data: pendencias }
+  }
+
+  const idsSelecionados = new Set(turnoOpIds.filter(Boolean))
+  const pendenciasSelecionadas = pendencias.filter((op) => idsSelecionados.has(op.id))
+
+  if (pendenciasSelecionadas.length !== idsSelecionados.size) {
+    return {
+      erro: 'Uma ou mais OPs selecionadas para carry-over não pertencem às pendências do turno de origem.',
+    }
+  }
+
+  return { data: pendenciasSelecionadas }
+}
+
 async function encerrarTurnoInternamente(turnoId: string): Promise<{ erro?: string }> {
   const supabase = createAdminClient()
   const encerradoEm = new Date().toISOString()
+
+  const { erro: erroSaldos } = await atualizarSaldosTurnoOps(turnoId)
+  if (erroSaldos) {
+    return { erro: erroSaldos }
+  }
 
   const { error: secoesError } = await supabase
     .from('turno_setor_ops')
@@ -301,6 +492,32 @@ async function encerrarTurnoInternamente(turnoId: string): Promise<{ erro?: stri
 
   if (secoesError) {
     return { erro: `Erro ao encerrar seções do turno: ${secoesError.message}` }
+  }
+
+  const { error: demandasError } = await supabase
+    .from('turno_setor_demandas')
+    .update({
+      status: 'encerrada_manualmente',
+      encerrado_em: encerradoEm,
+    })
+    .eq('turno_id', turnoId)
+    .in('status', ['planejada', 'aberta', 'em_andamento'])
+
+  if (demandasError) {
+    return { erro: `Erro ao encerrar demandas setoriais do turno: ${demandasError.message}` }
+  }
+
+  const { error: setoresError } = await supabase
+    .from('turno_setores')
+    .update({
+      status: 'encerrada_manualmente',
+      encerrado_em: encerradoEm,
+    })
+    .eq('turno_id', turnoId)
+    .in('status', ['planejada', 'aberta', 'em_andamento'])
+
+  if (setoresError) {
+    return { erro: `Erro ao encerrar setores ativos do turno: ${setoresError.message}` }
   }
 
   const { error: opsError } = await supabase
@@ -332,7 +549,7 @@ async function encerrarTurnoInternamente(turnoId: string): Promise<{ erro?: stri
 
 async function inserirTurnoOp(
   turnoId: string,
-  input: TurnoOpPlanejadaInput
+  input: TurnoOpInsercaoInput
 ): Promise<{ turnoOp?: TurnoOpRow; erro?: string }> {
   const supabase = createAdminClient()
   const numeroOp = normalizarTexto(input.numeroOp)
@@ -357,6 +574,10 @@ async function inserirTurnoOp(
     numero_op: numeroOp,
     produto_id: input.produtoId,
     quantidade_planejada: input.quantidadePlanejada,
+    quantidade_planejada_original: input.quantidadePlanejadaOriginal ?? input.quantidadePlanejada,
+    quantidade_planejada_remanescente:
+      input.quantidadePlanejadaRemanescente ?? input.quantidadePlanejada,
+    turno_op_origem_id: input.turnoOpOrigemId ?? null,
   }
 
   const { data, error } = await supabase
@@ -374,6 +595,36 @@ async function inserirTurnoOp(
   return { turnoOp: data }
 }
 
+async function carregarPendenciasTurnoAnteriorInternamente(
+  input: CarregarPendenciasTurnoAnteriorInput
+): Promise<{ erro?: string }> {
+  const { data: pendenciasSelecionadas, erro } = await selecionarPendenciasTurnoAnterior(
+    input.turnoOrigemId,
+    input.turnoOpIds
+  )
+
+  if (erro || !pendenciasSelecionadas) {
+    return { erro }
+  }
+
+  for (const pendencia of pendenciasSelecionadas) {
+    const { erro: erroInsercao } = await inserirTurnoOp(input.turnoDestinoId, {
+      numeroOp: pendencia.numeroOp,
+      produtoId: pendencia.produtoId,
+      quantidadePlanejada: pendencia.quantidadePlanejadaRemanescente,
+      quantidadePlanejadaOriginal: pendencia.quantidadePlanejadaOriginal,
+      quantidadePlanejadaRemanescente: pendencia.quantidadePlanejadaRemanescente,
+      turnoOpOrigemId: pendencia.turnoOpOrigemId ?? pendencia.id,
+    })
+
+    if (erroInsercao) {
+      return { erro: erroInsercao }
+    }
+  }
+
+  return {}
+}
+
 export async function abrirTurno(
   input: CriarTurnoV2Input
 ): Promise<ResultadoActionTurno<PlanejamentoTurnoV2>> {
@@ -389,10 +640,10 @@ export async function abrirTurno(
     }
   }
 
-  if (input.ops.length === 0) {
+  if (input.ops.length === 0 && !input.carregarPendenciasTurnoAnterior) {
     return {
       sucesso: false,
-      erro: 'Informe pelo menos uma OP para abrir o turno.',
+      erro: 'Informe pelo menos uma OP ou carregue pendências do turno anterior para abrir o turno.',
     }
   }
 
@@ -425,6 +676,48 @@ export async function abrirTurno(
 
   try {
     const turnoAberto = await buscarTurnoAbertoRow()
+    let turnoOrigemPendenciasId = normalizarTexto(input.turnoOrigemPendenciasId ?? '') || null
+    let pendenciasSelecionadas: TurnoOpCarryOver[] = []
+
+    if (input.carregarPendenciasTurnoAnterior) {
+      if (!turnoOrigemPendenciasId) {
+        turnoOrigemPendenciasId = turnoAberto?.id ?? (await buscarUltimoTurnoEncerradoRow())?.id ?? null
+      }
+
+      if (!turnoOrigemPendenciasId) {
+        return {
+          sucesso: false,
+          erro: 'Nenhum turno anterior com pendências foi encontrado para carry-over.',
+        }
+      }
+
+      const { data: pendencias, erro: erroPendencias } = await selecionarPendenciasTurnoAnterior(
+        turnoOrigemPendenciasId,
+        input.turnoOpIdsPendentes
+      )
+
+      if (erroPendencias || !pendencias) {
+        return { sucesso: false, erro: erroPendencias }
+      }
+
+      pendenciasSelecionadas = pendencias
+    }
+
+    const numerosOpNovoTurno = new Set<string>()
+
+    for (const op of input.ops) {
+      numerosOpNovoTurno.add(normalizarTexto(op.numeroOp))
+    }
+
+    for (const pendencia of pendenciasSelecionadas) {
+      if (numerosOpNovoTurno.has(normalizarTexto(pendencia.numeroOp))) {
+        return {
+          sucesso: false,
+          erro: `A OP ${pendencia.numeroOp} foi informada manualmente e também selecionada no carry-over.`,
+        }
+      }
+    }
+
     if (turnoAberto) {
       const { erro: erroEncerramentoAtual } = await encerrarTurnoInternamente(turnoAberto.id)
       if (erroEncerramentoAtual) {
@@ -459,6 +752,18 @@ export async function abrirTurno(
     const erroOperadores = await validarOperadores(turno.id, input.operadorIds ?? [])
     if (erroOperadores) {
       throw new Error(erroOperadores)
+    }
+
+    if (input.carregarPendenciasTurnoAnterior && turnoOrigemPendenciasId) {
+      const { erro: erroCarryOver } = await carregarPendenciasTurnoAnteriorInternamente({
+        turnoOrigemId: turnoOrigemPendenciasId,
+        turnoDestinoId: turno.id,
+        turnoOpIds: input.turnoOpIdsPendentes,
+      })
+
+      if (erroCarryOver) {
+        throw new Error(erroCarryOver)
+      }
     }
 
     for (const op of input.ops) {
@@ -572,7 +877,7 @@ export async function editarOpDoTurno(
   const { data: turnoOpAtual, error: turnoOpError } = await supabase
     .from('turno_ops')
     .select(
-      'id, turno_id, numero_op, produto_id, quantidade_planejada, quantidade_realizada, status, iniciado_em, encerrado_em, created_at, updated_at'
+      'id, turno_id, numero_op, produto_id, quantidade_planejada, quantidade_planejada_original, quantidade_planejada_remanescente, quantidade_realizada, turno_op_origem_id, status, iniciado_em, encerrado_em, created_at, updated_at'
     )
     .eq('id', input.turnoOpId)
     .maybeSingle<TurnoOpRow>()
@@ -607,20 +912,20 @@ export async function editarOpDoTurno(
       return { sucesso: false, erro: erroProduto }
     }
 
-    const { data: secoes, error: secoesError } = await supabase
-      .from('turno_setor_ops')
+    const { data: demandas, error: demandasError } = await supabase
+      .from('turno_setor_demandas')
       .select('id, quantidade_realizada')
       .eq('turno_op_id', input.turnoOpId)
-      .returns<Pick<TurnoSetorOpRow, 'id' | 'quantidade_realizada'>[]>()
+      .returns<Pick<TurnoSetorDemandaRow, 'id' | 'quantidade_realizada'>[]>()
 
-    if (secoesError) {
+    if (demandasError) {
       return {
         sucesso: false,
-        erro: `Erro ao validar seções existentes da OP: ${secoesError.message}`,
+        erro: `Erro ao validar demandas setoriais existentes da OP: ${demandasError.message}`,
       }
     }
 
-    const possuiRealizado = (secoes ?? []).some((secao) => secao.quantidade_realizada > 0)
+    const possuiRealizado = (demandas ?? []).some((demanda) => demanda.quantidade_realizada > 0)
     if (possuiRealizado) {
       return {
         sucesso: false,
@@ -649,6 +954,9 @@ export async function editarOpDoTurno(
     numero_op: numeroOp,
     produto_id: input.produtoId,
     quantidade_planejada: input.quantidadePlanejada,
+    quantidade_planejada_original:
+      turnoOpAtual.quantidade_planejada_original ?? input.quantidadePlanejada,
+    quantidade_planejada_remanescente: input.quantidadePlanejada,
   }
 
   const { error: updateError } = await supabase
@@ -716,8 +1024,9 @@ export async function abrirTurnoFormulario(
     }
   }
 
-  const { data: operadorIds, erro: erroOperadores } = parseOperadorIds(
-    obterTexto(formData, 'operador_ids')
+  const { data: operadorIds, erro: erroOperadores } = parseStringArray(
+    obterTexto(formData, 'operador_ids'),
+    'operadores selecionados'
   )
 
   if (erroOperadores || !operadorIds) {
@@ -727,12 +1036,27 @@ export async function abrirTurnoFormulario(
     }
   }
 
+  const { data: turnoOpIdsPendentes, erro: erroPendencias } = parseStringArray(
+    obterTexto(formData, 'turno_op_ids_pendentes'),
+    'as pendências selecionadas'
+  )
+
+  if (erroPendencias || !turnoOpIdsPendentes) {
+    return {
+      sucesso: false,
+      erro: erroPendencias,
+    }
+  }
+
   const resultado = await abrirTurno({
     operadoresDisponiveis: obterInteiro(formData, 'operadores_disponiveis'),
     minutosTurno: obterInteiro(formData, 'minutos_turno'),
     observacao: obterTexto(formData, 'observacao'),
     operadorIds,
     ops,
+    carregarPendenciasTurnoAnterior: obterBooleano(formData, 'carregar_pendencias_turno_anterior'),
+    turnoOrigemPendenciasId: obterTexto(formData, 'turno_origem_pendencias_id') || null,
+    turnoOpIdsPendentes,
   })
 
   if (!resultado.sucesso) {

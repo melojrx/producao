@@ -36,7 +36,7 @@ export function PainelConfiguracaoTurno({
             <h1 className="text-2xl font-bold text-slate-900">Dashboard em tempo real</h1>
             <p className="max-w-3xl text-sm text-slate-600">
               O novo turno define operadores disponíveis, minutos produtivos e as OPs do dia. A
-              partir disso, o sistema deriva automaticamente as seções por setor e alimenta as
+              partir disso, o sistema ativa os setores necessários do turno e alimenta as
               próximas etapas do scanner e do acompanhamento operacional.
             </p>
             <p className="text-sm font-medium text-slate-700">{descricaoConfiguracao}</p>
@@ -62,7 +62,7 @@ export function PainelConfiguracaoTurno({
       {!planejamentoAtual ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
           O dashboard depende da abertura de um turno com operadores e OPs planejadas. Abra o
-          primeiro turno para gerar automaticamente as seções por setor e destravar a operação do dia.
+          primeiro turno para ativar os setores participantes e destravar a operação do dia.
         </div>
       ) : null}
 

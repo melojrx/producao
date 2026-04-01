@@ -2,6 +2,7 @@ import { QR_TIPOS } from '@/lib/constants'
 import type { QRTipo, QRScanResult } from '@/types'
 
 export const QR_TIPO_OPERACIONAL_SETOR_OP = 'setor-op'
+export const QR_TIPO_OPERACIONAL_TURNO_SETOR = 'turno-setor'
 
 export function parseQRCode(raw: string): QRScanResult | null {
   const parts = raw.split(':')
@@ -17,6 +18,11 @@ export function gerarValorQROperacionalSetorOp(token: string): string {
   return `${QR_TIPO_OPERACIONAL_SETOR_OP}:${token}`
 }
 
+// Prefixo novo da Sprint 12 para o QR operacional por turno + setor.
+export function gerarValorQROperacionalTurnoSetor(token: string): string {
+  return `${QR_TIPO_OPERACIONAL_TURNO_SETOR}:${token}`
+}
+
 export function descreverTipoQRCode(tipo: QRTipo): string {
   switch (tipo) {
     case 'operador':
@@ -27,6 +33,8 @@ export function descreverTipoQRCode(tipo: QRTipo): string {
       return 'operação'
     case 'setor-op':
       return 'QR operacional da seção do turno'
+    case 'turno-setor':
+      return 'QR operacional do setor do turno'
     default:
       return tipo
   }

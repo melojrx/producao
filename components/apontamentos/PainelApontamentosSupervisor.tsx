@@ -334,9 +334,11 @@ export function PainelApontamentosSupervisor({
     return null
   }
 
-  const secoesPendentes = secoes.filter((secao) => secao.status !== 'concluida').length
-  const totalPlanejado = secoes.reduce((soma, secao) => soma + secao.quantidadePlanejada, 0)
-  const totalRealizado = secoes.reduce((soma, secao) => soma + secao.quantidadeRealizada, 0)
+  const secoesPendentes = planejamento.demandasSetor?.length
+    ? planejamento.demandasSetor.filter((demanda) => demanda.status !== 'concluida').length
+    : secoes.filter((secao) => secao.status !== 'concluida').length
+  const totalPlanejado = planejamento.ops.reduce((soma, op) => soma + op.quantidadePlanejada, 0)
+  const totalRealizado = planejamento.ops.reduce((soma, op) => soma + op.quantidadeRealizada, 0)
   const saldoSecaoSelecionada = secaoSelecionada
     ? Math.max(secaoSelecionada.quantidadePlanejada - secaoSelecionada.quantidadeRealizada, 0)
     : 0

@@ -213,7 +213,7 @@ export async function registrarProducaoOperacao(
   }
 
   if (!input.turnoSetorOperacaoId) {
-    return { sucesso: false, erro: 'Operação da seção não informada para o apontamento.' }
+    return { sucesso: false, erro: 'Operação da demanda do setor não informada para o apontamento.' }
   }
 
   if (!quantidadeValida(input.quantidade)) {
@@ -240,7 +240,7 @@ export async function registrarProducaoOperacao(
   if (error) {
     return {
       sucesso: false,
-      erro: error.message || 'Não foi possível registrar a produção na operação da seção.',
+      erro: error.message || 'Não foi possível registrar a produção na operação da demanda do setor.',
     }
   }
 

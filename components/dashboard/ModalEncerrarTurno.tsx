@@ -7,7 +7,7 @@ interface ModalEncerrarTurnoProps {
   observacao: string | null
   operadoresAlocados: number
   opsPlanejadas: number
-  secoesPlanejadas: number
+  setoresAtivos: number
   aoCancelar: () => void
   aoConfirmar: () => void
 }
@@ -17,7 +17,7 @@ export function ModalEncerrarTurno({
   observacao,
   operadoresAlocados,
   opsPlanejadas,
-  secoesPlanejadas,
+  setoresAtivos,
   aoCancelar,
   aoConfirmar,
 }: ModalEncerrarTurnoProps) {
@@ -77,9 +77,9 @@ export function ModalEncerrarTurno({
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Seções planejadas
+                Setores ativos
               </p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">{secoesPlanejadas}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">{setoresAtivos}</p>
             </div>
           </section>
 

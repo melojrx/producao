@@ -72,6 +72,15 @@ export function ModalNovoTurnoV2({
     String(planejamentoAtual?.turno.operadoresDisponiveis ?? 20)
   )
   const [ops, setOps] = useState<TurnoOpDraft[]>([criarOpDraft(produtos)])
+  const [carregarPendencias, setCarregarPendencias] = useState(false)
+  const [turnoOpIdsPendentes, setTurnoOpIdsPendentes] = useState<string[]>([])
+  const pendenciasDisponiveis = (planejamentoAtual?.ops ?? []).filter(
+    (op) => op.quantidadePlanejadaRemanescente > 0
+  )
+  const pendenciasDisponiveisKey = pendenciasDisponiveis.map((op) => op.id).join('|')
+  const pendenciasSelecionadas = pendenciasDisponiveis.filter((op) =>
+    turnoOpIdsPendentes.includes(op.id)
+  )
 
   useEffect(() => {
     if (!estado.sucesso) {
@@ -85,25 +94,49 @@ export function ModalNovoTurnoV2({
     router.refresh()
   }, [aoFechar, estado.sucesso, router])
 
+  useEffect(() => {
+    if (pendenciasDisponiveis.length === 0) {
+      setCarregarPendencias(false)
+      setTurnoOpIdsPendentes([])
+      return
+    }
+
+    setTurnoOpIdsPendentes((estadoAtual) =>
+      estadoAtual.filter((turnoOpId) =>
+        pendenciasDisponiveis.some((pendencia) => pendencia.id === turnoOpId)
+      )
+    )
+  }, [pendenciasDisponiveisKey])
+
   function adicionarOp(): void {
     setOps((estadoAtual) => [...estadoAtual, criarOpDraft(produtos)])
     setErroLocal(null)
   }
 
   function removerOp(opId: string): void {
-    setOps((estadoAtual) => {
-      if (estadoAtual.length === 1) {
-        return estadoAtual
-      }
-
-      return estadoAtual.filter((op) => op.id !== opId)
-    })
+    setOps((estadoAtual) => estadoAtual.filter((op) => op.id !== opId))
+    setErroLocal(null)
   }
 
   function atualizarOp(opId: string, atualizacao: Partial<TurnoOpDraft>): void {
     setOps((estadoAtual) =>
       estadoAtual.map((op) => (op.id === opId ? { ...op, ...atualizacao } : op))
     )
+  }
+
+  function alternarCarryOver(ativo: boolean): void {
+    setCarregarPendencias(ativo)
+    setTurnoOpIdsPendentes(ativo ? pendenciasDisponiveis.map((pendencia) => pendencia.id) : [])
+    setErroLocal(null)
+  }
+
+  function alternarPendencia(turnoOpId: string): void {
+    setTurnoOpIdsPendentes((estadoAtual) =>
+      estadoAtual.includes(turnoOpId)
+        ? estadoAtual.filter((id) => id !== turnoOpId)
+        : [...estadoAtual, turnoOpId]
+    )
+    setErroLocal(null)
   }
 
   const payloadOps = JSON.stringify(
@@ -113,10 +146,17 @@ export function ModalNovoTurnoV2({
       quantidadePlanejada: Number.parseInt(op.quantidadePlanejada, 10) || 0,
     }))
   )
-  const quantidadeTotalPlanejada = ops.reduce((soma, op) => {
+  const quantidadeTotalPlanejadaNovasOps = ops.reduce((soma, op) => {
     const quantidade = Number.parseInt(op.quantidadePlanejada, 10)
     return soma + (Number.isInteger(quantidade) ? quantidade : 0)
   }, 0)
+  const quantidadeTotalPendencias = carregarPendencias
+    ? pendenciasSelecionadas.reduce(
+        (soma, pendencia) => soma + pendencia.quantidadePlanejadaRemanescente,
+        0
+      )
+    : 0
+  const quantidadeTotalPlanejada = quantidadeTotalPlanejadaNovasOps + quantidadeTotalPendencias
 
   const existeTurnoAberto = planejamentoAtual?.origem === 'aberto'
   const titulo = 'Novo Turno'
@@ -160,9 +200,13 @@ export function ModalNovoTurnoV2({
           action={executar}
           className="flex flex-col gap-6 p-6"
           onSubmit={(event) => {
-            if (ops.length === 0) {
+            const existeCarryOverSelecionado = carregarPendencias && turnoOpIdsPendentes.length > 0
+
+            if (ops.length === 0 && !existeCarryOverSelecionado) {
               event.preventDefault()
-              setErroLocal('Adicione pelo menos uma OP antes de abrir o turno.')
+              setErroLocal(
+                'Adicione pelo menos uma OP nova ou carregue pendências antes de abrir o turno.'
+              )
               return
             }
 
@@ -182,6 +226,12 @@ export function ModalNovoTurnoV2({
               return
             }
 
+            if (carregarPendencias && turnoOpIdsPendentes.length === 0) {
+              event.preventDefault()
+              setErroLocal('Selecione pelo menos uma pendência para carregar no novo turno.')
+              return
+            }
+
             const quantidadeOperadores = Number.parseInt(operadoresDisponiveis, 10)
             if (!Number.isInteger(quantidadeOperadores) || quantidadeOperadores <= 0) {
               event.preventDefault()
@@ -191,6 +241,22 @@ export function ModalNovoTurnoV2({
           }}
         >
           <input type="hidden" name="ops_planejadas" value={payloadOps} />
+          <input type="hidden" name="operador_ids" value="[]" />
+          <input
+            type="hidden"
+            name="carregar_pendencias_turno_anterior"
+            value={carregarPendencias ? 'true' : 'false'}
+          />
+          <input
+            type="hidden"
+            name="turno_origem_pendencias_id"
+            value={planejamentoAtual?.turno.id ?? ''}
+          />
+          <input
+            type="hidden"
+            name="turno_op_ids_pendentes"
+            value={JSON.stringify(turnoOpIdsPendentes)}
+          />
 
           {existeTurnoAberto ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -268,12 +334,96 @@ export function ModalNovoTurnoV2({
           </section>
 
           <section className="grid gap-4">
+            {pendenciasDisponiveis.length > 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Pendências para carry-over
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      {existeTurnoAberto
+                        ? 'O turno atual será encerrado e você pode carregar o saldo remanescente para o próximo turno.'
+                        : 'Você pode iniciar o novo turno reaproveitando o saldo remanescente do último turno encerrado.'}
+                    </p>
+                  </div>
+
+                  <label className="inline-flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={carregarPendencias}
+                      onChange={(event) => alternarCarryOver(event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Carregar pendências selecionadas
+                  </label>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {pendenciasDisponiveis.map((pendencia) => (
+                    <label
+                      key={pendencia.id}
+                      className={`flex cursor-pointer flex-col gap-3 rounded-2xl border px-4 py-4 transition-colors ${
+                        carregarPendencias && turnoOpIdsPendentes.includes(pendencia.id)
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-slate-200 bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-slate-900">
+                            {pendencia.numeroOp} · {pendencia.produtoNome}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {pendencia.produtoReferencia}
+                          </div>
+                        </div>
+
+                        <input
+                          type="checkbox"
+                          checked={carregarPendencias && turnoOpIdsPendentes.includes(pendencia.id)}
+                          disabled={!carregarPendencias}
+                          onChange={() => alternarPendencia(pendencia.id)}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Selecionar pendência da ${pendencia.numeroOp}`}
+                        />
+                      </div>
+
+                      <div className="grid gap-3 text-xs text-slate-600 sm:grid-cols-3">
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <div className="uppercase tracking-wide text-slate-400">Original</div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {pendencia.quantidadePlanejadaOriginal}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <div className="uppercase tracking-wide text-slate-400">Produzido</div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {pendencia.quantidadeRealizada}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <div className="uppercase tracking-wide text-slate-400">Saldo</div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {pendencia.quantidadePlanejadaRemanescente}
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900">OPs do turno</h3>
+                  <h3 className="text-base font-semibold text-slate-900">Novas OPs do turno</h3>
                   <p className="text-sm text-slate-600">
-                    Cada OP informa produto e quantidade planejada. Os setores serão derivados ao salvar.
+                    Você pode combinar novas OPs com o carry-over carregado. Os setores serão
+                    derivados ao salvar.
                   </p>
                 </div>
 
@@ -288,6 +438,13 @@ export function ModalNovoTurnoV2({
               </div>
 
               <div className="mt-4 space-y-4">
+                {ops.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                    Nenhuma nova OP adicionada. Você ainda pode abrir o turno somente com carry-over
+                    das pendências selecionadas.
+                  </div>
+                ) : null}
+
                 {ops.map((op, index) => (
                   <article
                     key={op.id}
@@ -302,8 +459,7 @@ export function ModalNovoTurnoV2({
                       <button
                         type="button"
                         onClick={() => removerOp(op.id)}
-                        disabled={ops.length === 1}
-                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-red-600"
                         aria-label={`Remover OP ${index + 1}`}
                       >
                         <Trash2 size={16} />
@@ -379,7 +535,7 @@ export function ModalNovoTurnoV2({
             </div>
           </section>
 
-          <section className="grid gap-4 rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-blue-50 p-5 md:grid-cols-3">
+          <section className="grid gap-4 rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-blue-50 p-5 md:grid-cols-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Operadores</p>
               <p className="mt-2 text-3xl font-semibold text-slate-900">
@@ -388,8 +544,17 @@ export function ModalNovoTurnoV2({
             </div>
 
             <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Carry-over
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">{quantidadeTotalPendencias}</p>
+            </div>
+
+            <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">OPs</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">{ops.length}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">
+                {ops.length + (carregarPendencias ? pendenciasSelecionadas.length : 0)}
+              </p>
             </div>
 
             <div>
@@ -403,7 +568,8 @@ export function ModalNovoTurnoV2({
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 md:flex-row md:items-center md:justify-between">
             <div className="inline-flex items-center gap-2 text-sm text-slate-500">
               <Users size={16} />
-              O sistema gera automaticamente as seções por setor para cada OP salva.
+              O sistema ativa os setores necessários do turno e consolida as OPs dentro deles desde
+              a abertura.
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">

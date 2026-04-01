@@ -31,7 +31,8 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Resumo consolidado</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Planejado e realizado consolidados por OP ou por seção, dependendo do escopo do filtro.
+            Planejado e realizado consolidados por OP ou por demanda setorial, dependendo do escopo
+            do filtro.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -68,7 +69,7 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
         </article>
         <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-            Seções concluídas
+            Demandas concluídas
           </p>
           <p className="mt-2 text-2xl font-semibold text-violet-900">{resumo.secoesConcluidas}</p>
         </article>
@@ -80,7 +81,7 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
             {resumo.quantidadeApontadaFiltro}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            {resumo.secoesPendentes} seção(ões) pendentes
+            {resumo.secoesPendentes} demanda(s) pendentes
           </p>
         </article>
       </div>
@@ -95,7 +96,7 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
         <p className="mt-2 text-xs text-slate-500">
           O período atual inclui {resumo.registrosLegados} registro(s) do fluxo legado. Eles seguem
           visíveis durante a transição, mas não entram na consolidação estrutural por turno, OP e
-          seção da V2.
+          demanda setorial da V2.
         </p>
       ) : null}
     </section>

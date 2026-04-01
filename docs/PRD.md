@@ -49,15 +49,26 @@ O sistema passa a girar em torno de dois QRs operacionais e um cadastro estrutur
 - **Reimpressão:** quando houver perda, troca de cadastro ou desligamento
 - **Conteúdo impresso:** matrícula, nome, função, QR Code
 
-### 4.2 QR Operacional do Setor/OP
+### 4.2 QR Operacional do Setor
 
-- **O que é:** QR temporário gerado no momento da abertura do turno para um contexto específico de `setor + OP`
+- **O que é:** QR temporário gerado no momento da abertura do turno para um contexto específico de `turno + setor`
 - **Onde fica:** impresso pelo supervisor e deixado no setor correspondente
 - **Quando é usado:** durante aquele turno, para abrir a seção operacional do setor
 - **Quem controla:** o supervisor
-- **Quantidade:** 1 por combinação `turno + OP + setor`
-- **Reimpressão:** quando o turno for recriado, a OP for alterada ou o QR físico se perder
-- **Conteúdo lógico:** identifica o setor, a OP e o turno atual
+- **Quantidade:** 1 por combinação `turno + setor`
+- **Reimpressão:** quando o turno for recriado, um novo setor entrar no turno ou o QR físico se perder
+- **Conteúdo lógico:** identifica o setor e o turno atual; a OP/produto é escolhida depois que o setor já foi aberto no scanner
+
+### 4.2.1 Decisão complementar de modelagem
+
+Esta é uma regra de negócio obrigatória para a V2:
+
+- a estrutura física reaproveitável da fábrica é o **setor**, não a combinação `setor + OP`
+- ao incluir uma nova OP em um turno já aberto, o sistema deve reaproveitar os setores que já participam daquele turno
+- a nova OP **não** pode duplicar visualmente setores, operações e QRs que já existem no turno
+- um novo QR operacional só deve nascer quando a nova OP exigir um setor que ainda não participa do turno atual
+- quando mais de uma OP compartilhar o mesmo setor no mesmo turno, a dashboard deve mostrar um único contexto daquele setor, preservando o detalhamento interno por OP/produto
+- no scanner, após abrir o setor e identificar o operador, o supervisor deve escolher também qual OP/produto está apontando dentro daquele setor
 
 ### 4.3 Etiqueta da Máquina
 
@@ -107,14 +118,15 @@ Supervisor chega → abre a dashboard → vê os dados do turno anterior ou do t
           → lê o roteiro do produto
           → identifica os setores envolvidos
           → identifica as operações previstas em cada setor
-          → cria as seções operacionais do turno
-          → gera um QR temporário para cada combinação setor + OP
+          → ativa ou reaproveita os setores do turno
+          → deriva as operações planejadas dentro de cada setor
+          → gera um QR temporário apenas para cada setor participante do turno
 ```
 
 Resultado:
 - o planejamento do dia nasce do cadastro mestre do produto
 - o supervisor informa apenas a demanda do dia
-- o sistema deriva automaticamente a estrutura operacional necessária
+- o sistema deriva automaticamente a estrutura operacional necessária sem duplicar setores já ativos no turno
 
 ### 5.2.1 Edição do turno aberto
 
@@ -129,9 +141,9 @@ Fluxo alvo:
   - quantidade planejada
 - sistema valida a nova demanda e deriva imediatamente:
   - a nova linha em `turno_ops`
-  - as novas seções `setor + OP`
-  - as novas operações derivadas da seção
-  - os novos QRs operacionais das seções adicionadas
+  - as operações adicionais dentro dos setores já ativos do turno
+  - os novos setores e QRs operacionais apenas quando o produto exigir um setor ainda ausente no turno
+  - a nova disponibilidade da OP no scanner e nos apontamentos do setor reutilizado
 - dashboard, scanner, apontamentos e relatórios passam a enxergar a nova OP sem exigir fechamento do turno
 
 Objetivo:
@@ -150,8 +162,8 @@ Restrições obrigatórias:
 Impacto esperado:
 - o turno continua o mesmo
 - o planejamento total do turno aumenta
-- novas seções entram como pendentes/abertas
-- novos QRs precisam ficar imediatamente disponíveis para impressão ou consulta
+- setores já ativos são reaproveitados e recebem demanda adicional sem duplicação visual
+- novos QRs só precisam ficar disponíveis quando houver entrada de um setor novo no turno
 - scanner e `/admin/apontamentos` passam a aceitar lançamentos para a nova OP assim que ela for salva
 
 ### 5.3 Execução no chão de fábrica
@@ -159,19 +171,20 @@ Impacto esperado:
 ```
 Supervisor ou operador abre o scanner no celular
 
-[Passo 1] Escaneia o QR operacional do setor/OP
+[Passo 1] Escaneia o QR operacional do setor
           → sistema identifica:
             - turno
-            - OP
-            - produto
             - setor
+            - OPs/produtos planejados naquele setor
             - operações previstas naquele setor
-            - quantidade planejada
+            - saldo planejado por OP dentro do setor
 
 [Passo 2] Escaneia o QR do operador
           → sistema identifica o executor do apontamento produtivo
 
-[Passo 3] Scanner lista as operações planejadas daquela seção
+[Passo 3] Scanner lista as OPs/produtos ativos naquele setor
+          → supervisor escolhe qual OP/produto será apontado
+          → sistema lista as operações planejadas daquela OP dentro do setor
           → supervisor escolhe qual operação será apontada
           → sistema mostra realizado e saldo da operação
 
@@ -182,8 +195,9 @@ Supervisor ou operador abre o scanner no celular
 [Passo 5] Sistema registra o apontamento atômico
           → cada lançamento identifica:
             - operador executor
+            - OP/produto selecionado dentro do setor
             - operação executada
-            - seção `setor + OP`
+            - setor do turno
             - quantidade incremental
             - autoria do lançamento (`supervisor_manual` ou `operador_qr`)
 
@@ -209,7 +223,7 @@ Saídas após cada registro:
 ### 5.4 Encerramentos
 
 Encerramento do setor:
-- automático quando todas as operações obrigatórias daquele `setor + OP` atingirem a quantidade planejada
+- automático quando todas as demandas planejadas daquele setor no turno estiverem concluídas
 - pode ser ajustado manualmente pelo supervisor/admin
 
 Encerramento da OP:
@@ -238,7 +252,7 @@ Com edição de turno aberto, a dashboard também precisa:
 - permitir incluir novas OPs sem perder o contexto do turno atual
 - recalcular imediatamente os agregados do turno após cada inclusão
 - destacar visualmente as OPs recém-adicionadas até a primeira produção
-- expor os novos QRs operacionais das seções derivadas
+- expor novos QRs apenas para setores novos; setores já existentes devem ser reaproveitados
 
 ---
 
@@ -253,15 +267,17 @@ O planejamento diário segue esta ordem lógica:
 3. **Produtos** agrupam operações em um roteiro
 4. **Turno** define a capacidade do dia
 5. **OPs do turno** definem a demanda do dia
-6. **Seções setor + OP do turno** definem o que precisa ser executado no chão
+6. **Setores ativos do turno** definem a estrutura operacional visível do chão
+7. **OPs dentro de cada setor** definem a demanda planejada que será escolhida no scanner e nos apontamentos
 
 ### 6.2 O que o sistema deriva automaticamente
 
 Ao informar `OP + produto + quantidade planejada`, o sistema precisa derivar:
 - quais setores participam da confecção do produto
 - quais operações serão executadas em cada setor
-- quantas seções `setor + OP` serão abertas
-- quais QRs operacionais precisam ser gerados
+- quais setores já ativos do turno devem ser reaproveitados
+- quais novos setores precisam ser abertos no turno
+- quais QRs operacionais realmente precisam ser gerados
 
 ### 6.3 Tempos padrão
 
@@ -280,8 +296,8 @@ T.P Produto = soma(tempo_padrao_min das operações do roteiro)
 
 Regras:
 - a quantidade planejada da **OP** é informada pelo supervisor
-- a quantidade planejada de cada **setor + OP** é a mesma quantidade planejada total da OP
-- a quantidade planejada de cada **operação derivada da seção** também é a mesma quantidade planejada total da OP
+- cada setor recebe a demanda das OPs que passam por ele, preservando o detalhamento por OP/produto
+- a quantidade planejada das operações derivadas dentro do setor continua vinculada à OP/produto selecionado
 - o sistema acompanha o realizado por operação, por setor e por OP
 - um lançamento nunca pode fazer o realizado da operação ultrapassar o planejado
 
@@ -291,9 +307,9 @@ A unidade lançada na V2 não representa produto acabado e também não pode ser
 
 Ela passa a significar:
 
-- **registro de produção**: quantas unidades um operador concluiu em uma operação específica da seção
-- **realizado da operação da seção**: soma dos lançamentos daquela operação
-- **realizado da seção `setor + OP`**: menor realizado entre as operações obrigatórias daquele setor
+- **registro de produção**: quantas unidades um operador concluiu em uma operação específica de uma OP/produto dentro do setor
+- **realizado da operação da seção**: soma dos lançamentos daquela operação dentro da OP/produto escolhida
+- **setor do turno**: estrutura física reaproveitada, que pode concentrar mais de uma OP/produto ao mesmo tempo
 - **realizado da OP**: menor realizado entre as seções obrigatórias da OP
 - **realizado do turno**: soma do realizado consolidado das OPs do turno
 
@@ -329,6 +345,8 @@ Realizado do turno = SUM(quantidade_realizada_turno_op)
 ```
 
 Regra de consolidação:
+- a dashboard não pode duplicar setores quando mais de uma OP usar o mesmo setor no turno
+- a leitura setorial do turno deve consolidar o setor reaproveitado, preservando o detalhamento interno por OP/produto
 - o progresso de uma seção não deve ser calculado pela soma simples das operações do setor
 - o progresso de uma OP não deve ser calculado pela soma simples dos registros de todos os setores
 - a seção só é considerada concluída quando todas as operações obrigatórias do setor tiverem atingido sua quantidade planejada
@@ -361,13 +379,13 @@ SE NÃO HOUVER TURNO ABERTO:
 NO NOVO TURNO:
   → informa capacidade do dia
   → adiciona as OPs do dia
-  → sistema cria automaticamente as seções por setor
-  → sistema gera os QRs operacionais setor + OP
+  → sistema ativa automaticamente os setores envolvidos
+  → sistema gera os QRs operacionais dos setores do turno
 
 AO LONGO DO DIA:
   → acompanha o progresso por OP e por setor
   → passa pelos setores e abre a tela de apontamentos
-  → registra lançamentos incrementais por operador e operação dentro de cada seção
+  → registra lançamentos incrementais por operador, OP/produto e operação dentro de cada setor
   → corrige encerramentos e ajustes quando necessário
 ```
 
@@ -418,7 +436,7 @@ Campos mínimos por nova OP:
 Saídas obrigatórias após salvar:
 - confirmação de que a OP entrou no turno atual
 - atualização imediata da dashboard
-- disponibilidade dos novos QRs por seção derivada
+- reaproveitamento dos QRs dos setores já ativos e geração de novos QRs apenas para setores inéditos no turno
 - nova OP visível no scanner e em `/admin/apontamentos`
 
 Mensagens de bloqueio obrigatórias:
@@ -430,10 +448,11 @@ Mensagens de bloqueio obrigatórias:
 ### 8.2 Scanner (/scanner)
 
 Interface operacional individual ou híbrida de apontamento.
-- scan do QR operacional `setor + OP`
+- scan do QR operacional do `setor` no turno
 - scan do operador
-- identificação da seção operacional aberta
-- listagem das operações planejadas da seção
+- identificação do setor operacional aberto
+- escolha da OP/produto dentro do setor
+- listagem das operações planejadas daquela OP dentro do setor
 - seleção da operação a apontar
 - input de quantidade executada na operação selecionada
 - bloqueio de excesso sobre a quantidade planejada
@@ -484,17 +503,17 @@ Regras:
 
 Tela `scan_secao`:
 - leitor de QR
-- card fixo explicando o setor/OP esperado
+- card fixo explicando o setor esperado
 - feedback claro de QR inválido
 
 Tela `scan_operador`:
 - leitor de QR
-- card fixo com contexto da seção já aberta
+- card fixo com contexto do setor já aberto
 - feedback claro de operador inválido ou inelegível
 
 Tela `selecionar_operacao`:
-- cabeçalho com seção, OP, produto e operador
-- lista das operações derivadas da seção
+- cabeçalho com setor, OP, produto e operador
+- lista das operações derivadas da OP selecionada dentro do setor
 - cada operação mostra realizado, saldo, status e sequência
 
 Tela `informar_quantidade`:
@@ -698,7 +717,6 @@ Fluxo profissional de produção:
 
 `turno_setor_ops`
 - turno
-- OP
 - setor
 - quantidade planejada
 - quantidade realizada
@@ -734,29 +752,172 @@ Fluxo profissional de produção:
 
 1. O roteiro do produto é a fonte de verdade para descobrir os setores e operações envolvidos.
 2. O supervisor informa a demanda diária; o sistema deriva a estrutura operacional do turno.
-3. O QR operacional é sempre da combinação `turno + OP + setor`.
+3. O QR operacional é sempre da combinação `turno + setor`.
 4. O QR operacional muda a cada novo turno.
-5. Um apontamento de produção registra unidades concluídas por um operador em uma operação específica da seção.
-6. Máquina não é obrigatória no apontamento da V2, mas continua relevante no cadastro e em relatórios.
-7. Operador pode ser alocado dinamicamente por turno.
-8. Uma OP pode atravessar mais de um turno e mais de um dia.
-9. A quantidade realizada de cada operação da seção nunca pode ultrapassar a quantidade planejada.
-10. A quantidade realizada consolidada de `setor + OP` é o menor realizado entre as operações obrigatórias daquela seção.
-11. A quantidade realizada consolidada da OP é o menor realizado entre as seções obrigatórias da OP.
-12. O realizado do turno é a soma do realizado consolidado das OPs do turno.
-13. O encerramento automático do setor ocorre quando todas as operações obrigatórias daquele setor atingem o planejado.
-14. O encerramento automático da OP ocorre quando todos os setores obrigatórios forem concluídos.
-15. O QR do operador deve continuar identificando o executor real da produção para sustentar rastreabilidade e relatórios por operador.
-16. O sistema deve persistir quem lançou o apontamento e a origem do lançamento (`operador_qr` ou `supervisor_manual`).
-17. O encerramento do turno pode ser manual ou automático na abertura do próximo turno.
-18. Encerramentos automáticos podem ser ajustados manualmente por supervisor ou admin.
-19. A dashboard deve atualizar em tempo real sem refresh manual.
-20. Apenas usuários com papel `admin` ou `supervisor` acessam a área administrativa.
-21. O primeiro usuário `admin` é criado por bootstrap técnico diretamente no banco.
-22. Em desenvolvimento, o cadastro com senha inicial pode ser usado apenas como mecanismo interno temporário.
-23. Em produção, o `admin` não deve conhecer a senha final de outros usuários.
-24. Em produção, após o bootstrap, o cadastro de novos `admins` e `supervisores` deve acontecer pela tela `/admin/usuarios` com convite e ativação por email.
-25. Apenas usuários com papel `admin` podem criar, editar ou inativar usuários do sistema.
+5. Ao incluir nova OP em turno aberto, setores já ativos devem ser reaproveitados sem duplicação visual.
+6. Novo QR operacional só nasce quando a nova OP introduz um setor ainda ausente no turno.
+7. No scanner, depois de abrir o setor e identificar o operador, o supervisor deve escolher a OP/produto que será apontada naquele setor.
+8. Um apontamento de produção registra unidades concluídas por um operador em uma operação específica da seção.
+9. Máquina não é obrigatória no apontamento da V2, mas continua relevante no cadastro e em relatórios.
+10. Operador pode ser alocado dinamicamente por turno.
+11. Uma OP pode atravessar mais de um turno e mais de um dia.
+12. A quantidade realizada de cada operação da seção nunca pode ultrapassar a quantidade planejada.
+13. A quantidade realizada consolidada da OP é o menor realizado entre as seções obrigatórias da OP.
+14. O realizado do turno é a soma do realizado consolidado das OPs do turno.
+15. O encerramento automático do setor ocorre quando todas as demandas planejadas daquele setor no turno estiverem concluídas.
+16. O encerramento automático da OP ocorre quando todos os setores obrigatórios forem concluídos.
+17. O QR do operador deve continuar identificando o executor real da produção para sustentar rastreabilidade e relatórios por operador.
+18. O sistema deve persistir quem lançou o apontamento e a origem do lançamento (`operador_qr` ou `supervisor_manual`).
+19. O encerramento do turno pode ser manual ou automático na abertura do próximo turno.
+20. Encerramentos automáticos podem ser ajustados manualmente por supervisor ou admin.
+21. A dashboard deve atualizar em tempo real sem refresh manual.
+22. Apenas usuários com papel `admin` ou `supervisor` acessam a área administrativa.
+23. O primeiro usuário `admin` é criado por bootstrap técnico diretamente no banco.
+24. Em desenvolvimento, o cadastro com senha inicial pode ser usado apenas como mecanismo interno temporário.
+25. Em produção, o `admin` não deve conhecer a senha final de outros usuários.
+26. Em produção, após o bootstrap, o cadastro de novos `admins` e `supervisores` deve acontecer pela tela `/admin/usuarios` com convite e ativação por email.
+27. Apenas usuários com papel `admin` podem criar, editar ou inativar usuários do sistema.
+
+### 9.3 Refatoração estrutural prioritária do modelo operacional
+
+Esta refatoração passa a ser a direção oficial do produto para as próximas entregas.
+
+#### 9.3.1 Problema que precisa ser corrigido
+
+O modelo atual ainda carrega uma leitura operacional centrada em `setor + OP` como unidade visível do turno.
+
+Na prática do chão de fábrica isso gera uma distorção:
+
+- quando uma nova OP entra no turno, o sistema duplica setores já existentes
+- a dashboard passa a mostrar múltiplos blocos do mesmo setor
+- novos QRs aparecem mesmo quando a estrutura física da fábrica não mudou
+- o scanner fica preso a uma seção já amarrada a uma única OP
+- o acompanhamento do realizado fica visualmente poluído e difícil de operar
+
+#### 9.3.2 Novo modelo alvo
+
+A estrutura operacional visível do turno passa a ser:
+
+1. `turno`
+2. `turno_setores`
+3. `turno_setor_demandas`
+4. `turno_setor_operacoes`
+5. `registros_producao`
+
+Semântica:
+
+- `turno`: contêiner do período de trabalho
+- `turno_setores`: um registro por setor ativo naquele turno; esta passa a ser a unidade física visível da operação
+- `turno_setor_demandas`: relação entre um setor do turno e cada `turno_op` que passa por ele
+- `turno_setor_operacoes`: operações executáveis daquele `turno_setor_demanda`, preservando sequência, saldo e realizado
+- `registros_producao`: lançamentos atômicos por operador + operação + demanda do setor
+
+Objetivo explícito:
+
+- o setor é aberto uma única vez no turno
+- o QR operacional nasce no nível do setor do turno
+- a OP deixa de duplicar o setor e passa a alimentar a demanda interna daquele setor
+
+#### 9.3.3 Novo conceito de QR operacional
+
+Regra nova:
+
+- o QR operacional identifica `turno + setor`
+- só existe um QR por setor ativo no turno
+- uma nova OP reutiliza o QR existente se passar por um setor já aberto
+- um novo QR só é gerado quando a nova OP introduz um setor ainda ausente no turno
+
+Consequências:
+
+- `Preparação` no turno é um único contexto operacional
+- dentro desse contexto podem coexistir múltiplas OPs/produtos
+- a dashboard não pode mostrar dois cards de `Preparação` apenas porque há duas OPs abertas
+
+#### 9.3.4 Fluxo alvo do scanner
+
+Fluxo operacional prioritário:
+
+1. supervisor escaneia o QR do setor do turno
+2. sistema abre o contexto do setor
+3. supervisor escaneia o QR do operador
+4. sistema lista as OPs/produtos ativos naquele setor
+5. supervisor escolhe a OP/produto
+6. sistema lista as operações disponíveis daquela OP dentro do setor
+7. supervisor escolhe a operação
+8. supervisor informa a quantidade
+9. sistema registra o apontamento atômico
+
+Regras:
+
+- a troca de operador não deve exigir reler o QR do setor
+- a troca de OP/produto dentro do mesmo setor não deve exigir reinício total
+- a troca de operação dentro da mesma OP/produto deve ser imediata
+- `/admin/apontamentos` continua existindo como contingência administrativa
+
+Observação de UX:
+
+- se a validação de campo mostrar ganho operacional, a ordem entre `operador` e `OP/produto` pode ser ajustada depois sem mudar o contrato estrutural do backend
+- porém o backend da próxima sprint deve obrigatoriamente suportar a escolha de `OP/produto` dentro de um setor já aberto
+
+#### 9.3.5 Consolidação operacional dentro do setor
+
+O consolidado deixa de nascer da multiplicação de seções `setor + OP` visíveis na dashboard.
+
+Passa a valer:
+
+- `realizado da operação da demanda setorial` = soma dos lançamentos atômicos daquela operação
+- `realizado da demanda setorial` = menor realizado entre as operações obrigatórias daquela OP/produto dentro do setor
+- `realizado do setor no turno` = visão agregada do setor reaproveitado, preservando o detalhamento por OP/produto
+- `realizado da OP no turno` = menor realizado entre os setores obrigatórios da OP
+- `realizado do turno` = soma do realizado consolidado das OPs do turno
+
+Regra de leitura:
+
+- a dashboard principal consolida por setor
+- o detalhe do setor expõe as OPs/produtos que estão sendo trabalhados ali
+- o detalhe da OP continua mostrando por quais setores ela está passando
+- relatórios e filtros não podem supercontar produção ao somar setores compartilhados por múltiplas OPs
+
+#### 9.3.6 Regra de carry-over entre turnos
+
+O turno continua podendo ser encerrado manualmente, mas a produção não concluída precisa atravessar a troca de turno.
+
+Regra alvo:
+
+- ao encerrar um turno com OPs incompletas, o sistema calcula o saldo remanescente de cada OP
+- ao abrir o próximo turno, o supervisor deve conseguir partir desse saldo pendente
+- a nova carga do turno seguinte pode combinar:
+  - saldo remanescente do turno anterior
+  - novas OPs do dia
+- o histórico do turno anterior permanece fechado e íntegro
+- o novo turno recebe apenas o saldo faltante, nunca o total original já parcialmente produzido
+
+Contrato mínimo sugerido:
+
+- `turno_ops.turno_op_origem_id` para rastrear continuidade entre turnos
+- `quantidade_planejada_original`
+- `quantidade_planejada_remanescente`
+- ação explícita de `carregar pendências do turno anterior` na abertura do novo turno
+
+#### 9.3.7 Liberdade administrativa
+
+Como o contexto fabril muda durante o dia, o sistema precisa oferecer edição administrativa ampla, com auditoria.
+
+Diretriz:
+
+- supervisor/admin devem conseguir ajustar manualmente demandas, setores ativos e continuidade operacional
+- alterações destrutivas sobre produção já apontada continuam exigindo regra e auditoria
+- o produto deve priorizar operação realista do chão, não rigidez excessiva de modelagem
+
+#### 9.3.8 Estratégia de refatoração
+
+Para reduzir regressão:
+
+1. introduzir a nova estrutura setorial do turno sem apagar o histórico existente
+2. migrar QR, dashboard e scanner para `turno + setor`
+3. manter compatibilidade temporária de relatórios durante a transição
+4. homologar o novo fluxo no chão antes de remover a leitura antiga
+5. só depois consolidar a limpeza de entidades e telas residuais
 
 ---
 

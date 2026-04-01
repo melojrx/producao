@@ -1073,6 +1073,21 @@ Nunca avance de sprint sem confirmação explícita minha.
 **Pré-requisito:** Sprint 10 concluída.
 **Objetivo:** permitir que supervisor/admin incluam novas OPs em um turno já aberto, refletindo isso em toda a cadeia derivada sem exigir encerramento do turno.
 
+### Nota de correção de modelagem
+
+A homologação funcional desta sprint abriu uma correção obrigatória de negócio:
+
+- a estrutura física reaproveitável do turno é o **setor**
+- incluir uma nova OP em um turno aberto **não** pode duplicar visualmente setores, operações e QRs já existentes
+- setores já ativos no turno devem ser reaproveitados
+- um novo QR operacional só deve ser gerado quando a nova OP exigir um setor ainda ausente no turno
+- no scanner, depois de abrir o setor e identificar o operador, o supervisor deve escolher qual `OP/produto` está apontando dentro daquele setor
+
+Consequência para as entregas desta sprint:
+
+- qualquer implementação que continue exibindo a estrutura operacional principal como `setor + OP` deve ser considerada incorreta para homologação
+- a task `11.5` passa a validar o reaproveitamento da estrutura setorial do turno, e não a multiplicação de seções por OP
+
 - [x] **11.1 — Formalizar a edição do turno aberto na dashboard**
   Entregas mínimas:
   - CTA `Editar turno` visível apenas para turno `aberto`
@@ -1133,9 +1148,122 @@ Nunca avance de sprint sem confirmação explícita minha.
 - [ ] **11.5 — Homologar o fluxo de edição do turno aberto**
   Validar:
   - inclusão de OP durante turno já em andamento
-  - geração de novas seções e operações derivadas
-  - leitura do novo QR no scanner
+  - reaproveitamento dos setores já ativos no turno
+  - geração de novos setores e QRs apenas quando houver setor inédito no turno
+  - leitura do QR do setor no scanner com escolha posterior de `OP/produto`
   - fallback por `/admin/apontamentos`
   - manutenção do turno aberto até encerramento manual
 
-  **Evidência:** Um turno em andamento recebe nova OP sem ser encerrado, a nova cadeia operacional fica utilizável imediatamente e o fechamento do turno continua funcionando sem regressão.
+  **Evidência:** Um turno em andamento recebe nova OP sem ser encerrado, reaproveita os setores já ativos sem duplicação visual, gera novos QRs apenas para setores inéditos e mantém a nova cadeia operacional utilizável imediatamente, com fechamento do turno funcionando sem regressão.
+
+### Dependência aberta da Sprint 11
+
+A homologação final da Sprint 11 ficou bloqueada por uma inconsistência estrutural do modelo atual:
+
+- a implementação ainda usa `setor + OP` como unidade operacional visível
+- a regra homologada de negócio exige `setor` como estrutura física reaproveitada do turno
+
+Portanto:
+
+- a `11.5` só pode ser concluída depois da sprint de refatoração estrutural abaixo
+- qualquer ajuste pontual na UI atual sem corrigir o modelo base deve ser tratado como paliativo e não como homologação válida
+
+---
+
+## SPRINT 12 — Refatoração estrutural do turno por setor
+**Status:** ⏭️ Prioridade máxima
+**Pré-requisito:** Sprint 11 analisada e replanejada.
+**Objetivo:** trocar a unidade operacional visível do sistema de `setor + OP` para `setor do turno`, destravando QR por setor, scanner com escolha de OP/produto e carry-over entre turnos.
+
+### Critério de entrada desta sprint
+
+Esta sprint nasce de uma validação de negócio já confirmada:
+
+- o setor é a estrutura física reaproveitada do turno
+- a OP alimenta a demanda interna do setor
+- um novo QR só deve existir quando um novo setor entrar no turno
+
+- [ ] **12.1 — Refatorar o modelo de dados operacional para `turno + setor`**
+  Entregas mínimas:
+  - introduzir a entidade de setor ativo do turno como unidade operacional principal
+  - separar a demanda por OP/produto dentro do setor
+  - preservar o vínculo das operações executáveis dentro dessa demanda setorial
+  - manter rastreabilidade com a estrutura atual durante a transição
+
+  Proposta técnica mínima:
+  - `turno_setores`: setor ativo do turno, com QR próprio
+  - `turno_setor_demandas`: relação entre `turno_setor` e `turno_op`
+  - evolução de `turno_setor_operacoes` para apontar a demanda setorial correta
+
+  **Evidência:** Um turno com duas OPs que compartilham `Preparação` mantém um único setor `Preparação` ativo no banco, com duas demandas internas distintas e sem duplicação de QR.
+
+- [x] **12.2 — Refatorar QR operacional, dashboard e edição de turno para reaproveitamento setorial**
+  Entregas mínimas:
+  - QR operacional passar a representar `turno + setor`
+  - dashboard principal consolidar por setor do turno
+  - detalhe do setor expor as OPs/produtos ativas ali
+  - edição do turno reutilizar setores já ativos e criar QR só para setor novo
+
+  Regras:
+  - incluir nova OP não pode duplicar visualmente setores existentes
+  - o card principal do setor no turno é único
+  - a OP continua rastreável no detalhe e nos relatórios
+
+  **Evidência:** Adicionar uma nova OP que também passa por `Preparação` não cria um segundo QR nem um segundo card de `Preparação`; apenas acrescenta a nova demanda interna desse setor.
+  Evidência registrada em `components/dashboard/QROperacionaisTurnoV2.tsx`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/ModalEditarTurnoAbertoV2.tsx`, `components/dashboard/ResumoPlanejamentoTurnoV2.tsx`, `components/dashboard/ModalEncerrarTurno.tsx`, `components/dashboard/ModalNovoTurnoV2.tsx`, `components/dashboard/PainelConfiguracaoTurno.tsx` e `lib/utils/turno-setores.ts`, com `npx tsc --noEmit` passando.
+
+- [x] **12.3 — Refatorar o scanner para setor -> operador -> OP/produto -> operação -> quantidade**
+  Entregas mínimas:
+  - scanner ler QR do setor do turno
+  - exibir as OPs/produtos ativos naquele setor
+  - exigir escolha explícita da OP/produto antes da operação
+  - manter `trocar operador`, `trocar OP/produto` e `trocar operação` sem reinício total
+
+  Regras:
+  - o supervisor não deve precisar reler o QR do setor ao trocar operador
+  - o payload do scanner deve apontar a demanda setorial correta
+  - `/admin/apontamentos` segue como fallback oficial
+
+  **Evidência:** No mesmo setor aberto, o supervisor consegue alternar entre duas OPs/produtos diferentes e registrar produção de operadores distintos sem reiniciar a sessão do setor.
+  Evidência registrada em `app/(operador)/scanner/page.tsx`, `hooks/useScanner.ts`, `lib/queries/scanner.ts`, `lib/queries/turno-setor-operacoes-base.ts`, `components/scanner/SelecaoDemandaScanner.tsx`, `components/scanner/SelecaoOperacaoScanner.tsx`, `components/scanner/ConfirmacaoRegistro.tsx`, `types/index.ts` e `lib/actions/producao.ts`, com `npx tsc --noEmit` passando.
+
+- [x] **12.4 — Refatorar a consolidação de planejado x realizado sem supercontagem**
+  Entregas mínimas:
+  - consolidado por operação da demanda setorial
+  - consolidado por demanda setorial
+  - consolidado da OP pelos setores obrigatórios
+  - consolidado do turno pela soma das OPs
+
+  Regras:
+  - setor compartilhado por várias OPs não pode poluir a leitura principal
+  - relatórios por setor, OP e turno devem continuar coerentes
+  - filtros não podem duplicar produção ao combinar setores e OPs
+
+  **Evidência:** Duas OPs compartilhando o mesmo setor continuam separadas no detalhe, mas a dashboard principal mostra um único setor ativo e os relatórios não supercontam o realizado.
+  Evidência registrada em `lib/utils/consolidacao-turno.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/relatorios-v2.ts`, `components/relatorios/ResumoRelatorios.tsx` e `components/apontamentos/PainelApontamentosSupervisor.tsx`, com `npx tsc --noEmit` passando.
+
+- [x] **12.5 — Implementar carry-over de saldo entre turnos**
+  Entregas mínimas:
+  - calcular saldo remanescente de OPs não concluídas ao encerrar turno
+  - permitir abrir novo turno carregando pendências do turno anterior
+  - distinguir quantidade original já produzida da quantidade remanescente
+  - manter rastreabilidade entre OP original e continuidade no turno seguinte
+
+  Regras:
+  - o turno anterior permanece fechado historicamente
+  - o novo turno recebe apenas o saldo pendente
+  - o supervisor pode combinar pendências carregadas com novas OPs do dia
+
+  **Evidência:** Encerrar um turno com uma OP parcialmente produzida e abrir o turno seguinte gera uma nova demanda já preenchida com apenas o saldo faltante, mantendo o vínculo histórico com o turno anterior.
+  Evidência registrada em `lib/actions/turnos.ts`, `components/dashboard/ModalNovoTurnoV2.tsx` e `types/index.ts`, com `npx tsc --noEmit` passando.
+
+- [ ] **12.6 — Reabrir a homologação funcional do fluxo operacional**
+  Validar:
+  - abertura do turno com capacidade + OPs
+  - geração de QR por setor do turno
+  - inclusão de nova OP sem duplicar setor existente
+  - scanner escolhendo `OP/produto` dentro do setor
+  - fallback por `/admin/apontamentos`
+  - carry-over de pendências entre turnos
+
+  **Evidência:** O fluxo ponta a ponta do supervisor funciona no modelo setorial do turno, sem duplicação visual de setores, com scanner coerente e continuidade operacional entre turnos.

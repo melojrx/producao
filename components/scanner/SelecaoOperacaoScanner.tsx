@@ -1,14 +1,21 @@
 'use client'
 
 import { ArrowRight, ListChecks } from 'lucide-react'
-import type { OperadorScaneado, TurnoSetorOperacaoApontamentoV2, TurnoSetorOpScaneado } from '@/types'
+import type {
+  OperadorScaneado,
+  TurnoSetorDemandaScaneada,
+  TurnoSetorOperacaoApontamentoV2,
+  TurnoSetorScaneado,
+} from '@/types'
 
 interface SelecaoOperacaoScannerProps {
+  demandaSelecionada: TurnoSetorDemandaScaneada
   operacoes: TurnoSetorOperacaoApontamentoV2[]
   operador: OperadorScaneado
   onSelecionarOperacao: (operacaoId: string) => void
+  onTrocarDemanda: () => void
   onTrocarOperador: () => void
-  secao: TurnoSetorOpScaneado
+  setor: TurnoSetorScaneado
 }
 
 function statusTema(status: TurnoSetorOperacaoApontamentoV2['status']): string {
@@ -28,27 +35,29 @@ function statusTema(status: TurnoSetorOperacaoApontamentoV2['status']): string {
 }
 
 export function SelecaoOperacaoScanner({
+  demandaSelecionada,
   operacoes,
   operador,
   onSelecionarOperacao,
+  onTrocarDemanda,
   onTrocarOperador,
-  secao,
+  setor,
 }: SelecaoOperacaoScannerProps) {
   return (
     <section className="rounded-[28px] border border-white/10 bg-slate-950/60 p-5 shadow-[0_20px_48px_rgba(2,6,23,0.45)] backdrop-blur-xl">
       <div className="flex items-center gap-2 text-sm text-cyan-300">
         <ListChecks size={18} />
-        Operações planejadas da seção
+        Operações planejadas da demanda
       </div>
 
       <h2 className="mt-3 text-xl font-semibold text-white">
-        {secao.produtoReferencia} · {secao.produtoNome}
+        {demandaSelecionada.produtoReferencia} · {demandaSelecionada.produtoNome}
       </h2>
       <p className="mt-2 text-sm text-slate-300">
-        {secao.numeroOp} · {secao.setorNome} · Operador {operador.nome}
+        {demandaSelecionada.numeroOp} · {setor.setorNome} · Operador {operador.nome}
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-        {operacoes.length} operação(ões) planejada(s) nesta seção
+        {operacoes.length} operação(ões) planejada(s) nesta OP/produto
       </p>
 
       <div className="mt-5 space-y-3">
@@ -109,13 +118,23 @@ export function SelecaoOperacaoScanner({
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={onTrocarOperador}
-        className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
-      >
-        Trocar operador
-      </button>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={onTrocarDemanda}
+          className="inline-flex min-h-12 items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+        >
+          Trocar OP/produto
+        </button>
+
+        <button
+          type="button"
+          onClick={onTrocarOperador}
+          className="inline-flex min-h-12 items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+        >
+          Trocar operador
+        </button>
+      </div>
     </section>
   )
 }

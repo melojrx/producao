@@ -20,6 +20,7 @@ import { ModalNovoTurnoV2 } from '@/components/dashboard/ModalNovoTurnoV2'
 import { QROperacionaisTurnoV2 } from '@/components/dashboard/QROperacionaisTurnoV2'
 import { ResumoPlanejamentoTurnoV2 } from '@/components/dashboard/ResumoPlanejamentoTurnoV2'
 import { encerrarTurno } from '@/lib/actions/turnos'
+import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
   ConfiguracaoTurnoComBlocos,
@@ -164,29 +165,27 @@ export function MonitorPlanejamentoTurnoV2({
         opsEmAndamento: 0,
         totalPlanejado: 0,
         totalRealizado: 0,
-        secoesPendentes: 0,
+        setoresPendentes: 0,
         ops: [] as TurnoOpV2[],
-        secoesPendentesLista: [] as SecaoComContexto[],
-        secoesConcluidasLista: [] as SecaoComContexto[],
+        setoresPendentesLista: [],
+        setoresConcluidosLista: [],
+        setoresAtivos: [],
       }
     }
 
-    const secoesComContexto = mapearSecoesComContexto(planejamento.secoesSetorOp, planejamento.ops)
-    const secoesPendentesLista = ordenarSecoes(
-      secoesComContexto.filter((secao) => secao.status !== 'concluida')
-    )
-    const secoesConcluidasLista = ordenarSecoes(
-      secoesComContexto.filter((secao) => secao.status === 'concluida')
-    )
+    const setoresAtivos = mapearSetoresTurnoParaDashboard(planejamento)
+    const setoresPendentesLista = setoresAtivos.filter((setor) => setor.status !== 'concluida')
+    const setoresConcluidosLista = setoresAtivos.filter((setor) => setor.status === 'concluida')
 
     return {
       opsEmAndamento: planejamento.ops.filter((op) => op.status === 'em_andamento').length,
       totalPlanejado: planejamento.ops.reduce((soma, op) => soma + op.quantidadePlanejada, 0),
       totalRealizado: planejamento.ops.reduce((soma, op) => soma + op.quantidadeRealizada, 0),
-      secoesPendentes: secoesPendentesLista.length,
+      setoresPendentes: setoresPendentesLista.length,
       ops: planejamento.ops,
-      secoesPendentesLista,
-      secoesConcluidasLista,
+      setoresPendentesLista,
+      setoresConcluidosLista,
+      setoresAtivos,
     }
   }, [planejamento])
 
@@ -234,13 +233,13 @@ export function MonitorPlanejamentoTurnoV2({
             <h1 className="text-2xl font-bold text-slate-900">Dashboard de Planejamento do Turno</h1>
             <p className="max-w-3xl text-sm text-slate-600">
               O novo turno define operadores disponíveis, minutos produtivos e as OPs do dia. A
-              partir disso, o sistema deriva automaticamente as seções por setor e alimenta as
+              partir disso, o sistema ativa os setores necessários do turno e alimenta as
               próximas etapas do scanner e do acompanhamento operacional.
             </p>
             <p className="text-sm font-medium text-slate-700">{descricaoConfiguracao}</p>
             <p className="max-w-3xl text-sm text-slate-600">
-              Acompanhamento gerencial do turno com progresso consolidado por OP e por seção
-              operacional derivada do roteiro do produto.
+              Acompanhamento gerencial do turno com progresso consolidado por OP e por setor ativo,
+              sem duplicar a estrutura física da fábrica quando novas OPs entram no mesmo dia.
             </p>
           </div>
 
@@ -316,7 +315,7 @@ export function MonitorPlanejamentoTurnoV2({
       {!planejamento ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
           O dashboard depende da abertura de um turno com operadores e OPs planejadas. Abra o
-          primeiro turno para gerar automaticamente as seções por setor e destravar a operação do dia.
+          primeiro turno para ativar os setores participantes e destravar a operação do dia.
         </div>
       ) : null}
 
@@ -351,9 +350,9 @@ export function MonitorPlanejamentoTurnoV2({
           destaque="emerald"
         />
         <CardKPI
-          titulo="Seções pendentes"
-          valor={resumo.secoesPendentes}
-          descricao="Seções operacionais ainda abertas ou em andamento no turno atual."
+          titulo="Setores pendentes"
+          valor={resumo.setoresPendentes}
+          descricao="Setores do turno ainda abertos ou em andamento, com saldo operacional ativo."
           icone={Boxes}
           destaque="amber"
         />
@@ -366,7 +365,7 @@ export function MonitorPlanejamentoTurnoV2({
               <h2 className="text-lg font-semibold text-slate-900">Progresso por OP</h2>
               <p className="text-sm text-slate-600">
                 Cada OP mostra o planejado do dia versus o realizado consolidado pela conclusão das
-                seções obrigatórias.
+                demandas distribuídas nos setores ativos do turno.
               </p>
             </div>
 
@@ -428,48 +427,47 @@ export function MonitorPlanejamentoTurnoV2({
           <section className="grid gap-6 xl:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-900">Seções pendentes</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Setores pendentes</h2>
                 <p className="text-sm text-slate-600">
-                  Seções ainda abertas ou em andamento, com saldo restante para execução.
+                  Setores ainda abertos ou em andamento, com suas OPs e produtos consolidados dentro
+                  da mesma estrutura física do turno.
                 </p>
               </div>
 
               <div className="mt-5 space-y-3">
-                {resumo.secoesPendentesLista.length === 0 ? (
+                {resumo.setoresPendentesLista.length === 0 ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                     Nenhuma pendência operacional no turno carregado.
                   </div>
                 ) : (
-                  resumo.secoesPendentesLista.map((secao) => {
+                  resumo.setoresPendentesLista.map((setor) => {
                     const percentual = calcularPercentual(
-                      secao.quantidadeRealizada,
-                      secao.quantidadePlanejada
+                      setor.quantidadeRealizada,
+                      setor.quantidadePlanejada
                     )
 
                     return (
                       <article
-                        key={secao.id}
+                        key={setor.id}
                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">
-                              {secao.numeroOp} · {secao.setorNome}
-                            </p>
+                            <p className="text-sm font-semibold text-slate-900">{setor.setorNome}</p>
                             <p className="text-sm text-slate-600">
-                              {secao.produtoNome} ({secao.produtoReferencia})
+                              {setor.demandas.length} demanda(s) ativa(s) neste setor.
                             </p>
                           </div>
                           <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${corStatus(secao.status)}`}
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${corStatus(setor.status)}`}
                           >
-                            {secao.status}
+                            {setor.status}
                           </span>
                         </div>
 
                         <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
-                          <span>{secao.quantidadeRealizada} realizado</span>
-                          <span>{secao.quantidadePlanejada} planejado</span>
+                          <span>{setor.quantidadeRealizada} realizado</span>
+                          <span>{setor.quantidadePlanejada} planejado</span>
                         </div>
 
                         <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
@@ -477,6 +475,34 @@ export function MonitorPlanejamentoTurnoV2({
                             className="h-full rounded-full bg-amber-500 transition-all"
                             style={{ width: `${percentual}%` }}
                           />
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          {setor.demandas.map((demanda) => (
+                            <div
+                              key={demanda.id}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {demanda.numeroOp}
+                                  </p>
+                                  <p className="text-sm text-slate-600">
+                                    {demanda.produtoNome} ({demanda.produtoReferencia})
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                  {demanda.status}
+                                </span>
+                              </div>
+
+                              <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
+                                <span>Planejado {demanda.quantidadePlanejada}</span>
+                                <span>Realizado {demanda.quantidadeRealizada}</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </article>
                     )
@@ -487,35 +513,58 @@ export function MonitorPlanejamentoTurnoV2({
 
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-900">Seções concluídas</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Setores concluídos</h2>
                 <p className="text-sm text-slate-600">
-                  Histórico operacional já encerrado no turno carregado.
+                  Histórico setorial já encerrado no turno carregado.
                 </p>
               </div>
 
               <div className="mt-5 space-y-3">
-                {resumo.secoesConcluidasLista.length === 0 ? (
+                {resumo.setoresConcluidosLista.length === 0 ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    Ainda não há seções concluídas neste turno.
+                    Ainda não há setores concluídos neste turno.
                   </div>
                 ) : (
-                  resumo.secoesConcluidasLista.map((secao) => (
+                  resumo.setoresConcluidosLista.map((setor) => (
                     <article
-                      key={secao.id}
+                      key={setor.id}
                       className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm font-semibold text-emerald-950">
-                            {secao.numeroOp} · {secao.setorNome}
+                            {setor.setorNome}
                           </p>
                           <p className="text-sm text-emerald-800">
-                            {secao.produtoNome} ({secao.produtoReferencia})
+                            {setor.demandas.length} demanda(s) encerrada(s) neste setor.
                           </p>
                         </div>
                         <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                           concluida
                         </span>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {setor.demandas.map((demanda) => (
+                          <div
+                            key={demanda.id}
+                            className="rounded-xl border border-emerald-200 bg-white/70 px-3 py-2.5"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-emerald-950">
+                                  {demanda.numeroOp}
+                                </p>
+                                <p className="text-sm text-emerald-800">
+                                  {demanda.produtoNome} ({demanda.produtoReferencia})
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                {demanda.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </article>
                   ))
@@ -556,7 +605,7 @@ export function MonitorPlanejamentoTurnoV2({
           observacao={planejamento.turno.observacao}
           operadoresAlocados={planejamento.operadores.length}
           opsPlanejadas={planejamento.ops.length}
-          secoesPlanejadas={planejamento.secoesSetorOp.length}
+          setoresAtivos={resumo.setoresAtivos.length}
           aoCancelar={() => setModalEncerramentoAberto(false)}
           aoConfirmar={executarEncerramentoTurno}
         />

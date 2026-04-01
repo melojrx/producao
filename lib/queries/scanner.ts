@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
-import { listarTurnoSetorOperacoesPorSecaoComClient } from '@/lib/queries/turno-setor-operacoes-base'
+import {
+  listarTurnoSetorOperacoesPorDemandaComClient,
+  listarTurnoSetorOperacoesPorSecaoComClient,
+} from '@/lib/queries/turno-setor-operacoes-base'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurnoBloco,
@@ -7,7 +10,9 @@ import type {
   MaquinaScaneada,
   OperacaoScaneada,
   OperadorScaneado,
+  TurnoSetorDemandaScaneada,
   TurnoSetorOperacaoApontamentoV2,
+  TurnoSetorScaneado,
   TurnoSetorOpScaneado,
 } from '@/types'
 
@@ -195,9 +200,196 @@ export async function buscarTurnoSetorOpScaneadoPorToken(
   }
 }
 
+interface TurnoSetorScannerRow {
+  id: string
+  turno_id: string
+  turno_iniciado_em: string
+  setor_id: string
+  setor_nome: string
+  quantidade_planejada: number
+  quantidade_realizada: number
+  qr_code_token: string
+  status: string
+}
+
+export async function buscarTurnoSetorScaneadoPorToken(
+  token: string
+): Promise<TurnoSetorScaneado | null> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('turno_setores')
+    .select(
+      `
+        id,
+        turno_id,
+        setor_id,
+        quantidade_planejada,
+        quantidade_realizada,
+        qr_code_token,
+        status,
+        turnos!inner (
+          iniciado_em,
+          status
+        ),
+        setores!inner (
+          nome
+        )
+      `
+    )
+    .eq('qr_code_token', token)
+    .eq('turnos.status', 'aberto')
+    .maybeSingle()
+
+  if (error || !data) {
+    return null
+  }
+
+  const turno = Array.isArray(data.turnos) ? data.turnos[0] : data.turnos
+  const setor = Array.isArray(data.setores) ? data.setores[0] : data.setores
+
+  if (!turno?.iniciado_em || !setor?.nome) {
+    return null
+  }
+
+  const turnoSetor = {
+    id: data.id,
+    turno_id: data.turno_id,
+    turno_iniciado_em: turno.iniciado_em,
+    setor_id: data.setor_id,
+    setor_nome: setor.nome,
+    quantidade_planejada: data.quantidade_planejada,
+    quantidade_realizada: data.quantidade_realizada,
+    qr_code_token: data.qr_code_token,
+    status: data.status,
+  } satisfies TurnoSetorScannerRow
+
+  return {
+    id: turnoSetor.id,
+    turnoId: turnoSetor.turno_id,
+    turnoIniciadoEm: turnoSetor.turno_iniciado_em,
+    setorId: turnoSetor.setor_id,
+    setorNome: turnoSetor.setor_nome,
+    quantidadePlanejada: turnoSetor.quantidade_planejada,
+    quantidadeRealizada: turnoSetor.quantidade_realizada,
+    saldoRestante: Math.max(
+      turnoSetor.quantidade_planejada - turnoSetor.quantidade_realizada,
+      0
+    ),
+    qrCodeToken: turnoSetor.qr_code_token,
+    status: turnoSetor.status as TurnoSetorScaneado['status'],
+  }
+}
+
+interface TurnoSetorDemandaScannerRow {
+  id: string
+  turno_setor_id: string
+  turno_id: string
+  turno_op_id: string
+  produto_id: string
+  setor_id: string
+  turno_setor_op_legacy_id: string | null
+  quantidade_planejada: number
+  quantidade_realizada: number
+  status: string
+  turno_ops?: {
+    numero_op: string
+  } | {
+    numero_op: string
+  }[] | null
+  produtos?: {
+    nome: string
+    referencia: string
+  } | {
+    nome: string
+    referencia: string
+  }[] | null
+}
+
+export async function buscarDemandasScaneadasPorTurnoSetor(
+  turnoSetorId: string
+): Promise<TurnoSetorDemandaScaneada[]> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('turno_setor_demandas')
+    .select(
+      `
+        id,
+        turno_setor_id,
+        turno_id,
+        turno_op_id,
+        produto_id,
+        setor_id,
+        turno_setor_op_legacy_id,
+        quantidade_planejada,
+        quantidade_realizada,
+        status,
+        turno_ops!inner (
+          numero_op
+        ),
+        produtos!inner (
+          nome,
+          referencia
+        )
+      `
+    )
+    .eq('turno_setor_id', turnoSetorId)
+    .order('created_at', { ascending: true })
+    .returns<TurnoSetorDemandaScannerRow[]>()
+
+  if (error || !data) {
+    return []
+  }
+
+  return data.map((demanda) => {
+    const turnoOp = Array.isArray(demanda.turno_ops) ? demanda.turno_ops[0] : demanda.turno_ops
+    const produto = Array.isArray(demanda.produtos) ? demanda.produtos[0] : demanda.produtos
+
+    return {
+      id: demanda.id,
+      turnoSetorId: demanda.turno_setor_id,
+      turnoId: demanda.turno_id,
+      turnoOpId: demanda.turno_op_id,
+      setorId: demanda.setor_id,
+      numeroOp: turnoOp?.numero_op ?? 'OP sem número',
+      produtoId: demanda.produto_id,
+      produtoNome: produto?.nome ?? 'Produto sem nome',
+      produtoReferencia: produto?.referencia ?? 'Sem referência',
+      quantidadePlanejada: demanda.quantidade_planejada,
+      quantidadeRealizada: demanda.quantidade_realizada,
+      saldoRestante: Math.max(
+        demanda.quantidade_planejada - demanda.quantidade_realizada,
+        0
+      ),
+      status: demanda.status as TurnoSetorDemandaScaneada['status'],
+      turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+    }
+  })
+}
+
 export async function buscarOperacoesScaneadasPorSecao(
   turnoSetorOpId: string
 ): Promise<TurnoSetorOperacaoApontamentoV2[]> {
   const supabase = createClient()
   return listarTurnoSetorOperacoesPorSecaoComClient(supabase, turnoSetorOpId)
+}
+
+export async function buscarOperacoesScaneadasPorDemanda(
+  turnoSetorDemanda: Pick<TurnoSetorDemandaScaneada, 'id' | 'turnoSetorOpLegacyId'>
+): Promise<TurnoSetorOperacaoApontamentoV2[]> {
+  const supabase = createClient()
+  const operacoesPorDemanda = await listarTurnoSetorOperacoesPorDemandaComClient(
+    supabase,
+    turnoSetorDemanda.id
+  )
+
+  if (operacoesPorDemanda.length > 0 || !turnoSetorDemanda.turnoSetorOpLegacyId) {
+    return operacoesPorDemanda
+  }
+
+  return listarTurnoSetorOperacoesPorSecaoComClient(
+    supabase,
+    turnoSetorDemanda.turnoSetorOpLegacyId
+  )
 }
