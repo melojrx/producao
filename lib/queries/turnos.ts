@@ -27,6 +27,40 @@ type OperadorResumoRow = Pick<
 type ProdutoResumoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia'>
 type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'codigo' | 'nome'>
 
+interface QueryErrorLike {
+  code?: string
+  message?: string
+}
+
+function isQueryErrorLike(value: unknown): value is QueryErrorLike {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const candidate = value as Record<string, unknown>
+  return (
+    candidate.code === undefined || typeof candidate.code === 'string'
+  ) && (candidate.message === undefined || typeof candidate.message === 'string')
+}
+
+function isSchemaLegadoIncompativel(error: unknown): boolean {
+  if (!isQueryErrorLike(error)) {
+    return false
+  }
+
+  if (error.code === '42P01' || error.code === '42703') {
+    return true
+  }
+
+  const mensagem = (error.message ?? '').toLowerCase()
+
+  return (
+    mensagem.includes('does not exist') ||
+    mensagem.includes('could not find the table') ||
+    mensagem.includes('schema cache')
+  )
+}
+
 function mapearTurno(turno: TurnoRow): TurnoV2 {
   return {
     id: turno.id,
@@ -142,11 +176,38 @@ async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
     .order('created_at', { ascending: true })
     .returns<TurnoOpRow[]>()
 
-  if (opsError) {
+  let opsCompativeis = ops
+
+  if (opsError && isSchemaLegadoIncompativel(opsError)) {
+    const { data: opsLegadas, error: opsLegadasError } = await supabase
+      .from('turno_ops')
+      .select(
+        'id, turno_id, numero_op, produto_id, quantidade_planejada, quantidade_realizada, status, iniciado_em, encerrado_em'
+      )
+      .eq('turno_id', turnoId)
+      .order('created_at', { ascending: true })
+      .returns<TurnoOpRow[]>()
+
+    if (opsLegadasError) {
+      throw new Error(`Erro ao listar OPs do turno: ${opsLegadasError.message}`)
+    }
+
+    opsCompativeis = (opsLegadas ?? []).map((opLegada) => ({
+      ...opLegada,
+      quantidade_planejada_original: opLegada.quantidade_planejada,
+      quantidade_planejada_remanescente: Math.max(
+        opLegada.quantidade_planejada - opLegada.quantidade_realizada,
+        0
+      ),
+      turno_op_origem_id: null,
+    })) as TurnoOpRow[]
+  } else if (opsError) {
     throw new Error(`Erro ao listar OPs do turno: ${opsError.message}`)
   }
 
-  const produtoIds = Array.from(new Set((ops ?? []).map((op) => op.produto_id).filter(Boolean)))
+  const produtoIds = Array.from(
+    new Set((opsCompativeis ?? []).map((op) => op.produto_id).filter(Boolean))
+  )
 
   if (produtoIds.length === 0) {
     return []
@@ -164,7 +225,7 @@ async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
 
   const produtosPorId = new Map((produtos ?? []).map((produto) => [produto.id, produto]))
 
-  return (ops ?? [])
+  return (opsCompativeis ?? [])
     .map((op) => {
       const produto = produtosPorId.get(op.produto_id)
       if (!produto) {
@@ -274,6 +335,10 @@ async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
     .order('created_at', { ascending: true })
     .returns<TurnoSetorRow[]>()
 
+  if (setoresTurnoError && isSchemaLegadoIncompativel(setoresTurnoError)) {
+    return []
+  }
+
   if (setoresTurnoError) {
     throw new Error(`Erro ao listar setores ativos do turno: ${setoresTurnoError.message}`)
   }
@@ -348,6 +413,10 @@ async function listarTurnoSetorDemandas(
     .eq('turno_id', turnoId)
     .order('created_at', { ascending: true })
     .returns<TurnoSetorDemandaRow[]>()
+
+  if (demandasError && isSchemaLegadoIncompativel(demandasError)) {
+    return []
+  }
 
   if (demandasError) {
     throw new Error(`Erro ao listar demandas dos setores do turno: ${demandasError.message}`)
