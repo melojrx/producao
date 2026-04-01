@@ -202,13 +202,13 @@ BEGIN
 
   SELECT
     COUNT(*)::INTEGER,
-    COUNT(*) FILTER (WHERE status = 'concluida')::INTEGER,
-    COUNT(*) FILTER (WHERE status = 'encerrada_manualmente')::INTEGER,
-    COALESCE(SUM(quantidade_planejada), 0)::INTEGER,
-    COALESCE(SUM(quantidade_realizada), 0)::INTEGER,
-    MIN(iniciado_em),
-    MAX(encerrado_em),
-    COALESCE(BOOL_OR(quantidade_realizada > 0), false)
+    COUNT(*) FILTER (WHERE demanda.status = 'concluida')::INTEGER,
+    COUNT(*) FILTER (WHERE demanda.status = 'encerrada_manualmente')::INTEGER,
+    COALESCE(SUM(demanda.quantidade_planejada), 0)::INTEGER,
+    COALESCE(SUM(demanda.quantidade_realizada), 0)::INTEGER,
+    MIN(demanda.iniciado_em),
+    MAX(demanda.encerrado_em),
+    COALESCE(BOOL_OR(demanda.quantidade_realizada > 0), false)
   INTO
     v_total_demandas,
     v_total_concluidas,
@@ -218,8 +218,8 @@ BEGIN
     v_primeiro_inicio,
     v_encerrou_em,
     v_possui_realizado
-  FROM public.turno_setor_demandas
-  WHERE turno_setor_id = p_turno_setor_id;
+  FROM public.turno_setor_demandas AS demanda
+  WHERE demanda.turno_setor_id = p_turno_setor_id;
 
   IF v_total_demandas = 0 THEN
     DELETE FROM public.turno_setores
