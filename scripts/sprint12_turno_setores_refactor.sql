@@ -496,10 +496,16 @@ WHERE demanda.turno_setor_op_legacy_id = operacao_secao.turno_setor_op_id
 UPDATE public.registros_producao AS registro
 SET
   turno_setor_id = demanda.turno_setor_id,
-  turno_setor_demanda_id = COALESCE(operacao_secao.turno_setor_demanda_id, demanda.id)
+  turno_setor_demanda_id = COALESCE(
+    (
+      SELECT operacao_secao.turno_setor_demanda_id
+      FROM public.turno_setor_operacoes AS operacao_secao
+      WHERE operacao_secao.id = registro.turno_setor_operacao_id
+      LIMIT 1
+    ),
+    demanda.id
+  )
 FROM public.turno_setor_demandas AS demanda
-LEFT JOIN public.turno_setor_operacoes AS operacao_secao
-  ON operacao_secao.id = registro.turno_setor_operacao_id
 WHERE demanda.turno_setor_op_legacy_id = registro.turno_setor_op_id
   AND (
     registro.turno_setor_id IS NULL
