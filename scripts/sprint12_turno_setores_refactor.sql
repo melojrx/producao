@@ -526,12 +526,32 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
+  CREATE POLICY "leitura_turnos_publica_scanner" ON public.turnos
+    FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "leitura_setores_publica_scanner" ON public.setores
+    FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "leitura_turno_ops_publica_scanner" ON public.turno_ops
+    FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
   CREATE POLICY "leitura_turno_setor_demandas_autenticados" ON public.turno_setor_demandas
     FOR SELECT USING (auth.role() = 'authenticated');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
   CREATE POLICY "leitura_turno_setor_demandas_publica_scanner" ON public.turno_setor_demandas
+    FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "leitura_turno_setor_operacoes_publica_scanner" ON public.turno_setor_operacoes
     FOR SELECT USING (auth.role() IN ('authenticated', 'anon'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
