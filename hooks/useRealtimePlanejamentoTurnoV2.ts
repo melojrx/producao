@@ -24,9 +24,7 @@ export function useRealtimePlanejamentoTurnoV2(
   initialPlanning: PlanejamentoTurnoDashboardV2 | null
 ): UseRealtimePlanejamentoTurnoV2Resultado {
   const [planejamento, setPlanejamento] = useState<PlanejamentoTurnoDashboardV2 | null>(initialPlanning)
-  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(
-    initialPlanning ? new Date() : null
-  )
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null)
   const [statusConexao, setStatusConexao] =
     useState<StatusConexaoRealtimeTurnoV2>('conectando')
   const [estaCarregando, setEstaCarregando] = useState(initialPlanning === null)
@@ -75,6 +73,12 @@ export function useRealtimePlanejamentoTurnoV2(
     recargaEmAndamentoRef.current = recarga
     return recarga
   })
+
+  useEffect(() => {
+    if (initialPlanning) {
+      setUltimaAtualizacao(new Date())
+    }
+  }, [initialPlanning])
 
   useEffect(() => {
     const supabase = createClient()
