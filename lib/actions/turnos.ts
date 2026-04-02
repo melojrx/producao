@@ -26,6 +26,7 @@ type TurnoOpRow = Tables<'turno_ops'>
 type TurnoOpInsert = TablesInsert<'turno_ops'>
 type TurnoOpUpdate = TablesUpdate<'turno_ops'>
 type TurnoSetorDemandaRow = Tables<'turno_setor_demandas'>
+type TurnoSetorOperacaoRow = Tables<'turno_setor_operacoes'>
 type TurnoSetorOpRow = Tables<'turno_setor_ops'>
 
 type ProdutoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia' | 'ativo'>
@@ -63,6 +64,12 @@ interface TurnoOpCarryOver {
   quantidadeRealizada: number
   turnoOpOrigemId: string | null
   status: TurnoOpRow['status']
+}
+
+interface TurnoSetorOperacaoCarryOverBase {
+  setorId: string
+  operacaoId: string
+  quantidadeRealizada: number
 }
 
 function inteiroPositivo(valor: number): boolean {
@@ -595,6 +602,147 @@ async function inserirTurnoOp(
   return { turnoOp: data }
 }
 
+async function hidratarProgressoCarryOverDaOp(
+  turnoOpOrigemId: string,
+  turnoOpDestinoId: string
+): Promise<{ erro?: string }> {
+  const supabase = createAdminClient()
+
+  const [
+    { data: operacoesOrigem, error: operacoesOrigemError },
+    { data: secoesDestino, error: secoesDestinoError },
+    { data: operacoesDestino, error: operacoesDestinoError },
+  ] = await Promise.all([
+    supabase
+      .from('turno_setor_operacoes')
+      .select('setor_id, operacao_id, quantidade_realizada')
+      .eq('turno_op_id', turnoOpOrigemId)
+      .returns<
+        Pick<TurnoSetorOperacaoRow, 'setor_id' | 'operacao_id' | 'quantidade_realizada'>[]
+      >(),
+    supabase
+      .from('turno_setor_ops')
+      .select('id')
+      .eq('turno_op_id', turnoOpDestinoId)
+      .returns<Pick<TurnoSetorOpRow, 'id'>[]>(),
+    supabase
+      .from('turno_setor_operacoes')
+      .select('id, turno_setor_op_id, setor_id, operacao_id, quantidade_planejada')
+      .eq('turno_op_id', turnoOpDestinoId)
+      .returns<
+        Pick<
+          TurnoSetorOperacaoRow,
+          'id' | 'turno_setor_op_id' | 'setor_id' | 'operacao_id' | 'quantidade_planejada'
+        >[]
+      >(),
+  ])
+
+  if (operacoesOrigemError) {
+    return {
+      erro: `Erro ao carregar o progresso do turno anterior para carry-over: ${operacoesOrigemError.message}`,
+    }
+  }
+
+  if (secoesDestinoError) {
+    return {
+      erro: `Erro ao carregar as seções derivadas do novo turno no carry-over: ${secoesDestinoError.message}`,
+    }
+  }
+
+  if (operacoesDestinoError) {
+    return {
+      erro: `Erro ao carregar as operações derivadas do novo turno no carry-over: ${operacoesDestinoError.message}`,
+    }
+  }
+
+  const progressoOrigemPorChave = new Map<string, TurnoSetorOperacaoCarryOverBase>()
+
+  for (const operacaoOrigem of operacoesOrigem ?? []) {
+    if (!operacaoOrigem.setor_id || !operacaoOrigem.operacao_id) {
+      continue
+    }
+
+    if (operacaoOrigem.quantidade_realizada <= 0) {
+      continue
+    }
+
+    progressoOrigemPorChave.set(
+      `${operacaoOrigem.setor_id}:${operacaoOrigem.operacao_id}`,
+      {
+        setorId: operacaoOrigem.setor_id,
+        operacaoId: operacaoOrigem.operacao_id,
+        quantidadeRealizada: operacaoOrigem.quantidade_realizada,
+      }
+    )
+  }
+
+  if (progressoOrigemPorChave.size === 0) {
+    return {}
+  }
+
+  const secoesAfetadas = new Set<string>()
+
+  for (const operacaoDestino of operacoesDestino ?? []) {
+    if (!operacaoDestino.setor_id || !operacaoDestino.operacao_id) {
+      continue
+    }
+
+    const progressoOrigem = progressoOrigemPorChave.get(
+      `${operacaoDestino.setor_id}:${operacaoDestino.operacao_id}`
+    )
+
+    if (!progressoOrigem) {
+      continue
+    }
+
+    const quantidadeRealizada = Math.min(
+      operacaoDestino.quantidade_planejada,
+      progressoOrigem.quantidadeRealizada
+    )
+
+    if (quantidadeRealizada <= 0) {
+      continue
+    }
+
+    const status =
+      quantidadeRealizada >= operacaoDestino.quantidade_planejada ? 'concluida' : 'em_andamento'
+
+    const { error: updateError } = await supabase
+      .from('turno_setor_operacoes')
+      .update({
+        quantidade_realizada: quantidadeRealizada,
+        status,
+      })
+      .eq('id', operacaoDestino.id)
+
+    if (updateError) {
+      return {
+        erro: `Erro ao hidratar a operação ${operacaoDestino.operacao_id} no carry-over: ${updateError.message}`,
+      }
+    }
+
+    secoesAfetadas.add(operacaoDestino.turno_setor_op_id)
+  }
+
+  if (secoesAfetadas.size === 0) {
+    return {}
+  }
+
+  for (const secaoId of secoesAfetadas) {
+    const { error: syncSecaoError } = await supabase.rpc('sincronizar_andamento_turno_setor_op', {
+      p_turno_setor_op_id: secaoId,
+    })
+
+    if (syncSecaoError) {
+      return {
+        erro: `Erro ao sincronizar a seção derivada do carry-over: ${syncSecaoError.message}`,
+      }
+    }
+  }
+
+  return {}
+}
+
 async function carregarPendenciasTurnoAnteriorInternamente(
   input: CarregarPendenciasTurnoAnteriorInput
 ): Promise<{ erro?: string }> {
@@ -608,7 +756,7 @@ async function carregarPendenciasTurnoAnteriorInternamente(
   }
 
   for (const pendencia of pendenciasSelecionadas) {
-    const { erro: erroInsercao } = await inserirTurnoOp(input.turnoDestinoId, {
+    const { turnoOp, erro: erroInsercao } = await inserirTurnoOp(input.turnoDestinoId, {
       numeroOp: pendencia.numeroOp,
       produtoId: pendencia.produtoId,
       quantidadePlanejada: pendencia.quantidadePlanejadaRemanescente,
@@ -619,6 +767,21 @@ async function carregarPendenciasTurnoAnteriorInternamente(
 
     if (erroInsercao) {
       return { erro: erroInsercao }
+    }
+
+    if (!turnoOp) {
+      return {
+        erro: `A OP ${pendencia.numeroOp} foi criada no carry-over, mas não retornou do banco para hidratar o progresso anterior.`,
+      }
+    }
+
+    const { erro: erroHidratacao } = await hidratarProgressoCarryOverDaOp(
+      pendencia.id,
+      turnoOp.id
+    )
+
+    if (erroHidratacao) {
+      return { erro: erroHidratacao }
     }
   }
 

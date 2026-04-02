@@ -1183,7 +1183,7 @@ Esta sprint nasce de uma validação de negócio já confirmada:
 - a OP alimenta a demanda interna do setor
 - um novo QR só deve existir quando um novo setor entrar no turno
 
-- [ ] **12.1 — Refatorar o modelo de dados operacional para `turno + setor`**
+- [x] **12.1 — Refatorar o modelo de dados operacional para `turno + setor`**
   Entregas mínimas:
   - introduzir a entidade de setor ativo do turno como unidade operacional principal
   - separar a demanda por OP/produto dentro do setor
@@ -1196,6 +1196,7 @@ Esta sprint nasce de uma validação de negócio já confirmada:
   - evolução de `turno_setor_operacoes` para apontar a demanda setorial correta
 
   **Evidência:** Um turno com duas OPs que compartilham `Preparação` mantém um único setor `Preparação` ativo no banco, com duas demandas internas distintas e sem duplicação de QR.
+  Evidência registrada em `scripts/sprint12_turno_setores_refactor.sql`, `types/supabase.ts`, `types/index.ts`, `lib/queries/turnos.ts` e `lib/queries/scanner.ts`. Validação read-only via Supabase Management API concluída em `2026-04-02`: no turno `03bf2781-c80a-4dae-a8ae-a99bd6ddee39`, o setor `Preparação` retornou `total_demandas = 4`, `total_setores_ativos = 1` e `total_qrs_distintos = 1`, com as OPs `201520, 201545, 201555, 201801`, comprovando que o modelo `turno + setor` mantém um único setor ativo com múltiplas demandas internas sem duplicação de QR.
 
 - [x] **12.2 — Refatorar QR operacional, dashboard e edição de turno para reaproveitamento setorial**
   Entregas mínimas:
@@ -1267,3 +1268,4 @@ Esta sprint nasce de uma validação de negócio já confirmada:
   - carry-over de pendências entre turnos
 
   **Evidência:** O fluxo ponta a ponta do supervisor funciona no modelo setorial do turno, sem duplicação visual de setores, com scanner coerente e continuidade operacional entre turnos.
+  Nota de homologação em `2026-04-02`: corrigido defeito no carry-over em que o novo turno reabria como pendente setores já concluídos no turno de origem. A correção foi aplicada em `lib/actions/turnos.ts`, hidratando no novo turno o progresso prévio por `setor + operação` antes da recarga da dashboard, para que setores concluídos permaneçam concluídos e setores parciais carreguem apenas o saldo real remanescente.
