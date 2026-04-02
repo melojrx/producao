@@ -3,7 +3,6 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  ClipboardList,
   Factory,
   Filter,
   ListChecks,
@@ -345,42 +344,6 @@ export function PainelApontamentosSupervisor({
 
   return (
     <section className="space-y-6">
-      <section className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-6 shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
-              <ClipboardList size={14} />
-              Apontamento incremental do supervisor
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Apontamentos do Supervisor</h1>
-              <p className="mt-1 max-w-3xl text-sm text-slate-600">
-                Registre no mesmo envio as quantidades produzidas por operador e operação dentro de
-                uma seção. O sistema consolida automaticamente operação, seção, OP e turno sem
-                supercontar a produção.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <article className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Turno</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">Aberto</p>
-            </article>
-            <article className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Seções pendentes</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{secoesPendentes}</p>
-            </article>
-            <article className="rounded-2xl border border-white/80 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Planejado vs realizado</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">
-                {totalRealizado} / {totalPlanejado}
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
       <section className="grid gap-6 xl:grid-cols-[1.2fr,1.8fr]">
         <div className="space-y-4">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

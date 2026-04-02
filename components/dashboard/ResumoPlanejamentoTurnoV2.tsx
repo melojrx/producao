@@ -1,3 +1,4 @@
+import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
@@ -24,7 +25,7 @@ export function ResumoPlanejamentoTurnoV2({
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-900">Planejamento do Turno</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Dashboard em tempo real</h2>
           <p className="text-sm text-slate-600">
             Nenhum turno foi encontrado. Quando um turno for aberto, a dashboard passará a usar o
             turno em aberto ou, na ausência dele, o último turno encerrado.
@@ -39,6 +40,7 @@ export function ResumoPlanejamentoTurnoV2({
   const opsConcluidas = planejamento.ops.filter((op) => op.status === 'concluida').length
   const setores = mapearSetoresTurnoParaDashboard(planejamento)
   const setoresConcluidos = setores.filter((setor) => setor.status === 'concluida').length
+  const operadoresEnvolvidos = contarOperadoresEnvolvidosNoTurno(planejamento)
   const progressoOps =
     planejamento.ops.length > 0 ? Math.round((opsConcluidas / planejamento.ops.length) * 100) : 0
   const progressoSetores =
@@ -50,7 +52,7 @@ export function ResumoPlanejamentoTurnoV2({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-900">Planejamento do Turno</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Dashboard em tempo real</h2>
           <p className="text-sm text-slate-600">
             A dashboard carrega automaticamente o turno aberto atual ou, se não houver um aberto, o
             último turno encerrado.
@@ -112,9 +114,7 @@ export function ResumoPlanejamentoTurnoV2({
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Operadores alocados
           </p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {planejamento.operadores.length}
-          </p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">{operadoresEnvolvidos}</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 p-4">

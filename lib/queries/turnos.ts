@@ -19,6 +19,7 @@ type TurnoOperadorRow = Tables<'turno_operadores'>
 type TurnoOpRow = Tables<'turno_ops'>
 type TurnoSetorDemandaRow = Tables<'turno_setor_demandas'>
 type TurnoSetorOpRow = Tables<'turno_setor_ops'>
+type TurnoSetorOpResumoRow = Pick<Tables<'turno_setor_ops'>, 'id'>
 type TurnoSetorRow = Tables<'turno_setores'>
 
 type OperadorResumoRow = Pick<
@@ -174,10 +175,28 @@ async function listarOperadoresAtividadeSetor(
 ): Promise<TurnoOperadorAtividadeSetorV2[]> {
   const supabase = await createClient()
 
+  const { data: secoesTurno, error: secoesTurnoError } = await supabase
+    .from('turno_setor_ops')
+    .select('id')
+    .eq('turno_id', turnoId)
+    .returns<TurnoSetorOpResumoRow[]>()
+
+  if (secoesTurnoError) {
+    throw new Error(
+      `Erro ao carregar as seções do turno para atividade por setor: ${secoesTurnoError.message}`
+    )
+  }
+
+  const secoesTurnoIds = (secoesTurno ?? []).map((secao) => secao.id)
+
+  if (secoesTurnoIds.length === 0) {
+    return []
+  }
+
   const { data: registros, error: registrosError } = await supabase
     .from('registros_producao')
     .select('operador_id, turno_setor_op_id, quantidade, created_at')
-    .eq('turno', turnoId)
+    .in('turno_setor_op_id', secoesTurnoIds)
     .not('operador_id', 'is', null)
     .not('turno_setor_op_id', 'is', null)
     .returns<RegistroResumoSetorRow[]>()

@@ -1,9 +1,16 @@
 import { ClipboardList } from 'lucide-react'
+import { ControleTurnoSupervisor } from '@/components/apontamentos/ControleTurnoSupervisor'
 import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelApontamentosSupervisor'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { listarOperadores } from '@/lib/queries/operadores'
-import { buscarTurnoAberto } from '@/lib/queries/turnos'
-import type { OperadorListItem, PlanejamentoTurnoV2, TurnoOperadorV2 } from '@/types'
+import { listarProdutosAtivosParaTurno } from '@/lib/queries/turno'
+import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
+import type {
+  OperadorListItem,
+  PlanejamentoTurnoDashboardV2,
+  PlanejamentoTurnoV2,
+  TurnoOperadorV2,
+} from '@/types'
 
 function mapearOperadoresFallback(
   planejamento: PlanejamentoTurnoV2,
@@ -24,20 +31,29 @@ function mapearOperadoresFallback(
 }
 
 export default async function AdminApontamentosPage() {
-  const planejamento = await buscarTurnoAberto()
+  const [planejamentoAtual, produtos] = await Promise.all([
+    buscarTurnoAbertoOuUltimoEncerrado(),
+    listarProdutosAtivosParaTurno(),
+  ])
+  const planejamento =
+    planejamentoAtual?.origem === 'aberto'
+      ? (planejamentoAtual as PlanejamentoTurnoDashboardV2)
+      : null
 
   if (!planejamento) {
     return (
       <main className="w-full space-y-6">
+        <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
             <ClipboardList size={14} />
-            Apontamentos do supervisor
+            Apontamentos indisponíveis
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">Nenhum turno aberto</h1>
+          <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Abra um novo turno na dashboard para liberar as seções, operações derivadas e o
-            registro incremental do supervisor em <code>/admin/apontamentos</code>.
+            O painel de lançamento fica disponível quando existe um turno aberto. Use os controles
+            acima para abrir o próximo turno e liberar as seções, operações derivadas e o registro
+            incremental do supervisor.
           </p>
         </section>
       </main>
@@ -56,6 +72,7 @@ export default async function AdminApontamentosPage() {
 
   return (
     <main className="w-full space-y-6">
+      <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
       <PainelApontamentosSupervisor
         planejamento={planejamentoComOperadores}
         operacoesTurno={operacoesTurno}
