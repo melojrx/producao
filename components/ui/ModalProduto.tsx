@@ -13,6 +13,7 @@ import type {
 
 interface ModalProdutoProps {
   produto?: ProdutoListItem
+  produtoBase?: ProdutoListItem
   operacoes: OperacaoListItem[]
   setores: SetorListItem[]
   aoFechar: () => void
@@ -77,18 +78,41 @@ function deduplicarSetoresIniciais(produto?: ProdutoListItem): string[] {
   )
 }
 
-export function ModalProduto({ produto, operacoes, setores, aoFechar }: ModalProdutoProps) {
+function obterReferenciaInicial(produtoBase?: ProdutoListItem): string {
+  if (!produtoBase) {
+    return ''
+  }
+
+  return `${produtoBase.referencia}-COPIA`
+}
+
+function obterNomeInicial(produtoBase?: ProdutoListItem): string {
+  if (!produtoBase) {
+    return ''
+  }
+
+  return `${produtoBase.nome} (Copia)`
+}
+
+export function ModalProduto({
+  produto,
+  produtoBase,
+  operacoes,
+  setores,
+  aoFechar,
+}: ModalProdutoProps) {
   const acao = produto ? editarProduto.bind(null, produto.id) : criarProduto
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
+  const produtoInicial = produto ?? produtoBase
   const [roteiroIds, setRoteiroIds] = useState<string[]>(
-    produto ? produto.roteiro.map((item) => item.operacaoId) : []
+    produtoInicial ? produtoInicial.roteiro.map((item) => item.operacaoId) : []
   )
   const [buscaSetor, setBuscaSetor] = useState('')
   const [setoresSelecionadosIds, setSetoresSelecionadosIds] = useState<string[]>(() =>
-    deduplicarSetoresIniciais(produto)
+    deduplicarSetoresIniciais(produtoInicial)
   )
   const [setorAtivoId, setSetorAtivoId] = useState<string | null>(() => {
-    const primeiroSetor = produto?.roteiro.find((item) => item.setorId)?.setorId
+    const primeiroSetor = produtoInicial?.roteiro.find((item) => item.setorId)?.setorId
     return primeiroSetor ?? null
   })
 
@@ -150,6 +174,7 @@ export function ModalProduto({ produto, operacoes, setores, aoFechar }: ModalPro
   const setorAtivo = setorAtivoId ? setoresPorId.get(setorAtivoId) ?? null : null
   const operacoesDoSetorAtivo = setorAtivo?.operacoes ?? []
   const modoEdicao = !!produto
+  const modoDuplicacao = !produto && !!produtoBase
 
   function adicionarSetor(setorId: string) {
     setSetoresSelecionadosIds((setoresAtuais) => {
@@ -196,12 +221,12 @@ export function ModalProduto({ produto, operacoes, setores, aoFechar }: ModalPro
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
-      aria-label={modoEdicao ? 'Editar produto' : 'Novo produto'}
+      aria-label={modoEdicao ? 'Editar produto' : modoDuplicacao ? 'Duplicar produto' : 'Novo produto'}
     >
       <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b p-5">
           <h2 className="text-lg font-semibold text-gray-900">
-            {modoEdicao ? 'Editar Produto' : 'Novo Produto'}
+            {modoEdicao ? 'Editar Produto' : modoDuplicacao ? 'Duplicar Produto' : 'Novo Produto'}
           </h2>
           <button
             type="button"
@@ -234,7 +259,7 @@ export function ModalProduto({ produto, operacoes, setores, aoFechar }: ModalPro
                 name="referencia"
                 type="text"
                 required
-                defaultValue={produto?.referencia ?? ''}
+                defaultValue={produto ? produto.referencia : obterReferenciaInicial(produtoBase)}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
@@ -248,7 +273,7 @@ export function ModalProduto({ produto, operacoes, setores, aoFechar }: ModalPro
                 name="nome"
                 type="text"
                 required
-                defaultValue={produto?.nome ?? ''}
+                defaultValue={produto ? produto.nome : obterNomeInicial(produtoBase)}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
@@ -297,7 +322,7 @@ export function ModalProduto({ produto, operacoes, setores, aoFechar }: ModalPro
               />
             </div>
           */}
-          <input type="hidden" name="imagem_url" value={produto?.imagem_url ?? ''} />
+          <input type="hidden" name="imagem_url" value={produtoInicial?.imagem_url ?? ''} />
 
           <input type="hidden" name="roteiro" value={roteiroPayload} />
 

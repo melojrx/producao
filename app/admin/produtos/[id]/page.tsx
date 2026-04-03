@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft, Copy, Pencil } from 'lucide-react'
 import { ProdutoLifecycleActions } from '@/components/admin/actions/ProdutoLifecycleActions'
 import { DetailField } from '@/components/admin/DetailField'
 import { buscarProdutoComRoteiro } from '@/lib/queries/produtos'
@@ -38,13 +38,22 @@ export default async function ProdutoDetalhePage({
           </p>
         </div>
 
-        <Link
-          href="/admin/produtos"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          <Pencil size={16} />
-          Editar na listagem
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href={`/admin/produtos?duplicar=${produto.id}`}
+            className="inline-flex items-center gap-2 rounded-lg border border-violet-300 px-4 py-2 text-sm font-medium text-violet-700 transition-colors hover:bg-violet-50"
+          >
+            <Copy size={16} />
+            Duplicar na listagem
+          </Link>
+          <Link
+            href="/admin/produtos"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            <Pencil size={16} />
+            Editar na listagem
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

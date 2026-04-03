@@ -815,6 +815,8 @@ Contrato da UX:
 - o usuário primeiro informa `referência` e `nome`
 - `URL da imagem` permanece temporariamente oculta no modal por decisão de produto, até a futura entrega de inclusão real da imagem
 - abaixo desses campos, o modal exibe o `T.P Produto` como informação de apoio visual, menos evidente que os campos principais, sendo atualizado automaticamente conforme as operações são selecionadas
+- o CRUD deve permitir `duplicar produto` a partir de um cadastro existente, reaproveitando o mesmo modal de produto em modo de criação pré-carregado
+- ao duplicar, o sistema deve carregar `nome`, `roteiro` e `setores` do produto de origem, mas continuar tratando o salvamento como um novo produto
 - em seguida, o usuário busca e adiciona os setores que farão parte do produto, respeitando o limite de setores existentes no sistema
 - ao selecionar um setor, o modal passa a exibir apenas as operações disponíveis naquele setor para escolha
 - finalizada a seleção das operações de um setor, o usuário segue para o próximo setor até concluir o roteiro completo do produto
@@ -826,6 +828,7 @@ Regras:
 - se necessário para manter a UX clara e intuitiva, o modal pode aumentar de largura ou reorganizar o layout
 - a ampliação visual do modal não pode transformar a tela em um configurador denso; o foco deve permanecer apenas nas decisões necessárias para montar o produto
 - a busca e a seleção de operações devem respeitar o vínculo estrutural existente entre `operação` e `setor`
+- a duplicação deve exigir revisão da `referência`, porque o novo cadastro não pode reutilizar a referência original
 
 Contrato de ciclo de vida:
 - o produto deve ter duas ações distintas de ciclo de vida: `arquivar/desativar` e `excluir permanentemente`

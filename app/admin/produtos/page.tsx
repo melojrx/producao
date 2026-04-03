@@ -3,7 +3,17 @@ import { listarOperacoes } from '@/lib/queries/operacoes'
 import { listarProdutos } from '@/lib/queries/produtos'
 import { listarSetores } from '@/lib/queries/setores'
 
-export default async function AdminProdutosPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>
+
+function valorString(param: string | string[] | undefined): string | undefined {
+  return typeof param === 'string' && param ? param : undefined
+}
+
+export default async function AdminProdutosPage(props: {
+  searchParams: SearchParams
+}) {
+  const resolvedSearchParams = await props.searchParams
+  const produtoDuplicarIdInicial = valorString(resolvedSearchParams.duplicar)
   const [produtos, operacoes, setores] = await Promise.all([
     listarProdutos(),
     listarOperacoes(),
@@ -19,7 +29,12 @@ export default async function AdminProdutosPage() {
         </p>
       </div>
 
-      <ListaProdutos produtosIniciais={produtos} operacoes={operacoes} setores={setores} />
+      <ListaProdutos
+        produtosIniciais={produtos}
+        operacoes={operacoes}
+        produtoDuplicarIdInicial={produtoDuplicarIdInicial}
+        setores={setores}
+      />
     </div>
   )
 }

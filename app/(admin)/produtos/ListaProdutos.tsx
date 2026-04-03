@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
-import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Copy, Eye, Pencil, Plus, Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { ProdutoLifecycleActions } from '@/components/admin/actions/ProdutoLifecycleActions'
 import { ModalProduto } from '@/components/ui/ModalProduto'
 import type { OperacaoListItem, ProdutoListItem, SetorListItem } from '@/types'
@@ -10,12 +11,22 @@ import type { OperacaoListItem, ProdutoListItem, SetorListItem } from '@/types'
 interface ListaProdutosProps {
   produtosIniciais: ProdutoListItem[]
   operacoes: OperacaoListItem[]
+  produtoDuplicarIdInicial?: string
   setores: SetorListItem[]
 }
 
-export function ListaProdutos({ produtosIniciais, operacoes, setores }: ListaProdutosProps) {
+type ModalProdutoModo = 'criar' | 'editar' | 'duplicar'
+
+export function ListaProdutos({
+  produtosIniciais,
+  operacoes,
+  produtoDuplicarIdInicial,
+  setores,
+}: ListaProdutosProps) {
+  const router = useRouter()
   const [modalAberto, setModalAberto] = useState(false)
-  const [produtoEditando, setProdutoEditando] = useState<ProdutoListItem | undefined>()
+  const [modalModo, setModalModo] = useState<ModalProdutoModo>('criar')
+  const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoListItem | undefined>()
   const [busca, setBusca] = useState('')
 
   const produtosFiltrados = produtosIniciais.filter((produto) => {
@@ -27,14 +38,38 @@ export function ListaProdutos({ produtosIniciais, operacoes, setores }: ListaPro
   })
 
   function abrirCriar() {
-    setProdutoEditando(undefined)
+    setModalModo('criar')
+    setProdutoSelecionado(undefined)
     setModalAberto(true)
   }
 
   function abrirEditar(produto: ProdutoListItem) {
-    setProdutoEditando(produto)
+    setModalModo('editar')
+    setProdutoSelecionado(produto)
     setModalAberto(true)
   }
+
+  function abrirDuplicar(produto: ProdutoListItem) {
+    setModalModo('duplicar')
+    setProdutoSelecionado(produto)
+    setModalAberto(true)
+  }
+
+  useEffect(() => {
+    if (!produtoDuplicarIdInicial) {
+      return
+    }
+
+    const produtoModelo = produtosIniciais.find((produto) => produto.id === produtoDuplicarIdInicial)
+
+    if (!produtoModelo) {
+      router.replace('/admin/produtos')
+      return
+    }
+
+    abrirDuplicar(produtoModelo)
+    router.replace('/admin/produtos')
+  }, [produtoDuplicarIdInicial, produtosIniciais, router])
 
   return (
     <>
@@ -131,6 +166,15 @@ export function ListaProdutos({ produtosIniciais, operacoes, setores }: ListaPro
                           >
                             <Pencil size={16} />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => abrirDuplicar(produto)}
+                            aria-label={`Duplicar ${produto.referencia}`}
+                            title={`Duplicar ${produto.referencia}`}
+                            className="inline-flex rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-violet-50 hover:text-violet-600"
+                          >
+                            <Copy size={16} />
+                          </button>
                           <Link
                             href={`/admin/produtos/${produto.id}`}
                             aria-label={`Ver detalhes de ${produto.referencia}`}
@@ -158,7 +202,8 @@ export function ListaProdutos({ produtosIniciais, operacoes, setores }: ListaPro
 
       {modalAberto ? (
         <ModalProduto
-          produto={produtoEditando}
+          produto={modalModo === 'editar' ? produtoSelecionado : undefined}
+          produtoBase={modalModo === 'duplicar' ? produtoSelecionado : undefined}
           operacoes={operacoes}
           setores={setores}
           aoFechar={() => setModalAberto(false)}

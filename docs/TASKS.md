@@ -1865,3 +1865,61 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** O supervisor consegue abrir manualmente a página de QRs a partir da navegação administrativa.
   Implementado em `components/admin/AdminShell.tsx`, adicionando o item de navegação `/admin/qrcodes`.
+
+## SPRINT 22 — Duplicação assistida de produtos
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 19 concluída.
+**Objetivo:** permitir criar um novo produto a partir de um produto existente, reaproveitando roteiro e setores em um modal pré-carregado, sem criar um fluxo paralelo ao CRUD atual.
+
+- [x] **22.1 — Formalizar no PRD a duplicação assistida no cadastro de produtos**
+  Entregas mínimas:
+  - registrar a ação `duplicar produto` no contrato de UX do cadastro
+  - registrar que a duplicação abre o mesmo modal de produto em modo de criação
+  - registrar que a `referência` do novo produto precisa ser revisada
+
+  Regras:
+  - duplicação não pode ser tratada como edição do cadastro original
+  - o reaproveitamento deve se limitar aos dados estruturais do produto de origem
+
+  **Evidência:** O PRD passa a prever explicitamente a duplicação de produto como extensão objetiva do CRUD atual.
+  Formalizado em `docs/PRD.md`, registrando a duplicação assistida dentro do contrato de UX do cadastro de produtos e a obrigatoriedade de revisar a `referência` antes de salvar o novo produto.
+
+- [x] **22.2 — Expor a ação `Duplicar` na listagem do CRUD de produtos**
+  Entregas mínimas:
+  - adicionar botão `Duplicar` junto das ações rápidas da listagem
+  - manter as ações atuais de editar, detalhe, arquivar e excluir sem regressão
+  - preservar o fluxo enxuto da tabela
+
+  Regras:
+  - a nova ação deve reaproveitar o modal já existente
+  - a duplicação não deve criar uma nova tela administrativa
+
+  **Evidência:** A listagem de produtos passa a oferecer uma ação explícita de duplicação no mesmo conjunto de ações rápidas do CRUD.
+  Implementado em `app/(admin)/produtos/ListaProdutos.tsx`, adicionando o botão `Duplicar` na tabela e reutilizando o `ModalProduto` em modo de criação pré-carregada.
+
+- [x] **22.3 — Pré-carregar o modal de produto a partir de um cadastro existente**
+  Entregas mínimas:
+  - carregar `nome`, `roteiro` e setores do produto-base
+  - manter o salvamento via `criarProduto`, não via edição
+  - sugerir novos valores para os campos textuais sem sobrescrever o produto original
+
+  Regras:
+  - a duplicação deve continuar criando um novo registro
+  - o fluxo não pode introduzir mutation nova sem necessidade
+
+  **Evidência:** O modal de produto passa a abrir pré-preenchido a partir de um produto existente, mas continua salvando como novo cadastro.
+  Implementado em `components/ui/ModalProduto.tsx`, introduzindo o modo de duplicação com base em `produtoBase`, preservando a action `criarProduto` e pré-carregando referência sugerida, nome e roteiro do produto de origem.
+
+- [x] **22.4 — Manter consistência entre listagem e detalhe do produto**
+  Entregas mínimas:
+  - permitir iniciar a duplicação também a partir da página de detalhe
+  - redirecionar o usuário para o ponto correto do CRUD
+  - manter uma única superfície de edição/duplicação
+
+  Regras:
+  - a tela de detalhe não deve ganhar um segundo formulário de produto
+  - a duplicação deve convergir para a listagem, onde o modal já existe
+
+  **Evidência:** A página de detalhe do produto passa a encaminhar o usuário para a duplicação na listagem, sem criar um formulário paralelo.
+  Implementado em `app/admin/produtos/[id]/page.tsx` e `app/admin/produtos/page.tsx`, usando o parâmetro `duplicar` para abrir automaticamente o modal de duplicação na listagem.
+  Homologação manual confirmada pelo usuário em `2026-04-03`: a duplicação de produto abriu o modal pré-carregado corretamente a partir do CRUD, preservou roteiro e setores do produto-base e manteve o salvamento como novo cadastro.
