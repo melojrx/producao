@@ -313,6 +313,7 @@ Durante a execução, a dashboard acompanha em tempo real:
 - andamento por setor
 - andamento por operação dentro da seção quando necessário
 - progresso operacional ponderado por T.P. e quantidade concluída, sem misturar as duas métricas no mesmo KPI
+- eficiência por hora por operador/operação e eficiência do dia por operador, em blocos próprios e sem misturar esses indicadores com o progresso operacional da OP
 - pendências e seções encerradas
 - setores apresentados na ordem estrutural do fluxo, usando `setor.codigo` crescente como referência visual principal
 
@@ -452,6 +453,75 @@ Gráfico obrigatório da Meta do Grupo V2:
 - a curva de alcançado deve usar os apontamentos consolidados do turno ao longo das horas
 - o objetivo do gráfico é mostrar se o turno está acima, dentro ou abaixo da projeção horária da meta coletiva
 
+Indicadores obrigatórios de eficiência do operador:
+
+- a dashboard V2 deve expor o KPI `Eficiência por hora` por `hora + operador + operação`
+- a dashboard V2 deve expor o KPI `Eficiência do dia` agregado por operador no escopo do turno exibido
+- esses KPIs medem conversão de tempo padrão produzido em relação ao tempo disponível
+- esses KPIs pertencem ao domínio de produtividade do operador e não podem ser misturados com o progresso operacional da OP
+- o cálculo deve usar `tempo_padrao_min_snapshot` da operação no turno, nunca o `tempo_padrao_min` atual da operação fora do snapshot
+- o cálculo deve usar `minutos_turno` do turno consultado, nunca um valor fixo como `510` em produção
+
+Contrato do KPI `Eficiência por hora`:
+
+- granularidade: uma linha por `hora + operador + operação`
+- colunas mínimas da consulta/tabela: `Hora | Operador | Operação | T.P. | Meta/hora | Realizado | Efic%`
+- `Hora` deve ser agrupada por `DATE_TRUNC('hour', hora_registro)` no timezone operacional do turno
+- `T.P.` deve refletir `tempo_padrao_min_snapshot`
+- `Meta/hora` é uma referência visual operacional e deve ser exibida como `floor(60 / tempo_padrao_min_snapshot)`
+- `Realizado` é a soma das quantidades lançadas naquele bucket de `hora + operador + operação`
+- `Efic%` deve ser calculada por minutos padrão produzidos na hora, não por arredondamento de meta visual
+
+Fórmulas do KPI `Eficiência por hora`:
+
+```text
+meta_hora_visual = floor(60 / tempo_padrao_min_snapshot)
+
+minutos_padrao_realizados_hora =
+  SUM(quantidade_lancada * tempo_padrao_min_snapshot) no bucket de hora + operador + operação
+
+eficiencia_hora_pct =
+  (minutos_padrao_realizados_hora / 60) * 100
+```
+
+Regra obrigatória quando o operador trocar de operação dentro da mesma hora:
+
+- o sistema não deve tentar escolher uma única operação dominante da hora
+- a mesma hora pode gerar múltiplas linhas para o mesmo operador, uma para cada operação trabalhada
+- cada linha continua usando `60` minutos como denominador da eficiência horária daquela operação
+- a eficiência horária agregada do operador naquela hora é a soma das `eficiencia_hora_pct` das linhas daquela mesma `hora + operador`
+- não deve existir rateio manual de minutos por operação; o consumo de tempo é inferido pelos `minutos padrão realizados`
+- se o operador não produzir nada em uma operação dentro daquela hora, não deve existir linha artificial com `0`
+
+Contrato do KPI `Eficiência do dia`:
+
+- granularidade: uma linha por `data + operador` no escopo do turno exibido na dashboard
+- colunas mínimas do resumo: `Data | Operador | Efic%`
+- no contexto da dashboard V2, `Data` representa o turno carregado e o denominador é `turno.minutos_turno`
+- em consultas históricas que cruzem mais de um turno no mesmo dia, o denominador deve ser a soma dos `minutos_turno` dos turnos efetivamente considerados
+- o KPI diário deve ser matematicamente compatível com a soma das eficiências horárias
+
+Fórmulas do KPI `Eficiência do dia`:
+
+```text
+minutos_padrao_realizados_dia =
+  SUM(quantidade_lancada * tempo_padrao_min_snapshot) no escopo do operador e do turno
+
+eficiencia_dia_pct =
+  (minutos_padrao_realizados_dia / minutos_turno) * 100
+
+equivalencia_operacional:
+eficiencia_dia_pct =
+  SUM(eficiencia_hora_pct das linhas do operador) / (minutos_turno / 60)
+```
+
+Regras obrigatórias de apresentação:
+
+- `Eficiência por hora` e `Eficiência do dia` devem aparecer em uma área própria da dashboard V2
+- essa área deve ficar separada visualmente da área de progresso operacional da OP, do setor e do turno
+- nenhum card, tabela ou modal pode usar `Eficiência` como sinônimo de `progresso operacional`
+- `Meta/hora` pode ser exibida como apoio visual ao operador, mas o percentual de eficiência deve continuar sendo calculado a partir de `tempo_padrao_min_snapshot`
+
 Regra de consolidação:
 - a dashboard não pode duplicar setores quando mais de uma OP usar o mesmo setor no turno
 - a leitura setorial do turno deve consolidar o setor reaproveitado, preservando o detalhamento interno por OP/produto
@@ -521,6 +591,7 @@ Interface principal do supervisor e do administrador.
 - visualizar planejado x realizado
 - visualizar a KPI `Meta do Grupo` do turno aberto
 - acompanhar o gráfico `Projeção do planejado x Alcançado por hora`
+- visualizar uma área própria de `Eficiência operacional` sem misturar esse domínio com o progresso operacional da OP
 
 #### 8.1.1 UX alvo para edição do turno aberto
 
@@ -530,6 +601,16 @@ Quando existir um turno `aberto`, a dashboard deve expor:
 - listagem das OPs já planejadas com status, planejado, realizado e saldo
 - KPI consolidada de `Meta do Grupo` calculada pela média simples do `tp_produto_min` das `turno_ops`
 - gráfico horário comparando projeção da meta coletiva com o realizado do turno
+- bloco separado `Eficiência operacional`
+
+Contrato visual mínimo do bloco `Eficiência operacional`:
+
+- tabela `Eficiência por hora` com colunas `Hora | Operador | Operação | T.P. | Meta/hora | Realizado | Efic%`
+- resumo `Eficiência do dia por operador` com colunas `Data | Operador | Efic%`
+- o bloco deve ser apresentado como leitura de produtividade individual, não como leitura de avanço da OP
+- o bloco não pode reutilizar o mesmo card ou a mesma barra do KPI de progresso operacional da OP
+- se um operador trocar de operação dentro da mesma hora, a tabela deve mostrar mais de uma linha naquela hora para o mesmo operador
+- o resumo diário do operador deve consolidar todas as operações trabalhadas no turno com base em `tempo_padrao_min_snapshot`
 
 Fluxo mínimo da edição:
 - abrir modal ou drawer de edição do turno atual

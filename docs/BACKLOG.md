@@ -26,10 +26,11 @@
 | 14 | Prévia de pessoas por setor na abertura do turno | ✅ Concluída | 2 |
 | 15 | Consistência do progresso da OP entre demanda, setor e dashboard | ⏳ Planejada | 2 |
 | 16 | KPI de progresso operacional ponderado por T.P. | ⏳ Planejada | 3 |
+| 17 | KPIs de eficiência por hora e por dia na dashboard V2 | ⏳ Planejada | 3 |
 
-**Total estimado: 35 dias úteis**
+**Total estimado: 38 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a Sprint 14, a prioridade imediata continua sendo a consistência estrutural da consolidação entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` na Sprint 15. A separação explícita entre `quantidade concluída` e `progresso operacional` ponderado por `tempo_padrao_min` foi registrada como evolução funcional dedicada na Sprint 16. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a Sprint 14, a prioridade imediata continua sendo a consistência estrutural da consolidação entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` na Sprint 15. A separação explícita entre `quantidade concluída` e `progresso operacional` ponderado por `tempo_padrao_min` foi registrada como evolução funcional dedicada na Sprint 16. Os KPIs de `Eficiência por hora` e `Eficiência do dia` por operador, com tratamento explícito para troca de operação dentro da mesma hora, foram reservados como domínio dedicado da Sprint 17. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -266,6 +267,18 @@
 - Alinhar scanner, `/admin/apontamentos` e relatórios V2 ao novo contrato
 - Homologar cenários reais com setores em estágios diferentes, sem perder a leitura de peças completas
 
+## SPRINT 17 — KPIs de eficiência por hora e por dia na dashboard V2
+**Objetivo:** introduzir um domínio próprio de eficiência do operador na dashboard V2, separado do progresso operacional da OP e calculado por minutos padrão realizados no tempo disponível do turno.
+**Entregável:** dashboard V2 exibindo `Eficiência por hora` por `hora + operador + operação` e `Eficiência do dia` por operador, com suporte explícito para troca de operação dentro da mesma hora.
+**Status:** ⏳ Planejada
+
+- Formalizar contratos e queries para `Eficiência por hora` e `Eficiência do dia`
+- Usar `tempo_padrao_min_snapshot` como base obrigatória do cálculo
+- Usar `minutos_turno` do turno consultado como denominador do KPI diário
+- Tratar múltiplas operações do mesmo operador dentro da mesma hora sem colapsar as linhas horárias
+- Integrar os KPIs a um bloco visual próprio de `Eficiência operacional` na dashboard V2
+- Homologar cenários reais com jornadas variáveis e troca de operação dentro da mesma hora
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -274,7 +287,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

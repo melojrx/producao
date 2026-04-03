@@ -1,3 +1,4 @@
+import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
 import { createClient } from '@/lib/supabase/client'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
 import {
@@ -632,13 +633,22 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     return null
   }
 
-  const [operadores, operadoresAtividadeSetor, ops, secoesSetorOp, operacoesSecao, setoresAtivos] = await Promise.all([
+  const [
+    operadores,
+    operadoresAtividadeSetor,
+    ops,
+    secoesSetorOp,
+    operacoesSecao,
+    setoresAtivos,
+    eficienciaOperacional,
+  ] = await Promise.all([
     listarTurnoOperadores(turno.id),
     listarOperadoresAtividadeSetor(turno.id),
     listarTurnoOps(turno.id),
     listarTurnoSetorOps(turno.id),
     listarTurnoSetorOperacoesDoTurnoComClient(supabase, turno.id),
     listarTurnoSetores(turno.id),
+    listarResumoEficienciaOperacionalTurnoComClient(supabase, turno.id),
   ])
 
   const demandasSetorBrutas = await listarTurnoSetorDemandas(turno.id, ops)
@@ -656,6 +666,7 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     demandasSetor,
     secoesSetorOp: secoesSetorOpConsolidadas,
     operacoesSecao,
+    eficienciaOperacional,
   }
 }
 

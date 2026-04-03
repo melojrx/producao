@@ -1544,3 +1544,66 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - o backfill da Sprint 15 continua compatível com o novo KPI
 
   **Evidência:** Após novos apontamentos em um turno aberto real, dashboard, modal, scanner, `/admin/apontamentos` e relatórios V2 passam a exibir o mesmo progresso operacional ponderado por T.P., sem perder a leitura separada de peças completas.
+
+## SPRINT 17 — KPIs de eficiência por hora e por dia na dashboard V2
+**Status:** ⏳ Planejada
+**Pré-requisito:** Sprint 16 concluída.
+**Objetivo:** introduzir o domínio de eficiência operacional do operador na dashboard V2, com KPI horário por `hora + operador + operação` e KPI diário por operador, ambos ponderados por `tempo_padrao_min_snapshot` e separados do progresso operacional da OP.
+
+- [x] **17.1 — Formalizar contratos tipados e queries base dos KPIs de eficiência**
+  Entregas mínimas:
+  - definir contratos explícitos para `Eficiência por hora` e `Eficiência do dia`
+  - criar query/read model dedicado para `hora + operador + operação`
+  - criar query/read model dedicado para resumo diário por operador no escopo do turno
+  - registrar o uso obrigatório de `tempo_padrao_min_snapshot` e `minutos_turno`
+
+  Regras:
+  - `Meta/hora` pode ser exibida como apoio visual, mas o cálculo do percentual deve usar minutos padrão realizados
+  - o contrato não pode depender de `meta_hora` arredondada como base do cálculo
+  - o denominador diário deve vir de `turno.minutos_turno`, nunca de valor fixo em produção
+
+  **Evidência:** As queries da V2 passam a devolver linhas horárias por `hora + operador + operação` e um resumo diário por operador, ambos usando `tempo_padrao_min_snapshot` e `minutos_turno` do turno consultado.
+  Implementado em `types/index.ts`, `lib/queries/eficiencia-operacional-turno-base.ts`, `lib/queries/eficiencia-operacional-turno.ts` e `lib/queries/eficiencia-operacional-turno-client.ts`, introduzindo os contratos `EficienciaOperacionalHoraRegistroV2`, `EficienciaOperacionalDiaRegistroV2` e `ResumoEficienciaOperacionalTurnoV2`, além das queries base server/client para `hora + operador + operação` e resumo diário por operador no escopo do turno. O cálculo usa `tempoPadraoMinSnapshot` das operações derivadas, `turno.minutos_turno` como denominador diário e `60` minutos como denominador horário, preservando a distinção entre `Meta/hora` visual e percentual calculado por minutos padrão realizados. Validação concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [x] **17.2 — Implementar regra de troca de operação dentro da mesma hora**
+  Entregas mínimas:
+  - tratar múltiplas operações do mesmo operador na mesma hora sem colapsar em uma operação dominante
+  - garantir que a tabela horária gere uma linha por operação efetivamente apontada
+  - consolidar corretamente a eficiência agregada do operador naquela hora e no dia
+
+  Regras:
+  - não deve haver rateio manual de minutos por operação
+  - cada linha horária continua usando `60` minutos como denominador
+  - a eficiência agregada da hora deve resultar da soma dos minutos padrão realizados nas linhas daquela `hora + operador`
+
+  **Evidência:** Em um cenário com o mesmo operador apontando duas operações diferentes dentro da mesma hora, a dashboard V2 mostra duas linhas horárias distintas e o resumo do dia consolida as duas sem distorção de eficiência.
+  Implementado em `lib/queries/eficiencia-operacional-turno-base.ts` ao consolidar explicitamente por chave `hora + operador + operação`, sem eleger operação dominante nem ratear minutos manualmente entre operações. O resumo diário por operador segue consolidando os mesmos `minutos padrão realizados` no denominador de `turno.minutos_turno`, preservando compatibilidade matemática entre leitura horária e leitura diária. A dashboard V2 também passou a sinalizar visualmente quando o mesmo operador aparece com mais de uma operação na mesma hora em `components/dashboard/EficienciaOperacionalTurnoV2.tsx`. Validação técnica concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [x] **17.3 — Integrar os dois KPIs à dashboard V2 sem misturar com progresso operacional**
+  Entregas mínimas:
+  - criar bloco visual próprio de `Eficiência operacional`
+  - renderizar a tabela `Eficiência por hora`
+  - renderizar o resumo `Eficiência do dia por operador`
+  - manter o bloco separado do domínio de progresso operacional da OP
+
+  Regras:
+  - nenhum card ou barra de progresso da OP pode ser reutilizado para eficiência
+  - a leitura visual deve deixar claro que se trata de produtividade do operador
+  - a ordenação e o recorte temporal devem permanecer coerentes com o turno exibido
+
+  **Evidência:** A dashboard V2 passa a exibir um bloco separado de `Eficiência operacional`, com tabela horária e resumo diário por operador, sem ambiguidade visual com `progresso operacional` e `peças completas`.
+  Implementado em `components/dashboard/EficienciaOperacionalTurnoV2.tsx` e integrado ao fluxo principal da dashboard por `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, com consumo do snapshot novo propagado por `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts` e `types/index.ts`. O bloco foi mantido separado da área de progresso da OP, exibindo `Eficiência por hora` em tabela própria e `Eficiência do dia por operador` em resumo dedicado. Validação técnica concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [ ] **17.4 — Homologar os KPIs de eficiência com turnos reais e jornadas variáveis**
+  Entregas mínimas:
+  - validar turno com `minutos_turno` diferente de `510`
+  - validar operador com uma única operação na hora
+  - validar operador trocando de operação dentro da mesma hora
+  - validar coerência entre soma horária e resumo diário
+
+  Regras:
+  - a homologação deve usar a jornada configurada no turno real consultado
+  - o resultado não pode assumir turno padrão fixo
+  - os números exibidos na UI e nas queries devem contar a mesma história
+
+  **Evidência:** Em turnos reais com jornadas configuradas no banco, a dashboard V2 passa a exibir `Eficiência por hora` e `Eficiência do dia` coerentes entre si, inclusive quando um operador troca de operação dentro da mesma hora.

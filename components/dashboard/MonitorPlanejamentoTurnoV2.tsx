@@ -9,6 +9,7 @@ import {
   Target,
 } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
+import { EficienciaOperacionalTurnoV2 } from '@/components/dashboard/EficienciaOperacionalTurnoV2'
 import { GraficoMetaGrupoTurnoV2 } from '@/components/dashboard/GraficoMetaGrupoTurnoV2'
 import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurno'
 import { QROperacionaisTurnoV2 } from '@/components/dashboard/QROperacionaisTurnoV2'
@@ -237,6 +238,8 @@ export function MonitorPlanejamentoTurnoV2({
         dados={comparativoPorHora}
         estaCarregando={estaCarregando || estaCarregandoMetaGrupo}
       />
+
+      <EficienciaOperacionalTurnoV2 resumo={planejamento?.eficienciaOperacional} />
 
       {planejamento ? (
         <>

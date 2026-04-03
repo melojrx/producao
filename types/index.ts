@@ -211,6 +211,39 @@ export interface RegistroProducaoTurnoHora {
   turnoSetorOperacaoId: string
 }
 
+export interface EficienciaOperacionalHoraRegistroV2 {
+  turnoId: string
+  hora: string
+  operadorId: string
+  operadorNome: string
+  operadorMatricula: string
+  operacaoId: string
+  operacaoCodigo: string
+  operacaoDescricao: string
+  tempoPadraoMinSnapshot: number
+  metaHora: number
+  quantidadeRealizada: number
+  minutosPadraoRealizados: number
+  eficienciaPct: number
+}
+
+export interface EficienciaOperacionalDiaRegistroV2 {
+  turnoId: string
+  data: string
+  operadorId: string
+  operadorNome: string
+  operadorMatricula: string
+  minutosTurno: number
+  quantidadeRealizada: number
+  minutosPadraoRealizados: number
+  eficienciaPct: number
+}
+
+export interface ResumoEficienciaOperacionalTurnoV2 {
+  porHora: EficienciaOperacionalHoraRegistroV2[]
+  porDia: EficienciaOperacionalDiaRegistroV2[]
+}
+
 export interface ComparativoMetaGrupoHoraItem {
   hora: string
   planejado: number
@@ -504,6 +537,7 @@ export interface PlanejamentoTurnoV2 {
   demandasSetor?: TurnoSetorDemandaV2[]
   secoesSetorOp: TurnoSetorOpV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
+  eficienciaOperacional?: ResumoEficienciaOperacionalTurnoV2
 }
 
 export interface PlanejamentoTurnoDashboardV2 extends PlanejamentoTurnoV2 {
