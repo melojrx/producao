@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Signal, TimerReset } from 'lucide-react'
-import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
-import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
+import { Signal } from 'lucide-react'
 import type { StatusConexaoRealtimeTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
@@ -67,16 +65,6 @@ export function ResumoPlanejamentoTurnoV2({
 
   const tituloOrigem =
     planejamento.origem === 'aberto' ? 'Turno aberto atual' : 'Último turno encerrado'
-  const opsConcluidas = planejamento.ops.filter((op) => op.status === 'concluida').length
-  const setores = mapearSetoresTurnoParaDashboard(planejamento)
-  const setoresConcluidos = setores.filter((setor) => setor.status === 'concluida').length
-  const operadoresEnvolvidos = contarOperadoresEnvolvidosNoTurno(planejamento)
-  const progressoOps =
-    planejamento.ops.length > 0 ? Math.round((opsConcluidas / planejamento.ops.length) * 100) : 0
-  const progressoSetores =
-    setores.length > 0
-      ? Math.round((setoresConcluidos / setores.length) * 100)
-      : 0
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -125,52 +113,6 @@ export function ResumoPlanejamentoTurnoV2({
               {statusConexao}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <div className="rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Operadores disponíveis
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {planejamento.turno.operadoresDisponiveis}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Operadores alocados
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">{operadoresEnvolvidos}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">OPs</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">{planejamento.ops.length}</p>
-        </div>
-
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-            OPs concluídas
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-emerald-900">{opsConcluidas}</p>
-          <p className="mt-1 text-xs font-medium text-emerald-800">{progressoOps}% do turno</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Setores ativos
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">{setores.length}</p>
-        </div>
-
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-            Setores concluídos
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-blue-900">{setoresConcluidos}</p>
-          <p className="mt-1 text-xs font-medium text-blue-800">{progressoSetores}% do turno</p>
         </div>
       </div>
     </section>
