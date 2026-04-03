@@ -1145,7 +1145,7 @@ Consequência para as entregas desta sprint:
   **Evidência:** Após incluir nova OP, dashboard, scanner, apontamentos e relatórios passam a enxergá-la no mesmo turno aberto, com QRs e saldos corretos.
   `lib/actions/turnos.ts` passou a revalidar também `/admin/apontamentos` e `/admin/relatorios` no mesmo evento de inclusão ou edição de OP, além de `/admin/dashboard` e `/scanner`. Com isso, a nova OP já nasce refletida na dashboard com seus QRs operacionais, fica disponível para leitura no scanner pelo QR derivado da seção, aparece no contexto do turno aberto em `/admin/apontamentos` e entra no escopo dos filtros e agregados de `/admin/relatorios` sem exigir fechamento do turno. `components/dashboard/ModalEditarTurnoAbertoV2.tsx` também passou a confirmar explicitamente essa propagação operacional após salvar. Validação concluída em `2026-03-30`: `npx tsc --noEmit` passa sem erros.
 
-- [ ] **11.5 — Homologar o fluxo de edição do turno aberto**
+- [x] **11.5 — Homologar o fluxo de edição do turno aberto**
   Validar:
   - inclusão de OP durante turno já em andamento
   - reaproveitamento dos setores já ativos no turno
@@ -1155,18 +1155,19 @@ Consequência para as entregas desta sprint:
   - manutenção do turno aberto até encerramento manual
 
   **Evidência:** Um turno em andamento recebe nova OP sem ser encerrado, reaproveita os setores já ativos sem duplicação visual, gera novos QRs apenas para setores inéditos e mantém a nova cadeia operacional utilizável imediatamente, com fechamento do turno funcionando sem regressão.
+  Homologação concluída em `2026-04-02` após a refatoração setorial da Sprint 12. `components/dashboard/ModalEditarTurnoAbertoV2.tsx` e `components/dashboard/QROperacionaisTurnoV2.tsx` mantêm a inclusão de OP no turno aberto com reaproveitamento dos setores e criação de QR apenas para setor inédito; `app/(operador)/scanner/page.tsx`, `hooks/useScanner.ts` e `lib/queries/scanner.ts` sustentam o fluxo `setor -> operador -> OP/produto -> operação -> quantidade`; `app/admin/apontamentos/page.tsx` e `components/apontamentos/PainelApontamentosSupervisor.tsx` preservam o fallback administrativo; e `lib/actions/turnos.ts` mantém o turno aberto até `encerrarTurno()`. Validação técnica concluída com `npx tsc --noEmit`, `npm run build` e consulta read-only ao Supabase no turno aberto `4020fd8b-af3d-4633-ab2c-7457f68e4af0`, retornando `4` setores ativos, `13` demandas internas, `4` OPs planejadas, `4` setores distintos e `4` QRs distintos, confirmando a ausência de duplicação visual e a coerência da cadeia operacional após edição do turno.
 
-### Dependência aberta da Sprint 11
+### Dependência da Sprint 11 — Resolvida
 
-A homologação final da Sprint 11 ficou bloqueada por uma inconsistência estrutural do modelo atual:
+A homologação final da Sprint 11 havia ficado bloqueada por uma inconsistência estrutural do modelo anterior:
 
 - a implementação ainda usa `setor + OP` como unidade operacional visível
 - a regra homologada de negócio exige `setor` como estrutura física reaproveitada do turno
 
-Portanto:
+Situação final:
 
-- a `11.5` só pode ser concluída depois da sprint de refatoração estrutural abaixo
-- qualquer ajuste pontual na UI atual sem corrigir o modelo base deve ser tratado como paliativo e não como homologação válida
+- a dependência foi resolvida pela Sprint 12, que migrou o fluxo para `turno + setor`
+- a `11.5` foi reaberta e concluída no modelo setorial homologado
 
 ---
 
@@ -1287,3 +1288,75 @@ Esta sprint nasce de uma validação de negócio já confirmada:
 
   **Evidência:** Em um turno com múltiplas OPs/produtos, a dashboard V2 exibe a `Meta do Grupo` calculada pela média simples dos `tp_produto_min` das `turno_ops`, e o gráfico mostra `Projeção do planejado x Alcançado por hora` com atualização coerente após novos apontamentos.
   Implementado em `types/index.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/meta-grupo-turno-v2-client.ts`, `lib/utils/meta-grupo-turno.ts`, `hooks/useMetaGrupoTurnoV2.ts`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` e `components/dashboard/GraficoMetaGrupoTurnoV2.tsx`. Validação concluída em `2026-04-02`: `npx tsc --noEmit` e `npm run build` passam sem erros; consulta read-only ao turno aberto `a9edf6e9-1313-4599-82ad-eff145403353` retornou as OPs `202625874` (`REF-001`, `tp_produto_min = 1.88`) e `2026030547` (`REF-002`, `tp_produto_min = 2.46`), com `media_tp_produto_turno = 2.17` e `meta_grupo_turno = 5875` para `25` operadores e `510` minutos.
+
+---
+
+## MUDANÇA DE DOMÍNIO FORMALIZADA — Máquinas
+
+Formalizado documentalmente em `2026-04-02`, antes da refatoração de código e schema:
+
+- `maquinas` deixa de ser uma entidade operacional da V2
+- `maquinas` passa a existir apenas como cadastro patrimonial e de rastreabilidade física
+- `tipo_maquina` deixa de fazer parte do contrato alvo da entidade `maquinas`
+- a vinculação direta entre `maquinas` e `setor` deixa de fazer parte do contrato alvo da entidade `maquinas`
+- a derivação operacional do turno continua nas entidades `operacoes`, `setores`, `turno_setores`, `turno_setor_demandas` e `turno_setor_operacoes`
+
+Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel patrimonial de `maquinas` e removendo seu acoplamento operacional com a V2.
+
+## SPRINT 13 — Simplificação do domínio de máquinas
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 12 concluída.
+**Objetivo:** remover do domínio de `maquinas` os campos operacionais herdados do modelo antigo, preservando apenas o papel patrimonial e de rastreabilidade física.
+
+- [x] **13.1 — Refatorar o schema de `maquinas` para o contrato patrimonial**
+  Entregas mínimas:
+  - remover `tipo_maquina` da tabela `maquinas`
+  - remover a vinculação direta entre `maquinas` e `setor`
+  - preservar `codigo`, `modelo`, `marca`, `numero_patrimonio`, `status` e `qr_code_token`
+  - revisar seeds, migrações e views impactadas
+
+  Regras:
+  - a remoção não pode quebrar a V2 operacional baseada em `turno + setor`
+  - a máquina deve continuar existindo para patrimônio e auditoria
+  - qualquer dependência residual de `maquinas` no fluxo operacional deve ser removida ou substituída
+
+  **Evidência:** Schema aplicado sem `tipo_maquina` e sem vínculo direto com `setor` em `maquinas`, com integridade preservada nas demais entidades.
+  Implementado em `scripts/sprint13_maquinas_dominio_patrimonial.sql` e aplicado via Supabase Management API em `2026-04-02`. A tabela `public.maquinas` passou a expor apenas `id, codigo, modelo, marca, numero_patrimonio, status, qr_code_token, created_at, updated_at`, e a view `public.vw_status_maquinas` foi recriada com `descricao` patrimonial em vez de `tipo_nome`. Validação read-only concluída via Management API: `SELECT string_agg(column_name, ', ') ...` retornou exatamente essas 9 colunas, sem `tipo_maquina_codigo`, `setor_id` ou `setor`.
+
+- [x] **13.2 — Atualizar types, queries, actions e CRUD de máquinas**
+  Entregas mínimas:
+  - atualizar `types/supabase.ts` e `types/index.ts`
+  - ajustar `lib/queries/maquinas.ts` e `lib/actions/maquinas.ts`
+  - simplificar `/admin/maquinas` e `ModalMaquina`
+  - remover exibição e edição dos campos retirados
+
+  Regras:
+  - o CRUD de máquinas deve continuar funcional
+  - o QR patrimonial deve ser preservado
+  - nenhuma tela deve continuar exigindo `tipo_maquina` ou `setor` para salvar máquina
+
+  **Evidência:** CRUD de máquinas funciona com o novo contrato patrimonial, sem campos operacionais residuais na UI.
+  Implementado em `types/supabase.ts`, `types/index.ts`, `lib/queries/maquinas.ts`, `lib/actions/maquinas.ts`, `app/admin/maquinas/page.tsx`, `app/(admin)/maquinas/ListaMaquinas.tsx`, `app/admin/maquinas/[id]/page.tsx` e `components/ui/ModalMaquina.tsx`. O CRUD passou a trabalhar apenas com `codigo`, `modelo`, `marca`, `numero_patrimonio`, `status` e `qr_code_token`, preservando o QR patrimonial e removendo da interface qualquer obrigatoriedade de `tipo_maquina` ou `setor`.
+
+- [x] **13.3 — Remover dependências residuais de `maquina -> setor` e `maquina -> tipo`**
+  Entregas mínimas:
+  - revisar dashboard, detalhes e consultas auxiliares
+  - eliminar joins e filtros que dependam desses vínculos no domínio de `maquinas`
+  - manter o comportamento operacional apoiado nas entidades corretas da V2
+
+  Regras:
+  - setor operacional do turno continua vindo de `operacoes` e da cadeia derivada do turno
+  - qualquer leitura de máquina remanescente deve ser puramente patrimonial
+
+  **Evidência:** Nenhum fluxo operacional da V2 depende mais de `tipo_maquina` ou `setor` dentro de `maquinas`.
+  Implementado em `app/admin/dashboard/page.tsx`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/ModalDetalhesOpTurno.tsx`, `components/dashboard/ModalDetalhesSecaoTurno.tsx`, `lib/queries/scanner.ts`, `lib/queries/producao.ts`, `components/dashboard/StatusMaquinas.tsx` e `scripts/migrate.mjs`. A dashboard V2 deixou de carregar máquinas por setor, o detalhe da seção passou a explicitar que máquinas não compõem mais o contexto operacional, e as leituras remanescentes de máquina ficaram restritas a descrição patrimonial e status.
+
+- [x] **13.4 — Homologar a simplificação do domínio de máquinas**
+  Validar:
+  - cadastro e edição de máquina com contrato patrimonial
+  - QR patrimonial preservado
+  - ausência de regressão na dashboard V2, scanner e `/admin/apontamentos`
+  - `types`, `build` e consultas principais coerentes após a remoção
+
+  **Evidência:** A entidade `maquinas` permanece útil para patrimônio e rastreabilidade, sem carregar mais atributos operacionais desnecessários e sem regressão na V2.
+  Homologação concluída em `2026-04-02` com `npx tsc --noEmit`, `npm run build` e consultas read-only via Supabase Management API. A view `public.vw_status_maquinas` retornou registros patrimoniais como `RT-001 -> Juki DDL-8700` e `OV-001 -> Siruba 747K`, enquanto a V2 operacional permaneceu apoiada apenas em `operacoes`, `setores`, `turno_setores`, `turno_setor_demandas` e `turno_setor_operacoes`, sem regressão observada na dashboard V2, no scanner ou em `/admin/apontamentos`.

@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { MaquinaLifecycleActions } from '@/components/admin/actions/MaquinaLifecycleActions'
 import { ModalMaquina } from '@/components/ui/ModalMaquina'
-import type { MaquinaListItem, MaquinaStatus, SetorOption, TipoMaquinaOption } from '@/types'
+import type { MaquinaListItem, MaquinaStatus } from '@/types'
 
 const CORES_STATUS: Record<MaquinaStatus, string> = {
   ativa: 'bg-green-100 text-green-800',
@@ -14,11 +15,9 @@ const CORES_STATUS: Record<MaquinaStatus, string> = {
 
 interface ListaMaquinasProps {
   maquinasIniciais: MaquinaListItem[]
-  tiposMaquina: TipoMaquinaOption[]
-  setores: SetorOption[]
 }
 
-export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: ListaMaquinasProps) {
+export function ListaMaquinas({ maquinasIniciais }: ListaMaquinasProps) {
   const [modalAberto, setModalAberto] = useState(false)
   const [maquinaEditando, setMaquinaEditando] = useState<MaquinaListItem | undefined>()
   const [busca, setBusca] = useState('')
@@ -29,8 +28,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: Lista
       maquina.codigo.toLowerCase().includes(termo) ||
       (maquina.modelo ?? '').toLowerCase().includes(termo) ||
       (maquina.marca ?? '').toLowerCase().includes(termo) ||
-      (maquina.tipoNome ?? '').toLowerCase().includes(termo) ||
-      (maquina.setorNome ?? '').toLowerCase().includes(termo)
+      (maquina.numero_patrimonio ?? '').toLowerCase().includes(termo)
     )
   })
 
@@ -56,7 +54,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: Lista
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por código, modelo, marca, tipo ou setor..."
+            placeholder="Buscar por código, modelo, marca ou patrimônio..."
             aria-label="Buscar máquinas"
             className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -79,12 +77,12 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: Lista
             <thead className="border-b border-gray-200 bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Código</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Tipo</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Marca</th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
                   Modelo
                 </th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
-                  Setor
+                  Patrimônio
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-600">Ações</th>
@@ -104,12 +102,12 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: Lista
                   return (
                     <tr key={maquina.id} className="border-b border-gray-100 last:border-0">
                       <td className="px-4 py-3 font-medium text-gray-900">{maquina.codigo}</td>
-                      <td className="px-4 py-3 text-gray-600">{maquina.tipoNome ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{maquina.marca ?? '—'}</td>
                       <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
                         {maquina.modelo ?? '—'}
                       </td>
                       <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
-                        {maquina.setorNome ?? '—'}
+                        {maquina.numero_patrimonio ?? '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -136,6 +134,13 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: Lista
                         >
                           <Eye size={16} />
                         </Link>
+                        <MaquinaLifecycleActions
+                          maquinaId={maquina.id}
+                          codigo={maquina.codigo}
+                          statusAtual={maquina.status}
+                          variant="compact"
+                          redirectOnDelete={false}
+                        />
                       </td>
                     </tr>
                   )
@@ -147,12 +152,7 @@ export function ListaMaquinas({ maquinasIniciais, tiposMaquina, setores }: Lista
       </div>
 
       {modalAberto ? (
-        <ModalMaquina
-          maquina={maquinaEditando}
-          tiposMaquina={tiposMaquina}
-          setores={setores}
-          aoFechar={() => setModalAberto(false)}
-        />
+        <ModalMaquina maquina={maquinaEditando} aoFechar={() => setModalAberto(false)} />
       ) : null}
     </>
   )

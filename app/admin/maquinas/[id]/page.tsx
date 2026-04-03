@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { MaquinaLifecycleActions } from '@/components/admin/actions/MaquinaLifecycleActions'
 import { DetailField } from '@/components/admin/DetailField'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
@@ -38,22 +38,12 @@ export default async function MaquinaDetalhePage({
             Dados cadastrais da máquina e QR Code da etiqueta.
           </p>
         </div>
-
-        <Link
-          href="/admin/maquinas"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          <Pencil size={16} />
-          Editar na listagem
-        </Link>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <DetailField label="Tipo" value={maquina.tipoNome ?? 'Não informado'} />
         <DetailField label="Modelo" value={maquina.modelo ?? 'Não informado'} />
         <DetailField label="Marca" value={maquina.marca ?? 'Não informada'} />
         <DetailField label="Patrimônio" value={maquina.numero_patrimonio ?? 'Não informado'} />
-        <DetailField label="Setor" value={maquina.setorNome ?? 'Não informado'} />
         <DetailField label="Status" value={maquina.status ?? 'ativa'} />
       </div>
 

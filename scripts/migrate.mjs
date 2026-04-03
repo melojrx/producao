@@ -67,11 +67,9 @@ await run('1.3 maquinas', `
   CREATE TABLE IF NOT EXISTS maquinas (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     codigo VARCHAR(20) UNIQUE NOT NULL,
-    tipo_maquina_codigo VARCHAR(10) REFERENCES tipos_maquina(codigo),
     modelo VARCHAR(100),
     marca VARCHAR(50),
     numero_patrimonio VARCHAR(50),
-    setor VARCHAR(50),
     status VARCHAR(20) DEFAULT 'ativa'
       CHECK (status IN ('ativa', 'parada', 'manutencao')),
     qr_code_token VARCHAR(64) UNIQUE NOT NULL
@@ -81,7 +79,7 @@ await run('1.3 maquinas', `
   );
 `)
 await run('1.3 teste inserção', `
-  INSERT INTO maquinas (codigo, tipo_maquina_codigo) VALUES ('TEST-M001', 'rt')
+  INSERT INTO maquinas (codigo, marca, modelo) VALUES ('TEST-M001', 'Teste', 'Modelo 1')
   ON CONFLICT (codigo) DO NOTHING
   RETURNING id, codigo, qr_code_token
 `)
@@ -193,14 +191,24 @@ await run('1.7 vw_producao_hoje', `
 await run('1.7 vw_status_maquinas', `
   CREATE OR REPLACE VIEW vw_status_maquinas AS
   SELECT
-    m.id, m.codigo, tm.nome AS tipo_nome, m.status,
+    m.id,
+    m.codigo,
+    COALESCE(
+      NULLIF(concat_ws(' · ', NULLIF(trim(m.marca), ''), NULLIF(trim(m.modelo), '')), ''),
+      CASE
+        WHEN NULLIF(trim(m.numero_patrimonio), '') IS NOT NULL
+          THEN 'Patrimônio ' || trim(m.numero_patrimonio)
+        ELSE NULL
+      END,
+      'Máquina patrimonial'
+    ) AS descricao,
+    m.status,
     MAX(rp.hora_registro) AS ultimo_uso,
     EXTRACT(EPOCH FROM (NOW() - MAX(rp.hora_registro)))/60 AS minutos_sem_uso
   FROM maquinas m
-  JOIN tipos_maquina tm ON tm.codigo = m.tipo_maquina_codigo
   LEFT JOIN registros_producao rp
     ON rp.maquina_id = m.id AND rp.data_producao = CURRENT_DATE
-  GROUP BY m.id, m.codigo, tm.nome, m.status;
+  GROUP BY m.id, m.codigo, m.marca, m.modelo, m.numero_patrimonio, m.status;
 `)
 await run('1.7 vw_producao_por_hora', `
   CREATE OR REPLACE VIEW vw_producao_por_hora AS

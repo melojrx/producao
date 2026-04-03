@@ -46,16 +46,7 @@ export async function buscarMaquinaScaneadaPorToken(
 
   const { data, error } = await supabase
     .from('maquinas')
-    .select(
-      `
-        id,
-        codigo,
-        status,
-        tipos_maquina (
-          nome
-        )
-      `
-    )
+    .select('id, codigo, modelo, marca, numero_patrimonio, status')
     .eq('qr_code_token', token)
     .single()
 
@@ -63,15 +54,16 @@ export async function buscarMaquinaScaneadaPorToken(
     return null
   }
 
-  const tipoNome =
-    Array.isArray(data.tipos_maquina) && data.tipos_maquina.length > 0
-      ? data.tipos_maquina[0]?.nome
-      : null
+  const descricaoPatrimonial =
+    [data.marca, data.modelo]
+      .map((valor) => valor?.trim() ?? '')
+      .filter(Boolean)
+      .join(' · ') || (data.numero_patrimonio ? `Patrimônio ${data.numero_patrimonio}` : '')
 
   return {
     id: data.id,
     codigo: data.codigo,
-    tipoNome: tipoNome ?? 'Tipo não informado',
+    descricaoPatrimonial: descricaoPatrimonial || 'Máquina patrimonial',
     status: data.status as MaquinaScaneada['status'],
   }
 }

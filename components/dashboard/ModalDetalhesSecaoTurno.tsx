@@ -3,7 +3,6 @@
 import {
   ClipboardCheck,
   Factory,
-  HardHat,
   ListChecks,
   Package,
   QrCode,
@@ -11,7 +10,6 @@ import {
   X,
 } from 'lucide-react'
 import type {
-  MaquinaListItem,
   ProdutoListItem,
   TurnoOperadorAtividadeSetorV2,
   TurnoOperadorV2,
@@ -29,7 +27,6 @@ interface SecaoDetalheOp extends TurnoSetorOpV2 {
 interface ModalDetalhesSecaoTurnoProps {
   secao: SecaoDetalheOp
   produto: ProdutoListItem | null
-  maquinas: MaquinaListItem[]
   operadoresTurno: TurnoOperadorV2[]
   operadoresAtividadeSetor: TurnoOperadorAtividadeSetorV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
@@ -60,22 +57,9 @@ function obterTemaStatus(status: TurnoSetorOpV2['status'] | TurnoSetorOperacaoSt
   return 'bg-slate-100 text-slate-700'
 }
 
-function obterTemaStatusMaquina(status: MaquinaListItem['status']): string {
-  if (status === 'ativa') {
-    return 'bg-emerald-100 text-emerald-700'
-  }
-
-  if (status === 'parada') {
-    return 'bg-amber-100 text-amber-700'
-  }
-
-  return 'bg-red-100 text-red-700'
-}
-
 export function ModalDetalhesSecaoTurno({
   secao,
   produto,
-  maquinas,
   operadoresTurno,
   operadoresAtividadeSetor,
   operacoesSecao,
@@ -84,7 +68,6 @@ export function ModalDetalhesSecaoTurno({
   const operacoesSetor = [...operacoesSecao].sort(
     (primeiraOperacao, segundaOperacao) => primeiraOperacao.sequencia - segundaOperacao.sequencia
   )
-  const maquinasSetor = maquinas.filter((maquina) => maquina.setor_id === secao.setorId)
   const operadoresDoSetor = operadoresTurno.filter((operador) => operador.setorId === secao.setorId)
   const operadoresComAtividade = operadoresAtividadeSetor.filter(
     (atividade) => atividade.turnoSetorOpId === secao.id
@@ -383,49 +366,26 @@ export function ModalDetalhesSecaoTurno({
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-1">
               <div className="space-y-2">
-                <h3 className="text-base font-semibold text-slate-900">Máquinas do setor</h3>
+                <h3 className="text-base font-semibold text-slate-900">Contexto patrimonial</h3>
                 <p className="text-sm text-slate-600">
-                  Parque de máquinas cadastrado neste setor para apoiar a operação.
+                  A V2 não mantém mais vínculo direto entre máquina e setor. O contexto operacional
+                  desta tela nasce apenas do turno, da demanda setorial e das operações derivadas.
                 </p>
               </div>
 
               <div className="mt-5 space-y-3">
-                {maquinasSetor.length === 0 ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    Nenhuma máquina cadastrada neste setor.
-                  </div>
-                ) : (
-                  maquinasSetor.map((maquina) => (
-                    <article
-                      key={maquina.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="rounded-xl bg-slate-200 p-2 text-slate-700">
-                            <HardHat size={16} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{maquina.codigo}</p>
-                            <p className="text-sm text-slate-600">
-                              {maquina.tipoNome ?? 'Tipo não informado'}
-                            </p>
-                            <p className="mt-1 text-xs font-medium text-slate-500">
-                              {maquina.marca ?? 'Marca não informada'} ·{' '}
-                              {maquina.modelo ?? 'Modelo não informado'}
-                            </p>
-                          </div>
-                        </div>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                  Máquinas seguem disponíveis apenas como cadastro patrimonial e QR físico. A
+                  leitura e a consolidação desta seção não dependem de tipo de máquina nem de
+                  máquina vinculada ao setor.
+                </div>
 
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${obterTemaStatusMaquina(maquina.status)}`}
-                        >
-                          {maquina.status}
-                        </span>
-                      </div>
-                    </article>
-                  ))
-                )}
+                {produto ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    Produto em execução: <strong className="text-slate-900">{produto.nome}</strong>{' '}
+                    ({produto.referencia}).
+                  </div>
+                ) : null}
               </div>
             </section>
           </section>

@@ -69,7 +69,7 @@ export async function listarStatusMaquinas(): Promise<StatusMaquinaRegistro[]> {
   return (data ?? []).map((registro) => ({
     id: registro.id ?? '',
     codigo: registro.codigo ?? 'Máquina sem código',
-    tipoNome: registro.tipo_nome ?? 'Tipo não informado',
+    descricaoPatrimonial: registro.descricao ?? 'Máquina patrimonial',
     status: (registro.status ?? 'parada') as StatusMaquinaRegistro['status'],
     ultimoUso: registro.ultimo_uso,
     minutosSemUso: registro.minutos_sem_uso ?? 0,

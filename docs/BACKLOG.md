@@ -20,12 +20,13 @@
 | 8 | Scanner e apontamento V2 | ✅ Concluída | 3 |
 | 9 | Dashboard, relatórios e coexistência | ✅ Concluída | 3 |
 | 10 | Scanner híbrido por operação | ✅ Concluída | 2 |
-| 11 | Edição do turno aberto | 🔭 Proposta | 2 |
+| 11 | Edição do turno aberto | ✅ Concluída | 2 |
 | 12 | Refatoração estrutural do turno por setor | ✅ Concluída | 4 |
+| 13 | Simplificação do domínio de máquinas | ✅ Concluída | 2 |
 
-**Total estimado: 26 dias úteis**
+**Total estimado: 28 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a validação da Sprint 11, a próxima prioridade oficial passou a ser a refatoração estrutural para `turno + setor`, com `OP/produto` como demanda interna do setor. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a validação da Sprint 11, a prioridade estrutural passou a ser `turno + setor`, com `OP/produto` como demanda interna do setor. Como desdobramento dessa consolidação, a próxima mudança de domínio proposta é simplificar `maquinas`, removendo `tipo_maquina` e a vinculação direta com `setor` do contrato da entidade. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -187,7 +188,7 @@
 ## SPRINT 11 — Edição do turno aberto
 **Objetivo:** permitir que supervisor/admin incluam novas OPs em um turno já aberto, refletindo isso em dashboard, scanner, QRs, apontamentos e relatórios sem fechar o turno.
 **Entregável:** turno aberto editável na dashboard, com inclusão segura de novas OPs e propagação imediata da cadeia derivada `OP -> seção -> operação`.
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 
 - Expor ação `Editar turno` na dashboard do turno aberto
 - Permitir `Adicionar OP` ao turno atual sem encerrá-lo
@@ -197,7 +198,7 @@
 - Recalcular planejado vs realizado do turno após a inclusão
 - Homologar scanner, `/admin/apontamentos` e dashboard com OP adicionada durante o turno
 
-**Nota de replanejamento:** a homologação desta sprint expôs uma inconsistência estrutural. A regra de negócio validada exige `setor` como estrutura física reaproveitada do turno, e não `setor + OP` como unidade operacional visível. Por isso, a próxima sprint oficial passa a ser a refatoração estrutural abaixo.
+**Nota de replanejamento:** a homologação desta sprint expôs uma inconsistência estrutural. A regra de negócio validada exige `setor` como estrutura física reaproveitada do turno, e não `setor + OP` como unidade operacional visível. A dependência foi resolvida na Sprint 12, e a homologação funcional da Sprint 11 foi reaberta e concluída em `2026-04-02` no modelo `turno + setor`.
 
 ## SPRINT 12 — Refatoração estrutural do turno por setor
 **Objetivo:** substituir a unidade operacional visível do sistema por `setor do turno`, reutilizando a estrutura física da fábrica e movendo a OP para dentro da demanda do setor.
@@ -214,6 +215,18 @@
 - Implementar carry-over de OPs pendentes entre turnos
 - Reabrir a homologação funcional ponta a ponta após a refatoração
 
+## SPRINT 13 — Simplificação do domínio de máquinas
+**Objetivo:** remover da entidade `maquinas` os atributos operacionais herdados do modelo antigo e mantê-la apenas como cadastro patrimonial e de rastreabilidade física.
+**Entregável:** tabela `maquinas`, CRUD, queries e types sem `tipo_maquina` e sem vínculo direto com `setor`, preservando QR patrimonial e integridade do restante da V2.
+**Status:** ✅ Concluída
+
+- Formalizar `maquinas` como entidade patrimonial, não operacional
+- Remover `tipo_maquina` do schema e do contrato de `maquinas`
+- Remover a vinculação direta entre `maquinas` e `setor`
+- Ajustar CRUD, queries, types e telas administrativas de máquinas
+- Remover dependências residuais da relação `maquina -> setor` nas leituras da aplicação
+- Alinhar `types/supabase.ts` ao schema aplicado e validar `npx tsc --noEmit` e `npm run build`
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -222,7 +235,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

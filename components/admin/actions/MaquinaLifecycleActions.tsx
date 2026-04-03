@@ -9,16 +9,21 @@ interface MaquinaLifecycleActionsProps {
   maquinaId: string
   codigo: string
   statusAtual: string | null
+  variant?: 'panel' | 'compact'
+  redirectOnDelete?: boolean
 }
 
 export function MaquinaLifecycleActions({
   maquinaId,
   codigo,
   statusAtual,
+  variant = 'panel',
+  redirectOnDelete = true,
 }: MaquinaLifecycleActionsProps) {
   const router = useRouter()
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const isCompact = variant === 'compact'
 
   function onDesativar() {
     if (statusAtual === 'parada') {
@@ -53,9 +58,44 @@ export function MaquinaLifecycleActions({
         return
       }
 
-      router.push('/admin/maquinas')
+      if (redirectOnDelete) {
+        router.push('/admin/maquinas')
+      }
+
       router.refresh()
     })
+  }
+
+  if (isCompact) {
+    return (
+      <div className="inline-flex items-center gap-1.5">
+        <button
+          type="button"
+          disabled={isPending || statusAtual === 'parada'}
+          onClick={onDesativar}
+          aria-label={
+            statusAtual === 'parada'
+              ? `Máquina ${codigo} já está parada`
+              : `Marcar ${codigo} como parada`
+          }
+          title={statusAtual === 'parada' ? 'Máquina já parada' : 'Marcar como parada'}
+          className="inline-flex items-center justify-center rounded-md p-1.5 text-amber-600 transition-colors hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Ban size={16} />
+        </button>
+
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={onExcluir}
+          aria-label={`Excluir ${codigo}`}
+          title="Excluir permanentemente"
+          className="inline-flex items-center justify-center rounded-md p-1.5 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    )
   }
 
   return (

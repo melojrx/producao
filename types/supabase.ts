@@ -630,10 +630,7 @@ export type Database = {
           modelo: string | null
           numero_patrimonio: string | null
           qr_code_token: string
-          setor: string | null
-          setor_id: string | null
           status: string | null
-          tipo_maquina_codigo: string | null
           updated_at: string | null
         }
         Insert: {
@@ -644,10 +641,7 @@ export type Database = {
           modelo?: string | null
           numero_patrimonio?: string | null
           qr_code_token?: string
-          setor?: string | null
-          setor_id?: string | null
           status?: string | null
-          tipo_maquina_codigo?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -658,28 +652,10 @@ export type Database = {
           modelo?: string | null
           numero_patrimonio?: string | null
           qr_code_token?: string
-          setor?: string | null
-          setor_id?: string | null
           status?: string | null
-          tipo_maquina_codigo?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "maquinas_setor_id_fkey"
-            columns: ["setor_id"]
-            isOneToOne: false
-            referencedRelation: "setores"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maquinas_tipo_maquina_codigo_fkey"
-            columns: ["tipo_maquina_codigo"]
-            isOneToOne: false
-            referencedRelation: "tipos_maquina"
-            referencedColumns: ["codigo"]
-          },
-        ]
+        Relationships: []
       }
       operacoes: {
         Row: {
@@ -1110,10 +1086,10 @@ export type Database = {
       vw_status_maquinas: {
         Row: {
           codigo: string | null
+          descricao: string | null
           id: string | null
           minutos_sem_uso: number | null
           status: string | null
-          tipo_nome: string | null
           ultimo_uso: string | null
         }
         Relationships: []

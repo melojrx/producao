@@ -79,6 +79,22 @@ Esta é uma regra de negócio obrigatória para a V2:
 - **Quantidade:** 1 por máquina
 - **Observação:** a máquina continua importante no domínio, mas deixa de ser obrigatória no apontamento operacional da V2
 
+### 4.3.1 Decisão complementar de domínio — simplificação de máquinas
+
+Esta é uma decisão explícita de domínio para a continuidade da V2:
+
+- `maquinas` deixa de ser uma entidade operacional do fluxo diário
+- a derivação operacional do turno passa a depender de `produto -> operação -> setor`, sem usar máquina
+- o scanner V2 não lê máquina e a dashboard V2 não depende de máquina para abrir, consolidar ou encerrar setores
+- por isso, `tipo_maquina` e a vinculação direta da máquina a `setor` deixam de fazer parte do contrato alvo da entidade `maquinas`
+- a máquina passa a existir como cadastro patrimonial e de auditoria, preservando identificação física e QR patrimonial
+- `operacoes` continuam podendo carregar a semântica técnica necessária para produção; a simplificação vale apenas para o domínio de `maquinas`
+
+Consequência esperada:
+
+- a futura refatoração de código e schema deve remover `tipo_maquina` e a vinculação com `setor` da tabela `maquinas`
+- o cadastro de máquinas deve permanecer enxuto, sem influenciar planejamento, scanner, dashboard ou derivação setorial do turno
+
 ---
 
 ## 5. FLUXO OPERACIONAL DO DIA
@@ -90,7 +106,7 @@ Antes de abrir um turno, o sistema precisa ter:
 - produtos cadastrados com roteiro completo
 - setores cadastrados
 - operadores cadastrados
-- máquinas cadastradas por setor
+- máquinas cadastradas apenas para patrimônio e rastreabilidade, sem participação na derivação operacional do turno
 
 O ponto central é este:
 - um **produto** possui várias **operações**
@@ -626,9 +642,13 @@ Setores iniciais:
 - modelo
 - marca
 - patrimônio
-- setor
 - situação
 - QR patrimonial
+
+Regra de domínio:
+- este cadastro não participa do fluxo operacional da V2
+- `tipo_maquina` e vínculo direto com `setor` não fazem parte do contrato alvo de `maquinas`
+- a máquina existe para inventário, auditoria e rastreabilidade física
 
 ### 8.8 Cadastro de Operadores (/admin/operadores)
 
@@ -710,9 +730,13 @@ Fluxo profissional de produção:
 - modelo
 - marca
 - patrimônio
-- setor
 - situação
 - QR patrimonial
+
+Decisão de domínio:
+- `maquinas` não participa da derivação operacional do turno
+- `maquinas` não deve carregar `tipo_maquina` nem vinculação direta com `setor` no contrato alvo
+- o contexto operacional da V2 nasce de `operacoes`, `setores`, `turno_setores` e `turno_setor_demandas`
 
 `operadores`
 - matrícula sequencial

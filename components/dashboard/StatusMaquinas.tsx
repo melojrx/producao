@@ -122,7 +122,7 @@ export function StatusMaquinas({
                     )}
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{maquina.codigo}</p>
-                      <p className="text-xs text-slate-600">{maquina.tipoNome}</p>
+                      <p className="text-xs text-slate-600">{maquina.descricaoPatrimonial}</p>
                     </div>
                   </div>
 

@@ -109,7 +109,7 @@ export interface OperadorScaneado {
 export interface MaquinaScaneada {
   id: string
   codigo: string
-  tipoNome: string
+  descricaoPatrimonial: string
   status: 'ativa' | 'parada' | 'manutencao'
 }
 
@@ -201,7 +201,7 @@ export interface ComparativoMetaGrupoHoraItem {
 export interface StatusMaquinaRegistro {
   id: string
   codigo: string
-  tipoNome: string
+  descricaoPatrimonial: string
   status: MaquinaStatus
   ultimoUso: string | null
   minutosSemUso: number
@@ -307,10 +307,7 @@ export interface UsuarioSistemaV2 {
 export interface UsuarioSistemaListItem extends UsuarioSistemaV2 {
 }
 
-export interface MaquinaListItem extends Tables<'maquinas'> {
-  tipoNome: string | null
-  setorNome: string | null
-}
+export interface MaquinaListItem extends Tables<'maquinas'> {}
 
 export interface OperadorListItem extends Tables<'operadores'> {}
 

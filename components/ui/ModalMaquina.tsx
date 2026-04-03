@@ -4,18 +4,16 @@ import { useActionState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
 import { criarMaquina, editarMaquina } from '@/lib/actions/maquinas'
-import type { FormActionState, MaquinaListItem, SetorOption, TipoMaquinaOption } from '@/types'
+import type { FormActionState, MaquinaListItem } from '@/types'
 
 interface ModalMaquinaProps {
   maquina?: MaquinaListItem
-  tiposMaquina: TipoMaquinaOption[]
-  setores: SetorOption[]
   aoFechar: () => void
 }
 
 const estadoInicial: FormActionState = { erro: undefined, sucesso: false }
 
-export function ModalMaquina({ maquina, tiposMaquina, setores, aoFechar }: ModalMaquinaProps) {
+export function ModalMaquina({ maquina, aoFechar }: ModalMaquinaProps) {
   const acao = maquina ? editarMaquina.bind(null, maquina.id) : criarMaquina
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
 
@@ -60,42 +58,18 @@ export function ModalMaquina({ maquina, tiposMaquina, setores, aoFechar }: Modal
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="codigo" className="text-sm font-medium text-gray-700">
-                Código <span aria-hidden>*</span>
-              </label>
-              <input
-                id="codigo"
-                name="codigo"
-                type="text"
-                required
-                defaultValue={maquina?.codigo ?? ''}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="tipo_maquina_codigo" className="text-sm font-medium text-gray-700">
-                Tipo de máquina <span aria-hidden>*</span>
-              </label>
-              <select
-                id="tipo_maquina_codigo"
-                name="tipo_maquina_codigo"
-                required
-                defaultValue={maquina?.tipo_maquina_codigo ?? ''}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="" disabled>
-                  Selecione um tipo
-                </option>
-                {tiposMaquina.map((tipo) => (
-                  <option key={tipo.codigo} value={tipo.codigo}>
-                    {tipo.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="codigo" className="text-sm font-medium text-gray-700">
+              Código <span aria-hidden>*</span>
+            </label>
+            <input
+              id="codigo"
+              name="codigo"
+              type="text"
+              required
+              defaultValue={maquina?.codigo ?? ''}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -126,41 +100,17 @@ export function ModalMaquina({ maquina, tiposMaquina, setores, aoFechar }: Modal
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="numero_patrimonio" className="text-sm font-medium text-gray-700">
-                Patrimônio
-              </label>
-              <input
-                id="numero_patrimonio"
-                name="numero_patrimonio"
-                type="text"
-                defaultValue={maquina?.numero_patrimonio ?? ''}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="setor_id" className="text-sm font-medium text-gray-700">
-                Setor <span aria-hidden>*</span>
-              </label>
-              <select
-                id="setor_id"
-                name="setor_id"
-                required
-                defaultValue={maquina?.setor_id ?? ''}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="" disabled>
-                  Selecione um setor
-                </option>
-                {setores.map((setor) => (
-                  <option key={setor.id} value={setor.id}>
-                    {setor.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="numero_patrimonio" className="text-sm font-medium text-gray-700">
+              Patrimônio
+            </label>
+            <input
+              id="numero_patrimonio"
+              name="numero_patrimonio"
+              type="text"
+              defaultValue={maquina?.numero_patrimonio ?? ''}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
           </div>
 
           {modoEdicao ? (

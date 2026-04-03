@@ -17,7 +17,6 @@ import { useMetaGrupoTurnoV2 } from '@/hooks/useMetaGrupoTurnoV2'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
-  MaquinaListItem,
   PlanejamentoTurnoDashboardV2,
   ProdutoListItem,
   TurnoOpV2,
@@ -27,7 +26,6 @@ import type {
 interface MonitorPlanejamentoTurnoV2Props {
   initialPlanning: PlanejamentoTurnoDashboardV2 | null
   produtosCatalogo: ProdutoListItem[]
-  maquinas: MaquinaListItem[]
 }
 
 interface SecaoComContexto extends TurnoSetorOpV2 {
@@ -103,7 +101,6 @@ function corStatus(
 export function MonitorPlanejamentoTurnoV2({
   initialPlanning,
   produtosCatalogo,
-  maquinas,
 }: MonitorPlanejamentoTurnoV2Props) {
   const [turnoOpSelecionadaId, setTurnoOpSelecionadaId] = useState<string | null>(null)
   const { planejamento, ultimaAtualizacao, statusConexao, estaCarregando, erro } =
@@ -467,7 +464,6 @@ export function MonitorPlanejamentoTurnoV2({
           secoes={opSelecionada.secoes}
           iniciadoEmTurno={planejamento.turno.iniciadoEm}
           produtosCatalogo={produtosCatalogo}
-          maquinas={maquinas}
           operadoresTurno={planejamento.operadores}
           operadoresAtividadeSetor={planejamento.operadoresAtividadeSetor ?? []}
           operacoesSecao={planejamento.operacoesSecao.filter(

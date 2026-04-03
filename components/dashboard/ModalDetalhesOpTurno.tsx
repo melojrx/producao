@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { ModalDetalhesSecaoTurno } from '@/components/dashboard/ModalDetalhesSecaoTurno'
 import type {
-  MaquinaListItem,
   ProdutoListItem,
   TurnoOperadorAtividadeSetorV2,
   TurnoOpStatusV2,
@@ -33,7 +32,6 @@ interface ModalDetalhesOpTurnoProps {
   secoes: SecaoDetalheOp[]
   iniciadoEmTurno: string
   produtosCatalogo: ProdutoListItem[]
-  maquinas: MaquinaListItem[]
   operadoresTurno: TurnoOperadorV2[]
   operadoresAtividadeSetor: TurnoOperadorAtividadeSetorV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
@@ -81,7 +79,6 @@ export function ModalDetalhesOpTurno({
   secoes,
   iniciadoEmTurno,
   produtosCatalogo,
-  maquinas,
   operadoresTurno,
   operadoresAtividadeSetor,
   operacoesSecao,
@@ -365,7 +362,6 @@ export function ModalDetalhesOpTurno({
         <ModalDetalhesSecaoTurno
           secao={secaoSelecionada}
           produto={produtoDetalhado}
-          maquinas={maquinas}
           operadoresTurno={operadoresTurno}
           operadoresAtividadeSetor={operadoresAtividadeSetor}
           operacoesSecao={operacoesSecao.filter(
