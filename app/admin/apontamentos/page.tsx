@@ -3,7 +3,7 @@ import { ControleTurnoSupervisor } from '@/components/apontamentos/ControleTurno
 import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelApontamentosSupervisor'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { listarOperadores } from '@/lib/queries/operadores'
-import { listarProdutosAtivosParaTurno } from '@/lib/queries/turno'
+import { listarProdutos } from '@/lib/queries/produtos'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
 import type {
   OperadorListItem,
@@ -33,7 +33,7 @@ function mapearOperadoresFallback(
 export default async function AdminApontamentosPage() {
   const [planejamentoAtual, produtos] = await Promise.all([
     buscarTurnoAbertoOuUltimoEncerrado(),
-    listarProdutosAtivosParaTurno(),
+    listarProdutos(),
   ])
   const planejamento =
     planejamentoAtual?.origem === 'aberto'

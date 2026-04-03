@@ -14,7 +14,7 @@ function mapearProdutosComRoteiro(
   setores: SetorRow[]
 ): ProdutoListItem[] {
   const operacoesPorId = new Map(operacoes.map((operacao) => [operacao.id, operacao]))
-  const setoresPorId = new Map(setores.map((setor) => [setor.id, setor.nome]))
+  const setoresPorId = new Map(setores.map((setor) => [setor.id, setor]))
   const roteiroPorProduto = new Map<string, ProdutoRoteiroItem[]>()
 
   produtoOperacoes.forEach((item) => {
@@ -28,6 +28,7 @@ function mapearProdutosComRoteiro(
     }
 
     const roteiroAtual = roteiroPorProduto.get(item.produto_id) ?? []
+    const setor = operacao.setor_id ? setoresPorId.get(operacao.setor_id) : null
     roteiroAtual.push({
       produtoOperacaoId: item.id,
       operacaoId: operacao.id,
@@ -37,9 +38,8 @@ function mapearProdutosComRoteiro(
       tempoPadraoMin: operacao.tempo_padrao_min,
       tipoMaquinaCodigo: operacao.tipo_maquina_codigo,
       setorId: operacao.setor_id,
-      setorNome: operacao.setor_id
-        ? setoresPorId.get(operacao.setor_id) ?? null
-        : null,
+      setorCodigo: setor?.codigo ?? null,
+      setorNome: setor?.nome ?? null,
     })
     roteiroPorProduto.set(item.produto_id, roteiroAtual)
   })

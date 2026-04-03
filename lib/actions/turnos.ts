@@ -7,6 +7,7 @@ import {
 } from '@/lib/auth/require-admin-user'
 import { buscarPlanejamentoTurnoPorId } from '@/lib/queries/turnos'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ABRIR_TURNO_FORM_FIELDS } from '@/lib/utils/turno-formulario'
 import type {
   AdicionarTurnoOpV2Input,
   CarregarPendenciasTurnoAnteriorInput,
@@ -1179,7 +1180,9 @@ export async function abrirTurnoFormulario(
   _prevState: AbrirTurnoV2ActionState,
   formData: FormData
 ): Promise<AbrirTurnoV2ActionState> {
-  const { data: ops, erro: erroOps } = parseTurnoOpsPlanejadas(obterTexto(formData, 'ops_planejadas'))
+  const { data: ops, erro: erroOps } = parseTurnoOpsPlanejadas(
+    obterTexto(formData, ABRIR_TURNO_FORM_FIELDS.opsPlanejadas)
+  )
   if (erroOps || !ops) {
     return {
       sucesso: false,
@@ -1188,7 +1191,7 @@ export async function abrirTurnoFormulario(
   }
 
   const { data: operadorIds, erro: erroOperadores } = parseStringArray(
-    obterTexto(formData, 'operador_ids'),
+    obterTexto(formData, ABRIR_TURNO_FORM_FIELDS.operadorIds),
     'operadores selecionados'
   )
 
@@ -1200,7 +1203,7 @@ export async function abrirTurnoFormulario(
   }
 
   const { data: turnoOpIdsPendentes, erro: erroPendencias } = parseStringArray(
-    obterTexto(formData, 'turno_op_ids_pendentes'),
+    obterTexto(formData, ABRIR_TURNO_FORM_FIELDS.turnoOpIdsPendentes),
     'as pendências selecionadas'
   )
 
@@ -1212,13 +1215,17 @@ export async function abrirTurnoFormulario(
   }
 
   const resultado = await abrirTurno({
-    operadoresDisponiveis: obterInteiro(formData, 'operadores_disponiveis'),
-    minutosTurno: obterInteiro(formData, 'minutos_turno'),
+    operadoresDisponiveis: obterInteiro(formData, ABRIR_TURNO_FORM_FIELDS.operadoresDisponiveis),
+    minutosTurno: obterInteiro(formData, ABRIR_TURNO_FORM_FIELDS.minutosTurno),
     observacao: obterTexto(formData, 'observacao'),
     operadorIds,
     ops,
-    carregarPendenciasTurnoAnterior: obterBooleano(formData, 'carregar_pendencias_turno_anterior'),
-    turnoOrigemPendenciasId: obterTexto(formData, 'turno_origem_pendencias_id') || null,
+    carregarPendenciasTurnoAnterior: obterBooleano(
+      formData,
+      ABRIR_TURNO_FORM_FIELDS.carregarPendenciasTurnoAnterior
+    ),
+    turnoOrigemPendenciasId:
+      obterTexto(formData, ABRIR_TURNO_FORM_FIELDS.turnoOrigemPendenciasId) || null,
     turnoOpIdsPendentes,
   })
 

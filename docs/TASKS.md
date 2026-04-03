@@ -1360,3 +1360,68 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** A entidade `maquinas` permanece útil para patrimônio e rastreabilidade, sem carregar mais atributos operacionais desnecessários e sem regressão na V2.
   Homologação concluída em `2026-04-02` com `npx tsc --noEmit`, `npm run build` e consultas read-only via Supabase Management API. A view `public.vw_status_maquinas` retornou registros patrimoniais como `RT-001 -> Juki DDL-8700` e `OV-001 -> Siruba 747K`, enquanto a V2 operacional permaneceu apoiada apenas em `operacoes`, `setores`, `turno_setores`, `turno_setor_demandas` e `turno_setor_operacoes`, sem regressão observada na dashboard V2, no scanner ou em `/admin/apontamentos`.
+
+## SPRINT 14 — Prévia de pessoas por setor na abertura do turno
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 12 concluída.
+**Objetivo:** calcular e exibir, no fluxo de abertura do turno, uma sugestão de quantidade de pessoas necessárias por setor com base na carga planejada das OPs, sem alterar o contrato persistido do turno nesta primeira etapa.
+
+- [x] **14.1 — Criar função pura de dimensionamento por setor**
+  Entregas mínimas:
+  - criar função em `lib/utils/` para consolidar `tp_total_setor_produto`, `carga_min_setor` e `pessoas_necessarias_setor`
+  - aceitar múltiplas OPs no mesmo turno e somar a carga por setor
+  - usar `minutosTurno` informado no turno como divisor do cálculo
+  - arredondar o resultado final de cada setor com `Math.ceil`
+
+  Regras:
+  - a função deve ser pura e sem acesso direto a Supabase
+  - a saída deve distinguir claramente `setor`, `cargaMinutos`, `pessoasNecessarias` e eventual déficit agregado
+  - o cálculo deve permanecer determinístico para facilitar teste e homologação
+
+  **Evidência:** Com um payload de turno contendo múltiplas OPs e setores compartilhados, a função retorna o dimensionamento setorial consolidado com arredondamento para cima e sem depender da persistência do turno.
+  Implementado em `lib/utils/dimensionamento-pessoas-setor.ts`, com contrato tipado próprio para entrada, contribuições por OP/produto, consolidação de carga por setor, `Math.ceil` no fechamento de `pessoasNecessarias` e cálculo agregado de `deficitOperadores`. A homologação executável foi registrada em `lib/utils/dimensionamento-pessoas-setor.test.ts`, cobrindo: exemplo documental `8 × 637 / 510 = 10`, consolidação de múltiplas OPs no mesmo setor com déficit agregado e descarte seguro de operações inválidas do roteiro. Validação concluída em `2026-04-03` com `node --test --experimental-strip-types lib/utils/dimensionamento-pessoas-setor.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **14.2 — Exibir a prévia de pessoas por setor no modal de novo turno**
+  Entregas mínimas:
+  - integrar o cálculo ao fluxo de `components/dashboard/ModalNovoTurnoV2.tsx`
+  - atualizar a prévia em tempo real ao alterar `minutosTurno`, produto ou `quantidadePlanejada`
+  - mostrar por setor:
+    - carga total em minutos
+    - pessoas necessárias
+    - comparação com os operadores disponíveis do turno
+  - sinalizar quando a soma sugerida ultrapassar `operadoresDisponiveis`
+
+  Regras:
+  - a prévia deve ser claramente apresentada como sugestão operacional
+  - a UI não deve bloquear a abertura do turno nesta primeira etapa
+  - o comportamento deve continuar coerente quando houver carry-over e múltiplas OPs no mesmo setor
+
+  **Evidência:** O modal de abertura do turno passa a recalcular e exibir a sugestão de pessoas por setor em tempo real, refletindo corretamente setores compartilhados, carga planejada e déficit de capacidade quando aplicável.
+  Implementado em `components/dashboard/ModalNovoTurnoV2.tsx`, integrando `calcularDimensionamentoPessoasPorSetor()` ao fluxo derivado do formulário para combinar novas OPs e carry-over selecionado sem persistência adicional. O modal agora exibe, em tempo real, os setores dimensionados, a carga em minutos, as contribuições por OP/produto, o total de pessoas sugeridas, a folga/déficit frente aos operadores disponíveis e avisos quando uma OP ainda não pode entrar na prévia por incompletude ou ausência de roteiro. Para suportar o cálculo no mesmo ponto de uso, `app/admin/apontamentos/page.tsx`, `components/apontamentos/ControleTurnoSupervisor.tsx`, `components/dashboard/ModalEditarTurnoAbertoV2.tsx` e `components/dashboard/PainelConfiguracaoTurno.tsx` passaram a trafegar `ProdutoListItem[]`, reaproveitando o roteiro já carregado no catálogo. Ajuste complementar homologado em `2026-04-03`: após salvar um novo turno fora da dashboard, o fluxo redireciona o usuário para `/admin/dashboard`, e as listas setoriais do contexto operacional passaram a respeitar a ordem estrutural por `setor.codigo` com fallback em `setor.id`. Validação concluída em `2026-04-03` com `npx tsc --noEmit` e `node --test --experimental-strip-types lib/utils/dimensionamento-pessoas-setor.test.ts`, ambos sem erros.
+
+- [x] **14.3 — Manter a gravação do turno inalterada na primeira versão**
+  Entregas mínimas:
+  - preservar o payload atual de `abrirTurnoFormulario`
+  - não criar colunas, tabelas ou snapshots novos para persistir o dimensionamento
+  - garantir que a abertura do turno continue funcionando mesmo sem consumir a prévia
+
+  Regras:
+  - a sugestão de pessoas por setor é derivada e efêmera nesta sprint
+  - qualquer discussão sobre persistência futura fica explicitamente fora do escopo
+
+  **Evidência:** O turno continua sendo salvo com o mesmo contrato atual, enquanto a sugestão de pessoas por setor aparece apenas como cálculo derivado no fluxo de abertura.
+  O contrato persistido da abertura do turno foi explicitado e centralizado em `lib/utils/turno-formulario.ts` por meio de `ABRIR_TURNO_FORM_FIELDS`, reaproveitado tanto por `components/dashboard/ModalNovoTurnoV2.tsx` quanto por `lib/actions/turnos.ts`. Com isso, a prévia setorial permanece apenas em memória/renderização e o formulário continua submetendo exclusivamente os campos já existentes: `operadores_disponiveis`, `minutos_turno`, `ops_planejadas`, `operador_ids`, `carregar_pendencias_turno_anterior`, `turno_origem_pendencias_id` e `turno_op_ids_pendentes`. Nenhuma coluna, tabela, snapshot ou campo adicional de dimensionamento foi introduzido na gravação. Validação concluída em `2026-04-03` com `npx tsc --noEmit` sem erros e inspeção do contrato compartilhado via `rg`, confirmando que a action `abrirTurnoFormulario()` consome exatamente o mesmo payload persistido da versão anterior.
+
+- [x] **14.4 — Homologar a prévia de pessoas por setor e registrar decisão de persistência futura**
+  Validar:
+  - cenário com um único produto
+  - cenário com múltiplas OPs compartilhando o mesmo setor
+  - cenário em que a soma das pessoas sugeridas supera `operadoresDisponiveis`
+  - ausência de regressão na abertura do turno
+
+  Decisão a registrar:
+  - manter o cálculo apenas como prévia
+  - ou abrir sprint posterior para persistir snapshot do dimensionamento setorial
+
+  **Evidência:** A abertura do turno exibe a prévia setorial corretamente nos cenários homologados, sem regressão no fluxo atual e com decisão documentada sobre eventual persistência futura.
+  Homologação concluída em `2026-04-03` mantendo a decisão de produto de **não persistir** o dimensionamento setorial nesta etapa e tratá-lo apenas como prévia operacional do modal. Os cenários homologados ficaram cobertos em `lib/utils/dimensionamento-pessoas-setor.test.ts`: `1)` produto único com o exemplo documental `8 × 637 / 510 = 10`, `2)` múltiplas OPs compartilhando `Preparação` com consolidação da carga por setor, e `3)` déficit agregado quando a soma sugerida supera `operadoresDisponiveis`. A ausência de regressão no fluxo de abertura foi validada pela preservação explícita do payload em `lib/utils/turno-formulario.ts`, `components/dashboard/ModalNovoTurnoV2.tsx` e `lib/actions/turnos.ts`, sem introdução de campos persistidos de dimensionamento. Validação final executada com `node --test --experimental-strip-types lib/utils/dimensionamento-pessoas-setor.test.ts`, `npx tsc --noEmit` e inspeção do contrato compartilhado via `rg`, todos sem erros.

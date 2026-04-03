@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
 import { consolidarOpsPorDemandas } from '@/lib/utils/consolidacao-turno'
+import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
   PlanejamentoTurnoDashboardV2,
   PlanejamentoTurnoV2,
@@ -418,6 +419,7 @@ async function listarTurnoSetorOps(turnoId: string): Promise<TurnoSetorOpV2[]> {
         turnoId: secao.turno_id,
         turnoOpId: secao.turno_op_id,
         setorId: secao.setor_id,
+        setorCodigo: setor.codigo,
         setorNome: setor.nome,
         quantidadePlanejada: secao.quantidade_planejada,
         quantidadeRealizada: secao.quantidade_realizada,
@@ -428,19 +430,9 @@ async function listarTurnoSetorOps(turnoId: string): Promise<TurnoSetorOpV2[]> {
       }
     })
     .filter((secao): secao is TurnoSetorOpV2 => Boolean(secao))
-    .sort((primeiraSecao, segundaSecao) => {
-      const primeiroSetor = setoresPorId.get(primeiraSecao.setorId)
-      const segundoSetor = setoresPorId.get(segundaSecao.setorId)
-
-      const primeiroCodigo = primeiroSetor?.codigo ?? Number.MAX_SAFE_INTEGER
-      const segundoCodigo = segundoSetor?.codigo ?? Number.MAX_SAFE_INTEGER
-
-      if (primeiroCodigo !== segundoCodigo) {
-        return primeiroCodigo - segundoCodigo
-      }
-
-      return primeiraSecao.setorNome.localeCompare(segundaSecao.setorNome)
-    })
+    .sort((primeiraSecao, segundaSecao) =>
+      compararSetoresPorOrdem(primeiraSecao, segundaSecao)
+    )
 }
 
 async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
@@ -494,6 +486,7 @@ async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
         id: setorTurno.id,
         turnoId: setorTurno.turno_id,
         setorId: setorTurno.setor_id,
+        setorCodigo: setor.codigo,
         setorNome: setor.nome,
         quantidadePlanejada: setorTurno.quantidade_planejada,
         quantidadeRealizada: setorTurno.quantidade_realizada,
@@ -504,19 +497,9 @@ async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
       }
     })
     .filter((setorTurno): setorTurno is TurnoSetorV2 => Boolean(setorTurno))
-    .sort((primeiroSetorTurno, segundoSetorTurno) => {
-      const primeiroSetor = setoresPorId.get(primeiroSetorTurno.setorId)
-      const segundoSetor = setoresPorId.get(segundoSetorTurno.setorId)
-
-      const primeiroCodigo = primeiroSetor?.codigo ?? Number.MAX_SAFE_INTEGER
-      const segundoCodigo = segundoSetor?.codigo ?? Number.MAX_SAFE_INTEGER
-
-      if (primeiroCodigo !== segundoCodigo) {
-        return primeiroCodigo - segundoCodigo
-      }
-
-      return primeiroSetorTurno.setorNome.localeCompare(segundoSetorTurno.setorNome)
-    })
+    .sort((primeiroSetorTurno, segundoSetorTurno) =>
+      compararSetoresPorOrdem(primeiroSetorTurno, segundoSetorTurno)
+    )
 }
 
 async function listarTurnoSetorDemandas(
@@ -576,6 +559,7 @@ async function listarTurnoSetorDemandas(
         turnoId: demanda.turno_id,
         turnoOpId: demanda.turno_op_id,
         setorId: demanda.setor_id,
+        setorCodigo: setor.codigo,
         produtoId: demanda.produto_id,
         numeroOp: op.numeroOp,
         produtoReferencia: op.produtoReferencia,
@@ -590,14 +574,9 @@ async function listarTurnoSetorDemandas(
     })
     .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
     .sort((primeiraDemanda, segundaDemanda) => {
-      const primeiroSetor = setoresPorId.get(primeiraDemanda.setorId)
-      const segundoSetor = setoresPorId.get(segundaDemanda.setorId)
-
-      const primeiroCodigo = primeiroSetor?.codigo ?? Number.MAX_SAFE_INTEGER
-      const segundoCodigo = segundoSetor?.codigo ?? Number.MAX_SAFE_INTEGER
-
-      if (primeiroCodigo !== segundoCodigo) {
-        return primeiroCodigo - segundoCodigo
+      const comparacaoSetor = compararSetoresPorOrdem(primeiraDemanda, segundaDemanda)
+      if (comparacaoSetor !== 0) {
+        return comparacaoSetor
       }
 
       const comparacaoOp = primeiraDemanda.numeroOp.localeCompare(segundaDemanda.numeroOp)

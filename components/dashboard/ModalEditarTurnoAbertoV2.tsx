@@ -14,11 +14,11 @@ import {
 } from 'lucide-react'
 import { adicionarOpAoTurno, editarOpDoTurno } from '@/lib/actions/turnos'
 import { mapearPossuiProducaoPorOp, mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
-import type { PlanejamentoTurnoDashboardV2, ProdutoTurnoOption, TurnoOpV2 } from '@/types'
+import type { PlanejamentoTurnoDashboardV2, ProdutoListItem, TurnoOpV2 } from '@/types'
 
 interface ModalEditarTurnoAbertoV2Props {
   planejamento: PlanejamentoTurnoDashboardV2
-  produtos: ProdutoTurnoOption[]
+  produtos: ProdutoListItem[]
   aoAtualizarPlanejamento: () => Promise<void>
   aoFechar: () => void
 }
@@ -45,7 +45,7 @@ function criarIdLocal(): string {
   return `nova-op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function criarNovaOpDraft(produtos: ProdutoTurnoOption[]): NovaOpDraft {
+function criarNovaOpDraft(produtos: ProdutoListItem[]): NovaOpDraft {
   return {
     id: criarIdLocal(),
     numeroOp: '',

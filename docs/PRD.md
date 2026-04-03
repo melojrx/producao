@@ -137,14 +137,65 @@ Supervisor chega → abre a dashboard → vê os dados do turno anterior ou do t
           → ativa ou reaproveita os setores do turno
           → deriva as operações planejadas dentro de cada setor
           → gera um QR temporário apenas para cada setor participante do turno
+          → calcula uma prévia da quantidade sugerida de pessoas por setor
 ```
 
 Resultado:
 - o planejamento do dia nasce do cadastro mestre do produto
 - o supervisor informa apenas a demanda do dia
 - o sistema deriva automaticamente a estrutura operacional necessária sem duplicar setores já ativos no turno
+- o sistema pode sugerir o dimensionamento de pessoas por setor antes da confirmação do turno
+- nesta primeira etapa, o dimensionamento por setor é apenas uma prévia operacional e não altera a gravação do turno
+- após salvar um novo turno a partir de `/admin/apontamentos`, a navegação deve retornar o usuário para `/admin/dashboard`, que é o ponto primário de monitoramento do turno recém-aberto
 
-### 5.2.1 Edição do turno aberto
+### 5.2.1 Prévia de pessoas por setor
+
+Durante a abertura do turno, o sistema deve calcular uma sugestão de quantidade de pessoas por setor para apoiar a distribuição da equipe disponível no dia.
+
+Objetivos:
+- transformar a carga planejada das OPs em leitura operacional por setor
+- indicar quantas pessoas seriam necessárias em cada setor para cumprir o planejado do turno
+- apoiar a tomada de decisão do supervisor sem bloquear a abertura do turno nesta primeira versão
+
+Entradas obrigatórias:
+- `operadoresDisponiveis` informados no cabeçalho do turno
+- `minutosTurno` informados no cabeçalho do turno
+- lista de `turno_ops` planejadas com `quantidadePlanejada`
+- roteiro do produto com operações válidas e setor vinculado
+- `tempoPadraoMin` de cada operação
+
+Fórmula por setor:
+
+```text
+tp_total_setor_produto = SUM(tempoPadraoMin das operações do produto naquele setor)
+
+carga_min_setor = SUM(quantidadePlanejada da OP × tp_total_setor_produto)
+
+pessoas_necessarias_setor = CEIL(carga_min_setor / minutosTurno)
+```
+
+Exemplo:
+
+```text
+tp_total_setor_produto = 8 min
+meta_planejada = 637 peças
+minutos_turno = 510 min
+
+pessoas_necessarias_setor = CEIL((8 × 637) / 510)
+                           = CEIL(9.99)
+                           = 10
+```
+
+Regras obrigatórias:
+- o cálculo deve usar o `minutosTurno` efetivamente informado na abertura do turno, e não um valor fixo hardcoded
+- quando houver múltiplas OPs no mesmo turno, o cálculo do setor deve somar a carga de todas as OPs que passam por ele
+- o arredondamento deve ser sempre para cima com `CEIL`, porque fração de pessoa representa necessidade adicional de capacidade
+- o cálculo deve ser exibido como sugestão operacional e não como restrição rígida nesta primeira etapa
+- a soma das pessoas sugeridas por setor pode ultrapassar `operadoresDisponiveis`; quando isso acontecer, a UI deve sinalizar déficit de capacidade sem impedir a abertura do turno
+- a persistência do dimensionamento por setor no banco fica fora do escopo inicial
+- nesta primeira etapa, a abertura e gravação do turno continuam exatamente com o contrato atual
+
+### 5.2.2 Edição do turno aberto
 
 Durante a execução do dia, o supervisor ou admin pode precisar incluir uma nova OP sem encerrar o turno atual.
 
@@ -263,6 +314,7 @@ Durante a execução, a dashboard acompanha em tempo real:
 - andamento por operação dentro da seção quando necessário
 - quantidade planejada versus realizada
 - pendências e seções encerradas
+- setores apresentados na ordem estrutural do fluxo, usando `setor.codigo` crescente como referência visual principal
 
 Com edição de turno aberto, a dashboard também precisa:
 - permitir incluir novas OPs sem perder o contexto do turno atual
@@ -353,6 +405,10 @@ Capacidade nominal do turno = operadores_disponiveis × minutos_turno
 
 Meta do Grupo V2 = floor((operadores_disponiveis × minutos_turno) / media_tp_produto_turno)
 
+Carga planejada do setor no turno = SUM(quantidadePlanejada da OP × tp_total_setor_produto)
+
+Pessoas necessárias no setor = ceil(carga_planejada_setor_min / minutos_turno)
+
 Progresso da operação da seção = quantidade_realizada_turno_setor_operacao / quantidade_planejada
 
 Realizado da seção = MIN(quantidade_realizada_turno_setor_operacao obrigatória)
@@ -380,6 +436,14 @@ Restrições:
 - a Meta do Grupo V2 não pode ser derivada pela soma das metas de blocos legados
 - a Meta do Grupo V2 deve permanecer coerente quando o turno tiver uma ou várias OPs/produtos planejados
 
+Regra obrigatória da prévia de pessoas por setor:
+- a prévia de pessoas por setor pertence ao fluxo de abertura do turno, não à KPI gerencial consolidada da dashboard
+- a prévia deve ser calculada por setor a partir da carga planejada das OPs selecionadas
+- a prévia deve somar a carga de múltiplas OPs quando elas compartilharem o mesmo setor
+- a prévia deve usar `ceil` para o arredondamento final por setor
+- a prévia não substitui a `Meta do Grupo V2`
+- a prévia não deve alterar o payload salvo do turno nesta primeira etapa
+
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`
 - a curva de projeção deve partir da `meta_grupo_turno` calculada para o turno aberto
@@ -389,6 +453,7 @@ Gráfico obrigatório da Meta do Grupo V2:
 Regra de consolidação:
 - a dashboard não pode duplicar setores quando mais de uma OP usar o mesmo setor no turno
 - a leitura setorial do turno deve consolidar o setor reaproveitado, preservando o detalhamento interno por OP/produto
+- onde a UI listar setores do fluxo operacional, a ordenação visual deve seguir `setor.codigo` em ordem crescente; se houver empate ou ausência de código, usar `setor.id` como fallback
 - o progresso de uma seção não deve ser calculado pela soma simples das operações do setor
 - o progresso de uma OP não deve ser calculado pela soma simples dos registros de todos os setores
 - a seção só é considerada concluída quando todas as operações obrigatórias do setor tiverem atingido sua quantidade planejada
@@ -603,6 +668,7 @@ Interface administrativa de captura incremental da produção.
 - cada linha contém operador, operação e quantidade
 - gravação transacional dos lançamentos
 - atualização imediata da operação, seção, OP, turno, dashboard e relatórios
+- quando o supervisor abrir um novo turno a partir desta rota, o pós-save deve redirecionar para `/admin/dashboard` para manter o monitoramento no contexto principal
 
 ### 8.4 Cadastro de Setores (/admin/setores)
 

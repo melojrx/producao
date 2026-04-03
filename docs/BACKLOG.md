@@ -23,10 +23,11 @@
 | 11 | Edição do turno aberto | ✅ Concluída | 2 |
 | 12 | Refatoração estrutural do turno por setor | ✅ Concluída | 4 |
 | 13 | Simplificação do domínio de máquinas | ✅ Concluída | 2 |
+| 14 | Prévia de pessoas por setor na abertura do turno | ✅ Concluída | 2 |
 
-**Total estimado: 28 dias úteis**
+**Total estimado: 30 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a validação da Sprint 11, a prioridade estrutural passou a ser `turno + setor`, com `OP/produto` como demanda interna do setor. Como desdobramento dessa consolidação, a próxima mudança de domínio proposta é simplificar `maquinas`, removendo `tipo_maquina` e a vinculação direta com `setor` do contrato da entidade. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a consolidação do modelo setorial na Sprint 12 e a simplificação patrimonial de `maquinas` na Sprint 13, a próxima evolução proposta é apoiar o supervisor com uma prévia de pessoas necessárias por setor no momento da abertura do turno, sem alterar a persistência do turno na primeira etapa. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -227,6 +228,19 @@
 - Remover dependências residuais da relação `maquina -> setor` nas leituras da aplicação
 - Alinhar `types/supabase.ts` ao schema aplicado e validar `npx tsc --noEmit` e `npm run build`
 
+## SPRINT 14 — Prévia de pessoas por setor na abertura do turno
+**Objetivo:** calcular uma sugestão de quantidade de pessoas necessárias por setor durante a abertura do turno, com base na carga planejada das OPs e no tempo disponível do dia.
+**Entregável:** modal de novo turno exibindo uma prévia setorial de capacidade, sem alterar o contrato persistido do turno nesta primeira etapa.
+**Status:** ✅ Concluída
+
+- Criar função pura em `lib/utils/` para calcular `tp_total_setor_produto`, `carga_min_setor` e `pessoas_necessarias_setor`
+- Consolidar a carga de múltiplas OPs quando elas compartilharem o mesmo setor
+- Exibir a prévia de pessoas por setor em `ModalNovoTurnoV2`
+- Sinalizar déficit quando a soma sugerida ultrapassar `operadoresDisponiveis`
+- Preservar a gravação atual do turno sem persistir o dimensionamento nesta sprint
+- Homologar cenários com um produto, múltiplas OPs e setores compartilhados
+- Decisão homologada: manter o dimensionamento apenas como prévia operacional; nenhuma sprint de persistência foi aberta neste momento
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -235,7 +249,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

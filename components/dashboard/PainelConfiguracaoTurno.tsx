@@ -6,13 +6,13 @@ import { ModalNovoTurnoV2 } from '@/components/dashboard/ModalNovoTurnoV2'
 import type {
   ConfiguracaoTurnoComBlocos,
   PlanejamentoTurnoDashboardV2,
-  ProdutoTurnoOption,
+  ProdutoListItem,
 } from '@/types'
 
 interface PainelConfiguracaoTurnoProps {
   configuracaoAtual: ConfiguracaoTurnoComBlocos | null
   planejamentoAtual: PlanejamentoTurnoDashboardV2 | null
-  produtos: ProdutoTurnoOption[]
+  produtos: ProdutoListItem[]
 }
 
 export function PainelConfiguracaoTurno({

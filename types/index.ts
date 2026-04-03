@@ -325,6 +325,7 @@ export interface ProdutoRoteiroItem {
   tempoPadraoMin: number
   tipoMaquinaCodigo: string | null
   setorId: string | null
+  setorCodigo: number | null
   setorNome: string | null
 }
 
@@ -387,6 +388,7 @@ export interface TurnoSetorV2 {
   id: string
   turnoId: string
   setorId: string
+  setorCodigo: number
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
@@ -402,6 +404,7 @@ export interface TurnoSetorDemandaV2 {
   turnoId: string
   turnoOpId: string
   setorId: string
+  setorCodigo: number
   produtoId: string
   numeroOp: string
   produtoReferencia: string
@@ -419,6 +422,7 @@ export interface TurnoSetorOpV2 {
   turnoId: string
   turnoOpId: string
   setorId: string
+  setorCodigo: number
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number

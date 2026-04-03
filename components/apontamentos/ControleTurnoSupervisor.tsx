@@ -9,11 +9,11 @@ import { encerrarTurno } from '@/lib/actions/turnos'
 import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
-import type { PlanejamentoTurnoDashboardV2, ProdutoTurnoOption } from '@/types'
+import type { PlanejamentoTurnoDashboardV2, ProdutoListItem } from '@/types'
 
 interface ControleTurnoSupervisorProps {
   initialPlanning: PlanejamentoTurnoDashboardV2 | null
-  produtos: ProdutoTurnoOption[]
+  produtos: ProdutoListItem[]
 }
 
 function classeBotaoAcaoPainel(

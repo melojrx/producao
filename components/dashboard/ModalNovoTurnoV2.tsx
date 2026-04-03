@@ -1,17 +1,20 @@
 'use client'
 
 import { useActionState, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { CalendarClock, PackagePlus, Plus, Trash2, Users, X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { AlertTriangle, CalendarClock, PackagePlus, Plus, Trash2, Users, X } from 'lucide-react'
 import { abrirTurnoFormulario } from '@/lib/actions/turnos'
+import { calcularDimensionamentoPessoasPorSetor } from '@/lib/utils/dimensionamento-pessoas-setor'
+import { ABRIR_TURNO_FORM_FIELDS } from '@/lib/utils/turno-formulario'
 import type {
   AbrirTurnoV2ActionState,
 } from '@/lib/actions/turnos'
-import type { PlanejamentoTurnoDashboardV2, ProdutoTurnoOption } from '@/types'
+import type { DimensionamentoPessoasSetorInput } from '@/lib/utils/dimensionamento-pessoas-setor'
+import type { PlanejamentoTurnoDashboardV2, ProdutoListItem } from '@/types'
 
 interface ModalNovoTurnoV2Props {
   planejamentoAtual: PlanejamentoTurnoDashboardV2 | null
-  produtos: ProdutoTurnoOption[]
+  produtos: ProdutoListItem[]
   bloqueante?: boolean
   aoFechar?: () => void
 }
@@ -27,6 +30,11 @@ const estadoInicial: AbrirTurnoV2ActionState = {
   sucesso: false,
 }
 
+interface AvisoPreviaDimensionamento {
+  id: string
+  mensagem: string
+}
+
 function criarIdLocal(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -35,7 +43,7 @@ function criarIdLocal(): string {
   return `turno-op-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function criarOpDraft(produtos: ProdutoTurnoOption[]): TurnoOpDraft {
+function criarOpDraft(produtos: ProdutoListItem[]): TurnoOpDraft {
   return {
     id: criarIdLocal(),
     numeroOp: '',
@@ -56,12 +64,28 @@ function manterApenasDigitos(valor: string): string {
   return valor.replace(/\D/g, '')
 }
 
+function parseNumeroInteiroPositivo(valor: string): number {
+  const numero = Number.parseInt(valor, 10)
+  return Number.isInteger(numero) && numero > 0 ? numero : 0
+}
+
+function formatarNumero(valor: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: Number.isInteger(valor) ? 0 : 2,
+  }).format(valor)
+}
+
+function formatarCargaMinutos(valor: number): string {
+  return `${formatarNumero(valor)} min`
+}
+
 export function ModalNovoTurnoV2({
   planejamentoAtual,
   produtos,
   bloqueante = false,
   aoFechar,
 }: ModalNovoTurnoV2Props) {
+  const pathname = usePathname()
   const router = useRouter()
   const [estado, executar, pendente] = useActionState(abrirTurnoFormulario, estadoInicial)
   const [erroLocal, setErroLocal] = useState<string | null>(null)
@@ -91,8 +115,13 @@ export function ModalNovoTurnoV2({
       aoFechar()
     }
 
-    router.refresh()
-  }, [aoFechar, estado.sucesso, router])
+    if (pathname === '/admin/dashboard') {
+      router.refresh()
+      return
+    }
+
+    router.replace('/admin/dashboard')
+  }, [aoFechar, estado.sucesso, pathname, router])
 
   useEffect(() => {
     if (pendenciasDisponiveis.length === 0) {
@@ -157,6 +186,100 @@ export function ModalNovoTurnoV2({
       )
     : 0
   const quantidadeTotalPlanejada = quantidadeTotalPlanejadaNovasOps + quantidadeTotalPendencias
+  const operadoresDisponiveisNumero = parseNumeroInteiroPositivo(operadoresDisponiveis)
+  const minutosTurnoNumero = parseNumeroInteiroPositivo(minutosTurno)
+  const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]))
+  const avisosPrevia: AvisoPreviaDimensionamento[] = []
+  const opsParaDimensionamento: DimensionamentoPessoasSetorInput['ops'] = []
+
+  for (const op of ops) {
+    const quantidadePlanejada = parseNumeroInteiroPositivo(op.quantidadePlanejada)
+    const numeroOp = op.numeroOp.trim()
+    const produtoSelecionado = produtosPorId.get(op.produtoId)
+
+    if (!numeroOp || !produtoSelecionado || quantidadePlanejada <= 0) {
+      if (numeroOp || op.produtoId || quantidadePlanejada > 0) {
+        avisosPrevia.push({
+          id: `draft-incompleto-${op.id}`,
+          mensagem: `A OP ${numeroOp || 'sem número'} ainda está incompleta e não entrou na prévia.`,
+        })
+      }
+      continue
+    }
+
+    if (produtoSelecionado.roteiro.length === 0) {
+      avisosPrevia.push({
+        id: `draft-sem-roteiro-${op.id}`,
+        mensagem: `A OP ${numeroOp} usa o produto ${produtoSelecionado.nome}, mas ele não possui roteiro válido para dimensionamento.`,
+      })
+      continue
+    }
+
+    opsParaDimensionamento.push({
+      numeroOp,
+      produtoId: produtoSelecionado.id,
+      produtoNome: produtoSelecionado.nome,
+      produtoReferencia: produtoSelecionado.referencia,
+      quantidadePlanejada,
+      roteiro: produtoSelecionado.roteiro.map((item) => ({
+        operacaoId: item.operacaoId,
+        setorId: item.setorId,
+        setorCodigo: item.setorCodigo,
+        setorNome: item.setorNome,
+        tempoPadraoMin: item.tempoPadraoMin,
+      })),
+    })
+  }
+
+  if (carregarPendencias) {
+    for (const pendencia of pendenciasSelecionadas) {
+      const produtoSelecionado = produtosPorId.get(pendencia.produtoId)
+
+      if (!produtoSelecionado) {
+        avisosPrevia.push({
+          id: `pendencia-sem-produto-${pendencia.id}`,
+          mensagem: `A pendência ${pendencia.numeroOp} não encontrou o produto correspondente no catálogo carregado.`,
+        })
+        continue
+      }
+
+      if (produtoSelecionado.roteiro.length === 0) {
+        avisosPrevia.push({
+          id: `pendencia-sem-roteiro-${pendencia.id}`,
+          mensagem: `A pendência ${pendencia.numeroOp} usa o produto ${produtoSelecionado.nome}, mas ele não possui roteiro válido para dimensionamento.`,
+        })
+        continue
+      }
+
+      opsParaDimensionamento.push({
+        numeroOp: pendencia.numeroOp,
+        produtoId: produtoSelecionado.id,
+        produtoNome: produtoSelecionado.nome,
+        produtoReferencia: produtoSelecionado.referencia,
+        quantidadePlanejada: pendencia.quantidadePlanejadaRemanescente,
+        roteiro: produtoSelecionado.roteiro.map((item) => ({
+          operacaoId: item.operacaoId,
+          setorId: item.setorId,
+          setorCodigo: item.setorCodigo,
+          setorNome: item.setorNome,
+          tempoPadraoMin: item.tempoPadraoMin,
+        })),
+      })
+    }
+  }
+
+  const resumoDimensionamento = calcularDimensionamentoPessoasPorSetor({
+    operadoresDisponiveis: operadoresDisponiveisNumero,
+    minutosTurno: minutosTurnoNumero,
+    ops: opsParaDimensionamento,
+  })
+  const totalSetoresDimensionados = resumoDimensionamento.setores.length
+  const totalOpsDimensionadas = opsParaDimensionamento.length
+  const saldoOperadores = Math.max(
+    operadoresDisponiveisNumero - resumoDimensionamento.totalPessoasSugeridas,
+    0
+  )
+  const existeDeficitDimensionamento = resumoDimensionamento.deficitOperadores > 0
 
   const existeTurnoAberto = planejamentoAtual?.origem === 'aberto'
   const titulo = 'Novo Turno'
@@ -240,21 +363,25 @@ export function ModalNovoTurnoV2({
             }
           }}
         >
-          <input type="hidden" name="ops_planejadas" value={payloadOps} />
-          <input type="hidden" name="operador_ids" value="[]" />
           <input
             type="hidden"
-            name="carregar_pendencias_turno_anterior"
+            name={ABRIR_TURNO_FORM_FIELDS.opsPlanejadas}
+            value={payloadOps}
+          />
+          <input type="hidden" name={ABRIR_TURNO_FORM_FIELDS.operadorIds} value="[]" />
+          <input
+            type="hidden"
+            name={ABRIR_TURNO_FORM_FIELDS.carregarPendenciasTurnoAnterior}
             value={carregarPendencias ? 'true' : 'false'}
           />
           <input
             type="hidden"
-            name="turno_origem_pendencias_id"
+            name={ABRIR_TURNO_FORM_FIELDS.turnoOrigemPendenciasId}
             value={planejamentoAtual?.turno.id ?? ''}
           />
           <input
             type="hidden"
-            name="turno_op_ids_pendentes"
+            name={ABRIR_TURNO_FORM_FIELDS.turnoOpIdsPendentes}
             value={JSON.stringify(turnoOpIdsPendentes)}
           />
 
@@ -298,7 +425,7 @@ export function ModalNovoTurnoV2({
               </label>
               <input
                 id="operadores_disponiveis"
-                name="operadores_disponiveis"
+                name={ABRIR_TURNO_FORM_FIELDS.operadoresDisponiveis}
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -320,7 +447,7 @@ export function ModalNovoTurnoV2({
               </label>
               <input
                 id="minutos_turno"
-                name="minutos_turno"
+                name={ABRIR_TURNO_FORM_FIELDS.minutosTurno}
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -533,6 +660,164 @@ export function ModalNovoTurnoV2({
                 ))}
               </div>
             </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Prévia de pessoas por setor
+                </h3>
+                <p className="text-sm text-slate-600">
+                  Sugestão operacional calculada em tempo real pela carga planejada das OPs válidas
+                  do turno. Nesta etapa, a prévia não altera a gravação do turno.
+                </p>
+              </div>
+
+              <div
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                  existeDeficitDimensionamento
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-emerald-100 text-emerald-700'
+                }`}
+              >
+                <Users size={14} />
+                {existeDeficitDimensionamento
+                  ? `Déficit de ${resumoDimensionamento.deficitOperadores} operador(es)`
+                  : 'Capacidade sem déficit na prévia'}
+              </div>
+            </div>
+
+            {avisosPrevia.length > 0 ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    {avisosPrevia.map((aviso) => (
+                      <p key={aviso.id}>{aviso.mensagem}</p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {minutosTurnoNumero <= 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                Informe os minutos do turno para calcular a distribuição sugerida por setor.
+              </div>
+            ) : totalOpsDimensionadas === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                Adicione pelo menos uma OP válida ou selecione pendências com roteiro para gerar a
+                prévia setorial.
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-4 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Setores na prévia
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">
+                      {totalSetoresDimensionados}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      OPs consideradas
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">
+                      {totalOpsDimensionadas}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Pessoas sugeridas
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">
+                      {resumoDimensionamento.totalPessoasSugeridas}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`rounded-2xl border px-4 py-4 ${
+                      existeDeficitDimensionamento
+                        ? 'border-amber-200 bg-amber-50'
+                        : 'border-emerald-200 bg-emerald-50'
+                    }`}
+                  >
+                    <p
+                      className={`text-xs font-medium uppercase tracking-wide ${
+                        existeDeficitDimensionamento ? 'text-amber-700' : 'text-emerald-700'
+                      }`}
+                    >
+                      {existeDeficitDimensionamento ? 'Déficit' : 'Folga'}
+                    </p>
+                    <p
+                      className={`mt-2 text-3xl font-semibold ${
+                        existeDeficitDimensionamento ? 'text-amber-900' : 'text-emerald-900'
+                      }`}
+                    >
+                      {existeDeficitDimensionamento
+                        ? resumoDimensionamento.deficitOperadores
+                        : saldoOperadores}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                  {resumoDimensionamento.setores.map((setor) => (
+                    <article
+                      key={setor.setorId}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-900">{setor.setorNome}</h4>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Carga prevista de {formatarCargaMinutos(setor.cargaMinutos)} no turno.
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-blue-100 px-3 py-2 text-right text-blue-900">
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                            Pessoas
+                          </div>
+                          <div className="text-2xl font-semibold">{setor.pessoasNecessarias}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2">
+                        {setor.contribuicoes.map((contribuicao) => (
+                          <div
+                            key={`${setor.setorId}-${contribuicao.numeroOp}-${contribuicao.produtoId}`}
+                            className="rounded-xl border border-white bg-white px-3 py-3 text-sm text-slate-700"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  {contribuicao.numeroOp} · {contribuicao.produtoNome}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {contribuicao.produtoReferencia ?? 'Sem referência'} ·{' '}
+                                  {contribuicao.quantidadePlanejada} peças
+                                </p>
+                              </div>
+
+                              <div className="text-right text-xs text-slate-500">
+                                <div>TP setor {formatarNumero(contribuicao.tpTotalSetorProduto)} min</div>
+                                <div>{formatarCargaMinutos(contribuicao.cargaMinutos)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
 
           <section className="grid gap-4 rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-blue-50 p-5 md:grid-cols-4">

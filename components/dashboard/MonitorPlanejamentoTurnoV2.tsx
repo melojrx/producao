@@ -14,6 +14,7 @@ import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurn
 import { QROperacionaisTurnoV2 } from '@/components/dashboard/QROperacionaisTurnoV2'
 import { ResumoPlanejamentoTurnoV2 } from '@/components/dashboard/ResumoPlanejamentoTurnoV2'
 import { useMetaGrupoTurnoV2 } from '@/hooks/useMetaGrupoTurnoV2'
+import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
@@ -73,7 +74,7 @@ function ordenarSecoes(secoes: SecaoComContexto[]): SecaoComContexto[] {
       return comparacaoNumeroOp
     }
 
-    return primeiraSecao.setorNome.localeCompare(segundaSecao.setorNome)
+    return compararSetoresPorOrdem(primeiraSecao, segundaSecao)
   })
 }
 

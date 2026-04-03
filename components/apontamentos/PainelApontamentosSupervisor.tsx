@@ -16,6 +16,7 @@ import {
   registrarApontamentosSupervisor,
   type RegistrarApontamentosSupervisorActionState,
 } from '@/lib/actions/producao'
+import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
   PlanejamentoTurnoV2,
   TurnoOperadorV2,
@@ -89,7 +90,7 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
         return comparacaoOp
       }
 
-      return primeiraSecao.setorNome.localeCompare(segundaSecao.setorNome)
+      return compararSetoresPorOrdem(primeiraSecao, segundaSecao)
     })
 }
 

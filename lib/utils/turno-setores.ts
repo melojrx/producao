@@ -3,12 +3,14 @@ import type {
   TurnoSetorDemandaStatusV2,
   TurnoSetorStatusV2,
 } from '@/types'
+import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 
 export interface TurnoSetorDemandaDashboardItem {
   id: string
   turnoSetorId: string
   turnoOpId: string
   setorId: string
+  setorCodigo: number
   numeroOp: string
   produtoId: string
   produtoNome: string
@@ -22,6 +24,7 @@ export interface TurnoSetorDashboardItem {
   id: string
   turnoId: string
   setorId: string
+  setorCodigo: number
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
@@ -95,6 +98,7 @@ function mapearDemandasLegadas(
         turnoSetorId: secao.id,
         turnoOpId: secao.turnoOpId,
         setorId: secao.setorId,
+        setorCodigo: secao.setorCodigo,
         numeroOp: op.numeroOp,
         produtoId: op.produtoId,
         produtoNome: op.produtoNome,
@@ -131,6 +135,7 @@ export function mapearSetoresTurnoParaDashboard(
           turnoSetorId: demanda.turnoSetorId,
           turnoOpId: demanda.turnoOpId,
           setorId: demanda.setorId,
+          setorCodigo: demanda.setorCodigo,
           numeroOp: demanda.numeroOp,
           produtoId: demanda.produtoId,
           produtoNome: demanda.produtoNome,
@@ -159,6 +164,7 @@ export function mapearSetoresTurnoParaDashboard(
       id: setor.id,
       turnoId: setor.turnoId,
       setorId: setor.setorId,
+      setorCodigo: setor.setorCodigo,
       setorNome: setor.setorNome,
       quantidadePlanejada,
       quantidadeRealizada,
@@ -181,6 +187,7 @@ export function mapearSetoresTurnoParaDashboard(
         id: secao.id,
         turnoId: secao.turnoId,
         setorId: secao.setorId,
+        setorCodigo: secao.setorCodigo,
         setorNome: secao.setorNome,
         quantidadePlanejada: demandasDoSetor.reduce(
           (soma, demanda) => soma + demanda.quantidadePlanejada,
@@ -200,7 +207,7 @@ export function mapearSetoresTurnoParaDashboard(
   }
 
   return [...setoresMapeados.values()].sort((primeiroSetor, segundoSetor) =>
-    primeiroSetor.setorNome.localeCompare(segundoSetor.setorNome)
+    compararSetoresPorOrdem(primeiroSetor, segundoSetor)
   )
 }
 
