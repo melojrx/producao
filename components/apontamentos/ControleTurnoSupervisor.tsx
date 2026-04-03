@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { OctagonX, PencilLine, RefreshCw, Signal, TimerReset } from 'lucide-react'
+import { OctagonX, PencilLine, RefreshCw } from 'lucide-react'
 import { ModalEditarTurnoAbertoV2 } from '@/components/dashboard/ModalEditarTurnoAbertoV2'
 import { ModalEncerrarTurno } from '@/components/dashboard/ModalEncerrarTurno'
 import { ModalNovoTurnoV2 } from '@/components/dashboard/ModalNovoTurnoV2'
@@ -14,19 +14,6 @@ import type { PlanejamentoTurnoDashboardV2, ProdutoTurnoOption } from '@/types'
 interface ControleTurnoSupervisorProps {
   initialPlanning: PlanejamentoTurnoDashboardV2 | null
   produtos: ProdutoTurnoOption[]
-}
-
-function formatarUltimaAtualizacao(data: Date | null): string {
-  if (!data) {
-    return 'Aguardando primeira sincronização'
-  }
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'America/Fortaleza',
-  }).format(data)
 }
 
 function classeBotaoAcaoPainel(
@@ -59,7 +46,7 @@ export function ControleTurnoSupervisor({
   const [modalEncerramentoAberto, setModalEncerramentoAberto] = useState(false)
   const [encerrandoTurno, iniciarEncerramentoTurno] = useTransition()
   const [retornoEncerramento, setRetornoEncerramento] = useState<string | null>(null)
-  const { planejamento, ultimaAtualizacao, statusConexao, estaCarregando, erro, recarregar } =
+  const { planejamento, statusConexao, estaCarregando, erro, recarregar } =
     useRealtimePlanejamentoTurnoV2(initialPlanning)
 
   const podeEncerrarTurno =
@@ -170,17 +157,6 @@ export function ControleTurnoSupervisor({
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
-        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
-          <Signal size={14} />
-          {statusConexao}
-        </span>
-        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
-          <TimerReset size={14} />
-          {formatarUltimaAtualizacao(ultimaAtualizacao)}
-        </span>
       </div>
 
       {retornoEncerramento ? (

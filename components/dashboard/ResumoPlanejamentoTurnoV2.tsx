@@ -1,9 +1,16 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Signal, TimerReset } from 'lucide-react'
 import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
+import type { StatusConexaoRealtimeTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
 interface ResumoPlanejamentoTurnoV2Props {
   planejamento: PlanejamentoTurnoDashboardV2 | null
+  statusConexao: StatusConexaoRealtimeTurnoV2
+  ultimaAtualizacao: Date | null
 }
 
 function formatarDataHora(valor: string | null): string {
@@ -18,9 +25,32 @@ function formatarDataHora(valor: string | null): string {
   }).format(new Date(valor))
 }
 
+function formatarHorarioAtual(data: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Fortaleza',
+  }).format(data)
+}
+
 export function ResumoPlanejamentoTurnoV2({
   planejamento,
+  statusConexao,
+  ultimaAtualizacao: _ultimaAtualizacao,
 }: ResumoPlanejamentoTurnoV2Props) {
+  const [agora, setAgora] = useState(() => new Date())
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setAgora(new Date())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [])
+
   if (!planejamento) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -59,15 +89,30 @@ export function ResumoPlanejamentoTurnoV2({
           </p>
         </div>
 
-        <span
-          className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
-            planejamento.origem === 'aberto'
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-slate-100 text-slate-700'
-          }`}
-        >
-          {tituloOrigem}
-        </span>
+        <div className="flex w-full flex-col gap-2 md:max-w-[12rem] md:items-end">
+          <span
+            className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
+              planejamento.origem === 'aberto'
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-slate-100 text-slate-700'
+            }`}
+          >
+            {tituloOrigem}
+          </span>
+
+          <div className="w-full text-right">
+            <p className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              {formatarHorarioAtual(agora)}
+            </p>
+            <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+              <Signal
+                size={12}
+                className={statusConexao === 'ativo' ? 'text-emerald-500' : 'text-amber-500'}
+              />
+              {statusConexao}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-4">

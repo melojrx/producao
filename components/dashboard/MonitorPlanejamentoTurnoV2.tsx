@@ -103,7 +103,8 @@ export function MonitorPlanejamentoTurnoV2({
   maquinas,
 }: MonitorPlanejamentoTurnoV2Props) {
   const [turnoOpSelecionadaId, setTurnoOpSelecionadaId] = useState<string | null>(null)
-  const { planejamento, estaCarregando, erro } = useRealtimePlanejamentoTurnoV2(initialPlanning)
+  const { planejamento, ultimaAtualizacao, statusConexao, estaCarregando, erro } =
+    useRealtimePlanejamentoTurnoV2(initialPlanning)
 
   const resumo = useMemo(() => {
     if (!planejamento) {
@@ -168,7 +169,11 @@ export function MonitorPlanejamentoTurnoV2({
         </section>
       ) : null}
 
-      <ResumoPlanejamentoTurnoV2 planejamento={planejamento} />
+      <ResumoPlanejamentoTurnoV2
+        planejamento={planejamento}
+        statusConexao={statusConexao}
+        ultimaAtualizacao={ultimaAtualizacao}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <CardKPI
