@@ -27,10 +27,11 @@
 | 15 | Consistência do progresso da OP entre demanda, setor e dashboard | ⏳ Planejada | 2 |
 | 16 | KPI de progresso operacional ponderado por T.P. | ⏳ Planejada | 3 |
 | 17 | KPIs de eficiência por hora e por dia na dashboard V2 | ⏳ Planejada | 3 |
+| 18 | Ajuste cirúrgico do input de quantidade no scanner | ⏳ Planejada | 1 |
 
-**Total estimado: 38 dias úteis**
+**Total estimado: 39 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a Sprint 14, a prioridade imediata continua sendo a consistência estrutural da consolidação entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` na Sprint 15. A separação explícita entre `quantidade concluída` e `progresso operacional` ponderado por `tempo_padrao_min` foi registrada como evolução funcional dedicada na Sprint 16. Os KPIs de `Eficiência por hora` e `Eficiência do dia` por operador, com tratamento explícito para troca de operação dentro da mesma hora, foram reservados como domínio dedicado da Sprint 17. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a Sprint 14, a prioridade imediata continua sendo a consistência estrutural da consolidação entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` na Sprint 15. A separação explícita entre `quantidade concluída` e `progresso operacional` ponderado por `tempo_padrao_min` foi registrada como evolução funcional dedicada na Sprint 16. Os KPIs de `Eficiência por hora` e `Eficiência do dia` por operador, com tratamento explícito para troca de operação dentro da mesma hora, foram reservados como domínio dedicado da Sprint 17. O ajuste fino do scanner para permitir digitação direta da quantidade e reset para `0` ficou reservado como Sprint 18. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -279,6 +280,16 @@
 - Integrar os KPIs a um bloco visual próprio de `Eficiência operacional` na dashboard V2
 - Homologar cenários reais com jornadas variáveis e troca de operação dentro da mesma hora
 
+## SPRINT 18 — Ajuste cirúrgico do input de quantidade no scanner
+**Objetivo:** remover o travamento da quantidade em `1` no scanner V2 e permitir digitação direta com reset para `0`, preservando o fluxo atômico já consolidado.
+**Entregável:** tela de confirmação do scanner permitindo editar a quantidade manualmente, zerar a contagem e registrar apenas valores válidos acima de `0`.
+**Status:** ⏳ Planejada
+
+- Mapear o ponto exato em que a UI do scanner força o valor mínimo `1`
+- Corrigir o input de quantidade sem alterar o contrato transacional do registro
+- Permitir decremento e reset até `0`, mantendo respeito ao saldo máximo da operação
+- Homologar o ajuste na UI sem regressão nas ações de troca de operador, operação e OP/produto
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -287,7 +298,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

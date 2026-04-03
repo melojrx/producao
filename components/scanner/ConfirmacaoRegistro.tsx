@@ -47,10 +47,35 @@ function formatarTurno(iniciadoEm: string): string {
 
 function limitarQuantidade(valor: number, saldoMaximo: number): number {
   if (saldoMaximo <= 0) {
-    return 1
+    return 0
   }
 
-  return Math.min(Math.max(1, valor), saldoMaximo)
+  return Math.min(Math.max(0, valor), saldoMaximo)
+}
+
+function normalizarQuantidadeDigitada(valor: string, saldoMaximo: number): string {
+  const apenasDigitos = valor.replace(/\D+/g, '')
+
+  if (apenasDigitos.length === 0) {
+    return ''
+  }
+
+  const quantidadeNormalizada = limitarQuantidade(Number.parseInt(apenasDigitos, 10), saldoMaximo)
+  return String(quantidadeNormalizada)
+}
+
+function obterQuantidadeAtual(valor: string, saldoMaximo: number): number {
+  if (valor.trim() === '') {
+    return 0
+  }
+
+  const quantidade = Number.parseInt(valor, 10)
+
+  if (Number.isNaN(quantidade)) {
+    return 0
+  }
+
+  return limitarQuantidade(quantidade, saldoMaximo)
 }
 
 export function ConfirmacaoRegistro({
@@ -71,24 +96,32 @@ export function ConfirmacaoRegistro({
     operacaoSelecionada.quantidadePlanejada - operacaoSelecionada.quantidadeRealizada,
     0
   )
-  const [quantidade, setQuantidade] = useState(1)
+  const [quantidadeDigitada, setQuantidadeDigitada] = useState('0')
   const [exibindoSucesso, setExibindoSucesso] = useState(false)
   const [ultimaQuantidadeRegistrada, setUltimaQuantidadeRegistrada] = useState<number | null>(null)
+  const quantidadeAtual = obterQuantidadeAtual(quantidadeDigitada, saldoOperacao)
 
   useEffect(() => {
-    setQuantidade(limitarQuantidade(1, saldoOperacao))
+    setQuantidadeDigitada('0')
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
   }, [demandaSelecionada.id, operacaoSelecionada.id, operador.id, saldoOperacao, setor.id])
 
   function ajustarQuantidade(valor: number) {
-    setQuantidade((quantidadeAtual) =>
-      limitarQuantidade(quantidadeAtual + valor, Math.max(saldoOperacao, 1))
+    setQuantidadeDigitada((quantidadeAtualTexto) =>
+      String(
+        limitarQuantidade(obterQuantidadeAtual(quantidadeAtualTexto, saldoOperacao) + valor, saldoOperacao)
+      )
     )
   }
 
   async function handleRegistrar() {
-    const resultado = await onRegistrar(quantidade)
+    if (quantidadeAtual <= 0) {
+      onErro('Informe uma quantidade maior que zero antes de registrar.')
+      return
+    }
+
+    const resultado = await onRegistrar(quantidadeAtual)
 
     if (!resultado.sucesso) {
       onErro(resultado.erro ?? 'Não foi possível registrar a produção.')
@@ -99,15 +132,15 @@ export function ConfirmacaoRegistro({
       navigator.vibrate(180)
     }
 
-    setUltimaQuantidadeRegistrada(quantidade)
-    setQuantidade(1)
+    setUltimaQuantidadeRegistrada(quantidadeAtual)
+    setQuantidadeDigitada('0')
     setExibindoSucesso(true)
   }
 
   function handleNovaQuantidade() {
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
-    setQuantidade(limitarQuantidade(1, saldoOperacao))
+    setQuantidadeDigitada('0')
     onNovaQuantidade()
   }
 
@@ -330,17 +363,18 @@ export function ConfirmacaoRegistro({
               <input
                 id="quantidade-producao"
                 type="number"
-                min={1}
-                max={Math.max(saldoOperacao, 1)}
-                value={quantidade}
+                min={0}
+                max={saldoOperacao}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={quantidadeDigitada}
                 onChange={(event) => {
-                  const proximoValor = Number.parseInt(event.target.value, 10)
-                  setQuantidade(
-                    limitarQuantidade(
-                      Number.isNaN(proximoValor) ? 1 : proximoValor,
-                      Math.max(saldoOperacao, 1)
-                    )
+                  setQuantidadeDigitada(
+                    normalizarQuantidadeDigitada(event.target.value, saldoOperacao)
                   )
+                }}
+                onBlur={() => {
+                  setQuantidadeDigitada(String(obterQuantidadeAtual(quantidadeDigitada, saldoOperacao)))
                 }}
                 disabled={estaRegistrando || saldoOperacao <= 0}
                 className="w-full bg-transparent text-center text-4xl font-semibold text-white outline-none disabled:opacity-60"
@@ -358,8 +392,8 @@ export function ConfirmacaoRegistro({
             </div>
 
             <p className="mt-2 text-xs text-slate-400">
-              Informe apenas o incremento desta passagem. Saldo disponível para a operação:{' '}
-              {saldoOperacao}.
+              Digite a quantidade desejada ou ajuste pelos botões. O campo pode voltar para `0`
+              antes do registro. Saldo disponível para a operação: {saldoOperacao}.
             </p>
           </div>
 
@@ -368,7 +402,7 @@ export function ConfirmacaoRegistro({
             onClick={() => {
               void handleRegistrar()
             }}
-            disabled={estaRegistrando || saldoOperacao <= 0}
+            disabled={estaRegistrando || saldoOperacao <= 0 || quantidadeAtual <= 0}
             className="flex min-h-14 w-full items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {estaRegistrando ? 'Registrando...' : 'Registrar quantidade'}

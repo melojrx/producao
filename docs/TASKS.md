@@ -1474,7 +1474,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** A dashboard, o modal de detalhe da OP, o scanner e os relatórios V2 passam a apresentar realizado, saldo e status coerentes para a mesma OP/demanda/setor.
   Implementado em `lib/utils/consolidacao-turno.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/scanner.ts`, `lib/queries/relatorios-v2.ts` e `lib/utils/turno-setores.ts`, centralizando a recomputação de demanda, seção, setor e OP a partir de `turno_setor_operacoes` antes de montar os snapshots consumidos pela dashboard, modal de detalhe, scanner e relatórios V2. Validação concluída em `2026-04-03`: `buscarPlanejamentoTurnoPorId()` e `buscarPlanejamentoTurnoPorIdClient()` passaram a consolidar `demandasSetor`, `secoesSetorOp`, `setoresAtivos` e `ops` na mesma cadeia; `buscarTurnoSetorScaneadoPorToken()` e `buscarDemandasScaneadasPorTurnoSetor()` deixaram de confiar em `turno_setores` e `turno_setor_demandas` crus; `carregarBaseRelatorioV2()` passou a recomputar demandas, seções e OPs antes de gerar resumo e itens. `mapearSetoresTurnoParaDashboard()` também passou a derivar quantidade e status a partir das demandas normalizadas, eliminando leituras stale no KPI e no detalhe da OP. `npx tsc --noEmit` executou com sucesso após a mudança.
 
-- [ ] **15.4 — Homologar a consistência ponta a ponta e ausência de regressão**
+- [x] **15.4 — Homologar a consistência ponta a ponta e ausência de regressão**
   Validar:
   - a cadeia `operação -> demanda -> setor -> OP` permanece consistente sob o contrato atual de quantidade concluída
   - realizado, saldo e status da OP na dashboard coincidem com o modal de detalhe sob a regra vigente de peças completas
@@ -1482,6 +1482,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - relatórios V2 permanecem coerentes após novos apontamentos e após backfill
 
   **Evidência:** Em um turno aberto real com demandas já iniciadas, a consolidação vigente da OP permanece consistente entre operação, demanda, setor, dashboard, scanner e relatórios V2, sem regressão observada no fluxo atual.
+  Homologação manual registrada em `2026-04-03`: a leitura ponta a ponta do contrato vigente de peças completas permaneceu coerente entre dashboard, modal da OP, scanner, `/admin/apontamentos` e relatórios V2, incluindo cenários com demandas já iniciadas e sem regressão observada após os ajustes de consolidação da Sprint 15.
 
 ## SPRINT 16 — KPI de progresso operacional ponderado por T.P.
 **Status:** ⏳ Planejada
@@ -1532,7 +1533,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** Uma OP com setores em estágios diferentes passa a exibir progresso operacional acima de `0%` na dashboard e no modal, enquanto a quantidade de peças completas permanece separada e coerente.
   Implementado em `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/ModalDetalhesOpTurno.tsx` e `components/dashboard/ModalDetalhesSecaoTurno.tsx`, substituindo o uso de `quantidadeRealizada / quantidadePlanejada` como KPI principal por `progressoOperacionalPct` e relabelando a métrica de saída como `Peças completas`. Ajustes complementares de consistência visual também entraram em `components/apontamentos/PainelApontamentosSupervisor.tsx`, `components/scanner/SelecaoDemandaScanner.tsx`, `components/scanner/ConfirmacaoRegistro.tsx` e `components/relatorios/ResumoRelatorios.tsx`, para impedir que a UI volte a chamar peças completas de progresso. Homologação de UI registrada em `2026-04-03`: dashboard, modal da OP e telas relacionadas passaram a exibir corretamente progresso operacional separado de peças completas.
 
-- [ ] **16.4 — Alinhar scanner, `/admin/apontamentos` e relatórios V2 ao novo KPI**
+- [x] **16.4 — Alinhar scanner, `/admin/apontamentos` e relatórios V2 ao novo KPI**
   Entregas mínimas:
   - revisar leituras auxiliares do scanner e dos apontamentos administrativos
   - garantir que relatórios V2 diferenciem progresso operacional de peças completas
@@ -1544,6 +1545,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - o backfill da Sprint 15 continua compatível com o novo KPI
 
   **Evidência:** Após novos apontamentos em um turno aberto real, dashboard, modal, scanner, `/admin/apontamentos` e relatórios V2 passam a exibir o mesmo progresso operacional ponderado por T.P., sem perder a leitura separada de peças completas.
+  Homologação manual registrada em `2026-04-03`: scanner, `/admin/apontamentos`, dashboard, modal e relatórios V2 passaram a manter a mesma leitura de `progresso operacional` ponderado por T.P. e `peças completas`, sem reintroduzir ambiguidade visual e sem quebrar a compatibilidade esperada com o backfill da Sprint 15.
 
 ## SPRINT 17 — KPIs de eficiência por hora e por dia na dashboard V2
 **Status:** ⏳ Planejada
@@ -1608,3 +1610,51 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** Em turnos reais com jornadas configuradas no banco, a dashboard V2 passa a exibir `Eficiência por hora` e `Eficiência do dia` coerentes entre si, inclusive quando um operador troca de operação dentro da mesma hora.
   Homologação manual registrada em `2026-04-03`: a UI da dashboard V2 confirmou o bloco `Eficiência operacional` com jornada real do turno, leitura horária por `hora + operador + operação`, consolidação diária por operador e comportamento correto quando o mesmo operador alterna operações dentro da mesma hora, sem mistura com o KPI de progresso operacional da OP.
+
+## SPRINT 18 — Ajuste cirúrgico do input de quantidade no scanner
+**Status:** ⏳ Planejada
+**Pré-requisito:** Sprint 17 concluída.
+**Objetivo:** corrigir o campo de quantidade do scanner V2 para aceitar digitação direta, permitir reset para `0` e impedir que a UI force o valor mínimo `1` antes do registro.
+
+- [x] **18.1 — Mapear a causa do travamento da quantidade em `1`**
+  Entregas mínimas:
+  - localizar o ponto exato onde a UI força a quantidade mínima
+  - registrar se o travamento vem do componente, do hook ou do action de registro
+  - definir o contrato esperado: digitação livre de inteiros não negativos, com registro bloqueado quando o valor for `0`
+
+  Regras:
+  - a correção deve preservar o fluxo atômico `setor -> operador -> OP/produto -> operação -> quantidade`
+  - não deve alterar o contrato do `registrarProducaoOperacao`
+  - o ajuste deve ser concentrado no menor conjunto possível de arquivos
+
+  **Evidência:** A análise identifica que o travamento da quantidade em `1` está na camada de UI do scanner e define o contrato corrigido para digitação e reset.
+  Mapeado em `components/scanner/ConfirmacaoRegistro.tsx`: o travamento vinha da função `limitarQuantidade()` com mínimo `1`, reforçado pelo `useEffect` inicial, pelo `handleNovaQuantidade()` e pelo `onChange` do input, todos recolocando `1` mesmo quando o usuário tentava zerar ou digitar livremente. A análise confirmou que o problema não estava no hook `useScanner` nem no action `registrarProducaoOperacao`, permitindo um ajuste cirúrgico restrito ao componente de UI. Validação documental e técnica registrada em `2026-04-03`.
+
+- [x] **18.2 — Permitir digitação direta e reset para `0` no scanner**
+  Entregas mínimas:
+  - permitir escrever a quantidade manualmente no campo
+  - permitir zerar a contagem sem a UI recolocar `1` automaticamente
+  - manter os botões `+` e `-` funcionando como apoio, agora com mínimo `0`
+  - bloquear o botão de registrar enquanto a quantidade estiver `0` ou inválida
+
+  Regras:
+  - a UI não pode mais forçar `1` no `onChange`, no estado inicial nem após sucesso
+  - o valor continua respeitando o saldo máximo da operação
+  - a correção deve ser mobile-first e não pode mexer além do necessário no fluxo do scanner
+
+  **Evidência:** O scanner passa a aceitar digitação livre de inteiros não negativos, permite zerar a quantidade e só habilita o registro quando houver quantidade válida acima de `0`.
+  Implementado em `components/scanner/ConfirmacaoRegistro.tsx`, substituindo o estado numérico rígido por um estado textual normalizado, com suporte a digitação direta, `inputMode="numeric"`, decremento até `0`, reset para `0` após sucesso e na ação `Nova quantidade`, além de bloqueio do botão `Registrar quantidade` enquanto o valor atual for `0` ou inválido. O ajuste manteve o teto pelo saldo da operação e não alterou o contrato transacional do registro. Validação concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [x] **18.3 — Homologar o ajuste do scanner na UI**
+  Entregas mínimas:
+  - validar digitação manual de quantidade
+  - validar decremento até `0`
+  - validar reset após sucesso e na ação `Nova quantidade`
+  - validar que o registro continua respeitando o saldo da operação
+
+  Regras:
+  - a homologação deve ser feita na UI real do scanner
+  - o ajuste não pode introduzir regressão nas ações `Trocar operação`, `Trocar operador` e `Trocar OP/produto`
+
+  **Evidência:** Na UI do scanner V2, o usuário consegue digitar a quantidade desejada, zerar a contagem quando necessário e registrar apenas valores válidos sem regressão nas demais ações do fluxo.
+  Homologação manual registrada em `2026-04-03`: o scanner V2 passou a aceitar digitação direta da quantidade, decremento até `0`, reset correto após sucesso e na ação `Nova quantidade`, preservando o respeito ao saldo da operação e sem regressão observada nas ações `Trocar operação`, `Trocar operador` e `Trocar OP/produto`.
