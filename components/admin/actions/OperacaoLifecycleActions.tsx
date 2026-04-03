@@ -9,12 +9,14 @@ interface OperacaoLifecycleActionsProps {
   operacaoId: string
   codigo: string
   ativa: boolean
+  compact?: boolean
 }
 
 export function OperacaoLifecycleActions({
   operacaoId,
   codigo,
   ativa,
+  compact = false,
 }: OperacaoLifecycleActionsProps) {
   const router = useRouter()
   const [mensagem, setMensagem] = useState<string | null>(null)
@@ -56,6 +58,40 @@ export function OperacaoLifecycleActions({
       router.push('/admin/operacoes')
       router.refresh()
     })
+  }
+
+  if (compact) {
+    return (
+      <div className="flex flex-col items-end gap-2">
+        <div className="inline-flex items-center gap-1">
+          <button
+            type="button"
+            disabled={isPending || !ativa}
+            onClick={onDesativar}
+            aria-label={ativa ? `Desativar ${codigo}` : `${codigo} já desativada`}
+            title={ativa ? 'Desativar operação sem apagar o histórico' : 'Operação já desativada'}
+            className="inline-flex rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Ban size={16} />
+          </button>
+
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={onExcluir}
+            aria-label={`Excluir permanentemente ${codigo}`}
+            title="Excluir permanentemente apenas se a operação nunca tiver sido usada"
+            className="inline-flex rounded-lg p-1.5 text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+
+        {mensagem ? (
+          <p className="max-w-xs text-right text-xs text-gray-500">{mensagem}</p>
+        ) : null}
+      </div>
+    )
   }
 
   return (

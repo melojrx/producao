@@ -104,6 +104,7 @@ export default async function ProdutoDetalhePage({
         produtoId={produto.id}
         referencia={produto.referencia}
         ativo={produto.ativo ?? true}
+        redirectOnDeleteTo="/admin/produtos"
       />
     </div>
   )

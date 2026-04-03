@@ -17,15 +17,79 @@ interface RoteiroPayloadItem {
   sequencia: number
 }
 
-function obterMensagemDependencia(
-  totalConfiguracoes: number,
+interface DependenciasProduto {
+  emTurnoAberto: boolean
+  totalTurnos: number
+  totalConfiguracoes: number
   totalRegistros: number
-): string | null {
-  if (totalConfiguracoes > 0 || totalRegistros > 0) {
-    return 'Este produto já foi usado em configuração de turno ou produção e não pode ser excluído permanentemente.'
+}
+
+function obterMensagemProdutoEmUso(): string {
+  return 'Este produto está em uso em um turno aberto e não pode ser arquivado ou excluído no momento.'
+}
+
+function obterMensagemHistoricoProduto(): string {
+  return 'Este produto já possui histórico operacional ou de planejamento e não pode ser excluído permanentemente. Use arquivar/desativar para preservar o histórico.'
+}
+
+function produtoTemHistorico(dependencias: DependenciasProduto): boolean {
+  return (
+    dependencias.totalTurnos > 0 ||
+    dependencias.totalConfiguracoes > 0 ||
+    dependencias.totalRegistros > 0
+  )
+}
+
+async function carregarDependenciasProduto(id: string): Promise<DependenciasProduto> {
+  const supabase = createAdminClient()
+
+  const [
+    { count: totalTurnosAbertos, error: turnosAbertosError },
+    { count: totalTurnos, error: turnosError },
+    { count: totalConfiguracoes, error: configuracaoError },
+    { count: totalRegistros, error: registrosError },
+  ] = await Promise.all([
+    supabase
+      .from('turno_ops')
+      .select('id, turnos!inner(status)', { count: 'exact', head: true })
+      .eq('produto_id', id)
+      .eq('turnos.status', 'aberto'),
+    supabase
+      .from('turno_ops')
+      .select('*', { count: 'exact', head: true })
+      .eq('produto_id', id),
+    supabase
+      .from('configuracao_turno')
+      .select('*', { count: 'exact', head: true })
+      .eq('produto_id', id),
+    supabase
+      .from('registros_producao')
+      .select('*', { count: 'exact', head: true })
+      .eq('produto_id', id),
+  ])
+
+  if (turnosAbertosError) {
+    throw new Error(`Erro ao validar uso do produto em turno aberto: ${turnosAbertosError.message}`)
   }
 
-  return null
+  if (turnosError) {
+    throw new Error(`Erro ao validar histórico do produto em turnos: ${turnosError.message}`)
+  }
+
+  if (configuracaoError) {
+    throw new Error(`Erro ao validar configurações do produto: ${configuracaoError.message}`)
+  }
+
+  if (registrosError) {
+    throw new Error(`Erro ao validar histórico do produto: ${registrosError.message}`)
+  }
+
+  return {
+    emTurnoAberto: (totalTurnosAbertos ?? 0) > 0,
+    totalTurnos: totalTurnos ?? 0,
+    totalConfiguracoes: totalConfiguracoes ?? 0,
+    totalRegistros: totalRegistros ?? 0,
+  }
 }
 
 function obterTexto(formData: FormData, campo: string): string {
@@ -314,6 +378,23 @@ export async function desativarProduto(id: string): Promise<FormActionState> {
     return { erro: getAuthorizationErrorMessage(error) ?? 'Não foi possível validar sua sessão.' }
   }
 
+  let dependencias: DependenciasProduto
+
+  try {
+    dependencias = await carregarDependenciasProduto(id)
+  } catch (error) {
+    return {
+      erro:
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível validar o uso atual do produto.',
+    }
+  }
+
+  if (dependencias.emTurnoAberto) {
+    return { erro: obterMensagemProdutoEmUso() }
+  }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase
@@ -340,34 +421,28 @@ export async function excluirProduto(id: string): Promise<FormActionState> {
     return { erro: getAuthorizationErrorMessage(error) ?? 'Não foi possível validar sua sessão.' }
   }
 
+  let dependencias: DependenciasProduto
+
+  try {
+    dependencias = await carregarDependenciasProduto(id)
+  } catch (error) {
+    return {
+      erro:
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível validar o uso atual do produto.',
+    }
+  }
+
+  if (dependencias.emTurnoAberto) {
+    return { erro: obterMensagemProdutoEmUso() }
+  }
+
+  if (produtoTemHistorico(dependencias)) {
+    return { erro: obterMensagemHistoricoProduto() }
+  }
+
   const supabase = createAdminClient()
-
-  const [
-    { count: totalConfiguracoes, error: configuracaoError },
-    { count: totalRegistros, error: registrosError },
-  ] = await Promise.all([
-    supabase
-      .from('configuracao_turno')
-      .select('*', { count: 'exact', head: true })
-      .eq('produto_id', id),
-    supabase
-      .from('registros_producao')
-      .select('*', { count: 'exact', head: true })
-      .eq('produto_id', id),
-  ])
-
-  if (configuracaoError) {
-    return { erro: `Erro ao validar configurações do produto: ${configuracaoError.message}` }
-  }
-
-  if (registrosError) {
-    return { erro: `Erro ao validar histórico do produto: ${registrosError.message}` }
-  }
-
-  const mensagemDependencia = obterMensagemDependencia(totalConfiguracoes ?? 0, totalRegistros ?? 0)
-  if (mensagemDependencia) {
-    return { erro: mensagemDependencia }
-  }
 
   const { error: deleteRoteiroError } = await supabase
     .from('produto_operacoes')

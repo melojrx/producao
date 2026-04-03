@@ -368,6 +368,7 @@ export interface OperadorListItem extends Tables<'operadores'> {}
 
 export interface OperacaoListItem extends Tables<'operacoes'> {
   tipoNome: string | null
+  setorCodigo: number | null
   setorNome: string | null
 }
 

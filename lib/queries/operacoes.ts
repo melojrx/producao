@@ -11,16 +11,15 @@ function mapearOperacoesComTipo(
   setores: SetorRow[]
 ): OperacaoListItem[] {
   const tiposPorCodigo = new Map(tiposMaquina.map((tipo) => [tipo.codigo, tipo.nome]))
-  const setoresPorId = new Map(setores.map((setor) => [setor.id, setor.nome]))
+  const setoresPorId = new Map(setores.map((setor) => [setor.id, setor]))
 
   return operacoes.map((operacao) => ({
     ...operacao,
     tipoNome: operacao.tipo_maquina_codigo
       ? tiposPorCodigo.get(operacao.tipo_maquina_codigo) ?? null
       : null,
-    setorNome: operacao.setor_id
-      ? setoresPorId.get(operacao.setor_id) ?? null
-      : null,
+    setorCodigo: operacao.setor_id ? setoresPorId.get(operacao.setor_id)?.codigo ?? null : null,
+    setorNome: operacao.setor_id ? setoresPorId.get(operacao.setor_id)?.nome ?? null : null,
   }))
 }
 

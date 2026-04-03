@@ -24,14 +24,16 @@
 | 12 | Refatoração estrutural do turno por setor | ✅ Concluída | 4 |
 | 13 | Simplificação do domínio de máquinas | ✅ Concluída | 2 |
 | 14 | Prévia de pessoas por setor na abertura do turno | ✅ Concluída | 2 |
-| 15 | Consistência do progresso da OP entre demanda, setor e dashboard | ⏳ Planejada | 2 |
-| 16 | KPI de progresso operacional ponderado por T.P. | ⏳ Planejada | 3 |
-| 17 | KPIs de eficiência por hora e por dia na dashboard V2 | ⏳ Planejada | 3 |
-| 18 | Ajuste cirúrgico do input de quantidade no scanner | ⏳ Planejada | 1 |
+| 15 | Consistência do progresso da OP entre demanda, setor e dashboard | ✅ Concluída | 2 |
+| 16 | KPI de progresso operacional ponderado por T.P. | ✅ Concluída | 3 |
+| 17 | KPIs de eficiência por hora e por dia na dashboard V2 | ✅ Concluída | 3 |
+| 18 | Ajuste cirúrgico do input de quantidade no scanner | ✅ Concluída | 1 |
+| 19 | Cadastro de produto orientado por setores | ✅ Concluída | 3 |
+| 20 | Ciclo de vida e exclusão segura de produtos | ✅ Concluída | 2 |
 
-**Total estimado: 39 dias úteis**
+**Total estimado: 44 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a Sprint 14, a prioridade imediata continua sendo a consistência estrutural da consolidação entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` na Sprint 15. A separação explícita entre `quantidade concluída` e `progresso operacional` ponderado por `tempo_padrao_min` foi registrada como evolução funcional dedicada na Sprint 16. Os KPIs de `Eficiência por hora` e `Eficiência do dia` por operador, com tratamento explícito para troca de operação dentro da mesma hora, foram reservados como domínio dedicado da Sprint 17. O ajuste fino do scanner para permitir digitação direta da quantidade e reset para `0` ficou reservado como Sprint 18. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -248,7 +250,7 @@
 ## SPRINT 15 — Consistência do progresso da OP entre demanda, setor e dashboard
 **Objetivo:** eliminar divergências de realizado, saldo e status entre a camada atômica de operação e os consolidados de demanda, setor e OP do turno.
 **Entregável:** dashboard, scanner e relatórios V2 lendo o mesmo progresso consolidado após cada apontamento, com backfill para turnos já afetados.
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 
 - Recalcular `turno_setor_demandas` explicitamente a partir de `turno_setor_operacoes`
 - Reencadear a consolidação `demanda -> setor -> OP` dentro do apontamento atômico
@@ -259,7 +261,7 @@
 ## SPRINT 16 — KPI de progresso operacional ponderado por T.P.
 **Objetivo:** implementar um KPI incremental de progresso operacional da OP, do setor e do turno, separado da métrica de peças completas e ponderado pelo esforço real (`tempo_padrao_min`) das operações.
 **Entregável:** dashboard, modal, scanner e relatórios distinguindo explicitamente `progresso operacional` de `quantidade concluída`, com cálculo consistente a partir das operações atômicas.
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 
 - Formalizar contratos tipados e funções puras para `progresso operacional` e `quantidade concluída`
 - Calcular o progresso por operação, setor, OP e turno com peso proporcional ao `tempo_padrao_min`
@@ -271,7 +273,7 @@
 ## SPRINT 17 — KPIs de eficiência por hora e por dia na dashboard V2
 **Objetivo:** introduzir um domínio próprio de eficiência do operador na dashboard V2, separado do progresso operacional da OP e calculado por minutos padrão realizados no tempo disponível do turno.
 **Entregável:** dashboard V2 exibindo `Eficiência por hora` por `hora + operador + operação` e `Eficiência do dia` por operador, com suporte explícito para troca de operação dentro da mesma hora.
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 
 - Formalizar contratos e queries para `Eficiência por hora` e `Eficiência do dia`
 - Usar `tempo_padrao_min_snapshot` como base obrigatória do cálculo
@@ -283,12 +285,37 @@
 ## SPRINT 18 — Ajuste cirúrgico do input de quantidade no scanner
 **Objetivo:** remover o travamento da quantidade em `1` no scanner V2 e permitir digitação direta com reset para `0`, preservando o fluxo atômico já consolidado.
 **Entregável:** tela de confirmação do scanner permitindo editar a quantidade manualmente, zerar a contagem e registrar apenas valores válidos acima de `0`.
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 
 - Mapear o ponto exato em que a UI do scanner força o valor mínimo `1`
 - Corrigir o input de quantidade sem alterar o contrato transacional do registro
 - Permitir decremento e reset até `0`, mantendo respeito ao saldo máximo da operação
 - Homologar o ajuste na UI sem regressão nas ações de troca de operador, operação e OP/produto
+
+## SPRINT 19 — Cadastro de produto orientado por setores
+**Objetivo:** reorganizar o cadastro de produto para que o roteiro seja montado por setores, deixando explícita a composição do fluxo fabril sem alterar o contrato persistido do roteiro.
+**Entregável:** modal de produto guiando a seleção por setores, exibindo apenas as operações do setor selecionado, preservando o `T.P Produto` automático e salvando o roteiro final no formato atual de `operacaoId + sequencia`.
+**Status:** ✅ Concluída
+
+- Formalizar no PRD a nova UX do cadastro de produto por setores
+- Refatorar o modal para seleção de setores antes das operações
+- Respeitar a ordem oficial dos setores por `setor.codigo`, sem reorder manual
+- Preservar a ordem das operações dentro do setor conforme a seleção do usuário
+- Manter o `T.P Produto` como cálculo automático e visualmente secundário
+- Permitir ampliar o modal se isso for necessário para manter a experiência enxuta e intuitiva
+- Homologar criação e edição de produtos com múltiplos setores
+
+## SPRINT 20 — Ciclo de vida e exclusão segura de produtos
+**Objetivo:** concluir o CRUD de produtos com ações seguras de arquivamento e exclusão, preservando histórico e bloqueando qualquer remoção indevida de produto em uso.
+**Entregável:** CRUD de produtos com validação de `produto em turno aberto`, distinção clara entre `arquivar` e `excluir permanentemente`, e preservação garantida do histórico operacional.
+**Status:** ✅ Concluída
+
+- Formalizar a diferença entre `arquivar/desativar` e `excluir permanentemente`
+- Bloquear produto em `turno aberto` tanto para arquivamento quanto para exclusão
+- Bloquear exclusão física quando houver histórico em `turno_ops`, `configuracao_turno` ou `registros_producao`
+- Preservar a produção passada ao arquivar produto
+- Expor ações claras e coerentes no CRUD de produtos
+- Homologar cenários de produto virgem, produto com histórico e produto em turno aberto
 
 ---
 
@@ -298,7 +325,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

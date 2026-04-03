@@ -1658,3 +1658,137 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** Na UI do scanner V2, o usuário consegue digitar a quantidade desejada, zerar a contagem quando necessário e registrar apenas valores válidos sem regressão nas demais ações do fluxo.
   Homologação manual registrada em `2026-04-03`: o scanner V2 passou a aceitar digitação direta da quantidade, decremento até `0`, reset correto após sucesso e na ação `Nova quantidade`, preservando o respeito ao saldo da operação e sem regressão observada nas ações `Trocar operação`, `Trocar operador` e `Trocar OP/produto`.
+
+## SPRINT 19 — Cadastro de produto orientado por setores
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 18 concluída.
+**Objetivo:** refatorar o cadastro de produto para montar o roteiro por setores, deixando explícita a composição `setor -> operações`, preservando o payload atual do roteiro e mantendo o `T.P Produto` como cálculo automático de apoio visual.
+
+**Nota de replanejamento:** a execução foi pausada em `2026-04-03` após a conclusão da `19.2`, por decisão do usuário, para priorizar a Sprint 20 de ciclo de vida/exclusão de produtos. Após a homologação da Sprint 20, as tasks `19.3` e `19.4` foram retomadas e concluídas.
+
+- [x] **19.1 — Formalizar o contrato da nova UX do cadastro de produto**
+  Entregas mínimas:
+  - registrar no PRD que o cadastro deixa de partir de uma lista única de operações e passa a ser guiado por setores
+  - fechar a regra de ordenação oficial dos setores e a ordenação interna das operações
+  - registrar que o modal pode ser ampliado se isso for necessário para manter a UX enxuta e intuitiva
+  - preservar explicitamente a compatibilidade com o payload atual de `roteiro`
+
+  Regras:
+  - a ordem dos setores no roteiro é sempre a ordem oficial de fluxo por `setor.codigo`
+  - o usuário não pode reordenar setores manualmente
+  - dentro de um mesmo setor, a ordem das operações segue a ordem em que o usuário as selecionou
+  - o `T.P Produto` continua sendo calculado automaticamente como soma das operações escolhidas
+
+  **Evidência:** O PRD passa a descrever explicitamente o novo fluxo do cadastro de produto por setores, incluindo ordenação, cálculo do `T.P Produto`, princípio de UX enxuta e preservação do contrato atual de persistência.
+  Documentado em `2026-04-03` em `docs/PRD.md`, formalizando a composição `setor -> operações`, a ordem oficial dos setores por `setor.codigo`, a ordem de seleção das operações dentro do setor, a possibilidade de ampliar o modal quando necessário e a permanência do payload linear de `roteiro`.
+
+- [x] **19.2 — Refatorar o modal de produto para selecionar setores antes das operações**
+  Entregas mínimas:
+  - substituir a lista plana de operações por um fluxo guiado por setores
+  - permitir buscar e adicionar setores ao roteiro do produto
+  - ao selecionar um setor, exibir apenas as operações disponíveis naquele setor
+  - manter o cadastro de `referência`, `nome`, `URL da imagem` e `situação` no mesmo modal
+
+  Regras:
+  - a UI deve continuar mobile-first, mas pode ampliar o modal em desktop se isso reduzir ruído visual
+  - o fluxo visual deve expor apenas o contexto necessário para o passo atual
+  - a ordem final dos setores deve seguir o fluxo oficial, sem affordance de reorder manual entre setores
+
+  **Evidência:** O modal de produto passa a montar o roteiro por setores, exibindo somente as operações do setor ativo/selecionado e tornando a composição do produto mais evidente sem poluir a interface.
+  Implementado em `components/ui/ModalProduto.tsx`, substituindo a lista plana por um fluxo guiado por setores com busca, adição de setores, setor ativo para seleção de operações e resumo final agrupado por `setor -> operações`. A UI passou a respeitar a ordem oficial dos setores por `setor.codigo`, removeu o reorder manual entre setores e dentro do roteiro, e manteve os campos principais do cadastro no mesmo modal com o `T.P Produto` em papel visual secundário. Por decisão explícita de produto, `imagem_url` ficou temporariamente oculta no modal até a futura inclusão real da imagem, com o bloco visual preservado comentado no código. O contrato de leitura da UI recebeu `setorCodigo` em `types/index.ts` e `lib/queries/operacoes.ts` para sustentar a ordenação oficial. Validação concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [x] **19.3 — Preservar o contrato de persistência e o cálculo automático do T.P Produto**
+  Entregas mínimas:
+  - manter o payload salvo como lista linear de `operacaoId + sequencia`
+  - achatar a estrutura visual `setor -> operações` para o contrato atual antes de salvar
+  - garantir que o `T.P Produto` continue sendo recalculado automaticamente com base nas operações escolhidas
+  - manter compatibilidade com criação e edição de produto
+
+  Regras:
+  - não alterar schema nesta sprint
+  - não alterar o contrato de `lib/actions/produtos.ts` além do estritamente necessário
+  - a sequência final das operações deve respeitar primeiro a ordem oficial dos setores e, dentro de cada setor, a ordem de seleção do usuário
+
+  **Evidência:** Produtos novos e editados continuam sendo persistidos corretamente com o payload atual de `roteiro`, enquanto o `T.P Produto` permanece consistente com as operações selecionadas na nova UX.
+  Validado no código em `2026-04-03`: `components/ui/ModalProduto.tsx` continua achatando a estrutura visual por setores para um payload linear de `operacaoId + sequencia`, respeitando primeiro a ordem oficial dos setores e depois a ordem de seleção dentro de cada setor; `lib/actions/produtos.ts` permanece recalculando `tp_produto_min` a partir das operações efetivamente selecionadas tanto em criação quanto em edição, sem alteração de schema nem do contrato de persistência.
+
+- [x] **19.4 — Homologar a nova UX do cadastro de produto**
+  Entregas mínimas:
+  - validar criação de produto com múltiplos setores
+  - validar seleção de múltiplas operações dentro de um mesmo setor
+  - validar edição de produto existente sem perder a sequência do roteiro
+  - validar que o `T.P Produto` acompanha corretamente as escolhas durante o cadastro
+
+  Regras:
+  - a homologação deve ser feita na UI real de `/admin/produtos`
+  - o fluxo não pode reintroduzir ambiguidade visual sobre a ordem dos setores e das operações
+  - a interface final deve permanecer enxuta, intuitiva e focada apenas no necessário para o cadastro
+
+  **Evidência:** Na UI real de `/admin/produtos`, o usuário consegue montar o produto por setores, escolher operações por setor, visualizar o `T.P Produto` em tempo real e salvar/editar o roteiro sem perder clareza nem compatibilidade com os dados existentes.
+  Homologação manual confirmada pelo usuário em `2026-04-03`: a UX real de `/admin/produtos` foi validada com criação e edição preservando a ordem `setor -> operações`, o `T.P Produto` em tempo real e a compatibilidade do roteiro persistido. Por decisão explícita de produto, `imagem_url` permanece oculta no modal por enquanto; o bloco visual foi preservado comentado em `components/ui/ModalProduto.tsx` para reintrodução futura junto ao fluxo de inclusão real da imagem.
+
+## SPRINT 20 — Ciclo de vida e exclusão segura de produtos
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 19 pausada após `19.2`.
+**Objetivo:** concluir o CRUD de produtos com ações explícitas de ciclo de vida, impedindo exclusão ou arquivamento indevido de produto em uso e preservando o histórico operacional já produzido.
+
+- [x] **20.1 — Formalizar a regra de ciclo de vida do produto**
+  Entregas mínimas:
+  - registrar no PRD a diferença entre `arquivar/desativar` e `excluir permanentemente`
+  - fechar a regra de `produto em produção agora`
+  - fechar a regra de preservação do histórico operacional
+  - definir quando a remoção física continua permitida
+
+  Regras:
+  - produto em `turno aberto` não pode ser arquivado nem excluído
+  - produto com histórico em `turno_ops`, `configuracao_turno` ou `registros_producao` não pode ser excluído permanentemente
+  - produto com histórico deve ser tratado por `arquivar/desativar`
+  - a produção passada nunca pode ser apagada por uma ação de CRUD do produto
+
+  **Evidência:** O PRD passa a descrever explicitamente as duas ações de ciclo de vida do produto, as travas por turno aberto e histórico, e a proibição de apagar produção passada a partir do CRUD.
+  Documentado em `2026-04-03` em `docs/PRD.md`, formalizando `arquivar/desativar` versus `excluir permanentemente`, a trava para produto em `turno aberto`, a proibição de exclusão física para produto com histórico em `turno_ops`, `configuracao_turno` ou `registros_producao`, e a preservação obrigatória da produção passada.
+
+- [x] **20.2 — Centralizar a validação de dependências e uso atual do produto**
+  Entregas mínimas:
+  - identificar se o produto está presente em `turno aberto`
+  - identificar se o produto possui histórico operacional ou de planejamento
+  - reutilizar a mesma validação em `desativarProduto()` e `excluirProduto()`
+  - diferenciar mensagens de erro para `em produção agora` e `histórico preservado`
+
+  Regras:
+  - a validação deve consultar explicitamente `turno_ops` vinculadas a `turnos.status = aberto`
+  - a exclusão permanente só pode ser permitida para produto sem qualquer uso anterior
+  - a checagem não pode depender apenas de `configuracao_turno` e `registros_producao`
+
+  **Evidência:** Os actions de produto passam a rejeitar corretamente arquivamento ou exclusão quando o produto estiver em turno aberto e rejeitam exclusão física quando houver histórico, com mensagens coerentes para cada caso.
+  Implementado em `lib/actions/produtos.ts`, introduzindo a helper central `carregarDependenciasProduto()` para consultar `turno_ops` em `turno aberto`, histórico em `turno_ops`, `configuracao_turno` e `registros_producao`, além das mensagens distintas para `produto em uso agora` e `histórico preservado`. `desativarProduto()` passou a bloquear apenas produto em turno aberto, enquanto `excluirProduto()` bloqueia tanto produto em turno aberto quanto qualquer produto com histórico operacional ou de planejamento. Validação concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [x] **20.3 — Expor ações seguras no CRUD de produtos**
+  Entregas mínimas:
+  - garantir botão/ação de exclusão no CRUD com confirmação explícita
+  - expor claramente a ação de `arquivar/desativar`
+  - aplicar as restrições de negócio na UI sem esconder mensagens de bloqueio
+  - manter o comportamento coerente entre lista e detalhe do produto
+
+  Regras:
+  - a UI deve deixar claro que `arquivar` preserva histórico e `excluir` é excepcional
+  - a ação de exclusão permanente não pode sugerir que apagará histórico passado
+  - o fluxo visual deve ser cirúrgico, sem reescrever o restante do CRUD
+
+  **Evidência:** O CRUD de produtos passa a exibir ações de ciclo de vida claras e consistentes, bloqueando exclusão ou arquivamento indevido e comunicando corretamente quando só o arquivamento é permitido.
+  Implementado em `components/admin/actions/ProdutoLifecycleActions.tsx`, reaproveitando o mesmo componente tanto no detalhe quanto na listagem com uma variante compacta, mantendo a mesma regra e as mesmas mensagens para `arquivar` e `excluir permanentemente`. A listagem passou a expor essas ações em `app/(admin)/produtos/ListaProdutos.tsx`, enquanto a página de detalhe em `app/admin/produtos/[id]/page.tsx` recebeu o redirecionamento explícito após exclusão bem-sucedida. A comunicação visual foi alinhada para deixar claro que arquivar preserva histórico e que exclusão física é excepcional. Validação concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
+
+- [x] **20.4 — Homologar o ciclo de vida seguro do produto**
+  Entregas mínimas:
+  - validar produto virgem com exclusão permanente permitida
+  - validar produto com histórico bloqueando exclusão e permitindo arquivamento
+  - validar produto em turno aberto bloqueando tanto arquivamento quanto exclusão
+  - validar preservação do histórico após arquivamento
+
+  Regras:
+  - a homologação deve usar a UI real do CRUD de produtos
+  - a validação deve comprovar que produção passada continua consultável
+  - após a Sprint 20 homologada, a Sprint 19 deve ser retomada para fechamento conjunto
+
+  **Evidência:** Na UI real de produtos, o sistema diferencia corretamente exclusão permanente e arquivamento, bloqueia produtos em uso ou com histórico e preserva a leitura histórica após o arquivamento.
+  Homologação manual confirmada pelo usuário em `2026-04-03`: o CRUD real de produtos validou os três cenários de ciclo de vida, com exclusão permanente apenas para produto virgem, bloqueio de exclusão para produto com histórico com opção de arquivamento preservada, e bloqueio simultâneo de arquivamento e exclusão para produto em turno aberto, mantendo a leitura histórica acessível após o arquivamento.

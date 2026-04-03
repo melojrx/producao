@@ -3,15 +3,17 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { ProdutoLifecycleActions } from '@/components/admin/actions/ProdutoLifecycleActions'
 import { ModalProduto } from '@/components/ui/ModalProduto'
-import type { OperacaoListItem, ProdutoListItem } from '@/types'
+import type { OperacaoListItem, ProdutoListItem, SetorListItem } from '@/types'
 
 interface ListaProdutosProps {
   produtosIniciais: ProdutoListItem[]
   operacoes: OperacaoListItem[]
+  setores: SetorListItem[]
 }
 
-export function ListaProdutos({ produtosIniciais, operacoes }: ListaProdutosProps) {
+export function ListaProdutos({ produtosIniciais, operacoes, setores }: ListaProdutosProps) {
   const [modalAberto, setModalAberto] = useState(false)
   const [produtoEditando, setProdutoEditando] = useState<ProdutoListItem | undefined>()
   const [busca, setBusca] = useState('')
@@ -117,24 +119,34 @@ export function ListaProdutos({ produtosIniciais, operacoes }: ListaProdutosProp
                         {produto.ativo ?? true ? 'ativo' : 'inativo'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => abrirEditar(produto)}
-                        aria-label={`Editar ${produto.referencia}`}
-                        title={`Editar ${produto.referencia}`}
-                        className="inline-flex p-1.5 text-gray-400 transition-colors hover:text-blue-600"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <Link
-                        href={`/admin/produtos/${produto.id}`}
-                        aria-label={`Ver detalhes de ${produto.referencia}`}
-                        title={`Ver detalhes de ${produto.referencia}`}
-                        className="inline-flex p-1.5 text-gray-400 transition-colors hover:text-indigo-600"
-                      >
-                        <Eye size={16} />
-                      </Link>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => abrirEditar(produto)}
+                            aria-label={`Editar ${produto.referencia}`}
+                            title={`Editar ${produto.referencia}`}
+                            className="inline-flex rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <Link
+                            href={`/admin/produtos/${produto.id}`}
+                            aria-label={`Ver detalhes de ${produto.referencia}`}
+                            title={`Ver detalhes de ${produto.referencia}`}
+                            className="inline-flex rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                          >
+                            <Eye size={16} />
+                          </Link>
+                          <ProdutoLifecycleActions
+                            produtoId={produto.id}
+                            referencia={produto.referencia}
+                            ativo={produto.ativo ?? true}
+                            compact
+                          />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -148,6 +160,7 @@ export function ListaProdutos({ produtosIniciais, operacoes }: ListaProdutosProp
         <ModalProduto
           produto={produtoEditando}
           operacoes={operacoes}
+          setores={setores}
           aoFechar={() => setModalAberto(false)}
         />
       ) : null}

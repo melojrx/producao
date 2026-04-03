@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
+import { OperacaoLifecycleActions } from '@/components/admin/actions/OperacaoLifecycleActions'
 import { ModalOperacao } from '@/components/ui/ModalOperacao'
 import type { OperacaoListItem, SetorOption, TipoMaquinaOption } from '@/types'
 
@@ -126,24 +127,34 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: Lis
                         {operacao.ativa ?? true ? 'ativa' : 'inativa'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => abrirEditar(operacao)}
-                        aria-label={`Editar ${operacao.codigo}`}
-                        title={`Editar ${operacao.codigo}`}
-                        className="inline-flex p-1.5 text-gray-400 transition-colors hover:text-blue-600"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <Link
-                        href={`/admin/operacoes/${operacao.id}`}
-                        aria-label={`Ver detalhes de ${operacao.codigo}`}
-                        title={`Ver detalhes de ${operacao.codigo}`}
-                        className="inline-flex p-1.5 text-gray-400 transition-colors hover:text-indigo-600"
-                      >
-                        <Eye size={16} />
-                      </Link>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => abrirEditar(operacao)}
+                            aria-label={`Editar ${operacao.codigo}`}
+                            title={`Editar ${operacao.codigo}`}
+                            className="inline-flex rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <Link
+                            href={`/admin/operacoes/${operacao.id}`}
+                            aria-label={`Ver detalhes de ${operacao.codigo}`}
+                            title={`Ver detalhes de ${operacao.codigo}`}
+                            className="inline-flex rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                          >
+                            <Eye size={16} />
+                          </Link>
+                          <OperacaoLifecycleActions
+                            operacaoId={operacao.id}
+                            codigo={operacao.codigo}
+                            ativa={operacao.ativa ?? true}
+                            compact
+                          />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))

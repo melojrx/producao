@@ -781,9 +781,40 @@ Setores iniciais:
 
 - referência
 - nome
+- URL da imagem
 - situação
-- roteiro com múltiplas operações
 - T.P Produto calculado automaticamente
+
+Contrato da UX:
+- o cadastro continua salvando o roteiro do produto como uma lista linear de operações com `sequencia`
+- a montagem do roteiro deixa de ser uma lista única de operações e passa a ser guiada por setores
+- a ordem dos setores no roteiro é sempre a ordem oficial do fluxo fabril, derivada de `setor.codigo`
+- o usuário não pode reordenar setores manualmente no cadastro do produto
+- dentro de um mesmo setor, a ordem das operações segue exatamente a ordem em que o usuário as selecionou
+- o usuário primeiro informa `referência` e `nome`
+- `URL da imagem` permanece temporariamente oculta no modal por decisão de produto, até a futura entrega de inclusão real da imagem
+- abaixo desses campos, o modal exibe o `T.P Produto` como informação de apoio visual, menos evidente que os campos principais, sendo atualizado automaticamente conforme as operações são selecionadas
+- em seguida, o usuário busca e adiciona os setores que farão parte do produto, respeitando o limite de setores existentes no sistema
+- ao selecionar um setor, o modal passa a exibir apenas as operações disponíveis naquele setor para escolha
+- finalizada a seleção das operações de um setor, o usuário segue para o próximo setor até concluir o roteiro completo do produto
+- o roteiro final exibido ao usuário deve deixar evidente a composição `setor -> operações`, mas o payload persistido continua compatível com a estrutura atual baseada em `operacaoId + sequencia`
+
+Regras:
+- o `T.P Produto` continua sendo a soma dos `tempo_padrao_min` das operações selecionadas
+- a UI deve ser enxuta, orientada ao momento do cadastro e sem poluição visual com informações secundárias
+- se necessário para manter a UX clara e intuitiva, o modal pode aumentar de largura ou reorganizar o layout
+- a ampliação visual do modal não pode transformar a tela em um configurador denso; o foco deve permanecer apenas nas decisões necessárias para montar o produto
+- a busca e a seleção de operações devem respeitar o vínculo estrutural existente entre `operação` e `setor`
+
+Contrato de ciclo de vida:
+- o produto deve ter duas ações distintas de ciclo de vida: `arquivar/desativar` e `excluir permanentemente`
+- `arquivar/desativar` remove o produto das listas ativas de uso operacional futuro, mas preserva integralmente o histórico já produzido
+- `excluir permanentemente` só pode existir para produto sem uso operacional nem histórico
+- produto presente em `turno aberto` não pode ser arquivado nem excluído
+- produto com qualquer histórico em `turno_ops`, `configuracao_turno` ou `registros_producao` não pode ser excluído permanentemente
+- produto com histórico deve ser tratado por `arquivar/desativar`, nunca por remoção física
+- a remoção física, quando permitida, pode apagar apenas o cadastro atual do produto e seu roteiro derivado em `produto_operacoes`
+- a produção passada não pode ser apagada por uma ação de CRUD de produto
 
 ### 8.7 Cadastro de Máquinas (/admin/maquinas)
 

@@ -1,11 +1,13 @@
 import { ListaProdutos } from '../../(admin)/produtos/ListaProdutos'
 import { listarOperacoes } from '@/lib/queries/operacoes'
 import { listarProdutos } from '@/lib/queries/produtos'
+import { listarSetores } from '@/lib/queries/setores'
 
 export default async function AdminProdutosPage() {
-  const [produtos, operacoes] = await Promise.all([
+  const [produtos, operacoes, setores] = await Promise.all([
     listarProdutos(),
     listarOperacoes(),
+    listarSetores(),
   ])
 
   return (
@@ -17,7 +19,7 @@ export default async function AdminProdutosPage() {
         </p>
       </div>
 
-      <ListaProdutos produtosIniciais={produtos} operacoes={operacoes} />
+      <ListaProdutos produtosIniciais={produtos} operacoes={operacoes} setores={setores} />
     </div>
   )
 }
