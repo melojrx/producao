@@ -12,6 +12,8 @@ interface CardKPIProps {
   sufixo?: string
   decimals?: number
   destaque?: 'blue' | 'emerald' | 'amber' | 'slate'
+  desabilitado?: boolean
+  motivoDesabilitado?: string
 }
 
 function formatarNumero(valor: number, decimals: number): string {
@@ -29,6 +31,8 @@ export function CardKPI({
   sufixo = '',
   decimals = 0,
   destaque = 'slate',
+  desabilitado = false,
+  motivoDesabilitado = 'Indisponível no contexto atual.',
 }: CardKPIProps) {
   const [valorAnimado, setValorAnimado] = useState(valor)
 
@@ -58,7 +62,14 @@ export function CardKPI({
   }, [valor])
 
   const tema =
-    destaque === 'blue'
+    desabilitado
+      ? {
+          fundo: 'from-slate-50 to-slate-100',
+          borda: 'border-slate-200',
+          icone: 'bg-slate-200 text-slate-500',
+          titulo: 'text-slate-500',
+        }
+      : destaque === 'blue'
       ? {
           fundo: 'from-blue-50 to-cyan-50',
           borda: 'border-blue-100',
@@ -98,8 +109,7 @@ export function CardKPI({
         <div>
           <p className={`text-xs font-medium tracking-wide uppercase ${tema.titulo}`}>{titulo}</p>
           <p className="mt-3 text-3xl font-semibold text-slate-900">
-            {formatarNumero(valorAnimado, decimals)}
-            {sufixo}
+            {desabilitado ? '—' : `${formatarNumero(valorAnimado, decimals)}${sufixo}`}
           </p>
         </div>
 
@@ -108,7 +118,9 @@ export function CardKPI({
         </div>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-600">{descricao}</p>
+      <p className="mt-4 text-sm leading-6 text-slate-600">
+        {desabilitado ? motivoDesabilitado : descricao}
+      </p>
     </motion.article>
   )
 }

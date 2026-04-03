@@ -165,6 +165,8 @@ export function MonitorPlanejamentoTurnoV2({
     return { op, secoes }
   }, [planejamento, turnoOpSelecionadaId])
 
+  const turnoAberto = planejamento?.origem === 'aberto'
+
   return (
     <section className="space-y-6">
       {!planejamento ? (
@@ -187,8 +189,10 @@ export function MonitorPlanejamentoTurnoV2({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <CardKPI
-          titulo="Meta do Grupo"
+          titulo="Capacidade Produtiva"
           valor={metaGrupo}
+          desabilitado={!turnoAberto}
+          motivoDesabilitado="Indisponível sem turno aberto. Este KPI é recalculado na abertura do próximo turno."
           descricao={
             mediaTpProduto > 0
               ? `Meta coletiva do turno pela média simples dos T.Ps dos produtos planejados. T.P médio ${mediaTpProduto.toFixed(2)} min.`
@@ -200,6 +204,8 @@ export function MonitorPlanejamentoTurnoV2({
         <CardKPI
           titulo="OPs em andamento"
           valor={resumo.opsEmAndamento}
+          desabilitado={!turnoAberto}
+          motivoDesabilitado="Indisponível sem turno aberto. As OPs em andamento só fazem sentido no acompanhamento operacional corrente."
           descricao="Quantidade de OPs já iniciadas, mas ainda não concluídas no turno carregado."
           icone={Activity}
           destaque="blue"
@@ -235,7 +241,9 @@ export function MonitorPlanejamentoTurnoV2({
 
       <GraficoMetaGrupoTurnoV2
         dados={comparativoPorHora}
-        estaCarregando={estaCarregando || estaCarregandoMetaGrupo}
+        estaCarregando={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
+        desabilitado={!turnoAberto}
+        motivoDesabilitado="O gráfico horário de capacidade é dinâmico e volta a ser recalculado quando um novo turno for aberto."
       />
 
       <EficienciaOperacionalTurnoV2 resumo={planejamento?.eficienciaOperacional} />

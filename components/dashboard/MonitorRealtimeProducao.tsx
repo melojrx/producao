@@ -91,7 +91,7 @@ export function MonitorRealtimeProducao() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <CardKPI
-          titulo="Meta grupo"
+          titulo="Capacidade Produtiva"
           valor={metaGrupo}
           descricao="Meta coletiva do dia baseada na configuração atual do turno."
           icone={Target}

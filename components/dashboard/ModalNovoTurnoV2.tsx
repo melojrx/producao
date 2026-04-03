@@ -79,6 +79,10 @@ function formatarCargaMinutos(valor: number): string {
   return `${formatarNumero(valor)} min`
 }
 
+function formatarPercentual(valor: number): string {
+  return `${formatarNumero(valor)}%`
+}
+
 export function ModalNovoTurnoV2({
   planejamentoAtual,
   produtos,
@@ -275,7 +279,7 @@ export function ModalNovoTurnoV2({
   const totalSetoresDimensionados = resumoDimensionamento.setores.length
   const totalOpsDimensionadas = opsParaDimensionamento.length
   const saldoOperadores = Math.max(
-    operadoresDisponiveisNumero - resumoDimensionamento.totalPessoasSugeridas,
+    operadoresDisponiveisNumero - resumoDimensionamento.totalOperadoresSugeridos,
     0
   )
   const existeDeficitDimensionamento = resumoDimensionamento.deficitOperadores > 0
@@ -665,27 +669,16 @@ export function ModalNovoTurnoV2({
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="text-base font-semibold text-slate-900">
-                  Prévia de pessoas por setor
+                  Distribuição sugerida da equipe
                 </h3>
                 <p className="text-sm text-slate-600">
-                  Sugestão operacional calculada em tempo real pela carga planejada das OPs válidas
-                  do turno. Nesta etapa, a prévia não altera a gravação do turno.
+                  Sugestão operacional calculada em tempo real para distribuir os operadores
+                  disponíveis entre os setores ativos do turno. O ideal para cumprir 100% da carga
+                  permanece visível apenas como apoio.
                 </p>
               </div>
 
-              <div
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                  existeDeficitDimensionamento
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-emerald-100 text-emerald-700'
-                }`}
-              >
-                <Users size={14} />
-                {existeDeficitDimensionamento
-                  ? `Déficit de ${resumoDimensionamento.deficitOperadores} operador(es)`
-                  : 'Capacidade sem déficit na prévia'}
-              </div>
-            </div>
+          </div>
 
             {avisosPrevia.length > 0 ? (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -732,10 +725,14 @@ export function ModalNovoTurnoV2({
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Pessoas sugeridas
+                      Operadores distribuídos
                     </p>
                     <p className="mt-2 text-3xl font-semibold text-slate-900">
-                      {resumoDimensionamento.totalPessoasSugeridas}
+                      {resumoDimensionamento.totalOperadoresSugeridos}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Ideal de {resumoDimensionamento.totalOperadoresNecessarios} para cumprir toda
+                      a carga
                     </p>
                   </div>
 
@@ -751,7 +748,7 @@ export function ModalNovoTurnoV2({
                         existeDeficitDimensionamento ? 'text-amber-700' : 'text-emerald-700'
                       }`}
                     >
-                      {existeDeficitDimensionamento ? 'Déficit' : 'Folga'}
+                      {existeDeficitDimensionamento ? 'Eficiência requerida' : 'Cobertura'}
                     </p>
                     <p
                       className={`mt-2 text-3xl font-semibold ${
@@ -759,8 +756,17 @@ export function ModalNovoTurnoV2({
                       }`}
                     >
                       {existeDeficitDimensionamento
-                        ? resumoDimensionamento.deficitOperadores
-                        : saldoOperadores}
+                        ? formatarPercentual(resumoDimensionamento.eficienciaRequeridaPct ?? 0)
+                        : `${resumoDimensionamento.coberturaGeralPct.toFixed(0)}%`}
+                    </p>
+                    <p
+                      className={`mt-1 text-xs ${
+                        existeDeficitDimensionamento ? 'text-amber-700' : 'text-emerald-700'
+                      }`}
+                    >
+                      {existeDeficitDimensionamento
+                        ? 'Percentual médio necessário da equipe atual para cumprir a demanda'
+                        : 'Carga do turno plenamente coberta'}
                     </p>
                   </div>
                 </div>
@@ -777,15 +783,37 @@ export function ModalNovoTurnoV2({
                           <p className="mt-1 text-xs text-slate-500">
                             Carga prevista de {formatarCargaMinutos(setor.cargaMinutos)} no turno.
                           </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {setor.eficienciaRequeridaPct
+                              ? `Eficiência requerida de ${formatarPercentual(setor.eficienciaRequeridaPct)} para cumprir este setor com a equipe sugerida.`
+                              : 'Sem equipe sugerida automaticamente para este setor; revise a distribuição manualmente.'}
+                          </p>
                         </div>
 
                         <div className="rounded-2xl bg-blue-100 px-3 py-2 text-right text-blue-900">
                           <div className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
-                            Pessoas
+                            Equipe
                           </div>
-                          <div className="text-2xl font-semibold">{setor.pessoasNecessarias}</div>
+                          <div className="text-2xl font-semibold">{setor.operadoresSugeridos}</div>
+                          <div className="text-[11px] text-blue-700">
+                            ideal {setor.operadoresNecessarios}
+                          </div>
                         </div>
                       </div>
+
+                      {setor.eficienciaRequeridaPct && setor.eficienciaRequeridaPct > 100 ? (
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          Este setor exige {formatarPercentual(setor.eficienciaRequeridaPct)} da
+                          equipe sugerida para cumprir a carga planejada.
+                        </div>
+                      ) : null}
+
+                      {!setor.eficienciaRequeridaPct && setor.cargaMinutos > 0 ? (
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          O cálculo proporcional não alocou equipe automática aqui. Reavalie a
+                          distribuição manualmente se este setor for prioritário.
+                        </div>
+                      ) : null}
 
                       <div className="mt-4 space-y-2">
                         {setor.contribuicoes.map((contribuicao) => (

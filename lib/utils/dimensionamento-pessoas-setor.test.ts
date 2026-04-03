@@ -38,7 +38,10 @@ test('calcula a necessidade de pessoas por setor com arredondamento para cima', 
 
   const resultado = calcularDimensionamentoPessoasPorSetor(input)
 
-  assert.equal(resultado.totalPessoasSugeridas, 10)
+  assert.equal(resultado.totalOperadoresSugeridos, 10)
+  assert.equal(resultado.totalOperadoresNecessarios, 10)
+  assert.equal(resultado.coberturaGeralPct, 100)
+  assert.equal(resultado.eficienciaRequeridaPct, 99.922)
   assert.equal(resultado.deficitOperadores, 0)
   assert.equal(resultado.setores.length, 1)
   assert.deepEqual(resultado.setores[0], {
@@ -46,7 +49,11 @@ test('calcula a necessidade de pessoas por setor com arredondamento para cima', 
     setorCodigo: null,
     setorNome: 'Preparação',
     cargaMinutos: 5096,
-    pessoasNecessarias: 10,
+    operadoresSugeridos: 10,
+    operadoresNecessarios: 10,
+    coberturaPct: 100,
+    deficitOperadores: 0,
+    eficienciaRequeridaPct: 99.922,
     contribuicoes: [
       {
         numeroOp: 'OP-1111',
@@ -122,15 +129,27 @@ test('consolida múltiplas OPs no mesmo setor e sinaliza déficit agregado', () 
   const montagem = resultado.setores.find((setor) => setor.setorId === 'setor-montagem')
   const finalizacao = resultado.setores.find((setor) => setor.setorId === 'setor-finalizacao')
 
-  assert.equal(resultado.totalPessoasSugeridas, 6)
+  assert.equal(resultado.totalOperadoresSugeridos, 4)
+  assert.equal(resultado.totalOperadoresNecessarios, 6)
+  assert.equal(resultado.coberturaGeralPct, 87.273)
+  assert.equal(resultado.eficienciaRequeridaPct, 114.583)
   assert.equal(resultado.deficitOperadores, 2)
   assert.equal(preparacao?.cargaMinutos, 875)
-  assert.equal(preparacao?.pessoasNecessarias, 3)
+  assert.equal(preparacao?.operadoresSugeridos, 3)
+  assert.equal(preparacao?.operadoresNecessarios, 3)
+  assert.equal(preparacao?.coberturaPct, 100)
+  assert.equal(preparacao?.eficienciaRequeridaPct, 97.222)
   assert.equal(preparacao?.contribuicoes.length, 2)
   assert.equal(montagem?.cargaMinutos, 400)
-  assert.equal(montagem?.pessoasNecessarias, 2)
+  assert.equal(montagem?.operadoresSugeridos, 1)
+  assert.equal(montagem?.operadoresNecessarios, 2)
+  assert.equal(montagem?.coberturaPct, 75)
+  assert.equal(montagem?.eficienciaRequeridaPct, 133.333)
   assert.equal(finalizacao?.cargaMinutos, 100)
-  assert.equal(finalizacao?.pessoasNecessarias, 1)
+  assert.equal(finalizacao?.operadoresSugeridos, 0)
+  assert.equal(finalizacao?.operadoresNecessarios, 1)
+  assert.equal(finalizacao?.coberturaPct, 0)
+  assert.equal(finalizacao?.eficienciaRequeridaPct, null)
 })
 
 test('ignora operações inválidas do roteiro e quantidades não positivas sem quebrar a consolidação', () => {
@@ -188,7 +207,12 @@ test('ignora operações inválidas do roteiro e quantidades não positivas sem 
   assert.equal(resultado.setores.length, 1)
   assert.equal(resultado.setores[0]?.setorNome, 'Preparação')
   assert.equal(resultado.setores[0]?.cargaMinutos, 100)
-  assert.equal(resultado.setores[0]?.pessoasNecessarias, 1)
-  assert.equal(resultado.totalPessoasSugeridas, 1)
+  assert.equal(resultado.setores[0]?.operadoresSugeridos, 1)
+  assert.equal(resultado.setores[0]?.operadoresNecessarios, 1)
+  assert.equal(resultado.setores[0]?.coberturaPct, 100)
+  assert.equal(resultado.setores[0]?.eficienciaRequeridaPct, 41.667)
+  assert.equal(resultado.totalOperadoresSugeridos, 1)
+  assert.equal(resultado.totalOperadoresNecessarios, 1)
+  assert.equal(resultado.eficienciaRequeridaPct, 41.667)
   assert.equal(resultado.deficitOperadores, 0)
 })

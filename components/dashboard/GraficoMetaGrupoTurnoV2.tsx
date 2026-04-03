@@ -14,6 +14,8 @@ import type { ComparativoMetaGrupoHoraItem } from '@/types'
 interface GraficoMetaGrupoTurnoV2Props {
   dados: ComparativoMetaGrupoHoraItem[]
   estaCarregando?: boolean
+  desabilitado?: boolean
+  motivoDesabilitado?: string
 }
 
 interface PontoGraficoMetaGrupo {
@@ -43,6 +45,8 @@ function mapearDados(dados: ComparativoMetaGrupoHoraItem[]): PontoGraficoMetaGru
 export function GraficoMetaGrupoTurnoV2({
   dados,
   estaCarregando = false,
+  desabilitado = false,
+  motivoDesabilitado = 'Este gráfico é recalculado somente durante um turno aberto.',
 }: GraficoMetaGrupoTurnoV2Props) {
   const dadosGrafico = mapearDados(dados)
 
@@ -54,16 +58,21 @@ export function GraficoMetaGrupoTurnoV2({
             Projeção do planejado x alcançado por hora
           </h3>
           <p className="mt-1 text-sm text-slate-600">
-            Curva acumulada da Meta do Grupo do turno versus o realizado consolidado ao longo das
-            horas.
+            {desabilitado
+              ? motivoDesabilitado
+              : 'Curva acumulada da Meta do Grupo do turno versus o realizado consolidado ao longo das horas.'}
           </p>
         </div>
-        {estaCarregando ? (
+        {estaCarregando && !desabilitado ? (
           <span className="text-xs text-slate-500">Atualizando...</span>
         ) : null}
       </div>
 
-      {dadosGrafico.length === 0 ? (
+      {desabilitado ? (
+        <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+          O comparativo por hora fica disponível novamente quando um novo turno for aberto.
+        </div>
+      ) : dadosGrafico.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
           Ainda não há dados suficientes para projetar a Meta do Grupo deste turno.
         </div>
