@@ -21,7 +21,7 @@
 | 9 | Dashboard, relatórios e coexistência | ✅ Concluída | 3 |
 | 10 | Scanner híbrido por operação | ✅ Concluída | 2 |
 | 11 | Edição do turno aberto | 🔭 Proposta | 2 |
-| 12 | Refatoração estrutural do turno por setor | ⏭️ Prioridade máxima | 4 |
+| 12 | Refatoração estrutural do turno por setor | ✅ Concluída | 4 |
 
 **Total estimado: 26 dias úteis**
 
@@ -201,14 +201,16 @@
 
 ## SPRINT 12 — Refatoração estrutural do turno por setor
 **Objetivo:** substituir a unidade operacional visível do sistema por `setor do turno`, reutilizando a estrutura física da fábrica e movendo a OP para dentro da demanda do setor.
-**Entregável:** QR operacional por setor do turno, scanner escolhendo `OP/produto` dentro do setor, dashboard consolidada por setor e carry-over de saldo entre turnos.
-**Status:** ⏭️ Prioridade máxima
+**Entregável:** QR operacional por setor do turno, scanner escolhendo `OP/produto` dentro do setor, dashboard consolidada por setor, KPI `Meta do Grupo` com gráfico horário e carry-over de saldo entre turnos.
+**Status:** ✅ Concluída
 
 - Introduzir a estrutura `turno + setor + demanda setorial + operação`
 - Gerar QR operacional por `turno + setor`
 - Reaproveitar setores já ativos ao incluir nova OP
 - Refatorar dashboard e edição do turno para impedir duplicação visual
 - Refatorar scanner para `setor -> operador -> OP/produto -> operação -> quantidade`
+- Implementar a KPI `Meta do Grupo` do turno pela média simples dos `tp_produto_min` das `turno_ops`
+- Exibir o gráfico `Projeção do planejado x Alcançado por hora` na dashboard V2
 - Implementar carry-over de OPs pendentes entre turnos
 - Reabrir a homologação funcional ponta a ponta após a refatoração
 

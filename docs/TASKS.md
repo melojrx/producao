@@ -712,7 +712,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 6 — Base de domínio V2
-**Status:** 🚧 Em andamento
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 5 concluída.
 **Objetivo:** Criar a base de dados e os contratos da V2 sem quebrar o fluxo atual.
 
@@ -1171,7 +1171,7 @@ Portanto:
 ---
 
 ## SPRINT 12 — Refatoração estrutural do turno por setor
-**Status:** ⏭️ Prioridade máxima
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 11 analisada e replanejada.
 **Objetivo:** trocar a unidade operacional visível do sistema de `setor + OP` para `setor do turno`, destravando QR por setor, scanner com escolha de OP/produto e carry-over entre turnos.
 
@@ -1258,7 +1258,7 @@ Esta sprint nasce de uma validação de negócio já confirmada:
   **Evidência:** Encerrar um turno com uma OP parcialmente produzida e abrir o turno seguinte gera uma nova demanda já preenchida com apenas o saldo faltante, mantendo o vínculo histórico com o turno anterior.
   Evidência registrada em `lib/actions/turnos.ts`, `components/dashboard/ModalNovoTurnoV2.tsx` e `types/index.ts`, com `npx tsc --noEmit` passando.
 
-- [ ] **12.6 — Reabrir a homologação funcional do fluxo operacional**
+- [x] **12.6 — Reabrir a homologação funcional do fluxo operacional**
   Validar:
   - abertura do turno com capacidade + OPs
   - geração de QR por setor do turno
@@ -1269,3 +1269,21 @@ Esta sprint nasce de uma validação de negócio já confirmada:
 
   **Evidência:** O fluxo ponta a ponta do supervisor funciona no modelo setorial do turno, sem duplicação visual de setores, com scanner coerente e continuidade operacional entre turnos.
   Nota de homologação em `2026-04-02`: corrigido defeito no carry-over em que o novo turno reabria como pendente setores já concluídos no turno de origem. A correção foi aplicada em `lib/actions/turnos.ts`, hidratando no novo turno o progresso prévio por `setor + operação` antes da recarga da dashboard, para que setores concluídos permaneçam concluídos e setores parciais carreguem apenas o saldo real remanescente.
+  Homologação técnica reaberta e validada em `2026-04-02` com `npx tsc --noEmit`, `npm run build` e consulta read-only ao Supabase do turno aberto `a9edf6e9-1313-4599-82ad-eff145403353`, retornando `3` setores ativos, `6` demandas internas e `2` OPs planejadas, confirmando a coerência do modelo setorial do turno na dashboard V2 após a refatoração.
+
+- [x] **12.7 — Implementar KPI Meta do Grupo e gráfico planejado x alcançado por hora na dashboard V2**
+  Entregas mínimas:
+  - calcular a média simples dos `tp_produto_min` dos produtos vinculados às `turno_ops` do turno aberto
+  - calcular `meta_grupo_turno = floor((operadores_disponiveis × minutos_turno) / media_tp_produto_turno)`
+  - exibir a KPI `Meta do Grupo` na dashboard V2
+  - exibir o gráfico `Projeção do planejado x Alcançado por hora`
+
+  Regras:
+  - a média deve considerar uma entrada por `turno_op`, usando o `tp_produto_min` do produto daquela OP
+  - a Meta do Grupo V2 não pode ser calculada por soma das metas de cada produto
+  - a Meta do Grupo V2 não pode ser calculada por soma de blocos legados
+  - a curva de projeção deve partir da meta total calculada para o turno aberto
+  - a curva de alcançado deve refletir os apontamentos consolidados do turno ao longo das horas
+
+  **Evidência:** Em um turno com múltiplas OPs/produtos, a dashboard V2 exibe a `Meta do Grupo` calculada pela média simples dos `tp_produto_min` das `turno_ops`, e o gráfico mostra `Projeção do planejado x Alcançado por hora` com atualização coerente após novos apontamentos.
+  Implementado em `types/index.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/meta-grupo-turno-v2-client.ts`, `lib/utils/meta-grupo-turno.ts`, `hooks/useMetaGrupoTurnoV2.ts`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` e `components/dashboard/GraficoMetaGrupoTurnoV2.tsx`. Validação concluída em `2026-04-02`: `npx tsc --noEmit` e `npm run build` passam sem erros; consulta read-only ao turno aberto `a9edf6e9-1313-4599-82ad-eff145403353` retornou as OPs `202625874` (`REF-001`, `tp_produto_min = 1.88`) e `2026030547` (`REF-002`, `tp_produto_min = 2.46`), com `media_tp_produto_turno = 2.17` e `meta_grupo_turno = 5875` para `25` operadores e `510` minutos.

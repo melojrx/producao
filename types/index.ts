@@ -186,6 +186,18 @@ export interface ProducaoPorHoraRegistro {
   totalPecas: number
 }
 
+export interface RegistroProducaoTurnoHora {
+  horaRegistro: string
+  quantidade: number
+  turnoSetorOperacaoId: string
+}
+
+export interface ComparativoMetaGrupoHoraItem {
+  hora: string
+  planejado: number
+  realizado: number
+}
+
 export interface StatusMaquinaRegistro {
   id: string
   codigo: string
@@ -363,6 +375,7 @@ export interface TurnoOpV2 {
   produtoId: string
   produtoReferencia: string
   produtoNome: string
+  tpProdutoMin: number
   quantidadePlanejada: number
   quantidadeRealizada: number
   quantidadePlanejadaOriginal: number

@@ -6,11 +6,14 @@ import {
   Boxes,
   ClipboardList,
   PackageCheck,
+  Target,
 } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
+import { GraficoMetaGrupoTurnoV2 } from '@/components/dashboard/GraficoMetaGrupoTurnoV2'
 import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurno'
 import { QROperacionaisTurnoV2 } from '@/components/dashboard/QROperacionaisTurnoV2'
 import { ResumoPlanejamentoTurnoV2 } from '@/components/dashboard/ResumoPlanejamentoTurnoV2'
+import { useMetaGrupoTurnoV2 } from '@/hooks/useMetaGrupoTurnoV2'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
@@ -105,6 +108,13 @@ export function MonitorPlanejamentoTurnoV2({
   const [turnoOpSelecionadaId, setTurnoOpSelecionadaId] = useState<string | null>(null)
   const { planejamento, ultimaAtualizacao, statusConexao, estaCarregando, erro } =
     useRealtimePlanejamentoTurnoV2(initialPlanning)
+  const {
+    comparativoPorHora,
+    erro: erroMetaGrupo,
+    estaCarregando: estaCarregandoMetaGrupo,
+    mediaTpProduto,
+    metaGrupo,
+  } = useMetaGrupoTurnoV2(planejamento, ultimaAtualizacao?.getTime() ?? 0)
 
   const resumo = useMemo(() => {
     if (!planejamento) {
@@ -175,7 +185,18 @@ export function MonitorPlanejamentoTurnoV2({
         ultimaAtualizacao={ultimaAtualizacao}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <CardKPI
+          titulo="Meta do Grupo"
+          valor={metaGrupo}
+          descricao={
+            mediaTpProduto > 0
+              ? `Meta coletiva do turno pela média simples dos T.Ps dos produtos planejados. T.P médio ${mediaTpProduto.toFixed(2)} min.`
+              : 'Meta coletiva do turno baseada na média simples dos T.Ps dos produtos planejados.'
+          }
+          icone={Target}
+          destaque="blue"
+        />
         <CardKPI
           titulo="OPs em andamento"
           valor={resumo.opsEmAndamento}
@@ -205,6 +226,17 @@ export function MonitorPlanejamentoTurnoV2({
           destaque="amber"
         />
       </div>
+
+      {erroMetaGrupo ? (
+        <section className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {erroMetaGrupo}
+        </section>
+      ) : null}
+
+      <GraficoMetaGrupoTurnoV2
+        dados={comparativoPorHora}
+        estaCarregando={estaCarregando || estaCarregandoMetaGrupo}
+      />
 
       {planejamento ? (
         <>

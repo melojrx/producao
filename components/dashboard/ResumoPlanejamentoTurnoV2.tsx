@@ -87,6 +87,19 @@ export function ResumoPlanejamentoTurnoV2({
             A dashboard carrega automaticamente o turno aberto atual ou, se não houver um aberto, o
             último turno encerrado.
           </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+            <span>
+              Iniciado em <strong className="font-medium text-slate-700">{formatarDataHora(planejamento.turno.iniciadoEm)}</strong>
+            </span>
+            {planejamento.turno.encerradoEm ? (
+              <span>
+                Encerrado em{' '}
+                <strong className="font-medium text-slate-700">
+                  {formatarDataHora(planejamento.turno.encerradoEm)}
+                </strong>
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex w-full flex-col gap-2 md:max-w-[12rem] md:items-end">
@@ -112,36 +125,6 @@ export function ResumoPlanejamentoTurnoV2({
               {statusConexao}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{planejamento.turno.status}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Iniciado em</p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">
-            {formatarDataHora(planejamento.turno.iniciadoEm)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Encerrado em
-          </p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">
-            {formatarDataHora(planejamento.turno.encerradoEm)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Observação</p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">
-            {planejamento.turno.observacao || 'Sem observações'}
-          </p>
         </div>
       </div>
 

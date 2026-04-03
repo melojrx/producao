@@ -26,7 +26,7 @@ type OperadorResumoRow = Pick<
   Tables<'operadores'>,
   'id' | 'nome' | 'matricula' | 'funcao' | 'carga_horaria_min'
 >
-type ProdutoResumoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia'>
+type ProdutoResumoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia' | 'tp_produto_min'>
 type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'codigo' | 'nome'>
 type RegistroResumoSetorRow = Pick<
   Tables<'registros_producao'>,
@@ -334,7 +334,7 @@ async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
 
   const { data: produtos, error: produtosError } = await supabase
     .from('produtos')
-    .select('id, nome, referencia')
+    .select('id, nome, referencia, tp_produto_min')
     .in('id', produtoIds)
     .returns<ProdutoResumoRow[]>()
 
@@ -358,6 +358,7 @@ async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
         produtoId: op.produto_id,
         produtoReferencia: produto.referencia,
         produtoNome: produto.nome,
+        tpProdutoMin: produto.tp_produto_min ?? 0,
         quantidadePlanejada: op.quantidade_planejada,
         quantidadeRealizada: op.quantidade_realizada,
         quantidadePlanejadaOriginal: op.quantidade_planejada_original,

@@ -335,6 +335,8 @@ Indicadores base:
 ```text
 Capacidade nominal do turno = operadores_disponiveis × minutos_turno
 
+Meta do Grupo V2 = floor((operadores_disponiveis × minutos_turno) / media_tp_produto_turno)
+
 Progresso da operação da seção = quantidade_realizada_turno_setor_operacao / quantidade_planejada
 
 Realizado da seção = MIN(quantidade_realizada_turno_setor_operacao obrigatória)
@@ -343,6 +345,30 @@ Realizado da OP = MIN(quantidade_realizada_turno_setor_op obrigatória)
 
 Realizado do turno = SUM(quantidade_realizada_turno_op)
 ```
+
+Regra obrigatória da Meta do Grupo V2:
+- a KPI gerencial da dashboard V2 não deve somar metas por OP, produto, bloco ou setor
+- para um turno com múltiplas `turno_ops`, o sistema deve calcular a média simples do `tp_produto_min` dos produtos planejados naquele turno
+- a média deve considerar uma entrada por `turno_op`, usando o `tp_produto_min` do produto vinculado a cada OP planejada
+- a `Meta do Grupo` do turno deve ser calculada assim:
+
+```text
+media_tp_produto_turno = AVG(tp_produto_min dos produtos vinculados às turno_ops do turno)
+
+meta_grupo_turno = floor((operadores_disponiveis × minutos_turno) / media_tp_produto_turno)
+```
+
+Restrições:
+- a regra acima vale especificamente para a KPI consolidada da dashboard V2
+- a Meta do Grupo V2 não pode ser derivada pela soma das metas de cada produto
+- a Meta do Grupo V2 não pode ser derivada pela soma das metas de blocos legados
+- a Meta do Grupo V2 deve permanecer coerente quando o turno tiver uma ou várias OPs/produtos planejados
+
+Gráfico obrigatório da Meta do Grupo V2:
+- a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`
+- a curva de projeção deve partir da `meta_grupo_turno` calculada para o turno aberto
+- a curva de alcançado deve usar os apontamentos consolidados do turno ao longo das horas
+- o objetivo do gráfico é mostrar se o turno está acima, dentro ou abaixo da projeção horária da meta coletiva
 
 Regra de consolidação:
 - a dashboard não pode duplicar setores quando mais de uma OP usar o mesmo setor no turno
@@ -410,6 +436,8 @@ Interface principal do supervisor e do administrador.
 - acompanhar OPs e setores em tempo real
 - encerrar turno, OPs e setores
 - visualizar planejado x realizado
+- visualizar a KPI `Meta do Grupo` do turno aberto
+- acompanhar o gráfico `Projeção do planejado x Alcançado por hora`
 
 #### 8.1.1 UX alvo para edição do turno aberto
 
@@ -417,6 +445,8 @@ Quando existir um turno `aberto`, a dashboard deve expor:
 - CTA `Editar turno`
 - ação `Adicionar OP`
 - listagem das OPs já planejadas com status, planejado, realizado e saldo
+- KPI consolidada de `Meta do Grupo` calculada pela média simples do `tp_produto_min` das `turno_ops`
+- gráfico horário comparando projeção da meta coletiva com o realizado do turno
 
 Fluxo mínimo da edição:
 - abrir modal ou drawer de edição do turno atual
