@@ -33,14 +33,6 @@ interface ModalDetalhesSecaoTurnoProps {
   aoFechar: () => void
 }
 
-function calcularPercentual(realizado: number, planejado: number): number {
-  if (planejado <= 0) {
-    return 0
-  }
-
-  return Math.min((realizado / planejado) * 100, 100)
-}
-
 function obterTemaStatus(status: TurnoSetorOpV2['status'] | TurnoSetorOperacaoStatusV2): string {
   if (status === 'concluida') {
     return 'bg-emerald-100 text-emerald-700'
@@ -73,8 +65,8 @@ export function ModalDetalhesSecaoTurno({
     (atividade) => atividade.turnoSetorOpId === secao.id
   )
   const operadoresSemSetor = operadoresTurno.filter((operador) => !operador.setorId)
-  const saldoRestante = Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0)
-  const progresso = calcularPercentual(secao.quantidadeRealizada, secao.quantidadePlanejada)
+  const saldoRestante = Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0)
+  const progresso = secao.progressoOperacionalPct
 
   return (
     <div
@@ -128,10 +120,10 @@ export function ModalDetalhesSecaoTurno({
 
             <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                Realizado
+                Peças completas
               </p>
               <p className="mt-2 text-3xl font-semibold text-emerald-900">
-                {secao.quantidadeRealizada}
+                {secao.quantidadeConcluida}
               </p>
             </article>
 
@@ -141,9 +133,14 @@ export function ModalDetalhesSecaoTurno({
             </article>
 
             <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Progresso</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                Progresso operacional
+              </p>
               <p className="mt-2 text-3xl font-semibold text-blue-900">
                 {progresso.toFixed(0)}%
+              </p>
+              <p className="mt-1 text-xs font-medium text-blue-800">
+                {secao.cargaRealizadaTp.toFixed(2)} / {secao.cargaPlanejadaTp.toFixed(2)} min
               </p>
             </article>
 

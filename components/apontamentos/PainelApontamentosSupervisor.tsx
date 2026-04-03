@@ -57,14 +57,6 @@ function criarIdLocal(): string {
   return `lancamento-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function calcularPercentual(realizado: number, planejado: number): number {
-  if (planejado <= 0) {
-    return 0
-  }
-
-  return Math.min((realizado / planejado) * 100, 100)
-}
-
 function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComContexto[] {
   const opPorId = new Map(planejamento.ops.map((op) => [op.id, op]))
 
@@ -338,9 +330,9 @@ export function PainelApontamentosSupervisor({
     ? planejamento.demandasSetor.filter((demanda) => demanda.status !== 'concluida').length
     : secoes.filter((secao) => secao.status !== 'concluida').length
   const totalPlanejado = planejamento.ops.reduce((soma, op) => soma + op.quantidadePlanejada, 0)
-  const totalRealizado = planejamento.ops.reduce((soma, op) => soma + op.quantidadeRealizada, 0)
+  const totalRealizado = planejamento.ops.reduce((soma, op) => soma + op.quantidadeConcluida, 0)
   const saldoSecaoSelecionada = secaoSelecionada
-    ? Math.max(secaoSelecionada.quantidadePlanejada - secaoSelecionada.quantidadeRealizada, 0)
+    ? Math.max(secaoSelecionada.quantidadePlanejada - secaoSelecionada.quantidadeConcluida, 0)
     : 0
 
   return (
@@ -437,11 +429,8 @@ export function PainelApontamentosSupervisor({
                 </div>
               ) : (
                 secoesFiltradas.map((secao) => {
-                  const saldo = Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0)
-                  const progresso = calcularPercentual(
-                    secao.quantidadeRealizada,
-                    secao.quantidadePlanejada
-                  )
+                  const saldo = Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0)
+                  const progresso = secao.progressoOperacionalPct
                   const selecionada = secao.id === secaoSelecionada?.id
 
                   return (
@@ -481,7 +470,7 @@ export function PainelApontamentosSupervisor({
                         <div className="rounded-xl bg-white/80 px-3 py-2">
                           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Realizado</p>
                           <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {secao.quantidadeRealizada}
+                            {secao.quantidadeConcluida}
                           </p>
                         </div>
                         <div className="rounded-xl bg-white/80 px-3 py-2">
@@ -535,9 +524,11 @@ export function PainelApontamentosSupervisor({
                     </p>
                   </article>
                   <article className="rounded-2xl bg-emerald-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Realizado</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                      Peças completas
+                    </p>
                     <p className="mt-2 text-2xl font-semibold text-emerald-900">
-                      {secaoSelecionada.quantidadeRealizada}
+                      {secaoSelecionada.quantidadeConcluida}
                     </p>
                   </article>
                   <article className="rounded-2xl bg-amber-50 p-4">
@@ -547,8 +538,12 @@ export function PainelApontamentosSupervisor({
                     </p>
                   </article>
                   <article className="rounded-2xl bg-blue-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Operações</p>
-                    <p className="mt-2 text-2xl font-semibold text-blue-900">{operacoesDaSecao.length}</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                      Progresso operacional
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-blue-900">
+                      {secaoSelecionada.progressoOperacionalPct.toFixed(0)}%
+                    </p>
                   </article>
                 </div>
               </div>

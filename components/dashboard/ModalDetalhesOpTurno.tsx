@@ -50,14 +50,6 @@ function formatarDataHora(valor: string | null): string {
   }).format(new Date(valor))
 }
 
-function calcularPercentual(realizado: number, planejado: number): number {
-  if (planejado <= 0) {
-    return 0
-  }
-
-  return Math.min((realizado / planejado) * 100, 100)
-}
-
 function obterTemaStatus(status: TurnoOpStatusV2 | TurnoSetorOpStatusV2): string {
   if (status === 'concluida') {
     return 'bg-emerald-100 text-emerald-700'
@@ -87,8 +79,8 @@ export function ModalDetalhesOpTurno({
   const [secaoSelecionadaId, setSecaoSelecionadaId] = useState<string | null>(null)
   const secoesConcluidas = secoes.filter((secao) => secao.status === 'concluida').length
   const secoesPendentes = secoes.length - secoesConcluidas
-  const saldoRestante = Math.max(op.quantidadePlanejada - op.quantidadeRealizada, 0)
-  const progresso = calcularPercentual(op.quantidadeRealizada, op.quantidadePlanejada)
+  const saldoRestante = Math.max(op.quantidadePlanejada - op.quantidadeConcluida, 0)
+  const progresso = op.progressoOperacionalPct
   const secaoSelecionada = useMemo(
     () => secoes.find((secao) => secao.id === secaoSelecionadaId) ?? null,
     [secaoSelecionadaId, secoes]
@@ -198,10 +190,10 @@ export function ModalDetalhesOpTurno({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                    Realizado
+                    Peças completas
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-emerald-900">
-                    {op.quantidadeRealizada}
+                    {op.quantidadeConcluida}
                   </p>
                 </div>
                 <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700">
@@ -228,10 +220,13 @@ export function ModalDetalhesOpTurno({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                    Progresso
+                    Progresso operacional
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-blue-900">
                     {progresso.toFixed(0)}%
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-blue-800">
+                    {op.cargaRealizadaTp.toFixed(2)} / {op.cargaPlanejadaTp.toFixed(2)} min
                   </p>
                 </div>
                 <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
@@ -274,12 +269,9 @@ export function ModalDetalhesOpTurno({
                 const operacoesDaSecao = operacoesSecao.filter(
                   (operacao) => operacao.turnoSetorOpId === secao.id
                 )
-                const progressoSecao = calcularPercentual(
-                  secao.quantidadeRealizada,
-                  secao.quantidadePlanejada
-                )
+                const progressoSecao = secao.progressoOperacionalPct
                 const saldoSecao = Math.max(
-                  secao.quantidadePlanejada - secao.quantidadeRealizada,
+                  secao.quantidadePlanejada - secao.quantidadeConcluida,
                   0
                 )
 
@@ -317,10 +309,10 @@ export function ModalDetalhesOpTurno({
 
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                          Realizado
+                          Peças completas
                         </p>
                         <p className="mt-2 text-xl font-semibold text-slate-900">
-                          {secao.quantidadeRealizada}
+                          {secao.quantidadeConcluida}
                         </p>
                       </div>
 

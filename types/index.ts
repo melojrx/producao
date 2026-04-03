@@ -51,6 +51,13 @@ export interface QRScanResult {
   token: string
 }
 
+export interface IndicadoresOperacionais {
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
+}
+
 export interface TurnoSetorOpScaneado {
   id: string
   turnoId: string
@@ -64,6 +71,10 @@ export interface TurnoSetorOpScaneado {
   produtoReferencia: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   saldoRestante: number
   qrCodeToken: string
   status: TurnoSetorOpStatusV2
@@ -77,6 +88,10 @@ export interface TurnoSetorScaneado {
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   saldoRestante: number
   qrCodeToken: string
   status: TurnoSetorStatusV2
@@ -94,6 +109,10 @@ export interface TurnoSetorDemandaScaneada {
   produtoReferencia: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   saldoRestante: number
   status: TurnoSetorDemandaStatusV2
   turnoSetorOpLegacyId: string | null
@@ -262,7 +281,10 @@ export interface RelatorioResumoItem {
   opsNoEscopo: number
   totalPlanejado: number
   totalRealizado: number
+  totalCargaPlanejadaTp: number
+  totalCargaRealizadaTp: number
   saldo: number
+  saldoCargaTp: number
   progressoPct: number
   secoesConcluidas: number
   secoesPendentes: number
@@ -376,6 +398,10 @@ export interface TurnoOpV2 {
   tpProdutoMin: number
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   quantidadePlanejadaOriginal: number
   quantidadePlanejadaRemanescente: number
   turnoOpOrigemId: string | null
@@ -392,6 +418,10 @@ export interface TurnoSetorV2 {
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   qrCodeToken: string
   status: TurnoSetorStatusV2
   iniciadoEm: string | null
@@ -411,6 +441,10 @@ export interface TurnoSetorDemandaV2 {
   produtoNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   status: TurnoSetorDemandaStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null
@@ -426,6 +460,10 @@ export interface TurnoSetorOpV2 {
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   qrCodeToken: string
   status: TurnoSetorOpStatusV2
   iniciadoEm: string | null

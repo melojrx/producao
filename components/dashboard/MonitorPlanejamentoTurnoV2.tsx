@@ -35,14 +35,6 @@ interface SecaoComContexto extends TurnoSetorOpV2 {
   produtoReferencia: string
 }
 
-function calcularPercentual(realizado: number, planejado: number): number {
-  if (planejado <= 0) {
-    return 0
-  }
-
-  return Math.min((realizado / planejado) * 100, 100)
-}
-
 function mapearSecoesComContexto(
   secoes: TurnoSetorOpV2[],
   ops: TurnoOpV2[]
@@ -120,6 +112,7 @@ export function MonitorPlanejamentoTurnoV2({
         opsEmAndamento: 0,
         totalPlanejado: 0,
         totalRealizado: 0,
+        progressoOperacionalTurnoPct: 0,
         setoresPendentes: 0,
         ops: [] as TurnoOpV2[],
         setoresPendentesLista: [],
@@ -135,7 +128,16 @@ export function MonitorPlanejamentoTurnoV2({
     return {
       opsEmAndamento: planejamento.ops.filter((op) => op.status === 'em_andamento').length,
       totalPlanejado: planejamento.ops.reduce((soma, op) => soma + op.quantidadePlanejada, 0),
-      totalRealizado: planejamento.ops.reduce((soma, op) => soma + op.quantidadeRealizada, 0),
+      totalRealizado: planejamento.ops.reduce((soma, op) => soma + op.quantidadeConcluida, 0),
+      progressoOperacionalTurnoPct:
+        planejamento.ops.reduce((soma, op) => soma + op.cargaPlanejadaTp, 0) > 0
+          ? Math.min(
+              (planejamento.ops.reduce((soma, op) => soma + op.cargaRealizadaTp, 0) /
+                planejamento.ops.reduce((soma, op) => soma + op.cargaPlanejadaTp, 0)) *
+                100,
+              100
+            )
+          : 0,
       setoresPendentes: setoresPendentesLista.length,
       ops: planejamento.ops,
       setoresPendentesLista,
@@ -210,16 +212,16 @@ export function MonitorPlanejamentoTurnoV2({
           destaque="slate"
         />
         <CardKPI
-          titulo="Realizado"
+          titulo="Peças completas"
           valor={resumo.totalRealizado}
-          descricao="Produção consolidada do turno a partir do andamento agregado das OPs."
+          descricao="Quantidade concluída do turno, preservando a leitura de peças completas separada do progresso operacional."
           icone={PackageCheck}
           destaque="emerald"
         />
         <CardKPI
-          titulo="Setores pendentes"
-          valor={resumo.setoresPendentes}
-          descricao="Setores do turno ainda abertos ou em andamento, com saldo operacional ativo."
+          titulo="Progresso do turno"
+          valor={resumo.progressoOperacionalTurnoPct}
+          descricao="Avanço operacional ponderado por T.P. das operações, sem depender apenas das peças completas."
           icone={Boxes}
           destaque="amber"
         />
@@ -242,14 +244,14 @@ export function MonitorPlanejamentoTurnoV2({
             <div className="space-y-2">
               <h2 className="text-lg font-semibold text-slate-900">Progresso por OP</h2>
               <p className="text-sm text-slate-600">
-                Cada OP mostra o planejado do dia versus o realizado consolidado pela conclusão das
-                demandas distribuídas nos setores ativos do turno.
+                Cada OP destaca o progresso operacional ponderado por T.P. e mantém as peças
+                completas separadas para evitar ambiguidade.
               </p>
             </div>
 
             <div className="mt-5 grid gap-4 xl:grid-cols-2">
               {resumo.ops.map((op) => {
-                const percentual = calcularPercentual(op.quantidadeRealizada, op.quantidadePlanejada)
+                const percentual = op.progressoOperacionalPct
 
                 return (
                   <button
@@ -277,7 +279,7 @@ export function MonitorPlanejamentoTurnoV2({
                     </div>
 
                     <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-                      <span>Realizado {op.quantidadeRealizada}</span>
+                      <span>Peças completas {op.quantidadeConcluida}</span>
                       <span>Planejado {op.quantidadePlanejada}</span>
                     </div>
 
@@ -290,7 +292,7 @@ export function MonitorPlanejamentoTurnoV2({
 
                     <div className="mt-3 flex items-center justify-between gap-3">
                       <p className="text-sm font-medium text-slate-700">
-                        {percentual.toFixed(0)}% concluído
+                        {percentual.toFixed(0)}% de progresso operacional
                       </p>
                       <span className="text-xs font-medium uppercase tracking-wide text-blue-700">
                         Ver detalhes
@@ -319,10 +321,7 @@ export function MonitorPlanejamentoTurnoV2({
                   </div>
                 ) : (
                   resumo.setoresPendentesLista.map((setor) => {
-                    const percentual = calcularPercentual(
-                      setor.quantidadeRealizada,
-                      setor.quantidadePlanejada
-                    )
+                    const percentual = setor.progressoOperacionalPct
 
                     return (
                       <article
@@ -344,7 +343,7 @@ export function MonitorPlanejamentoTurnoV2({
                         </div>
 
                         <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
-                          <span>{setor.quantidadeRealizada} realizado</span>
+                          <span>{setor.quantidadeConcluida} peças completas</span>
                           <span>{setor.quantidadePlanejada} planejado</span>
                         </div>
 
@@ -377,7 +376,7 @@ export function MonitorPlanejamentoTurnoV2({
 
                               <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
                                 <span>Planejado {demanda.quantidadePlanejada}</span>
-                                <span>Realizado {demanda.quantidadeRealizada}</span>
+                                <span>Peças completas {demanda.quantidadeConcluida}</span>
                               </div>
                             </div>
                           ))}

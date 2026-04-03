@@ -31,8 +31,8 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Resumo consolidado</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Planejado e realizado consolidados por OP ou por demanda setorial, dependendo do escopo
-            do filtro.
+            O relatório separa peças completas do progresso operacional ponderado por T.P. no
+            escopo filtrado.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -54,17 +54,26 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
           <p className="mt-2 text-2xl font-semibold text-slate-900">{resumo.totalPlanejado}</p>
         </article>
         <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Realizado</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+            Peças completas
+          </p>
           <p className="mt-2 text-2xl font-semibold text-emerald-900">{resumo.totalRealizado}</p>
         </article>
         <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Saldo</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+            Saldo de peças
+          </p>
           <p className="mt-2 text-2xl font-semibold text-amber-900">{resumo.saldo}</p>
         </article>
         <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Progresso</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+            Progresso operacional
+          </p>
           <p className="mt-2 text-2xl font-semibold text-blue-900">
             {resumo.progressoPct.toFixed(0)}%
+          </p>
+          <p className="mt-1 text-xs text-blue-700">
+            {resumo.totalCargaRealizadaTp.toFixed(2)} / {resumo.totalCargaPlanejadaTp.toFixed(2)} min
           </p>
         </article>
         <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
@@ -88,8 +97,9 @@ export function ResumoRelatorios({ resumo }: ResumoRelatoriosProps) {
 
       <p className="mt-4 text-xs text-slate-500">
         Quando o filtro de operador está ativo, o card <strong>Apontado no filtro</strong> reflete
-        apenas os lançamentos atômicos desse operador. Os cards gerenciais de planejado, realizado,
-        saldo e progresso continuam consolidados no escopo selecionado de turno, OP e setor.
+        apenas os lançamentos atômicos desse operador. Os cards gerenciais continuam consolidados no
+        escopo selecionado de turno, OP e setor, mantendo <strong>peças completas</strong> separado
+        de <strong>progresso operacional</strong>.
       </p>
 
       {resumo.registrosLegados > 0 ? (

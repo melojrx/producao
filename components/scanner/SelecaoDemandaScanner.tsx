@@ -96,14 +96,20 @@ export function SelecaoDemandaScanner({
                   <p className="mt-1 font-semibold text-white">{demanda.quantidadePlanejada}</p>
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Realizado</p>
-                  <p className="mt-1 font-semibold text-white">{demanda.quantidadeRealizada}</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    Peças completas
+                  </p>
+                  <p className="mt-1 font-semibold text-white">{demanda.quantidadeConcluida}</p>
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saldo</p>
                   <p className="mt-1 font-semibold text-white">{demanda.saldoRestante}</p>
                 </div>
               </div>
+
+              <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-cyan-200/80">
+                Progresso operacional {demanda.progressoOperacionalPct.toFixed(0)}%
+              </p>
 
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
                 {demandaDisponivel ? 'Selecionar OP/produto' : 'Demanda sem saldo'}

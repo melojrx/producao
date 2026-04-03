@@ -17,6 +17,10 @@ export interface TurnoSetorDemandaDashboardItem {
   produtoReferencia: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   status: TurnoSetorDemandaStatusV2
 }
 
@@ -28,6 +32,10 @@ export interface TurnoSetorDashboardItem {
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  cargaPlanejadaTp: number
+  cargaRealizadaTp: number
   qrCodeToken: string
   status: TurnoSetorStatusV2
   iniciadoEm: string | null
@@ -53,20 +61,8 @@ function deduzirStatusSetor(
   demandas: TurnoSetorDemandaDashboardItem[],
   statusAtual?: TurnoSetorStatusV2
 ): TurnoSetorStatusV2 {
-  if (statusAtual) {
-    return statusAtual
-  }
-
   if (demandas.length === 0) {
-    return 'planejada'
-  }
-
-  if (demandas.some((demanda) => demanda.status === 'em_andamento')) {
-    return 'em_andamento'
-  }
-
-  if (demandas.some((demanda) => demanda.status === 'aberta')) {
-    return 'aberta'
+    return statusAtual ?? 'planejada'
   }
 
   if (demandas.every((demanda) => demanda.status === 'concluida')) {
@@ -75,6 +71,21 @@ function deduzirStatusSetor(
 
   if (demandas.every((demanda) => demanda.status === 'encerrada_manualmente')) {
     return 'encerrada_manualmente'
+  }
+
+  if (
+    demandas.some(
+      (demanda) =>
+        demanda.status === 'em_andamento' ||
+        demanda.status === 'concluida' ||
+        demanda.quantidadeRealizada > 0
+    )
+  ) {
+    return 'em_andamento'
+  }
+
+  if (demandas.some((demanda) => demanda.status === 'aberta')) {
+    return 'aberta'
   }
 
   return 'planejada'
@@ -105,6 +116,10 @@ function mapearDemandasLegadas(
         produtoReferencia: op.produtoReferencia,
         quantidadePlanejada: secao.quantidadePlanejada,
         quantidadeRealizada: secao.quantidadeRealizada,
+        quantidadeConcluida: secao.quantidadeConcluida,
+        progressoOperacionalPct: secao.progressoOperacionalPct,
+        cargaPlanejadaTp: secao.cargaPlanejadaTp,
+        cargaRealizadaTp: secao.cargaRealizadaTp,
         status: secao.status,
       }
     })
@@ -142,6 +157,10 @@ export function mapearSetoresTurnoParaDashboard(
           produtoReferencia: demanda.produtoReferencia,
           quantidadePlanejada: demanda.quantidadePlanejada,
           quantidadeRealizada: demanda.quantidadeRealizada,
+          quantidadeConcluida: demanda.quantidadeConcluida,
+          progressoOperacionalPct: demanda.progressoOperacionalPct,
+          cargaPlanejadaTp: demanda.cargaPlanejadaTp,
+          cargaRealizadaTp: demanda.cargaRealizadaTp,
           status: demanda.status,
         }))
       : mapearDemandasLegadas(planejamento)
@@ -151,14 +170,24 @@ export function mapearSetoresTurnoParaDashboard(
 
   for (const setor of planejamento.setoresAtivos ?? []) {
     const demandasDoSetor = ordenarDemandas(demandasPorSetor.get(setor.setorId) ?? [])
-    const quantidadePlanejada =
-      setor.quantidadePlanejada > 0
-        ? setor.quantidadePlanejada
-        : demandasDoSetor.reduce((soma, demanda) => soma + demanda.quantidadePlanejada, 0)
-    const quantidadeRealizada =
-      setor.quantidadeRealizada > 0
-        ? setor.quantidadeRealizada
-        : demandasDoSetor.reduce((soma, demanda) => soma + demanda.quantidadeRealizada, 0)
+    const quantidadePlanejada = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.quantidadePlanejada,
+      0
+    )
+    const quantidadeRealizada = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.quantidadeRealizada,
+      0
+    )
+    const cargaPlanejadaTp = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.cargaPlanejadaTp,
+      0
+    )
+    const cargaRealizadaTp = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.cargaRealizadaTp,
+      0
+    )
+    const progressoOperacionalPct =
+      cargaPlanejadaTp > 0 ? Math.min((cargaRealizadaTp / cargaPlanejadaTp) * 100, 100) : 0
 
     setoresMapeados.set(setor.setorId, {
       id: setor.id,
@@ -168,6 +197,10 @@ export function mapearSetoresTurnoParaDashboard(
       setorNome: setor.setorNome,
       quantidadePlanejada,
       quantidadeRealizada,
+      quantidadeConcluida: quantidadeRealizada,
+      progressoOperacionalPct,
+      cargaPlanejadaTp,
+      cargaRealizadaTp,
       qrCodeToken: setor.qrCodeToken,
       status: deduzirStatusSetor(demandasDoSetor, setor.status),
       iniciadoEm: setor.iniciadoEm,
@@ -195,6 +228,27 @@ export function mapearSetoresTurnoParaDashboard(
         ),
         quantidadeRealizada: demandasDoSetor.reduce(
           (soma, demanda) => soma + demanda.quantidadeRealizada,
+          0
+        ),
+        quantidadeConcluida: demandasDoSetor.reduce(
+          (soma, demanda) => soma + demanda.quantidadeConcluida,
+          0
+        ),
+        progressoOperacionalPct:
+          demandasDoSetor.reduce((soma, demanda) => soma + demanda.cargaPlanejadaTp, 0) > 0
+            ? Math.min(
+                (demandasDoSetor.reduce((soma, demanda) => soma + demanda.cargaRealizadaTp, 0) /
+                  demandasDoSetor.reduce((soma, demanda) => soma + demanda.cargaPlanejadaTp, 0)) *
+                  100,
+                100
+              )
+            : 0,
+        cargaPlanejadaTp: demandasDoSetor.reduce(
+          (soma, demanda) => soma + demanda.cargaPlanejadaTp,
+          0
+        ),
+        cargaRealizadaTp: demandasDoSetor.reduce(
+          (soma, demanda) => soma + demanda.cargaRealizadaTp,
           0
         ),
         qrCodeToken: secao.qrCodeToken,

@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
-import { consolidarOpsPorDemandas } from '@/lib/utils/consolidacao-turno'
+import {
+  consolidarDemandasPorOperacoes,
+  consolidarOpsPorDemandas,
+  consolidarSecoesPorOperacoes,
+  consolidarSetoresPorDemandas,
+} from '@/lib/utils/consolidacao-turno'
+import { calcularPercentualOperacional } from '@/lib/utils/progresso-operacional'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
   PlanejamentoTurnoDashboardV2,
@@ -361,6 +367,15 @@ async function listarTurnoOps(turnoId: string): Promise<TurnoOpV2[]> {
         tpProdutoMin: produto.tp_produto_min ?? 0,
         quantidadePlanejada: op.quantidade_planejada,
         quantidadeRealizada: op.quantidade_realizada,
+        quantidadeConcluida: op.quantidade_realizada,
+        progressoOperacionalPct: calcularPercentualOperacional(
+          Math.min(op.quantidade_realizada, op.quantidade_planejada) * (produto.tp_produto_min ?? 0),
+          op.quantidade_planejada * (produto.tp_produto_min ?? 0)
+        ),
+        cargaPlanejadaTp: op.quantidade_planejada * (produto.tp_produto_min ?? 0),
+        cargaRealizadaTp:
+          Math.min(op.quantidade_realizada, op.quantidade_planejada) *
+          (produto.tp_produto_min ?? 0),
         quantidadePlanejadaOriginal: op.quantidade_planejada_original,
         quantidadePlanejadaRemanescente: op.quantidade_planejada_remanescente,
         turnoOpOrigemId: op.turno_op_origem_id,
@@ -422,6 +437,10 @@ async function listarTurnoSetorOps(turnoId: string): Promise<TurnoSetorOpV2[]> {
         setorNome: setor.nome,
         quantidadePlanejada: secao.quantidade_planejada,
         quantidadeRealizada: secao.quantidade_realizada,
+        quantidadeConcluida: secao.quantidade_realizada,
+        progressoOperacionalPct: 0,
+        cargaPlanejadaTp: 0,
+        cargaRealizadaTp: 0,
         qrCodeToken: secao.qr_code_token,
         status: secao.status as TurnoSetorOpV2['status'],
         iniciadoEm: secao.iniciado_em,
@@ -489,6 +508,10 @@ async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
         setorNome: setor.nome,
         quantidadePlanejada: setorTurno.quantidade_planejada,
         quantidadeRealizada: setorTurno.quantidade_realizada,
+        quantidadeConcluida: setorTurno.quantidade_realizada,
+        progressoOperacionalPct: 0,
+        cargaPlanejadaTp: 0,
+        cargaRealizadaTp: 0,
         qrCodeToken: setorTurno.qr_code_token,
         status: setorTurno.status as TurnoSetorV2['status'],
         iniciadoEm: setorTurno.iniciado_em,
@@ -565,6 +588,10 @@ async function listarTurnoSetorDemandas(
         produtoNome: op.produtoNome,
         quantidadePlanejada: demanda.quantidade_planejada,
         quantidadeRealizada: demanda.quantidade_realizada,
+        quantidadeConcluida: demanda.quantidade_realizada,
+        progressoOperacionalPct: 0,
+        cargaPlanejadaTp: 0,
+        cargaRealizadaTp: 0,
         status: demanda.status as TurnoSetorDemandaV2['status'],
         iniciadoEm: demanda.iniciado_em,
         encerradoEm: demanda.encerrado_em,
@@ -611,7 +638,10 @@ export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<Pla
     listarTurnoSetores(turno.id),
   ])
 
-  const demandasSetor = await listarTurnoSetorDemandas(turno.id, ops)
+  const demandasSetorBrutas = await listarTurnoSetorDemandas(turno.id, ops)
+  const demandasSetor = consolidarDemandasPorOperacoes(demandasSetorBrutas, operacoesSecao)
+  const secoesSetorOpConsolidadas = consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecao)
+  const setoresAtivosConsolidados = consolidarSetoresPorDemandas(setoresAtivos, demandasSetor)
   const opsConsolidadas = consolidarOpsPorDemandas(ops, demandasSetor)
 
   return {
@@ -619,9 +649,9 @@ export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<Pla
     operadores,
     operadoresAtividadeSetor,
     ops: opsConsolidadas,
-    setoresAtivos,
+    setoresAtivos: setoresAtivosConsolidados,
     demandasSetor,
-    secoesSetorOp,
+    secoesSetorOp: secoesSetorOpConsolidadas,
     operacoesSecao,
   }
 }

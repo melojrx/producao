@@ -1425,3 +1425,122 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** A abertura do turno exibe a prévia setorial corretamente nos cenários homologados, sem regressão no fluxo atual e com decisão documentada sobre eventual persistência futura.
   Homologação concluída em `2026-04-03` mantendo a decisão de produto de **não persistir** o dimensionamento setorial nesta etapa e tratá-lo apenas como prévia operacional do modal. Os cenários homologados ficaram cobertos em `lib/utils/dimensionamento-pessoas-setor.test.ts`: `1)` produto único com o exemplo documental `8 × 637 / 510 = 10`, `2)` múltiplas OPs compartilhando `Preparação` com consolidação da carga por setor, e `3)` déficit agregado quando a soma sugerida supera `operadoresDisponiveis`. A ausência de regressão no fluxo de abertura foi validada pela preservação explícita do payload em `lib/utils/turno-formulario.ts`, `components/dashboard/ModalNovoTurnoV2.tsx` e `lib/actions/turnos.ts`, sem introdução de campos persistidos de dimensionamento. Validação final executada com `node --test --experimental-strip-types lib/utils/dimensionamento-pessoas-setor.test.ts`, `npx tsc --noEmit` e inspeção do contrato compartilhado via `rg`, todos sem erros.
+
+## SPRINT 15 — Consistência do progresso da OP entre demanda, setor e dashboard
+**Status:** ⏳ Planejada
+**Pré-requisito:** Sprint 12 concluída.
+**Objetivo:** corrigir a cadeia de consolidação da V2 para que `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` permaneçam sincronizados após cada apontamento, eliminando divergências entre dashboard, scanner e relatórios.
+
+- [x] **15.1 — Formalizar a sincronização da demanda setorial no backend de apontamento**
+  Entregas mínimas:
+  - revisar a função transacional de apontamento atômico por operação
+  - garantir recálculo explícito de `turno_setor_demandas` a partir de `turno_setor_operacoes`
+  - manter a sequência de consolidação `demanda -> setor -> OP`
+  - preservar os bloqueios de saldo e encerramento existentes
+
+  Regras:
+  - a fonte de verdade operacional continua sendo o apontamento atômico em `turno_setor_operacoes`
+  - `turno_setor_demandas` não pode ficar stale após nova produção
+  - a correção deve manter compatibilidade com scanner e `/admin/apontamentos`
+
+  **Evidência:** Após um novo apontamento em uma operação da demanda, `turno_setor_demandas`, `turno_setores` e `turno_ops` refletem imediatamente os mesmos realizados e status esperados no mesmo turno.
+  Implementado em `scripts/sprint15_consistencia_progresso.sql`, introduzindo `sincronizar_turno_setor_demanda()` com compatibilidade para a V2 atual via `turno_setor_demanda_id` ou `turno_setor_op_legacy_id`, e encadeando a sincronização automática em `sincronizar_andamento_turno_setor_op()` antes do reflexo final em `turno_ops`. Validação concluída em `2026-04-03`: `npx tsc --noEmit` passa sem erros; o SQL foi aplicado via Supabase Management API; e uma validação transacional com `ROLLBACK` no turno aberto `d559f332-6584-45fe-86a6-c17eae5e9ec6` registrou três apontamentos temporários na demanda `f82fe19f-196d-4256-8a44-d61632a983fd`, retornando imediatamente `demanda_realizada = 1`, `setor_realizado = 1` e `turno_op_realizado = 1`, todos com status `em_andamento`. A leitura read-only após o rollback confirmou ausência de resíduo do teste, com a mesma cadeia voltando para `0 / aberta / planejada`.
+
+- [x] **15.2 — Executar backfill seguro dos turnos abertos e dados recentes impactados**
+  Entregas mínimas:
+  - criar rotina de recálculo para demandas setoriais já existentes
+  - reaplicar a consolidação em cascata para setores e OPs após o backfill
+  - garantir operação idempotente e segura para reexecução
+
+  Regras:
+  - o backfill não pode apagar produção apontada
+  - a rotina deve apenas recomputar realizados, saldos e status derivados
+  - priorizar turnos `abertos` e janela recente afetada pela V2
+
+  **Evidência:** Um turno já afetado pela divergência passa a exibir o mesmo progresso consolidado em demanda, setor e OP após a execução do backfill.
+  Implementado em `scripts/sprint15_backfill_consistencia.sql`, com as rotinas `backfill_consistencia_turno()` e `backfill_consistencia_turnos_recentes()`, além da evolução das funções de sincronização para preservar encerramentos manuais durante a recomputação e alinhar `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setor_ops`, `turno_setores` e `turno_ops` a partir do estado real das operações. Validação concluída em `2026-04-03`: o SQL foi aplicado via Supabase Management API e o turno afetado `6ed0534c-bf6e-471f-8d0c-1aec61662fe8` teve a cadeia inconsistente `secao_realizada = 6`, `demanda_realizada = 6`, `setor_realizado = 6` com operações `[0,0]` corrigida para `0 / 0 / 0`, preservando `encerrada_manualmente` em demanda, setor e OP e propagando `encerrada_manualmente` para as operações filhas. A reexecução do backfill no mesmo turno manteve exatamente o mesmo estado, confirmando idempotência. Em seguida, `backfill_consistencia_turnos_recentes(NOW() - INTERVAL '7 days')` foi executado com sucesso para a janela priorizada, incluindo o turno aberto `d559f332-6584-45fe-86a6-c17eae5e9ec6` (`13` demandas, `13` seções, `4` setores e `4` OPs recalculadas) e os demais turnos recentes impactados.
+
+- [x] **15.3 — Alinhar queries e snapshots da dashboard, scanner e relatórios**
+  Entregas mínimas:
+  - revisar `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts`
+  - revisar leituras do scanner e relatórios que dependem de `turno_setor_demandas`
+  - eliminar leituras incoerentes de progresso na dashboard e no modal de detalhe da OP
+
+  Regras:
+  - o KPI da OP e o detalhe das seções devem contar a mesma história operacional
+  - o scanner não pode mostrar saldo ou status stale para a mesma demanda
+  - relatórios V2 não podem continuar consolidando progresso a partir de demandas divergentes
+
+  **Evidência:** A dashboard, o modal de detalhe da OP, o scanner e os relatórios V2 passam a apresentar realizado, saldo e status coerentes para a mesma OP/demanda/setor.
+  Implementado em `lib/utils/consolidacao-turno.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/scanner.ts`, `lib/queries/relatorios-v2.ts` e `lib/utils/turno-setores.ts`, centralizando a recomputação de demanda, seção, setor e OP a partir de `turno_setor_operacoes` antes de montar os snapshots consumidos pela dashboard, modal de detalhe, scanner e relatórios V2. Validação concluída em `2026-04-03`: `buscarPlanejamentoTurnoPorId()` e `buscarPlanejamentoTurnoPorIdClient()` passaram a consolidar `demandasSetor`, `secoesSetorOp`, `setoresAtivos` e `ops` na mesma cadeia; `buscarTurnoSetorScaneadoPorToken()` e `buscarDemandasScaneadasPorTurnoSetor()` deixaram de confiar em `turno_setores` e `turno_setor_demandas` crus; `carregarBaseRelatorioV2()` passou a recomputar demandas, seções e OPs antes de gerar resumo e itens. `mapearSetoresTurnoParaDashboard()` também passou a derivar quantidade e status a partir das demandas normalizadas, eliminando leituras stale no KPI e no detalhe da OP. `npx tsc --noEmit` executou com sucesso após a mudança.
+
+- [ ] **15.4 — Homologar a consistência ponta a ponta e ausência de regressão**
+  Validar:
+  - a cadeia `operação -> demanda -> setor -> OP` permanece consistente sob o contrato atual de quantidade concluída
+  - realizado, saldo e status da OP na dashboard coincidem com o modal de detalhe sob a regra vigente de peças completas
+  - scanner e `/admin/apontamentos` continuam registrando normalmente
+  - relatórios V2 permanecem coerentes após novos apontamentos e após backfill
+
+  **Evidência:** Em um turno aberto real com demandas já iniciadas, a consolidação vigente da OP permanece consistente entre operação, demanda, setor, dashboard, scanner e relatórios V2, sem regressão observada no fluxo atual.
+
+## SPRINT 16 — KPI de progresso operacional ponderado por T.P.
+**Status:** ⏳ Planejada
+**Pré-requisito:** Sprint 15 concluída.
+**Objetivo:** separar explicitamente `quantidade concluída` de `progresso operacional` e implementar o novo KPI incremental da OP, do setor e do turno com ponderação por `tempo_padrao_min`.
+
+- [x] **16.1 — Formalizar contratos tipados e funções puras do progresso operacional**
+  Entregas mínimas:
+  - criar contratos explícitos para `quantidadeConcluida` e `progressoOperacional`
+  - implementar função pura em `lib/utils/` para calcular progresso operacional por operação, setor, OP e turno
+  - ponderar o progresso pelo `tempo_padrao_min` das operações
+  - preservar a métrica atual de peças completas sem regressão
+
+  Regras:
+  - `quantidade concluída` continua medindo peças completas via menor realizado entre setores obrigatórios
+  - `progresso operacional` deve nascer dos incrementos em `turno_setor_operacoes`
+  - a nova função não pode depender de acesso direto ao banco
+  - o cálculo deve limitar o realizado de cada operação ao planejado correspondente
+
+  **Evidência:** Dado um conjunto de operações com `tempo_padrao_min` diferentes e progresso parcial em setores distintos, a função retorna `progressoOperacional` coerente com a ponderação por T.P. e mantém `quantidadeConcluida` separada.
+  Implementado em `lib/utils/progresso-operacional.ts` e `types/index.ts`, introduzindo os contratos explícitos `IndicadoresOperacionais`, `quantidadeConcluida`, `progressoOperacionalPct`, `cargaPlanejadaTp` e `cargaRealizadaTp`, além das funções puras `calcularCargaOperacionalTp()`, `somarCargasOperacionaisTp()`, `montarIndicadoresOperacionais()` e `calcularIndicadoresOperacionaisPorItens()`. A validação executável foi registrada em `lib/utils/progresso-operacional.test.ts`, cobrindo ponderação por `tempo_padrao_min`, limitação do realizado ao planejado e separação entre peças completas e carga operacional agregada. Validação concluída em `2026-04-03` com `node --test --experimental-strip-types lib/utils/progresso-operacional.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **16.2 — Propagar o novo KPI para queries e snapshots da dashboard**
+  Entregas mínimas:
+  - evoluir `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts` para expor os dois indicadores
+  - garantir que setor, OP e turno carreguem `progressoOperacional` e `quantidadeConcluida`
+  - revisar qualquer snapshot intermediário que ainda use apenas `quantidadeRealizada` como proxy de progresso
+
+  Regras:
+  - dashboard e modal da OP devem contar a mesma história com a mesma fórmula
+  - a mudança não pode quebrar a ordenação estrutural nem o carry-over vigente
+  - o contrato novo deve ser nomeado de forma explícita para evitar ambiguidade na UI
+
+  **Evidência:** As queries do turno passam a devolver, para a mesma OP, `progressoOperacional` ponderado por T.P. e `quantidadeConcluida` como peças completas, sem divergência entre server e client snapshots.
+  Implementado em `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/scanner.ts`, `lib/queries/relatorios-v2.ts`, `lib/utils/consolidacao-turno.ts` e `lib/utils/turno-setores.ts`, propagando os indicadores `quantidadeConcluida`, `progressoOperacionalPct`, `cargaPlanejadaTp` e `cargaRealizadaTp` para demanda, seção, setor, OP e turno a partir de `turno_setor_operacoes`. A leitura do turno, do scanner e dos relatórios V2 deixou de depender de `quantidadeRealizada` como proxy única de progresso e passou a trafegar explicitamente peças completas e carga operacional ponderada por T.P. Homologação documental e técnica concluída em `2026-04-03` com `npx tsc --noEmit` sem erros, mantendo compatibilidade entre server e client snapshots.
+
+- [x] **16.3 — Atualizar dashboard e modal da OP para distinguir progresso operacional de peças completas**
+  Entregas mínimas:
+  - ajustar cards, barras e rótulos da dashboard
+  - ajustar o cabeçalho e os KPIs do modal de detalhe da OP
+  - manter a leitura por setor coerente com o novo progresso operacional
+
+  Regras:
+  - o KPI principal de progresso deve usar `progressoOperacional`
+  - a UI deve continuar exibindo `quantidadeConcluida` como métrica separada
+  - nenhum rótulo pode chamar peças completas de progresso
+
+  **Evidência:** Uma OP com setores em estágios diferentes passa a exibir progresso operacional acima de `0%` na dashboard e no modal, enquanto a quantidade de peças completas permanece separada e coerente.
+  Implementado em `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/ModalDetalhesOpTurno.tsx` e `components/dashboard/ModalDetalhesSecaoTurno.tsx`, substituindo o uso de `quantidadeRealizada / quantidadePlanejada` como KPI principal por `progressoOperacionalPct` e relabelando a métrica de saída como `Peças completas`. Ajustes complementares de consistência visual também entraram em `components/apontamentos/PainelApontamentosSupervisor.tsx`, `components/scanner/SelecaoDemandaScanner.tsx`, `components/scanner/ConfirmacaoRegistro.tsx` e `components/relatorios/ResumoRelatorios.tsx`, para impedir que a UI volte a chamar peças completas de progresso. Homologação de UI registrada em `2026-04-03`: dashboard, modal da OP e telas relacionadas passaram a exibir corretamente progresso operacional separado de peças completas.
+
+- [ ] **16.4 — Alinhar scanner, `/admin/apontamentos` e relatórios V2 ao novo KPI**
+  Entregas mínimas:
+  - revisar leituras auxiliares do scanner e dos apontamentos administrativos
+  - garantir que relatórios V2 diferenciem progresso operacional de peças completas
+  - validar o comportamento após novos apontamentos e após backfill
+
+  Regras:
+  - o fluxo de registro continua sendo atômico por operação
+  - a leitura operacional não pode reintroduzir divergência entre dashboard, scanner e relatórios
+  - o backfill da Sprint 15 continua compatível com o novo KPI
+
+  **Evidência:** Após novos apontamentos em um turno aberto real, dashboard, modal, scanner, `/admin/apontamentos` e relatórios V2 passam a exibir o mesmo progresso operacional ponderado por T.P., sem perder a leitura separada de peças completas.

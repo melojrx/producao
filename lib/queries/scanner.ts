@@ -3,6 +3,10 @@ import {
   listarTurnoSetorOperacoesPorDemandaComClient,
   listarTurnoSetorOperacoesPorSecaoComClient,
 } from '@/lib/queries/turno-setor-operacoes-base'
+import {
+  consolidarDemandasPorOperacoes,
+  consolidarSetorScaneadoPorDemandas,
+} from '@/lib/utils/consolidacao-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurnoBloco,
@@ -186,6 +190,10 @@ export async function buscarTurnoSetorOpScaneadoPorToken(
     produtoReferencia: secao.produto_referencia,
     quantidadePlanejada: secao.quantidade_planejada,
     quantidadeRealizada: secao.quantidade_realizada,
+    quantidadeConcluida: secao.quantidade_realizada,
+    progressoOperacionalPct: 0,
+    cargaPlanejadaTp: 0,
+    cargaRealizadaTp: 0,
     saldoRestante: Math.max(secao.quantidade_planejada - secao.quantidade_realizada, 0),
     qrCodeToken: secao.qr_code_token,
     status: secao.status as TurnoSetorOpScaneado['status'],
@@ -256,7 +264,7 @@ export async function buscarTurnoSetorScaneadoPorToken(
     status: data.status,
   } satisfies TurnoSetorScannerRow
 
-  return {
+  const setorBase: TurnoSetorScaneado = {
     id: turnoSetor.id,
     turnoId: turnoSetor.turno_id,
     turnoIniciadoEm: turnoSetor.turno_iniciado_em,
@@ -264,6 +272,10 @@ export async function buscarTurnoSetorScaneadoPorToken(
     setorNome: turnoSetor.setor_nome,
     quantidadePlanejada: turnoSetor.quantidade_planejada,
     quantidadeRealizada: turnoSetor.quantidade_realizada,
+    quantidadeConcluida: turnoSetor.quantidade_realizada,
+    progressoOperacionalPct: 0,
+    cargaPlanejadaTp: 0,
+    cargaRealizadaTp: 0,
     saldoRestante: Math.max(
       turnoSetor.quantidade_planejada - turnoSetor.quantidade_realizada,
       0
@@ -271,6 +283,10 @@ export async function buscarTurnoSetorScaneadoPorToken(
     qrCodeToken: turnoSetor.qr_code_token,
     status: turnoSetor.status as TurnoSetorScaneado['status'],
   }
+
+  const demandasNormalizadas = await buscarDemandasScaneadasPorTurnoSetor(setorBase.id)
+
+  return consolidarSetorScaneadoPorDemandas(setorBase, demandasNormalizadas)
 }
 
 interface TurnoSetorDemandaScannerRow {
@@ -334,7 +350,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
     return []
   }
 
-  return data.map((demanda) => {
+  const demandasBase = data.map((demanda) => {
     const turnoOp = Array.isArray(demanda.turno_ops) ? demanda.turno_ops[0] : demanda.turno_ops
     const produto = Array.isArray(demanda.produtos) ? demanda.produtos[0] : demanda.produtos
 
@@ -350,6 +366,10 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
       produtoReferencia: produto?.referencia ?? 'Sem referência',
       quantidadePlanejada: demanda.quantidade_planejada,
       quantidadeRealizada: demanda.quantidade_realizada,
+      quantidadeConcluida: demanda.quantidade_realizada,
+      progressoOperacionalPct: 0,
+      cargaPlanejadaTp: 0,
+      cargaRealizadaTp: 0,
       saldoRestante: Math.max(
         demanda.quantidade_planejada - demanda.quantidade_realizada,
         0
@@ -358,6 +378,12 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
       turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
     }
   })
+
+  const operacoesPorDemanda = await Promise.all(
+    demandasBase.map((demanda) => buscarOperacoesScaneadasPorDemanda(demanda))
+  )
+
+  return consolidarDemandasPorOperacoes(demandasBase, operacoesPorDemanda.flat())
 }
 
 export async function buscarOperacoesScaneadasPorSecao(

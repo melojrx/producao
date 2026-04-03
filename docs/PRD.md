@@ -312,7 +312,7 @@ Durante a execução, a dashboard acompanha em tempo real:
 - andamento por OP
 - andamento por setor
 - andamento por operação dentro da seção quando necessário
-- quantidade planejada versus realizada
+- progresso operacional ponderado por T.P. e quantidade concluída, sem misturar as duas métricas no mesmo KPI
 - pendências e seções encerradas
 - setores apresentados na ordem estrutural do fluxo, usando `setor.codigo` crescente como referência visual principal
 
@@ -378,8 +378,10 @@ Ela passa a significar:
 - **registro de produção**: quantas unidades um operador concluiu em uma operação específica de uma OP/produto dentro do setor
 - **realizado da operação da seção**: soma dos lançamentos daquela operação dentro da OP/produto escolhida
 - **setor do turno**: estrutura física reaproveitada, que pode concentrar mais de uma OP/produto ao mesmo tempo
-- **realizado da OP**: menor realizado entre as seções obrigatórias da OP
-- **realizado do turno**: soma do realizado consolidado das OPs do turno
+- **quantidade concluída da OP**: menor realizado entre os setores obrigatórios da OP, usado para medir peças completas
+- **progresso operacional da OP**: avanço contínuo do trabalho executado para entregar a OP, calculado a partir das operações e ponderado pelo `tempo_padrao_min`
+- **quantidade concluída do turno**: soma das quantidades concluídas das OPs do turno
+- **progresso operacional do turno**: composição do progresso operacional das OPs ativas do turno
 
 Exemplo:
 
@@ -987,9 +989,59 @@ Passa a valer:
 
 - `realizado da operação da demanda setorial` = soma dos lançamentos atômicos daquela operação
 - `realizado da demanda setorial` = menor realizado entre as operações obrigatórias daquela OP/produto dentro do setor
-- `realizado do setor no turno` = visão agregada do setor reaproveitado, preservando o detalhamento por OP/produto
-- `realizado da OP no turno` = menor realizado entre os setores obrigatórios da OP
-- `realizado do turno` = soma do realizado consolidado das OPs do turno
+- `quantidade concluída do setor na OP` = menor realizado entre as operações obrigatórias daquela OP/produto dentro do setor
+- `quantidade concluída da OP no turno` = menor realizado entre os setores obrigatórios da OP
+- `quantidade concluída do turno` = soma da quantidade concluída das OPs do turno
+
+Distinção obrigatória entre quantidade concluída e progresso operacional:
+
+- `quantidade concluída` responde quantas peças já atravessaram toda a cadeia obrigatória da OP
+- `progresso operacional` responde quanto do trabalho total necessário para entregar a OP já foi executado
+- `progresso operacional` mede o avanço rumo ao produto completo, mas não deve ser tratado como sinônimo de estoque de peças finalizadas
+- dashboard, modal, scanner e relatórios devem nomear explicitamente essas métricas para evitar ambiguidade
+
+Regra alvo para progresso operacional ponderado por T.P.:
+
+- cada operação obrigatória da OP contribui para o progresso conforme seu `tempo_padrao_min`
+- operações com maior `tempo_padrao_min` têm peso maior no progresso da OP e do setor
+- o progresso nasce nas operações individuais, compõe o progresso do setor e, em seguida, o da OP
+- setores com mais esforço acumulado em `tempo_padrao_min` pesam mais no progresso da OP do que setores com menos esforço
+
+Fórmulas:
+
+```text
+carga_planejada_operacao = quantidade_planejada_op * tempo_padrao_min_operacao
+carga_realizada_operacao = MIN(quantidade_realizada_operacao, quantidade_planejada_op) * tempo_padrao_min_operacao
+
+progresso_operacional_operacao_pct = (carga_realizada_operacao / carga_planejada_operacao) * 100
+
+progresso_operacional_setor_pct =
+  SUM(carga_realizada_operacao do setor) / SUM(carga_planejada_operacao do setor) * 100
+
+peso_setor_na_op =
+  SUM(tempo_padrao_min das operações do setor na OP) / SUM(tempo_padrao_min das operações da OP)
+
+progresso_operacional_op_pct =
+  SUM(carga_realizada_operacao da OP) / SUM(carga_planejada_operacao da OP) * 100
+
+quantidade_concluida_op =
+  MIN(realizado consolidado dos setores obrigatórios da OP)
+```
+
+Regras obrigatórias de apresentação:
+
+- a UI não pode usar `quantidade_concluida_op` como rótulo de progresso operacional
+- o KPI principal de progresso da OP deve usar `progresso_operacional_op_pct`
+- a quantidade concluída da OP deve continuar disponível como métrica separada de peças completas
+- dashboard e modal da OP devem exibir a mesma definição de progresso operacional e a mesma definição de quantidade concluída
+
+Regra obrigatória de consistência:
+
+- toda gravação em `turno_setor_operacoes` que altere `quantidade_realizada`, `status`, `iniciado_em` ou `encerrado_em` deve propagar a consolidação para `turno_setor_demandas`
+- após recalcular a demanda setorial, o sistema deve recalcular `turno_setores`
+- após recalcular as demandas da OP, o sistema deve recalcular `turno_ops`
+- dashboard, scanner, apontamentos e relatórios V2 não podem depender de valores divergentes entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops`
+- quando houver divergência, o sistema deve tratar isso como defeito de consistência estrutural, nunca como comportamento esperado da UI
 
 Regra de leitura:
 
@@ -997,6 +1049,13 @@ Regra de leitura:
 - o detalhe do setor expõe as OPs/produtos que estão sendo trabalhados ali
 - o detalhe da OP continua mostrando por quais setores ela está passando
 - relatórios e filtros não podem supercontar produção ao somar setores compartilhados por múltiplas OPs
+
+Impacto funcional da consistência:
+
+- o KPI de progresso da OP na dashboard e no modal de detalhe deve refletir o mesmo `progresso_operacional_op_pct`
+- a leitura de peças completas deve refletir a mesma `quantidade_concluida_op`
+- o status de uma demanda no scanner deve permanecer coerente com o andamento real das operações daquela demanda
+- relatórios V2 e saldos operacionais não podem exibir `0%` de progresso operacional quando já houver produção consolidada nas operações da mesma demanda
 
 #### 9.3.6 Regra de carry-over entre turnos
 

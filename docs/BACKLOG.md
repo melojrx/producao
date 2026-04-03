@@ -24,10 +24,12 @@
 | 12 | Refatoração estrutural do turno por setor | ✅ Concluída | 4 |
 | 13 | Simplificação do domínio de máquinas | ✅ Concluída | 2 |
 | 14 | Prévia de pessoas por setor na abertura do turno | ✅ Concluída | 2 |
+| 15 | Consistência do progresso da OP entre demanda, setor e dashboard | ⏳ Planejada | 2 |
+| 16 | KPI de progresso operacional ponderado por T.P. | ⏳ Planejada | 3 |
 
-**Total estimado: 30 dias úteis**
+**Total estimado: 35 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a consolidação do modelo setorial na Sprint 12 e a simplificação patrimonial de `maquinas` na Sprint 13, a próxima evolução proposta é apoiar o supervisor com uma prévia de pessoas necessárias por setor no momento da abertura do turno, sem alterar a persistência do turno na primeira etapa. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. Após a Sprint 14, a prioridade imediata continua sendo a consistência estrutural da consolidação entre `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` na Sprint 15. A separação explícita entre `quantidade concluída` e `progresso operacional` ponderado por `tempo_padrao_min` foi registrada como evolução funcional dedicada na Sprint 16. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -241,6 +243,29 @@
 - Homologar cenários com um produto, múltiplas OPs e setores compartilhados
 - Decisão homologada: manter o dimensionamento apenas como prévia operacional; nenhuma sprint de persistência foi aberta neste momento
 
+## SPRINT 15 — Consistência do progresso da OP entre demanda, setor e dashboard
+**Objetivo:** eliminar divergências de realizado, saldo e status entre a camada atômica de operação e os consolidados de demanda, setor e OP do turno.
+**Entregável:** dashboard, scanner e relatórios V2 lendo o mesmo progresso consolidado após cada apontamento, com backfill para turnos já afetados.
+**Status:** ⏳ Planejada
+
+- Recalcular `turno_setor_demandas` explicitamente a partir de `turno_setor_operacoes`
+- Reencadear a consolidação `demanda -> setor -> OP` dentro do apontamento atômico
+- Executar backfill seguro para turnos abertos e dados recentes afetados
+- Revisar queries e snapshots da dashboard, scanner e relatórios que dependem de `turno_setor_demandas`
+- Homologar o contrato atual de peças completas sem regressão entre dashboard, scanner e relatórios
+
+## SPRINT 16 — KPI de progresso operacional ponderado por T.P.
+**Objetivo:** implementar um KPI incremental de progresso operacional da OP, do setor e do turno, separado da métrica de peças completas e ponderado pelo esforço real (`tempo_padrao_min`) das operações.
+**Entregável:** dashboard, modal, scanner e relatórios distinguindo explicitamente `progresso operacional` de `quantidade concluída`, com cálculo consistente a partir das operações atômicas.
+**Status:** ⏳ Planejada
+
+- Formalizar contratos tipados e funções puras para `progresso operacional` e `quantidade concluída`
+- Calcular o progresso por operação, setor, OP e turno com peso proporcional ao `tempo_padrao_min`
+- Atualizar queries e snapshots para expor os dois indicadores sem ambiguidade
+- Ajustar dashboard e modal da OP para usar o novo KPI principal de progresso
+- Alinhar scanner, `/admin/apontamentos` e relatórios V2 ao novo contrato
+- Homologar cenários reais com setores em estágios diferentes, sem perder a leitura de peças completas
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -249,7 +274,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

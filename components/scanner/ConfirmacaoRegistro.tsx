@@ -290,10 +290,10 @@ export function ConfirmacaoRegistro({
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Realizado demanda
+                  Peças completas
                 </p>
                 <p className="mt-2 text-xl font-semibold text-white">
-                  {demandaSelecionada.quantidadeRealizada}
+                  {demandaSelecionada.quantidadeConcluida}
                 </p>
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
@@ -305,6 +305,10 @@ export function ConfirmacaoRegistro({
                 </p>
               </div>
             </div>
+
+            <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-cyan-100/80">
+              Progresso operacional da demanda {demandaSelecionada.progressoOperacionalPct.toFixed(0)}%
+            </p>
           </div>
 
           <div>

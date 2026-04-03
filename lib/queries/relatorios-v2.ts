@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { consolidarOpsPorDemandas } from '@/lib/utils/consolidacao-turno'
+import {
+  consolidarDemandasPorOperacoes,
+  consolidarOpsPorDemandas,
+  consolidarSecoesPorOperacoes,
+} from '@/lib/utils/consolidacao-turno'
 import type {
   ComparativoMetaGrupoItem,
   RelatorioFiltros,
@@ -61,7 +65,9 @@ type TurnoSetorOperacaoRow = Pick<
   | 'turno_setor_op_id'
   | 'turno_setor_demanda_id'
   | 'operacao_id'
+  | 'quantidade_planejada'
   | 'quantidade_realizada'
+  | 'tempo_padrao_min_snapshot'
   | 'status'
 >
 type RegistroProducaoRow = Pick<
@@ -93,12 +99,33 @@ interface BaseRelatorioV2 {
   produtos: ProdutoResumoRow[]
   registros: RegistroProducaoRow[]
   registrosLegados: RegistroProducaoRow[]
-  demandas: TurnoSetorDemandaRow[]
-  secoes: TurnoSetorOpRow[]
+  demandas: TurnoSetorDemandaRelatorioRow[]
+  secoes: TurnoSetorOpRelatorioRow[]
   setores: SetorResumoRow[]
   turnos: TurnoRow[]
-  turnosOps: TurnoOpRow[]
+  turnosOps: TurnoOpRelatorioRow[]
   turnosSetorOperacoes: TurnoSetorOperacaoRow[]
+}
+
+interface TurnoOpRelatorioRow extends TurnoOpRow {
+  quantidade_concluida: number
+  progresso_operacional_pct: number
+  carga_planejada_tp: number
+  carga_realizada_tp: number
+}
+
+interface TurnoSetorDemandaRelatorioRow extends TurnoSetorDemandaRow {
+  quantidade_concluida: number
+  progresso_operacional_pct: number
+  carga_planejada_tp: number
+  carga_realizada_tp: number
+}
+
+interface TurnoSetorOpRelatorioRow extends TurnoSetorOpRow {
+  quantidade_concluida: number
+  progresso_operacional_pct: number
+  carga_planejada_tp: number
+  carga_realizada_tp: number
 }
 
 function formatarTurnoLabel(iniciadoEm: string): string {
@@ -176,13 +203,17 @@ function normalizarStatusResumo(statuses: TurnoOpStatusV2[]): RelatorioResumoIte
 
 function consolidarTurnosOpsRelatorio(
   turnosOps: TurnoOpRow[],
-  demandas: TurnoSetorDemandaRow[]
-): TurnoOpRow[] {
+  demandas: TurnoSetorDemandaRelatorioRow[]
+): TurnoOpRelatorioRow[] {
   const opsConsolidadas = consolidarOpsPorDemandas(
     turnosOps.map((op) => ({
       id: op.id,
       quantidadePlanejada: op.quantidade_planejada,
       quantidadeRealizada: op.quantidade_realizada,
+      quantidadeConcluida: op.quantidade_realizada,
+      progressoOperacionalPct: 0,
+      cargaPlanejadaTp: 0,
+      cargaRealizadaTp: 0,
       quantidadePlanejadaRemanescente: Math.max(
         op.quantidade_planejada - op.quantidade_realizada,
         0
@@ -190,15 +221,23 @@ function consolidarTurnosOpsRelatorio(
       status: op.status as TurnoOpStatusV2,
     })),
     demandas.map((demanda) => ({
+      id: demanda.id,
       turnoOpId: demanda.turno_op_id,
+      turnoSetorId: demanda.turno_setor_id,
+      turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+      quantidadePlanejada: demanda.quantidade_planejada,
       quantidadeRealizada: demanda.quantidade_realizada,
+      quantidadeConcluida: demanda.quantidade_concluida,
+      progressoOperacionalPct: demanda.progresso_operacional_pct,
+      cargaPlanejadaTp: demanda.carga_planejada_tp,
+      cargaRealizadaTp: demanda.carga_realizada_tp,
       status: demanda.status as 'planejada' | 'aberta' | 'em_andamento' | 'concluida' | 'encerrada_manualmente',
     }))
   )
 
   const opOriginalPorId = new Map(turnosOps.map((op) => [op.id, op]))
 
-  return opsConsolidadas.reduce<TurnoOpRow[]>((acumulado, opConsolidada) => {
+  return opsConsolidadas.reduce<TurnoOpRelatorioRow[]>((acumulado, opConsolidada) => {
     const opOriginal = opOriginalPorId.get(opConsolidada.id)
 
     if (!opOriginal) {
@@ -208,6 +247,10 @@ function consolidarTurnosOpsRelatorio(
     acumulado.push({
       ...opOriginal,
       quantidade_realizada: opConsolidada.quantidadeRealizada,
+      quantidade_concluida: opConsolidada.quantidadeConcluida,
+      progresso_operacional_pct: opConsolidada.progressoOperacionalPct,
+      carga_planejada_tp: opConsolidada.cargaPlanejadaTp,
+      carga_realizada_tp: opConsolidada.cargaRealizadaTp,
       status: opConsolidada.status,
     })
 
@@ -371,7 +414,7 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
       : supabase
           .from('turno_setor_operacoes')
           .select(
-            'id, turno_op_id, turno_setor_op_id, turno_setor_demanda_id, operacao_id, quantidade_realizada, status'
+            'id, turno_op_id, turno_setor_op_id, turno_setor_demanda_id, operacao_id, quantidade_planejada, quantidade_realizada, tempo_padrao_min_snapshot, status'
           )
           .in('turno_op_id', turnoOpIds)
           .order('created_at', { ascending: true })
@@ -395,8 +438,100 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
     throw new Error(`Erro ao buscar setores do relatório V2: ${setoresError.message}`)
   }
 
+  const demandasConsolidadas = consolidarDemandasPorOperacoes(
+    (demandas ?? []).map((demanda) => ({
+      ...demanda,
+      turnoSetorId: demanda.turno_setor_id,
+      turnoOpId: demanda.turno_op_id,
+      turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+      quantidadePlanejada: demanda.quantidade_planejada,
+      quantidadeRealizada: demanda.quantidade_realizada,
+      quantidadeConcluida: demanda.quantidade_realizada,
+      progressoOperacionalPct: 0,
+      cargaPlanejadaTp: 0,
+      cargaRealizadaTp: 0,
+      status: demanda.status as
+        | 'planejada'
+        | 'aberta'
+        | 'em_andamento'
+        | 'concluida'
+        | 'encerrada_manualmente',
+    })),
+    (turnosSetorOperacoes ?? []).map((operacao) => ({
+      turnoOpId: operacao.turno_op_id,
+      turnoSetorOpId: operacao.turno_setor_op_id,
+      turnoSetorId: null,
+      turnoSetorDemandaId: operacao.turno_setor_demanda_id,
+      quantidadePlanejada: operacao.quantidade_planejada,
+      quantidadeRealizada: operacao.quantidade_realizada,
+      tempoPadraoMinSnapshot: operacao.tempo_padrao_min_snapshot,
+      status: operacao.status as
+        | 'planejada'
+        | 'aberta'
+        | 'em_andamento'
+        | 'concluida'
+        | 'encerrada_manualmente',
+    }))
+  ).map((demanda) => ({
+    ...demanda,
+    turno_setor_id: demanda.turnoSetorId,
+    turno_op_id: demanda.turnoOpId,
+    turno_setor_op_legacy_id: demanda.turnoSetorOpLegacyId,
+    quantidade_planejada: demanda.quantidadePlanejada,
+    quantidade_realizada: demanda.quantidadeRealizada,
+    quantidade_concluida: demanda.quantidadeConcluida,
+    progresso_operacional_pct: demanda.progressoOperacionalPct,
+    carga_planejada_tp: demanda.cargaPlanejadaTp,
+    carga_realizada_tp: demanda.cargaRealizadaTp,
+    status: demanda.status,
+  })) as TurnoSetorDemandaRelatorioRow[]
+
+  const secoesConsolidadas = consolidarSecoesPorOperacoes(
+    (secoes ?? []).map((secao) => ({
+      ...secao,
+      turnoOpId: secao.turno_op_id,
+      quantidadePlanejada: secao.quantidade_planejada,
+      quantidadeRealizada: secao.quantidade_realizada,
+      quantidadeConcluida: secao.quantidade_realizada,
+      progressoOperacionalPct: 0,
+      cargaPlanejadaTp: 0,
+      cargaRealizadaTp: 0,
+      status: secao.status as
+        | 'planejada'
+        | 'aberta'
+        | 'em_andamento'
+        | 'concluida'
+        | 'encerrada_manualmente',
+    })),
+    (turnosSetorOperacoes ?? []).map((operacao) => ({
+      turnoOpId: operacao.turno_op_id,
+      turnoSetorOpId: operacao.turno_setor_op_id,
+      turnoSetorId: null,
+      turnoSetorDemandaId: operacao.turno_setor_demanda_id,
+      quantidadePlanejada: operacao.quantidade_planejada,
+      quantidadeRealizada: operacao.quantidade_realizada,
+      tempoPadraoMinSnapshot: operacao.tempo_padrao_min_snapshot,
+      status: operacao.status as
+        | 'planejada'
+        | 'aberta'
+        | 'em_andamento'
+        | 'concluida'
+        | 'encerrada_manualmente',
+    }))
+  ).map((secao) => ({
+    ...secao,
+    turno_op_id: secao.turnoOpId,
+    quantidade_planejada: secao.quantidadePlanejada,
+    quantidade_realizada: secao.quantidadeRealizada,
+    quantidade_concluida: secao.quantidadeConcluida,
+    progresso_operacional_pct: secao.progressoOperacionalPct,
+    carga_planejada_tp: secao.cargaPlanejadaTp,
+    carga_realizada_tp: secao.cargaRealizadaTp,
+    status: secao.status,
+  })) as TurnoSetorOpRelatorioRow[]
+
   const turnoSetorOperacaoIds = (turnosSetorOperacoes ?? []).map((operacao) => operacao.id)
-  const turnosOpsConsolidadas = consolidarTurnosOpsRelatorio(turnosOps ?? [], demandas ?? [])
+  const turnosOpsConsolidadas = consolidarTurnosOpsRelatorio(turnosOps ?? [], demandasConsolidadas)
 
   const registrosResult = await (
     turnoSetorOperacaoIds.length === 0
@@ -501,8 +636,8 @@ async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseR
     produtos: produtosResult.data ?? [],
     registros: registrosFiltradosPorOperador,
     registrosLegados,
-    demandas: demandas ?? [],
-    secoes: secoes ?? [],
+    demandas: demandasConsolidadas,
+    secoes: secoesConsolidadas,
     setores: setores ?? [],
     turnos: turnos ?? [],
     turnosOps: turnosOpsConsolidadas,
@@ -517,6 +652,14 @@ function construirResumoRelatorio(
   const comparativo = construirComparativoRelatorio(base, filtros)
   const totalPlanejado = comparativo.reduce((soma, item) => soma + item.planejado, 0)
   const totalRealizado = comparativo.reduce((soma, item) => soma + item.realizado, 0)
+  const totalCargaPlanejadaTp = base.turnosOps.reduce(
+    (soma, op) => soma + op.carga_planejada_tp,
+    0
+  )
+  const totalCargaRealizadaTp = base.turnosOps.reduce(
+    (soma, op) => soma + op.carga_realizada_tp,
+    0
+  )
   const secoesConcluidas = base.demandas.filter(
     (demanda) => demanda.status === 'concluida' || demanda.status === 'encerrada_manualmente'
   ).length
@@ -537,8 +680,14 @@ function construirResumoRelatorio(
     opsNoEscopo: base.turnosOps.length,
     totalPlanejado,
     totalRealizado,
+    totalCargaPlanejadaTp,
+    totalCargaRealizadaTp,
     saldo: Math.max(totalPlanejado - totalRealizado, 0),
-    progressoPct: totalPlanejado > 0 ? Math.min((totalRealizado / totalPlanejado) * 100, 100) : 0,
+    saldoCargaTp: Math.max(totalCargaPlanejadaTp - totalCargaRealizadaTp, 0),
+    progressoPct:
+      totalCargaPlanejadaTp > 0
+        ? Math.min((totalCargaRealizadaTp / totalCargaPlanejadaTp) * 100, 100)
+        : 0,
     secoesConcluidas,
     secoesPendentes,
     quantidadeApontadaFiltro,
