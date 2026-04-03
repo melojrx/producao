@@ -35,12 +35,55 @@ export async function buscarOperadorScaneadoPorToken(
     return null
   }
 
+  return mapearOperadorScaneado(data)
+}
+
+function mapearOperadorScaneado(data: {
+  id: string
+  nome: string
+  matricula: string
+  foto_url: string | null
+}): OperadorScaneado {
   return {
     id: data.id,
     nome: data.nome,
     matricula: data.matricula,
     fotoUrl: data.foto_url,
   }
+}
+
+export async function buscarOperadorScaneadoPorId(
+  operadorId: string
+): Promise<OperadorScaneado | null> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('operadores')
+    .select('id, nome, matricula, foto_url, status')
+    .eq('id', operadorId)
+    .single()
+
+  if (error || !data || data.status !== 'ativo') {
+    return null
+  }
+
+  return mapearOperadorScaneado(data)
+}
+
+export async function listarOperadoresAtivosScanner(): Promise<OperadorScaneado[]> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('operadores')
+    .select('id, nome, matricula, foto_url, status')
+    .eq('status', 'ativo')
+    .order('nome', { ascending: true })
+
+  if (error || !data) {
+    return []
+  }
+
+  return data.map(mapearOperadorScaneado)
 }
 
 export async function buscarMaquinaScaneadaPorToken(

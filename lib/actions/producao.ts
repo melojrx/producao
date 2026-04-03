@@ -35,7 +35,7 @@ export interface RegistrarProducaoOperacaoInput {
   turnoSetorOperacaoId: string
   quantidade: number
   usuarioSistemaId?: string | null
-  origemApontamento?: 'operador_qr' | 'supervisor_manual'
+  origemApontamento?: 'operador_qr' | 'operador_manual' | 'supervisor_manual'
   maquinaId?: string | null
   observacao?: string | null
 }

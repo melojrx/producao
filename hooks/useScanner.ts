@@ -3,6 +3,7 @@
 import { useReducer, useState } from 'react'
 import {
   buscarDemandasScaneadasPorTurnoSetor,
+  buscarOperadorScaneadoPorId,
   buscarOperacoesScaneadasPorDemanda,
   buscarOperadorScaneadoPorToken,
   buscarTurnoSetorScaneadoPorToken,
@@ -20,6 +21,7 @@ export type EstadoScanner =
   | { etapa: 'scan_operador'; setor: TurnoSetorScaneado }
   | {
       etapa: 'selecionar_demanda'
+      origemApontamento: OrigemApontamentoProducaoV2
       operador: OperadorScaneado
       setor: TurnoSetorScaneado
       demandas: TurnoSetorDemandaScaneada[]
@@ -28,6 +30,7 @@ export type EstadoScanner =
       etapa: 'selecionar_operacao'
       demandaSelecionada: TurnoSetorDemandaScaneada
       demandas: TurnoSetorDemandaScaneada[]
+      origemApontamento: OrigemApontamentoProducaoV2
       operador: OperadorScaneado
       operacoes: TurnoSetorOperacaoApontamentoV2[]
       setor: TurnoSetorScaneado
@@ -36,6 +39,7 @@ export type EstadoScanner =
       etapa: 'informar_quantidade'
       demandaSelecionada: TurnoSetorDemandaScaneada
       demandas: TurnoSetorDemandaScaneada[]
+      origemApontamento: OrigemApontamentoProducaoV2
       operacaoSelecionada: TurnoSetorOperacaoApontamentoV2
       operador: OperadorScaneado
       operacoes: TurnoSetorOperacaoApontamentoV2[]
@@ -45,6 +49,7 @@ export type EstadoScanner =
       etapa: 'registrar'
       demandaSelecionada: TurnoSetorDemandaScaneada
       demandas: TurnoSetorDemandaScaneada[]
+      origemApontamento: OrigemApontamentoProducaoV2
       operacaoSelecionada: TurnoSetorOperacaoApontamentoV2
       operador: OperadorScaneado
       operacoes: TurnoSetorOperacaoApontamentoV2[]
@@ -86,6 +91,7 @@ type ScannerAction =
   | { type: 'SETOR_IDENTIFICADO'; setor: TurnoSetorScaneado }
   | {
       type: 'OPERADOR_IDENTIFICADO'
+      origemApontamento: OrigemApontamentoProducaoV2
       operador: OperadorScaneado
       demandas: TurnoSetorDemandaScaneada[]
     }
@@ -181,6 +187,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
 
       return {
         etapa: 'selecionar_demanda',
+        origemApontamento: action.origemApontamento,
         operador: action.operador,
         setor: estado.setor,
         demandas: action.demandas,
@@ -194,6 +201,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'selecionar_operacao',
         demandaSelecionada: action.demandaSelecionada,
         demandas: estado.demandas,
+        origemApontamento: estado.origemApontamento,
         operador: estado.operador,
         operacoes: action.operacoes,
         setor: estado.setor,
@@ -214,6 +222,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'informar_quantidade',
         demandaSelecionada: estado.demandaSelecionada,
         demandas: estado.demandas,
+        origemApontamento: estado.origemApontamento,
         operacaoSelecionada,
         operador: estado.operador,
         operacoes: estado.operacoes,
@@ -228,6 +237,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'registrar',
         demandaSelecionada: estado.demandaSelecionada,
         demandas: estado.demandas,
+        origemApontamento: estado.origemApontamento,
         operacaoSelecionada: estado.operacaoSelecionada,
         operador: estado.operador,
         operacoes: estado.operacoes,
@@ -242,6 +252,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'informar_quantidade',
         demandaSelecionada: estado.demandaSelecionada,
         demandas: estado.demandas,
+        origemApontamento: estado.origemApontamento,
         operacaoSelecionada: estado.operacaoSelecionada,
         operador: estado.operador,
         operacoes: estado.operacoes,
@@ -256,6 +267,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'informar_quantidade',
         demandaSelecionada: action.demandaAtualizada,
         demandas: action.demandasAtualizadas,
+        origemApontamento: estado.origemApontamento,
         operacaoSelecionada: action.operacaoAtualizada,
         operador: estado.operador,
         operacoes: action.operacoesAtualizadas,
@@ -284,11 +296,12 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         return estado
       }
 
-      return {
-        etapa: 'selecionar_demanda',
-        operador: estado.operador,
-        setor: estado.setor,
-        demandas: estado.demandas,
+        return {
+          etapa: 'selecionar_demanda',
+          origemApontamento: estado.origemApontamento,
+          operador: estado.operador,
+          setor: estado.setor,
+          demandas: estado.demandas,
       }
     case 'TROCAR_OPERACAO':
       if (estado.etapa !== 'informar_quantidade' && estado.etapa !== 'registrar') {
@@ -299,6 +312,7 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'selecionar_operacao',
         demandaSelecionada: estado.demandaSelecionada,
         demandas: estado.demandas,
+        origemApontamento: estado.origemApontamento,
         operador: estado.operador,
         operacoes: estado.operacoes,
         setor: estado.setor,
@@ -314,6 +328,34 @@ export function useScanner(options: UseScannerOptions = {}) {
   const [estado, dispatch] = useReducer(scannerReducer, ESTADO_INICIAL)
   const [erro, setErro] = useState<string | null>(null)
   const [estaCarregando, setEstaCarregando] = useState(false)
+
+  async function identificarOperador(
+    operador: OperadorScaneado,
+    origemApontamento: OrigemApontamentoProducaoV2
+  ): Promise<ResultadoScannerAction> {
+    if (estado.etapa !== 'scan_operador') {
+      const mensagem = 'Escaneie um setor antes de identificar o operador.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    const demandas = await buscarDemandasScaneadasPorTurnoSetor(estado.setor.id)
+    const demandasAtivas = demandas.filter(
+      (demanda) =>
+        demanda.status !== 'concluida' &&
+        demanda.status !== 'encerrada_manualmente' &&
+        demanda.saldoRestante > 0
+    )
+
+    if (demandasAtivas.length === 0) {
+      const mensagem = 'O setor aberto não possui OPs/produtos com saldo para apontamento.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    dispatch({ type: 'OPERADOR_IDENTIFICADO', operador, origemApontamento, demandas: demandasAtivas })
+    return { sucesso: true }
+  }
 
   async function scanSetor(token: string): Promise<ResultadoScannerAction> {
     setEstaCarregando(true)
@@ -366,22 +408,32 @@ export function useScanner(options: UseScannerOptions = {}) {
         return { sucesso: false, erro: mensagem }
       }
 
-      const demandas = await buscarDemandasScaneadasPorTurnoSetor(estado.setor.id)
-      const demandasAtivas = demandas.filter(
-        (demanda) =>
-          demanda.status !== 'concluida' &&
-          demanda.status !== 'encerrada_manualmente' &&
-          demanda.saldoRestante > 0
-      )
+      return await identificarOperador(operador, 'operador_qr')
+    } finally {
+      setEstaCarregando(false)
+    }
+  }
 
-      if (demandasAtivas.length === 0) {
-        const mensagem = 'O setor aberto não possui OPs/produtos com saldo para apontamento.'
+  async function selecionarOperadorManual(operadorId: string): Promise<ResultadoScannerAction> {
+    if (estado.etapa !== 'scan_operador') {
+      const mensagem = 'Escaneie um setor antes de selecionar o operador manualmente.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    setEstaCarregando(true)
+    setErro(null)
+
+    try {
+      const operador = await buscarOperadorScaneadoPorId(operadorId)
+
+      if (!operador) {
+        const mensagem = 'Operador manual não encontrado ou inativo.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
 
-      dispatch({ type: 'OPERADOR_IDENTIFICADO', operador, demandas: demandasAtivas })
-      return { sucesso: true }
+      return await identificarOperador(operador, 'operador_manual')
     } finally {
       setEstaCarregando(false)
     }
@@ -477,7 +529,7 @@ export function useScanner(options: UseScannerOptions = {}) {
         operadorId: estado.operador.id,
         turnoSetorOperacaoId: estado.operacaoSelecionada.id,
         quantidade,
-        origemApontamento: 'operador_qr',
+        origemApontamento: estado.origemApontamento,
       })
 
       if (!resultado.sucesso) {
@@ -600,6 +652,7 @@ export function useScanner(options: UseScannerOptions = {}) {
     estaCarregando,
     scanSetor,
     scanOperador,
+    selecionarOperadorManual,
     selecionarDemanda,
     selecionarOperacao,
     registrar,

@@ -10,7 +10,10 @@ export type UsuarioSistemaPapel = 'admin' | 'supervisor'
 export type UsuarioSistemaStatus = 'ativo' | 'inativo' | 'pendente_ativacao'
 export type TurnoStatusV2 = 'aberto' | 'encerrado'
 export type OrigemPlanejamentoTurnoV2 = 'aberto' | 'ultimo_encerrado'
-export type OrigemApontamentoProducaoV2 = 'operador_qr' | 'supervisor_manual'
+export type OrigemApontamentoProducaoV2 =
+  | 'operador_qr'
+  | 'operador_manual'
+  | 'supervisor_manual'
 export type TurnoOpStatusV2 =
   | 'planejada'
   | 'em_andamento'

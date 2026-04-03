@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,13 +13,15 @@ import {
 } from 'lucide-react'
 import { ConfirmacaoRegistro } from '@/components/scanner/ConfirmacaoRegistro'
 import { QRScanner } from '@/components/scanner/QRScanner'
+import { SelecaoOperadorManual } from '@/components/scanner/SelecaoOperadorManual'
 import { SelecaoDemandaScanner } from '@/components/scanner/SelecaoDemandaScanner'
 import { SelecaoOperacaoScanner } from '@/components/scanner/SelecaoOperacaoScanner'
 import { useScanner } from '@/hooks'
 import { registrarProducaoOperacao } from '@/lib/actions/producao'
+import { listarOperadoresAtivosScanner } from '@/lib/queries/scanner'
 import { isScannerV2Enabled } from '@/lib/utils/feature-flags'
 import { descreverTipoQRCode } from '@/lib/utils/qrcode'
-import type { QRScanResult, QRTipo } from '@/types'
+import type { OperadorScaneado, QRScanResult, QRTipo } from '@/types'
 
 const ETAPAS_FLUXO = [
   { id: 'scan_setor', label: 'Setor' },
@@ -125,12 +127,16 @@ export default function ScannerPage() {
   const scannerV2Habilitado = isScannerV2Enabled()
   const [mensagemTela, setMensagemTela] = useState<string | null>(null)
   const [tipoMensagem, setTipoMensagem] = useState<'erro' | 'sucesso'>('erro')
+  const [fallbackOperadorAberto, setFallbackOperadorAberto] = useState(false)
+  const [carregandoOperadoresFallback, setCarregandoOperadoresFallback] = useState(false)
+  const [operadoresFallback, setOperadoresFallback] = useState<OperadorScaneado[]>([])
   const {
     estado,
     erro,
     estaCarregando,
     scanSetor,
     scanOperador,
+    selecionarOperadorManual,
     selecionarDemanda,
     selecionarOperacao,
     registrar,
@@ -141,6 +147,41 @@ export default function ScannerPage() {
   } = useScanner({ onRegistrar: registrarProducaoOperacao })
 
   const etapaAtual = ETAPAS_CONFIG[estado.etapa]
+
+  useEffect(() => {
+    if (estado.etapa !== 'scan_operador') {
+      setFallbackOperadorAberto(false)
+      return
+    }
+
+    if (!fallbackOperadorAberto || operadoresFallback.length > 0) {
+      return
+    }
+
+    let cancelado = false
+
+    async function carregarOperadoresAtivos() {
+      setCarregandoOperadoresFallback(true)
+
+      try {
+        const operadoresAtivos = await listarOperadoresAtivosScanner()
+
+        if (!cancelado) {
+          setOperadoresFallback(operadoresAtivos)
+        }
+      } finally {
+        if (!cancelado) {
+          setCarregandoOperadoresFallback(false)
+        }
+      }
+    }
+
+    void carregarOperadoresAtivos()
+
+    return () => {
+      cancelado = true
+    }
+  }, [estado.etapa, fallbackOperadorAberto, operadoresFallback.length])
 
   const mensagemAtiva = useMemo(() => {
     if (erro) {
@@ -365,6 +406,40 @@ export default function ScannerPage() {
                 setMensagemTela(mensagem)
               }}
             />
+
+            {estado.etapa === 'scan_operador' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setFallbackOperadorAberto((estadoAtual) => !estadoAtual)}
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                >
+                  {fallbackOperadorAberto
+                    ? 'Fechar seleção manual'
+                    : 'Selecionar operador manualmente'}
+                </button>
+
+                {fallbackOperadorAberto ? (
+                  <SelecaoOperadorManual
+                    carregando={carregandoOperadoresFallback}
+                    operadores={operadoresFallback}
+                    onFechar={() => setFallbackOperadorAberto(false)}
+                    onSelecionarOperador={async (operadorId) => {
+                      const resposta = await selecionarOperadorManual(operadorId)
+
+                      if (!resposta.sucesso && resposta.erro) {
+                        setTipoMensagem('erro')
+                        setMensagemTela(resposta.erro)
+                        return
+                      }
+
+                      setMensagemTela(null)
+                      setFallbackOperadorAberto(false)
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
           </section>
         ) : estado.etapa === 'selecionar_demanda' ? (
           <SelecaoDemandaScanner
