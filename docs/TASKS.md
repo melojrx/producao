@@ -1792,3 +1792,76 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** Na UI real de produtos, o sistema diferencia corretamente exclusão permanente e arquivamento, bloqueia produtos em uso ou com histórico e preserva a leitura histórica após o arquivamento.
   Homologação manual confirmada pelo usuário em `2026-04-03`: o CRUD real de produtos validou os três cenários de ciclo de vida, com exclusão permanente apenas para produto virgem, bloqueio de exclusão para produto com histórico com opção de arquivamento preservada, e bloqueio simultâneo de arquivamento e exclusão para produto em turno aberto, mantendo a leitura histórica acessível após o arquivamento.
+
+## SPRINT 21 — Relatório operacional de QR Codes do turno
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 20 concluída.
+**Objetivo:** retirar os QRs operacionais da dashboard pública da fábrica e movê-los para uma página própria de visualização e impressão, adequada ao fluxo do supervisor após a abertura do turno.
+
+- [x] **21.1 — Formalizar no PRD a separação entre dashboard pública e relatório de QRs**
+  Entregas mínimas:
+  - registrar que a dashboard da fábrica não deve exibir QRs operacionais
+  - registrar a nova página `/admin/qrcodes` como superfície de impressão
+  - registrar o redirecionamento pós-abertura de turno para o relatório de QRs
+  - registrar a escolha de presets de impressão
+
+  Regras:
+  - o QR continua pertencendo ao contexto `turno + setor`
+  - a mudança é de superfície de visualização, não de contrato de geração
+  - a dashboard da TV deve permanecer focada em monitoramento
+
+  **Evidência:** `docs/PRD.md` passa a distinguir explicitamente monitoramento em TV e impressão operacional de QRs.
+  Formalizado em `docs/PRD.md` nas seções de abertura do turno, relatório operacional de QR Codes e comportamento da dashboard, documentando a remoção dos QRs da TV e a nova rota `/admin/qrcodes`.
+
+- [x] **21.2 — Remover os QRs operacionais da dashboard V2**
+  Entregas mínimas:
+  - retirar o bloco de QRs da dashboard principal
+  - preservar os KPIs, gráficos e blocos de progresso sem regressão
+  - evitar impacto no restante do monitoramento em tempo real
+
+  Regras:
+  - a remoção deve ser cirúrgica
+  - não alterar o contrato de geração do QR
+
+  **Evidência:** `/admin/dashboard` deixa de renderizar os QRs operacionais e permanece exibindo apenas o monitoramento do turno.
+  Implementado em `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, removendo o bloco `QROperacionaisTurnoV2` sem tocar nos demais blocos da dashboard.
+
+- [x] **21.3 — Criar a página `/admin/qrcodes` com presets de impressão**
+  Entregas mínimas:
+  - carregar o turno por `turnoId` ou usar o turno aberto atual
+  - exibir os QRs por setor do turno
+  - permitir presets como `1`, `2`, `4`, `6`, `8` e `12` por página
+  - expor ação explícita de impressão
+
+  Regras:
+  - a página deve priorizar legibilidade do QR e identificação do setor
+  - a implementação não deve duplicar lógica de geração do QR
+  - a página deve permanecer utilizável para reimpressão posterior
+
+  **Evidência:** `/admin/qrcodes` renderiza os QRs operacionais do turno e permite alternar o layout de impressão sem recriar o turno.
+  Implementado em `app/admin/qrcodes/page.tsx`, `app/(admin)/qrcodes/page.tsx` e `components/qrcode/RelatorioQRCodesTurno.tsx`, reutilizando `buscarPlanejamentoTurnoPorId()`, `buscarTurnoAberto()` e `mapearSetoresTurnoParaDashboard()`.
+
+- [x] **21.4 — Redirecionar o supervisor para o relatório de QRs após abrir um novo turno**
+  Entregas mínimas:
+  - usar o `turnoId` retornado na abertura do turno
+  - trocar o pós-save do modal de novo turno
+  - manter fallback seguro caso o `turnoId` não venha preenchido
+
+  Regras:
+  - o supervisor deve cair no relatório de QRs antes de voltar ao monitoramento da TV
+  - a alteração não pode quebrar o fluxo de abertura do turno
+
+  **Evidência:** Após abrir um turno com sucesso, a navegação passa a seguir para `/admin/qrcodes?turnoId=...`.
+  Implementado em `components/dashboard/ModalNovoTurnoV2.tsx`, usando o `turnoId` já retornado por `abrirTurnoFormulario`.
+
+- [x] **21.5 — Expor acesso manual ao relatório de QRs**
+  Entregas mínimas:
+  - permitir reabrir a página de QRs depois da criação do turno
+  - disponibilizar acesso administrativo sem poluir a dashboard da TV
+
+  Regras:
+  - o acesso manual não depende de recriar turno
+  - a solução deve ser simples e previsível
+
+  **Evidência:** O supervisor consegue abrir manualmente a página de QRs a partir da navegação administrativa.
+  Implementado em `components/admin/AdminShell.tsx`, adicionando o item de navegação `/admin/qrcodes`.

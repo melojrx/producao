@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { AlertTriangle, CalendarClock, PackagePlus, Plus, Trash2, Users, X } from 'lucide-react'
 import { abrirTurnoFormulario } from '@/lib/actions/turnos'
 import { calcularDimensionamentoPessoasPorSetor } from '@/lib/utils/dimensionamento-pessoas-setor'
@@ -85,7 +85,6 @@ export function ModalNovoTurnoV2({
   bloqueante = false,
   aoFechar,
 }: ModalNovoTurnoV2Props) {
-  const pathname = usePathname()
   const router = useRouter()
   const [estado, executar, pendente] = useActionState(abrirTurnoFormulario, estadoInicial)
   const [erroLocal, setErroLocal] = useState<string | null>(null)
@@ -115,13 +114,13 @@ export function ModalNovoTurnoV2({
       aoFechar()
     }
 
-    if (pathname === '/admin/dashboard') {
-      router.refresh()
+    if (estado.turnoId) {
+      router.replace(`/admin/qrcodes?turnoId=${estado.turnoId}`)
       return
     }
 
-    router.replace('/admin/dashboard')
-  }, [aoFechar, estado.sucesso, pathname, router])
+    router.replace('/admin/qrcodes')
+  }, [aoFechar, estado.sucesso, estado.turnoId, router])
 
   useEffect(() => {
     if (pendenciasDisponiveis.length === 0) {

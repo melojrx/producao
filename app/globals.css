@@ -27,6 +27,18 @@ body {
   font-family: var(--font-sans-app);
 }
 
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+}
+
 @layer base {
   input,
   select,

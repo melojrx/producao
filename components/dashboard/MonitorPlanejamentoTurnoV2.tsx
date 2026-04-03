@@ -12,7 +12,6 @@ import { CardKPI } from '@/components/dashboard/CardKPI'
 import { EficienciaOperacionalTurnoV2 } from '@/components/dashboard/EficienciaOperacionalTurnoV2'
 import { GraficoMetaGrupoTurnoV2 } from '@/components/dashboard/GraficoMetaGrupoTurnoV2'
 import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurno'
-import { QROperacionaisTurnoV2 } from '@/components/dashboard/QROperacionaisTurnoV2'
 import { ResumoPlanejamentoTurnoV2 } from '@/components/dashboard/ResumoPlanejamentoTurnoV2'
 import { useMetaGrupoTurnoV2 } from '@/hooks/useMetaGrupoTurnoV2'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
@@ -458,8 +457,6 @@ export function MonitorPlanejamentoTurnoV2({
           Nenhum turno disponível para monitoramento neste momento.
         </section>
       ) : null}
-
-      <QROperacionaisTurnoV2 planejamento={planejamento} />
 
       {opSelecionada && planejamento ? (
         <ModalDetalhesOpTurno

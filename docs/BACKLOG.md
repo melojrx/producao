@@ -30,10 +30,11 @@
 | 18 | Ajuste cirúrgico do input de quantidade no scanner | ✅ Concluída | 1 |
 | 19 | Cadastro de produto orientado por setores | ✅ Concluída | 3 |
 | 20 | Ciclo de vida e exclusão segura de produtos | ✅ Concluída | 2 |
+| 21 | Relatório operacional de QR Codes do turno | ✅ Concluída | 2 |
 
-**Total estimado: 44 dias úteis**
+**Total estimado: 46 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 

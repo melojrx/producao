@@ -146,7 +146,7 @@ Resultado:
 - o sistema deriva automaticamente a estrutura operacional necessária sem duplicar setores já ativos no turno
 - o sistema pode sugerir o dimensionamento de pessoas por setor antes da confirmação do turno
 - nesta primeira etapa, o dimensionamento por setor é apenas uma prévia operacional e não altera a gravação do turno
-- após salvar um novo turno a partir de `/admin/apontamentos`, a navegação deve retornar o usuário para `/admin/dashboard`, que é o ponto primário de monitoramento do turno recém-aberto
+- após salvar um novo turno, a navegação deve levar o supervisor para o relatório operacional de QR Codes do turno recém-aberto, onde ele escolhe como imprimir os QRs antes de voltar ao monitoramento da dashboard
 
 ### 5.2.1 Prévia de pessoas por setor
 
@@ -233,6 +233,26 @@ Impacto esperado:
 - novos QRs só precisam ficar disponíveis quando houver entrada de um setor novo no turno
 - scanner e `/admin/apontamentos` passam a aceitar lançamentos para a nova OP assim que ela for salva
 
+### 5.2.3 Relatório operacional de QR Codes
+
+Como a dashboard ficará exposta continuamente em uma TV no chão de fábrica, os QRs operacionais não devem permanecer visíveis nela.
+
+Fluxo alvo:
+- supervisor cria um novo turno
+- sistema deriva os setores ativos e gera os QRs temporários do turno
+- ao concluir a abertura, o sistema redireciona o supervisor para `/admin/qrcodes`
+- nessa página, o supervisor escolhe o layout de impressão dos QRs
+- depois da impressão, o supervisor retorna para `/admin/dashboard`
+
+Regras obrigatórias:
+- a dashboard V2 não deve exibir cards de QR operacional
+- a página `/admin/qrcodes` é a fonte operacional para visualização e impressão dos QRs do turno
+- a impressão deve permitir presets objetivos como `1`, `2`, `4`, `6`, `8` ou `12` QRs por página
+- o QR continua pertencendo ao contexto `turno + setor`; a mudança é apenas de superfície de visualização/impressão
+- a geração do QR não muda de contrato nem de token por causa da impressão
+- o supervisor deve poder reabrir o relatório de QRs depois, sem precisar recriar o turno
+- a página de impressão deve priorizar legibilidade do QR e identificação clara do setor
+
 ### 5.3 Execução no chão de fábrica
 
 ```
@@ -316,6 +336,7 @@ Durante a execução, a dashboard acompanha em tempo real:
 - eficiência por hora por operador/operação e eficiência do dia por operador, em blocos próprios e sem misturar esses indicadores com o progresso operacional da OP
 - pendências e seções encerradas
 - setores apresentados na ordem estrutural do fluxo, usando `setor.codigo` crescente como referência visual principal
+- sem exibir os QRs operacionais como cards permanentes, já que a dashboard é uma superfície pública de monitoramento contínuo na TV
 
 Com edição de turno aberto, a dashboard também precisa:
 - permitir incluir novas OPs sem perder o contexto do turno atual
@@ -751,7 +772,7 @@ Interface administrativa de captura incremental da produção.
 - cada linha contém operador, operação e quantidade
 - gravação transacional dos lançamentos
 - atualização imediata da operação, seção, OP, turno, dashboard e relatórios
-- quando o supervisor abrir um novo turno a partir desta rota, o pós-save deve redirecionar para `/admin/dashboard` para manter o monitoramento no contexto principal
+- quando o supervisor abrir um novo turno a partir desta rota, o pós-save deve redirecionar para `/admin/qrcodes` para imprimir os QRs operacionais antes de retornar ao monitor da TV
 
 ### 8.4 Cadastro de Setores (/admin/setores)
 

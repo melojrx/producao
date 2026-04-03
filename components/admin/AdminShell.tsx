@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   Package,
+  QrCode,
   Settings2,
   ShieldCheck,
   ShieldUser,
@@ -32,6 +33,7 @@ const navLinks = [
   { href: '/admin/maquinas', label: 'Máquinas', icon: Settings2 },
   { href: '/admin/operacoes', label: 'Operações', icon: Wrench },
   { href: '/admin/produtos', label: 'Produtos', icon: Package },
+  { href: '/admin/qrcodes', label: 'QR Codes', icon: QrCode },
   { href: '/admin/relatorios', label: 'Relatórios', icon: FileBarChart2 },
   { href: '/admin/usuarios', label: 'Usuários', icon: ShieldUser, adminOnly: true },
 ]
@@ -72,17 +74,17 @@ export function AdminShell({
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 print:block print:min-h-0 print:bg-white">
       {sidebarOpen ? (
         <div
-          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-20 bg-black/40 lg:hidden print:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-white shadow-lg transition-[width,transform] duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-white shadow-lg transition-[width,transform] duration-200 print:hidden lg:static lg:translate-x-0 ${
           sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
         } ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -144,8 +146,8 @@ export function AdminShell({
         </nav>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 lg:px-6">
+      <div className="flex min-w-0 flex-1 flex-col print:block">
+        <header className="flex h-16 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 print:hidden lg:px-6">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -204,7 +206,7 @@ export function AdminShell({
           ) : null}
         </header>
 
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-4 print:p-0 lg:p-6">{children}</main>
       </div>
     </div>
   )
