@@ -1594,7 +1594,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** A dashboard V2 passa a exibir um bloco separado de `Eficiência operacional`, com tabela horária e resumo diário por operador, sem ambiguidade visual com `progresso operacional` e `peças completas`.
   Implementado em `components/dashboard/EficienciaOperacionalTurnoV2.tsx` e integrado ao fluxo principal da dashboard por `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, com consumo do snapshot novo propagado por `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts` e `types/index.ts`. O bloco foi mantido separado da área de progresso da OP, exibindo `Eficiência por hora` em tabela própria e `Eficiência do dia por operador` em resumo dedicado. Validação técnica concluída em `2026-04-03` com `npx tsc --noEmit` sem erros.
 
-- [ ] **17.4 — Homologar os KPIs de eficiência com turnos reais e jornadas variáveis**
+- [x] **17.4 — Homologar os KPIs de eficiência com turnos reais e jornadas variáveis**
   Entregas mínimas:
   - validar turno com `minutos_turno` diferente de `510`
   - validar operador com uma única operação na hora
@@ -1607,3 +1607,4 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - os números exibidos na UI e nas queries devem contar a mesma história
 
   **Evidência:** Em turnos reais com jornadas configuradas no banco, a dashboard V2 passa a exibir `Eficiência por hora` e `Eficiência do dia` coerentes entre si, inclusive quando um operador troca de operação dentro da mesma hora.
+  Homologação manual registrada em `2026-04-03`: a UI da dashboard V2 confirmou o bloco `Eficiência operacional` com jornada real do turno, leitura horária por `hora + operador + operação`, consolidação diária por operador e comportamento correto quando o mesmo operador alterna operações dentro da mesma hora, sem mistura com o KPI de progresso operacional da OP.
