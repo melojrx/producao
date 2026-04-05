@@ -1668,6 +1668,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 **Objetivo:** refatorar o cadastro de produto para montar o roteiro por setores, deixando explícita a composição `setor -> operações`, preservando o payload atual do roteiro e mantendo o `T.P Produto` como cálculo automático de apoio visual.
 
 **Nota de replanejamento:** a execução foi pausada em `2026-04-03` após a conclusão da `19.2`, por decisão do usuário, para priorizar a Sprint 20 de ciclo de vida/exclusão de produtos. Após a homologação da Sprint 20, as HUs `19.3` e `19.4` foram retomadas e concluídas.
+**Nota de melhoria incremental em `2026-04-05`:** após a homologação da UX base do cadastro por setores, foi identificada a necessidade de busca local de operações dentro do setor, para suportar catálogos com centenas de operações sem depender de rolagem extensa.
 
 - [x] **HU 19.1 — Formalizar o contrato da nova UX do cadastro de produto**
   Entregas mínimas:
@@ -1729,6 +1730,22 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** Na UI real de `/admin/produtos`, o usuário consegue montar o produto por setores, escolher operações por setor, visualizar o `T.P Produto` em tempo real e salvar/editar o roteiro sem perder clareza nem compatibilidade com os dados existentes.
   Homologação manual confirmada pelo usuário em `2026-04-03`: a UX real de `/admin/produtos` foi validada com criação e edição preservando a ordem `setor -> operações`, o `T.P Produto` em tempo real e a compatibilidade do roteiro persistido. Por decisão explícita de produto, `imagem_url` permanece oculta no modal por enquanto; o bloco visual foi preservado comentado em `components/ui/ModalProduto.tsx` para reintrodução futura junto ao fluxo de inclusão real da imagem.
+
+- [x] **HU 19.5 — Permitir busca de operações dentro do setor no cadastro de produto**
+  Entregas mínimas:
+  - adicionar um campo de busca no bloco de seleção de operações do setor ativo
+  - filtrar as operações daquele setor por código, descrição e termos relevantes de identificação
+  - manter visíveis e preservadas as operações já selecionadas mesmo quando a busca estiver ativa
+  - garantir que a UX continue viável com catálogos grandes, sem depender de rolagem extensa
+
+  Regras:
+  - a busca deve atuar apenas sobre as operações do setor atualmente selecionado
+  - a filtragem não pode limpar nem reordenar as operações já escolhidas pelo usuário
+  - a busca deve ser responsiva e pensada para cenários com centenas de operações por setor
+  - a melhoria não pode quebrar o contrato atual de persistência nem a ordenação oficial `setor -> operações`
+
+  **Evidência:** No modal de produto, ao selecionar um setor com grande volume de operações, o usuário consegue localizar rapidamente a operação desejada por busca textual, sem perder as seleções já feitas nem depender de rolagem manual longa.
+  Implementado em `components/ui/ModalProduto.tsx` em `2026-04-05`, adicionando busca local de operações no setor ativo com filtro por `codigo`, `descricao` e `tipoNome`, resumo de quantidade visível e preservação das operações já selecionadas mesmo com filtro ativo. Validação concluída com `npx tsc --noEmit` sem erros.
 
 ## SPRINT 20 — Ciclo de vida e exclusão segura de produtos
 **Status:** ✅ Concluída

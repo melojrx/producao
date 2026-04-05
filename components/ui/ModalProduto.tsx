@@ -108,6 +108,7 @@ export function ModalProduto({
     produtoInicial ? produtoInicial.roteiro.map((item) => item.operacaoId) : []
   )
   const [buscaSetor, setBuscaSetor] = useState('')
+  const [buscaOperacao, setBuscaOperacao] = useState('')
   const [setoresSelecionadosIds, setSetoresSelecionadosIds] = useState<string[]>(() =>
     deduplicarSetoresIniciais(produtoInicial)
   )
@@ -139,6 +140,10 @@ export function ModalProduto({
       setSetorAtivoId(primeiroSetorSelecionadoId)
     }
   }, [primeiroSetorSelecionadoId, setorAtivoId, setoresSelecionadosIds])
+
+  useEffect(() => {
+    setBuscaOperacao('')
+  }, [setorAtivoId])
 
   const roteiroIdsOrdenados = setoresDisponiveis.flatMap((setor) =>
     roteiroIds.filter((operacaoId) => operacoesPorId.get(operacaoId)?.setor_id === setor.id)
@@ -173,6 +178,19 @@ export function ModalProduto({
   )
   const setorAtivo = setorAtivoId ? setoresPorId.get(setorAtivoId) ?? null : null
   const operacoesDoSetorAtivo = setorAtivo?.operacoes ?? []
+  const termoBuscaOperacao = buscaOperacao.trim().toLocaleLowerCase()
+  const operacoesFiltradasDoSetorAtivo = operacoesDoSetorAtivo.filter((operacao) => {
+    if (!termoBuscaOperacao) {
+      return true
+    }
+
+    const correspondeAoTermo =
+      operacao.codigo.toLocaleLowerCase().includes(termoBuscaOperacao) ||
+      operacao.descricao.toLocaleLowerCase().includes(termoBuscaOperacao) ||
+      (operacao.tipoNome?.toLocaleLowerCase().includes(termoBuscaOperacao) ?? false)
+
+    return correspondeAoTermo || roteiroIds.includes(operacao.id)
+  })
   const modoEdicao = !!produto
   const modoDuplicacao = !produto && !!produtoBase
 
@@ -436,6 +454,32 @@ export function ModalProduto({
                     : 'Escolha um setor acima para selecionar as operacoes.'}
                 </p>
               </div>
+              {setorAtivo ? (
+                <div className="border-b border-gray-100 px-4 py-3">
+                  <label htmlFor="busca-operacao" className="text-sm font-medium text-gray-700">
+                    Buscar operacao no setor
+                  </label>
+                  <div className="relative mt-2">
+                    <Search
+                      size={16}
+                      className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
+                    />
+                    <input
+                      id="busca-operacao"
+                      type="text"
+                      value={buscaOperacao}
+                      onChange={(event) => setBuscaOperacao(event.target.value)}
+                      placeholder="Digite codigo, descricao ou tipo"
+                      className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {termoBuscaOperacao
+                      ? `${operacoesFiltradasDoSetorAtivo.length} de ${operacoesDoSetorAtivo.length} operacoes visiveis. Operacoes ja selecionadas continuam disponiveis.`
+                      : `${operacoesDoSetorAtivo.length} operacoes disponiveis neste setor.`}
+                  </p>
+                </div>
+              ) : null}
               <div className="max-h-[360px] overflow-y-auto">
                 {!setorAtivo ? (
                   <div className="px-4 py-10 text-center text-sm text-gray-400">
@@ -445,8 +489,12 @@ export function ModalProduto({
                   <div className="px-4 py-10 text-center text-sm text-gray-400">
                     Nenhuma operacao disponivel neste setor.
                   </div>
+                ) : operacoesFiltradasDoSetorAtivo.length === 0 ? (
+                  <div className="px-4 py-10 text-center text-sm text-gray-400">
+                    Nenhuma operacao encontrada para o termo informado neste setor.
+                  </div>
                 ) : (
-                  operacoesDoSetorAtivo.map((operacao) => {
+                  operacoesFiltradasDoSetorAtivo.map((operacao) => {
                     const selecionada = roteiroIds.includes(operacao.id)
 
                     return (
