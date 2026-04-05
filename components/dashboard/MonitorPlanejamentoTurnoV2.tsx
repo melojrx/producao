@@ -7,6 +7,7 @@ import {
 } from '@/components/dashboard/DashboardTabs'
 import { DashboardOperadoresTab } from '@/components/dashboard/DashboardOperadoresTab'
 import { DashboardVisaoGeralTab } from '@/components/dashboard/DashboardVisaoGeralTab'
+import { DashboardVisaoOperacionalTab } from '@/components/dashboard/DashboardVisaoOperacionalTab'
 import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurno'
 import { ResumoPlanejamentoTurnoV2 } from '@/components/dashboard/ResumoPlanejamentoTurnoV2'
 import { useMetaGrupoTurnoV2 } from '@/hooks/useMetaGrupoTurnoV2'
@@ -15,6 +16,7 @@ import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
 import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
+  MetaMensalResumoDashboard,
   PlanejamentoTurnoDashboardV2,
   ProdutoListItem,
   TurnoOpV2,
@@ -23,6 +25,7 @@ import type {
 
 interface MonitorPlanejamentoTurnoV2Props {
   initialPlanning: PlanejamentoTurnoDashboardV2 | null
+  resumoMetaMensal: MetaMensalResumoDashboard
   produtosCatalogo: ProdutoListItem[]
 }
 
@@ -67,9 +70,9 @@ function ordenarSecoes(secoes: SecaoComContexto[]): SecaoComContexto[] {
   })
 }
 
-
 export function MonitorPlanejamentoTurnoV2({
   initialPlanning,
+  resumoMetaMensal,
   produtosCatalogo,
 }: MonitorPlanejamentoTurnoV2Props) {
   const [abaAtiva, setAbaAtiva] = useState<DashboardTabId>('visao_geral')
@@ -173,43 +176,37 @@ export function MonitorPlanejamentoTurnoV2({
 
   return (
     <section className="space-y-6">
-      {!planejamento ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-          Nenhum turno disponível para monitoramento neste momento.
-        </div>
-      ) : null}
-
       {erro ? (
         <section className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {erro}
         </section>
       ) : null}
 
-      <ResumoPlanejamentoTurnoV2
-        planejamento={planejamento}
-        statusConexao={statusConexao}
-        ultimaAtualizacao={ultimaAtualizacao}
-      />
+      {planejamento ? (
+        <ResumoPlanejamentoTurnoV2
+          planejamento={planejamento}
+          statusConexao={statusConexao}
+          ultimaAtualizacao={ultimaAtualizacao}
+        />
+      ) : null}
 
       <DashboardTabs abaAtiva={abaAtiva} onChange={setAbaAtiva} />
 
-      {planejamento ? (
-        <>
-          {abaAtiva === 'visao_geral' ? (
-            <DashboardVisaoGeralTab
-              turnoAberto={turnoAberto}
-              metaGrupo={metaGrupo}
-              mediaTpProduto={mediaTpProduto}
-              resumo={resumo}
-              erroMetaGrupo={erroMetaGrupo}
-              comparativoPorHora={comparativoPorHora}
-              estaCarregandoGrafico={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
-              onSelecionarOp={setTurnoOpSelecionadaId}
-            />
-          ) : (
-            <DashboardOperadoresTab resumo={planejamento.eficienciaOperacional} />
-          )}
-        </>
+      {abaAtiva === 'visao_geral' ? (
+        <DashboardVisaoGeralTab resumoMetaMensal={resumoMetaMensal} />
+      ) : abaAtiva === 'visao_operacional' && planejamento ? (
+        <DashboardVisaoOperacionalTab
+          turnoAberto={turnoAberto}
+          metaGrupo={metaGrupo}
+          mediaTpProduto={mediaTpProduto}
+          resumo={resumo}
+          erroMetaGrupo={erroMetaGrupo}
+          comparativoPorHora={comparativoPorHora}
+          estaCarregandoGrafico={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
+          onSelecionarOp={setTurnoOpSelecionadaId}
+        />
+      ) : abaAtiva === 'operadores' && planejamento ? (
+        <DashboardOperadoresTab resumo={planejamento.eficienciaOperacional} />
       ) : !estaCarregando ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Nenhum turno disponível para monitoramento neste momento.

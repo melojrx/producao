@@ -125,6 +125,36 @@ export type Database = {
           },
         ]
       }
+      metas_mensais: {
+        Row: {
+          competencia: string
+          created_at: string | null
+          dias_produtivos: number
+          id: string
+          meta_pecas: number
+          observacao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          competencia: string
+          created_at?: string | null
+          dias_produtivos: number
+          id?: string
+          meta_pecas: number
+          observacao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          competencia?: string
+          created_at?: string | null
+          dias_produtivos?: number
+          id?: string
+          meta_pecas?: number
+          observacao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       turno_operadores: {
         Row: {
           created_at: string | null

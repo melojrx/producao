@@ -1,16 +1,26 @@
 import { ClipboardList } from 'lucide-react'
+import { ApontamentosTabs } from '@/components/apontamentos/ApontamentosTabs'
 import { ControleTurnoSupervisor } from '@/components/apontamentos/ControleTurnoSupervisor'
 import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelApontamentosSupervisor'
+import { PainelMetaMensalApontamentos } from '@/components/apontamentos/PainelMetaMensalApontamentos'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
+import { buscarMetaMensalCompetencia } from '@/lib/queries/metas-mensais'
 import { listarOperadores } from '@/lib/queries/operadores'
 import { listarProdutos } from '@/lib/queries/produtos'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
+import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/utils/data'
 import type {
   OperadorListItem,
   PlanejamentoTurnoDashboardV2,
   PlanejamentoTurnoV2,
   TurnoOperadorV2,
 } from '@/types'
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>
+
+function valorString(param: string | string[] | undefined): string {
+  return typeof param === 'string' ? param : ''
+}
 
 function mapearOperadoresFallback(
   planejamento: PlanejamentoTurnoV2,
@@ -30,10 +40,18 @@ function mapearOperadoresFallback(
     }))
 }
 
-export default async function AdminApontamentosPage() {
-  const [planejamentoAtual, produtos] = await Promise.all([
+export default async function AdminApontamentosPage(props: {
+  searchParams: SearchParams
+}) {
+  const resolvedSearchParams = await props.searchParams
+  const competenciaSelecionada =
+    normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
+    obterCompetenciaMesAtual()
+
+  const [planejamentoAtual, produtos, contextoMetaMensal] = await Promise.all([
     buscarTurnoAbertoOuUltimoEncerrado(),
     listarProdutos(),
+    buscarMetaMensalCompetencia(competenciaSelecionada),
   ])
   const planejamento =
     planejamentoAtual?.origem === 'aberto'
@@ -42,20 +60,32 @@ export default async function AdminApontamentosPage() {
 
   if (!planejamento) {
     return (
-      <main className="w-full space-y-6">
-        <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-            <ClipboardList size={14} />
-            Apontamentos indisponíveis
-          </div>
-          <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            O painel de lançamento fica disponível quando existe um turno aberto. Use os controles
-            acima para abrir o próximo turno e liberar as seções, operações derivadas e o registro
-            incremental do supervisor.
-          </p>
-        </section>
+      <main className="w-full">
+        <ApontamentosTabs
+          gestaoMensal={
+            <PainelMetaMensalApontamentos
+              competencia={contextoMetaMensal.competencia}
+              metaMensal={contextoMetaMensal.metaMensal}
+            />
+          }
+          operacaoTurno={
+            <section className="space-y-4" aria-label="Área operacional de apontamentos">
+              <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <ClipboardList size={14} />
+                  Apontamentos indisponíveis
+                </div>
+                <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
+                <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                  O painel de lançamento fica disponível quando existe um turno aberto. Use os
+                  controles acima para abrir o próximo turno e liberar as seções, operações
+                  derivadas e o registro incremental do supervisor.
+                </p>
+              </section>
+            </section>
+          }
+        />
       </main>
     )
   }
@@ -71,12 +101,24 @@ export default async function AdminApontamentosPage() {
     : planejamento
 
   return (
-    <main className="w-full space-y-6">
-      <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
-      <PainelApontamentosSupervisor
-        planejamento={planejamentoComOperadores}
-        operacoesTurno={operacoesTurno}
-        origemOperadores={precisaFallbackOperadores ? 'fallback_ativos' : 'turno'}
+    <main className="w-full">
+      <ApontamentosTabs
+        gestaoMensal={
+          <PainelMetaMensalApontamentos
+            competencia={contextoMetaMensal.competencia}
+            metaMensal={contextoMetaMensal.metaMensal}
+          />
+        }
+        operacaoTurno={
+          <section className="space-y-4" aria-label="Área operacional de apontamentos">
+            <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
+            <PainelApontamentosSupervisor
+              planejamento={planejamentoComOperadores}
+              operacoesTurno={operacoesTurno}
+              origemOperadores={precisaFallbackOperadores ? 'fallback_ativos' : 'turno'}
+            />
+          </section>
+        }
       />
     </main>
   )

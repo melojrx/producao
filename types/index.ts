@@ -49,6 +49,52 @@ export interface FormActionState {
   sucesso?: boolean
 }
 
+export interface MetaMensal {
+  id: string
+  competencia: string
+  metaPecas: number
+  diasProdutivos: number
+  observacao: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface MetaMensalActionState extends FormActionState {
+  metaMensal?: MetaMensal
+}
+
+export interface MetaMensalEvolucaoDiariaItem {
+  data: string
+  diaLabel: string
+  metaDiariaMedia: number
+  metaAcumuladaReferencia: number
+  realizadoDia: number
+  realizadoAcumulado: number
+  atingimentoAcumuladoPct: number
+}
+
+export interface MetaMensalResumoSemanalItem {
+  semana: string
+  periodo: string
+  metaReferenciaSemana: number
+  realizadoSemana: number
+  realizadoAcumulado: number
+  atingimentoAcumuladoPct: number
+}
+
+export interface MetaMensalResumoDashboard {
+  competencia: string
+  metaMensal: MetaMensal | null
+  metaPecas: number
+  diasProdutivos: number
+  metaDiariaMedia: number
+  alcancadoMes: number
+  saldoMes: number
+  atingimentoPct: number
+  evolucaoDiaria: MetaMensalEvolucaoDiariaItem[]
+  resumoSemanal: MetaMensalResumoSemanalItem[]
+}
+
 export interface QRScanResult {
   tipo: QRTipo
   token: string

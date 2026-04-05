@@ -2162,3 +2162,190 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - não considerar a sprint concluída sem evidência textual da consolidação do vocabulário visual
 
   **Evidência:** O admin homologado passa a exibir consistência visual entre dashboard, CRUDs, relatórios, apontamentos e QR Codes, com `npx tsc --noEmit` passando e com exceções remanescentes formalmente documentadas.
+
+## SPRINT 24 — Meta mensal global da fábrica
+**Status:** 🔄 Em execução
+**Pré-requisito:** realinhamento documental concluído e confirmação explícita do usuário para abertura oficial da sprint.
+**Objetivo:** introduzir a meta mensal global da fábrica como leitura gerencial principal da dashboard, com acompanhamento acumulado diário e semanal por calendário do mês, sem depender da existência de turno ativo.
+
+**Nota de abertura em `2026-04-05`:**
+- esta sprint foi aberta por confirmação explícita do usuário para iniciar pela `HU 24.1`
+- a Sprint 23 permanece documentada em `realinhamento documental`, mas deixa de ser a frente de execução atual
+- o bloco abaixo passa a reger a implementação da frente de `Meta Mensal`
+
+**Decisões de produto já homologadas para esta proposta:**
+- a meta mensal é global da fábrica
+- o `alcançado` mensal deve usar a soma da quantidade concluída consolidada por `OP/dia`, e não apontamentos brutos
+- a meta mensal deve registrar a quantidade de `dias produtivos` da competência no momento do lançamento
+- a evolução semanal deve respeitar as semanas do calendário do mês
+- a aba `Visão Geral` da dashboard passa a ser a superfície gerencial de meta mensal
+- o conteúdo atual da `Visão Geral` deve migrar para a aba `Visão Operacional`
+- a gestão de cadastro e edição da meta mensal fica em `/admin/apontamentos`, atuando sobre a competência selecionada
+- a leitura mensal deve continuar disponível mesmo sem turno ativo
+- a `Visão Geral` deve abrir por padrão no mês corrente
+- a dashboard deve permitir navegar entre competências mensais
+- a dashboard permanece como superfície de leitura gerencial da competência selecionada
+
+- [x] **HU 24.1 — Como supervisor/admin, quero cadastrar a meta mensal global da fábrica informando competência, meta em peças e dias produtivos, para definir a referência gerencial oficial do mês.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - criar a modelagem persistida de `meta mensal` com unicidade por competência
+  - registrar no schema pelo menos:
+    - competência
+    - meta mensal em peças
+    - dias produtivos do mês
+    - observação opcional
+    - timestamps de auditoria
+  - gerar os `types` TypeScript correspondentes
+  - validar regras de domínio:
+    - uma meta por competência
+    - `meta_mensal > 0`
+    - `dias_produtivos > 0`
+    - `dias_produtivos` não pode ultrapassar a quantidade de dias do mês da competência
+  - criar action administrativa para cadastrar a meta mensal
+  - vincular o cadastro à competência selecionada na superfície administrativa de lançamento
+  - garantir mensagens claras para competência duplicada, meta inválida e dias produtivos inválidos
+
+  Regras:
+  - esta persistência é gerencial e global; não deve nascer por produto, linha ou setor
+  - o fluxo de cadastro não deve depender da existência de turno ativo
+  - a criação do contrato deve preservar possibilidade futura de auditoria e edição controlada
+
+  **Evidência:** O supervisor/admin consegue cadastrar a meta mensal da competência com validações corretas em `/admin/apontamentos`; o schema reconhece uma meta única por mês; `npx tsc --noEmit` passa sem erros.
+  Implementado em `scripts/sprint24_meta_mensal.sql`, `lib/actions/metas-mensais.ts`, `lib/utils/data.ts`, `types/index.ts` e `types/supabase.ts`, com superfície administrativa atual em `components/apontamentos/PainelMetaMensalApontamentos.tsx` e `app/(admin)/apontamentos/page.tsx`. Migração aplicada via Supabase Management API em `2026-04-05`, com validação remota confirmando a tabela `metas_mensais` e as colunas `id`, `competencia`, `meta_pecas`, `dias_produtivos`, `observacao`, `created_at` e `updated_at`.
+
+- [x] **HU 24.2 — Como supervisor/admin, quero editar a meta mensal da competência quando necessário, para corrigir o planejamento do mês sem perder a referência gerencial registrada.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/apontamentos`
+  - componentes compartilhados de formulário/modal usados no admin
+
+  Tarefas:
+  - criar action administrativa para editar a meta da competência quando ela já existir
+  - reaproveitar o mesmo formulário de lançamento em modo de edição
+  - garantir que a edição use a competência atualmente selecionada em `/admin/apontamentos`
+  - recarregar imediatamente a superfície administrativa e a dashboard após salvar
+  - preservar auditoria mínima de atualização
+  - garantir mensagens claras para:
+    - competência inexistente
+    - meta inválida
+    - dias produtivos inválidos
+
+  Regras:
+  - apenas supervisor/admin autenticado pode lançar ou editar a meta
+  - o fluxo de edição da meta não pode depender da abertura do turno
+  - o formulário deve preservar a linguagem administrativa já consolidada no sistema e ficar junto da superfície de registros
+
+  **Evidência:** O supervisor/admin consegue editar a meta mensal da competência em `/admin/apontamentos`, e a dashboard reflete o novo valor imediatamente após salvar.
+  Implementado em `lib/actions/metas-mensais.ts`, adicionando `editarMetaMensal()` e `editarMetaMensalFormulario()` com validação de sessão admin, checagem de meta existente, atualização de `updated_at`, tratamento de conflito por competência e `revalidatePath('/admin/dashboard')` junto de `revalidatePath('/admin/apontamentos')`. `npx tsc --noEmit` validado sem erros em `2026-04-05`.
+
+- [x] **HU 24.3 — Como supervisor/admin, quero visualizar na Visão Geral da dashboard a meta mensal, o alcançado, o saldo, o atingimento e a meta diária média, para acompanhar o desempenho do mês mesmo sem turno ativo.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/dashboard`
+  - componentes da nova `Visão Geral`
+
+  Tarefas:
+  - criar query/read model para carregar a meta mensal da competência
+  - carregar a competência selecionada, abrindo no mês corrente por padrão
+  - consolidar `realizado_dia` a partir da quantidade concluída por `OP/dia`
+  - gerar resumo mensal com:
+    - meta mensal
+    - alcançado
+    - saldo
+    - atingimento %
+    - meta diária média
+  - montar os KPIs da `Visão Geral`
+  - exibir estado vazio claro quando não houver meta lançada para a competência
+  - garantir que a `Visão Geral` carregue mesmo sem turno ativo
+
+  Regras:
+  - o `alcançado` mensal deve usar quantidade concluída consolidada por `OP/dia`, nunca apontamentos brutos
+  - a leitura gerencial mensal não pode depender da seleção de um turno específico
+  - nesta primeira versão, `dias_produtivos` é a base para a média diária gerencial do mês
+
+  **Evidência:** A `Visão Geral` exibe KPIs mensais coerentes com o consolidado do mês e continua funcionando mesmo sem turno ativo.
+  Implementado em `lib/queries/metas-mensais.ts`, `components/dashboard/DashboardVisaoGeralTab.tsx`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/DashboardTabs.tsx`, `app/(admin)/dashboard/page.tsx`, `app/admin/dashboard/page.tsx` e `types/index.ts`. A dashboard passou a carregar a competência selecionada via query param `competencia`, abrindo no mês corrente por padrão, e a `Visão Geral` passou a mostrar `Meta Mensal`, `Alcançado`, `Saldo`, `Atingimento %` e `Meta diária média` mesmo quando não existe turno ativo. `npx tsc --noEmit` validado sem erros em `2026-04-05`.
+
+- [x] **HU 24.4 — Como supervisor/admin, quero acompanhar a evolução diária e semanal da meta mensal em gráfico, para identificar cedo se a fábrica está acima, dentro ou abaixo da trajetória esperada do mês.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - componentes da nova `Visão Geral`
+  - gráficos e cards reutilizáveis do admin
+
+  Tarefas:
+  - gerar série diária do mês com:
+    - data
+    - meta diária média
+    - realizado do dia
+    - realizado acumulado
+    - percentual de atingimento acumulado
+  - gerar resumo semanal por semanas do calendário do mês
+  - criar gráfico principal `Meta Mensal x Alcançado` com leitura acumulada ao longo do mês
+  - exibir a evolução diária
+  - exibir a evolução semanal pelas semanas do calendário do mês
+  - criar estados vazios e mensagens de ausência de dados
+
+  Regras:
+  - esta seção é gerencial e prioritária dentro da dashboard
+  - o gráfico principal deve comunicar avanço acumulado do mês, e não apenas valores isolados por dia
+
+  **Evidência:** A `Visão Geral` passou a exibir um gráfico acumulado `Meta Mensal x Alcançado`, um comparativo diário entre `meta diária média` e `realizado do dia` e um resumo semanal por semanas do calendário da competência.
+  Implementado em `lib/queries/metas-mensais.ts`, `components/dashboard/GraficoMetaMensalVisaoGeral.tsx`, `components/dashboard/DashboardVisaoGeralTab.tsx` e `types/index.ts`. A query mensal agora entrega `evolucaoDiaria` e `resumoSemanal` a partir do consolidado por `OP/dia`, com curva esperada derivada da `meta_diaria_media` como referência gerencial média. `npx tsc --noEmit` validado sem erros em `2026-04-05`.
+  - a série semanal deve respeitar o calendário do mês, nunca blocos móveis de 7 dias
+  - como não existe calendário produtivo detalhado por data nesta primeira versão, a curva esperada deve assumir uma referência média a partir de `dias_produtivos`
+
+  **Evidência:** A `Visão Geral` passa a apresentar KPIs e gráfico acumulado da meta mensal, além de evolução diária e semanal do mês corrente de forma legível e gerencial.
+
+- [x] **HU 24.5 — Como supervisor/admin, quero separar a dashboard em Visão Geral e Visão Operacional, para ter uma leitura gerencial do mês sem perder o monitor operacional do turno.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `app/(admin)/dashboard/page.tsx`
+  - `components/dashboard/DashboardTabs.tsx`
+  - `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`
+  - componentes hoje pertencentes à aba `Visão Geral`
+
+  Tarefas:
+  - fazer `Visão Geral` virar a aba gerencial da meta mensal
+  - mover o conteúdo atual da `Visão Geral` para a nova aba `Visão Operacional`
+  - abrir a dashboard por padrão na `Visão Geral`
+  - criar navegação de competência mensal na `Visão Geral`
+  - garantir que a `Visão Operacional` preserve o comportamento atual de turno aberto ou último encerrado
+  - revisar nomenclatura, ordem das abas e textos de apoio para refletir a nova separação de contexto
+
+  Regras:
+  - a troca de abas não pode quebrar o contrato atual de `Meta do Grupo`, progresso operacional e eficiência
+  - a ausência de turno ativo não pode bloquear a leitura gerencial mensal
+  - a `Visão Operacional` continua sendo a superfície do monitor de chão de fábrica
+
+  **Evidência:** A dashboard passa a abrir na `Visão Geral` mensal, enquanto o conteúdo operacional existente permanece acessível e funcional nas abas `Visão Operacional` e `Operadores`.
+  Implementado em `components/dashboard/DashboardTabs.tsx`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/DashboardVisaoGeralTab.tsx`, `components/dashboard/DashboardVisaoOperacionalTab.tsx`, `components/dashboard/DashboardOperadoresTab.tsx` e `components/dashboard/DashboardCompetenciaMensalNav.tsx`. A `Visão Geral` ficou exclusiva para a leitura mensal e ganhou navegação de competência via query param `competencia`, a `Visão Operacional` passou a concentrar `Meta do Grupo`, gráfico por hora, OPs e setores, e a aba `Operadores` voltou a concentrar a eficiência operacional. `npx tsc --noEmit` validado sem erros em `2026-04-05`.
+
+- [x] **HU 24.6 — Como supervisor/admin, quero uma primeira versão estável e validada da Meta Mensal, para confiar na leitura gerencial do mês sem regressões operacionais no admin.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - revisar o fluxo completo de cadastro, edição e leitura da meta mensal
+  - revisar estados sem meta cadastrada, mês sem produção e mês com produção parcial
+  - revisar a separação entre `Visão Geral` gerencial e `Visão Operacional`
+  - documentar qualquer limitação consciente da primeira versão
+  - rodar `npx tsc --noEmit`
+
+  Regras:
+  - não considerar a sprint concluída sem validar a separação entre `Visão Geral` gerencial e `Visão Operacional`
+  - qualquer simplificação da curva diária/semanal deve ficar explicitamente documentada
+  - a homologação deve confirmar que o `alcançado` usa quantidade concluída consolidada por `OP/dia`
+
+  **Evidência:** A sprint fecha com a dashboard reorganizada, meta mensal persistida, leitura diária/semanal/mensal disponível e `npx tsc --noEmit` passando sem erros.
+  Validado em `components/dashboard/PainelMetaMensalFormulario.tsx`, `components/apontamentos/PainelMetaMensalApontamentos.tsx`, `components/apontamentos/ApontamentosTabs.tsx`, `components/dashboard/DashboardVisaoGeralTab.tsx`, `components/dashboard/DashboardVisaoOperacionalTab.tsx`, `components/dashboard/DashboardOperadoresTab.tsx`, `lib/actions/metas-mensais.ts`, `lib/queries/metas-mensais.ts`, `docs/PRD.md` e `docs/TASKS.md`. A `Visão Geral` passou a permanecer como leitura mensal gerencial, o fluxo de cadastro/edição da meta mensal da competência selecionada foi deslocado para `/admin/apontamentos`, a página de apontamentos passou a se organizar nas abas `Gestão Mensal` e `Operação do Turno`, os estados `sem meta`, `sem produção` e `produção parcial` permanecem cobertos na leitura mensal, a separação entre `Visão Geral`, `Visão Operacional` e `Operadores` foi mantida, e a limitação consciente da curva média foi reforçada no PRD. `npx tsc --noEmit` validado sem erros em `2026-04-05`.

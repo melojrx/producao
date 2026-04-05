@@ -5,11 +5,11 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
+import { ChartResponsiveContainer } from '@/components/ui/ChartResponsiveContainer'
 import type { ComparativoMetaGrupoItem } from '@/types'
 
 interface ComparativoMetaGrupoChartProps {
@@ -55,7 +55,7 @@ export function ComparativoMetaGrupoChart({
         </div>
       ) : (
         <div className="mt-6 h-80 w-full min-w-0">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
+          <ChartResponsiveContainer minHeight={320}>
             <BarChart data={dadosGrafico} margin={{ top: 8, right: 12, bottom: 8, left: -12 }}>
               <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
               <XAxis
@@ -81,7 +81,7 @@ export function ComparativoMetaGrupoChart({
               <Bar dataKey="planejado" name="Planejado" fill="#2563EB" radius={[8, 8, 0, 0]} />
               <Bar dataKey="realizado" name="Realizado" fill="#10B981" radius={[8, 8, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </div>
       )}
     </section>

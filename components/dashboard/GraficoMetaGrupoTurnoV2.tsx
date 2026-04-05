@@ -4,11 +4,11 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
+import { ChartResponsiveContainer } from '@/components/ui/ChartResponsiveContainer'
 import type { ComparativoMetaGrupoHoraItem } from '@/types'
 
 interface GraficoMetaGrupoTurnoV2Props {
@@ -90,54 +90,54 @@ export function GraficoMetaGrupoTurnoV2({
           </div>
 
           <div className="h-72 w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={288}>
-            <LineChart data={dadosGrafico} margin={{ top: 8, right: 12, bottom: 8, left: -12 }}>
-              <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="hora"
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: '#64748B', fontSize: 12 }}
-              />
-              <YAxis
-                allowDecimals={false}
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: '#64748B', fontSize: 12 }}
-              />
-              <Tooltip
-                cursor={{ stroke: '#93C5FD', strokeWidth: 1 }}
-                contentStyle={{
-                  borderRadius: 16,
-                  border: '1px solid #DBEAFE',
-                  boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
-                }}
-                formatter={(valor, nome) => [
-                  typeof valor === 'number' ? valor : 0,
-                  nome === 'Planejado' ? 'Planejado' : 'Alcançado',
-                ]}
-                labelFormatter={(label) => `Hora ${String(label ?? '')}`}
-              />
-              <Line
-                type="monotone"
-                dataKey="planejado"
-                name="Planejado"
-                stroke="#2563EB"
-                strokeWidth={3}
-                dot={{ r: 4, fill: '#2563EB', strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: '#1D4ED8', strokeWidth: 0 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="realizado"
-                name="Alcançado"
-                stroke="#059669"
-                strokeWidth={3}
-                dot={{ r: 4, fill: '#059669', strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: '#047857', strokeWidth: 0 }}
-              />
-            </LineChart>
-            </ResponsiveContainer>
+            <ChartResponsiveContainer minHeight={288}>
+              <LineChart data={dadosGrafico} margin={{ top: 8, right: 12, bottom: 8, left: -12 }}>
+                <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="hora"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: '#64748B', fontSize: 12 }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: '#64748B', fontSize: 12 }}
+                />
+                <Tooltip
+                  cursor={{ stroke: '#93C5FD', strokeWidth: 1 }}
+                  contentStyle={{
+                    borderRadius: 16,
+                    border: '1px solid #DBEAFE',
+                    boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
+                  }}
+                  formatter={(valor, nome) => [
+                    typeof valor === 'number' ? valor : 0,
+                    nome === 'Planejado' ? 'Planejado' : 'Alcançado',
+                  ]}
+                  labelFormatter={(label) => `Hora ${String(label ?? '')}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="planejado"
+                  name="Planejado"
+                  stroke="#2563EB"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#2563EB', strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: '#1D4ED8', strokeWidth: 0 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="realizado"
+                  name="Alcançado"
+                  stroke="#059669"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#059669', strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: '#047857', strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ChartResponsiveContainer>
           </div>
         </div>
       )}

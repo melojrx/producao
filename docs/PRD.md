@@ -324,8 +324,17 @@ Encerramento do turno:
 ### 5.5 Comportamento da dashboard
 
 Ao abrir a dashboard, o supervisor deve ver:
+- a aba gerencial `Visão Geral` do mês corrente, independente de existir turno ativo
 - o turno aberto atual, se existir
 - ou os dados consolidados do último turno encerrado
+
+Organização obrigatória das abas:
+- `Visão Geral` passa a ser a superfície gerencial de meta mensal global da fábrica
+- `Visão Operacional` passa a concentrar o conteúdo que hoje representa o monitoramento do turno, das OPs, dos setores e da projeção por hora
+- `Operadores` passa a concentrar a leitura de eficiência por hora por operador/operação e a eficiência do dia por operador
+- a aba `Visão Geral` não pode depender da existência de turno aberto para carregar
+- a aba `Visão Operacional` continua dependente do turno aberto atual ou do último turno encerrado, preservando o comportamento operacional já homologado
+- a aba `Operadores` continua dependente do turno aberto atual ou do último turno encerrado, preservando o comportamento operacional já homologado
 
 Durante a execução, a dashboard acompanha em tempo real:
 - andamento do turno
@@ -650,6 +659,11 @@ Regra de exceção deliberada:
 ### 8.1 Dashboard (/admin/dashboard)
 
 Interface principal do supervisor e do administrador.
+- visualizar a aba `Visão Geral` com acompanhamento mensal global da fábrica
+- acompanhar meta mensal, alcançado, saldo, percentual de atingimento e meta diária média
+- acompanhar evolução diária e semanal da meta mensal
+- visualizar a aba `Visão Operacional` com o conteúdo atual de turno
+- visualizar a aba `Operadores` com a eficiência operacional do turno carregado
 - visualizar turno aberto ou último turno encerrado
 - abrir novo turno
 - editar turno aberto
@@ -660,7 +674,67 @@ Interface principal do supervisor e do administrador.
 - acompanhar o gráfico `Projeção do planejado x Alcançado por hora`
 - visualizar uma área própria de `Eficiência operacional` sem misturar esse domínio com o progresso operacional da OP
 
-#### 8.1.1 UX alvo para edição do turno aberto
+#### 8.1.1 Meta mensal e reorganização das abas da dashboard
+
+Objetivo:
+- transformar a aba `Visão Geral` na leitura gerencial principal do sistema
+- acompanhar o atingimento da meta mensal global da fábrica sem depender de turno ativo
+- deslocar o conteúdo operacional atual para a aba `Visão Operacional`, preservando sua semântica existente
+
+Contrato de domínio:
+- a meta mensal é sempre global da fábrica
+- deve existir no máximo uma meta mensal por competência (`mês/ano`)
+- o cadastro da meta mensal deve registrar no mínimo:
+  - competência
+  - meta mensal em peças
+  - quantidade de dias produtivos daquele mês
+  - observação opcional
+- o supervisor/admin deve conseguir criar e editar a meta mensal da competência corrente em `/admin/apontamentos`
+
+Contrato de cálculo:
+- `meta_diaria_media = meta_mensal / dias_produtivos`
+- `realizado_dia` é a soma da quantidade concluída consolidada por `OP/dia`
+- `realizado_acumulado` é a soma dos `realizado_dia` dentro da competência
+- `atingimento_mensal_pct = (realizado_acumulado / meta_mensal) * 100`
+- `saldo_mensal = max(meta_mensal - realizado_acumulado, 0)`
+
+Contrato de visualização:
+- `Visão Geral` deve abrir por padrão na dashboard
+- a `Visão Geral` deve abrir por padrão na competência do mês corrente
+- a dashboard deve permitir navegar entre competências mensais para trás e para frente sem depender da abertura de turno
+- o lançamento e a edição da meta mensal devem atuar sempre sobre a competência atualmente selecionada em `/admin/apontamentos`
+- mesmo sem turno ativo, a `Visão Geral` deve continuar carregando a meta mensal da competência selecionada
+- quando não existir meta mensal cadastrada para a competência, a aba deve mostrar estado vazio com CTA para `/admin/apontamentos`
+- a aba deve exibir pelo menos os KPIs:
+  - Meta mensal
+  - Alcançado no mês
+  - Saldo
+  - Atingimento %
+  - Meta diária média
+- a aba deve exibir um gráfico principal de `Meta Mensal x Alcançado` com leitura acumulada ao longo do mês
+- a aba deve exibir a evolução diária do mês
+- a aba deve exibir a evolução semanal agrupada pelas semanas do calendário daquele mês
+
+### 8.3.1 Gestão administrativa da meta mensal (/admin/apontamentos)
+
+Regras de superfície:
+- o cadastro e a edição da meta mensal pertencem à página `/admin/apontamentos`
+- essa gestão administrativa deve continuar disponível mesmo sem turno aberto
+- a competência de trabalho deve ser navegável por mês também em `/admin/apontamentos`
+- ao salvar a meta mensal, `/admin/apontamentos` e `/admin/dashboard` devem refletir imediatamente o novo valor da competência selecionada
+- a dashboard permanece como superfície de leitura gerencial; a mutação administrativa da meta não acontece mais dentro da aba `Visão Geral`
+
+Regra explícita desta primeira versão:
+- como o lançamento mensal informa a quantidade de `dias produtivos` do mês, e não um calendário produtivo detalhado por data, a `meta_diaria_media` deve ser tratada como uma referência gerencial média para a curva esperada diária e semanal
+- a evolução semanal deve respeitar as semanas do calendário do mês, sem usar blocos móveis de 7 dias
+- enquanto não existir um calendário produtivo detalhado por data, a curva esperada não distingue automaticamente feriados, sábados, domingos ou paradas planejadas dentro da competência; ela representa apenas a média gerencial derivada de `dias_produtivos`
+
+Reorganização obrigatória da dashboard:
+- a aba que hoje concentra o conteúdo operacional passa a se chamar `Visão Operacional`
+- `Meta do Grupo`, `Projeção do planejado x Alcançado por hora`, leitura de OPs, setores, progresso operacional e eficiência operacional continuam existindo, mas dentro da `Visão Operacional`
+- a troca de nomenclatura de abas não pode alterar o contrato dos indicadores operacionais já homologados
+
+#### 8.1.2 UX alvo para edição do turno aberto
 
 Quando existir um turno `aberto`, a dashboard deve expor:
 - CTA `Editar turno`
@@ -810,6 +884,11 @@ O scanner híbrido não substitui a tela `/admin/apontamentos`; ele passa a ser 
 ### 8.3 Apontamentos do Supervisor (/admin/apontamentos)
 
 Interface administrativa de captura incremental da produção.
+- a página deve ser organizada em duas abas:
+  - `Gestão Mensal`
+  - `Operação do Turno`
+- `Gestão Mensal` concentra o cadastro, a edição e a navegação por competência da meta mensal
+- `Operação do Turno` concentra a abertura/edição/encerramento do turno e os lançamentos incrementais do supervisor
 - turno aberto fixo como contexto
 - filtros por OP, setor e produto
 - lista de seções com planejado, realizado, saldo e progresso

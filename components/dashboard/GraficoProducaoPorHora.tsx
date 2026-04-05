@@ -4,11 +4,11 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
+import { ChartResponsiveContainer } from '@/components/ui/ChartResponsiveContainer'
 import type { ProducaoPorHoraRegistro } from '@/types'
 
 interface GraficoProducaoPorHoraProps {
@@ -66,7 +66,7 @@ export function GraficoProducaoPorHora({
         </div>
       ) : (
         <div className="mt-6 h-72 w-full min-w-0">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={288}>
+          <ChartResponsiveContainer minHeight={288}>
             <LineChart
               data={dadosGrafico}
               margin={{ top: 8, right: 12, bottom: 8, left: -12 }}
@@ -107,7 +107,7 @@ export function GraficoProducaoPorHora({
                 activeDot={{ r: 6, fill: '#1D4ED8', strokeWidth: 0 }}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartResponsiveContainer>
         </div>
       )}
     </section>

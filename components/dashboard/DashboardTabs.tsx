@@ -1,8 +1,8 @@
 'use client'
 
-import { LayoutGrid, Users } from 'lucide-react'
+import { Factory, LayoutGrid, Users } from 'lucide-react'
 
-export type DashboardTabId = 'visao_geral' | 'operadores'
+export type DashboardTabId = 'visao_geral' | 'visao_operacional' | 'operadores'
 
 interface DashboardTabsProps {
   abaAtiva: DashboardTabId
@@ -19,20 +19,26 @@ export function DashboardTabs({ abaAtiva, onChange }: DashboardTabsProps) {
     {
       id: 'visao_geral',
       titulo: 'Visão Geral',
-      descricao: 'KPIs do turno, gráficos e andamento consolidado.',
+      descricao: 'Meta mensal, alcançado, saldo e leitura gerencial da competência.',
       icone: LayoutGrid,
+    },
+    {
+      id: 'visao_operacional',
+      titulo: 'Visão Operacional',
+      descricao: 'Monitor do turno, OPs, setores, capacidade e progresso operacional.',
+      icone: Factory,
     },
     {
       id: 'operadores',
       titulo: 'Operadores',
-      descricao: 'Eficiência operacional e leitura por operador.',
+      descricao: 'Eficiência por hora e resumo diário dos operadores no turno carregado.',
       icone: Users,
     },
   ]
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         {abas.map((aba) => {
           const Icone = aba.icone
           const ativa = aba.id === abaAtiva
