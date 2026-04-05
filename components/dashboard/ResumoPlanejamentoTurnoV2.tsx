@@ -37,9 +37,11 @@ export function ResumoPlanejamentoTurnoV2({
   statusConexao,
   ultimaAtualizacao: _ultimaAtualizacao,
 }: ResumoPlanejamentoTurnoV2Props) {
-  const [agora, setAgora] = useState(() => new Date())
+  const [agora, setAgora] = useState<Date | null>(null)
 
   useEffect(() => {
+    setAgora(new Date())
+
     const intervalId = window.setInterval(() => {
       setAgora(new Date())
     }, 1000)
@@ -103,7 +105,7 @@ export function ResumoPlanejamentoTurnoV2({
 
           <div className="w-full text-right">
             <p className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-              {formatarHorarioAtual(agora)}
+              {agora ? formatarHorarioAtual(agora) : '—'}
             </p>
             <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
               <Signal

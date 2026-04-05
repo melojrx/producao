@@ -32,10 +32,11 @@
 | 20 | Ciclo de vida e exclusão segura de produtos | ✅ Concluída | 2 |
 | 21 | Relatório operacional de QR Codes do turno | ✅ Concluída | 2 |
 | 22 | Duplicação assistida de produtos | ✅ Concluída | 1 |
+| 23 | Consolidação visual profissional do admin | ⏳ Planejada | 3 |
 
-**Total estimado: 47 dias úteis**
+**Total estimado: 50 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 abre uma frente cirúrgica de consolidação visual profissional do admin, usando `docs/DESIGN_PROPOSAL.md` como direção de design e não como plano literal de implementação; a dashboard e as superfícies administrativas passam a ser o foco de consistência, enquanto o scanner permanece explicitamente fora do escopo como exceção deliberada. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -258,7 +259,17 @@
 - Reencadear a consolidação `demanda -> setor -> OP` dentro do apontamento atômico
 - Executar backfill seguro para turnos abertos e dados recentes afetados
 - Revisar queries e snapshots da dashboard, scanner e relatórios que dependem de `turno_setor_demandas`
-- Homologar o contrato atual de peças completas sem regressão entre dashboard, scanner e relatórios
+
+## SPRINT 23 — Consolidação visual profissional do admin
+**Objetivo:** realinhar documentalmente a futura migração visual do admin, preservando `docs/DESIGN_PROPOSAL.md` como direção de design, mantendo o baseline restaurado do frontend e adiando a definição da estratégia técnica da migração para sprint oficial futura.
+**Entregável:** documentação coerente entre PRD, TASKS, BACKLOG e DESIGN_PROPOSAL, deixando explícitos o alvo visual futuro, o baseline atual restaurado e o fato de que a migração técnica ainda não está alinhada nem reaberta para implementação.
+**Status:** 🔄 Em realinhamento documental
+
+- Formalizar que `docs/DESIGN_PROPOSAL.md` é direção de design, não plano técnico de execução
+- Registrar que a tentativa inicial de migração visual ampla foi revertida para restaurar o baseline anterior do admin
+- Reabrir documentalmente as tasks visuais da sprint que não permanecem entregues no código atual
+- Definir com clareza o que é alvo futuro, o que é baseline atual e o que ainda precisa de alinhamento técnico
+- Preservar o scanner como exceção fora do escopo desta frente documental
 
 ## SPRINT 16 — KPI de progresso operacional ponderado por T.P.
 **Objetivo:** implementar um KPI incremental de progresso operacional da OP, do setor e do turno, separado da métrica de peças completas e ponderado pelo esforço real (`tempo_padrao_min`) das operações.

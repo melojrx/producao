@@ -1,7 +1,13 @@
 # Proposta de Redesign — Sistema de Controle de Produção
 
-> **Status:** Proposta. Não implementado.
+> **Status:** Direção de design homologada. Não representa estado implementado atual.
 > **Data:** 2026-03-29
+> **Atualização documental:** 2026-04-05
+
+> Este documento define o alvo visual do sistema administrativo.
+> Não deve ser tratado como roadmap técnico, checklist de arquivos nem plano fechado de execução.
+> A estratégia técnica da futura migração de frontend será alinhada separadamente em sprint oficial.
+> Qualquer menção a superfícies fora do admin, como scanner ou outras áreas do produto, deve ser lida apenas como referência exploratória de linguagem visual e nunca como compromisso automático de escopo.
 
 ---
 
@@ -347,52 +353,51 @@ placeholder:text-[--text-muted]
 
 ---
 
-## 8. Estratégia de Implementação — 4 Fases
+## 8. Notas de Uso do Documento
 
-### Fase 1 — Fundação (1 arquivo + 2 modificações)
-**Objetivo:** Mudar a base sem quebrar nada.
+Este documento deve ser usado como referência para:
 
-1. **`app/globals.css`** — Substituir variáveis, adicionar imports de fontes, tokens completos
-2. **`tailwind.config.ts`** (se existir) — Registrar fontes custom
-3. **`components/admin/AdminShell.tsx`** — Aplicar nova sidebar escura e topbar
+- paleta
+- tipografia
+- contraste
+- hierarquia visual
+- linguagem de componentes
+- comportamento visual desejado da dashboard e do shell administrativo
 
-**Risco:** Baixo. Mudança de CSS puro + um componente.
+Este documento não deve ser usado como contrato para:
 
----
+- ordem de implementação por arquivo
+- contagem de arquivos
+- estimativa de esforço
+- sequência de fases
+- definição final de arquitetura técnica
+- expansão automática de escopo para módulos ainda não alinhados
 
-### Fase 2 — KPI Cards e Dashboard (3-4 componentes)
-**Objetivo:** A parte mais visível fica profissional primeiro.
+Decisões de escopo vigentes:
 
-1. **`components/dashboard/CardKPI.tsx`** — DM Mono nos números, borda colorida, ícone redesenhado
-2. **`components/dashboard/StatusMaquinas.tsx`** — Grid de badges compactos
-3. **`components/dashboard/RankingOperadores.tsx`** — Barras inline de progresso
-4. **`app/globals.css`** — Ajuste fino pós-Fase 1
+- o foco principal desta direção é o sistema administrativo, especialmente shell e dashboard
+- o scanner não deve ser interpretado a partir deste documento como obrigação imediata de redesign
+- qualquer migração visual futura deve ser aberta e homologada por superfícies reais, uma a uma
 
----
+Os exemplos técnicos presentes neste documento são ilustrativos. Eles servem para mostrar a intenção visual e a gramática de interface, não para prescrever a implementação literal nem o contrato técnico final.
 
-### Fase 3 — Componentes base e Login (4-5 arquivos)
-**Objetivo:** Consistência nos formulários e modais.
+### 8.1 Leitura Correta
 
-1. **`components/ui/Button.tsx`** — Criar componente base reutilizável
-2. **`components/ui/Card.tsx`** — Wrapper de card
-3. **`components/ui/Badge.tsx`** — Unificar StatusBadge
-4. **`app/(auth)/login/page.tsx`** + `components/auth/LoginForm.tsx`
+- tokens e snippets são referência de linguagem visual
+- exemplos de shell, cards e dashboard são referência de composição
+- nomes de arquivos citados ao longo do documento são exemplos prováveis de pontos de aplicação, não backlog técnico fechado
 
----
+### 8.2 Fora do Escopo Atual
 
-### Fase 4 — Modais e Scanner (polimento final)
-**Objetivo:** Harmonizar os modais e a tela do operador.
+- scanner
+- redefinição técnica completa do tema
+- cronograma de migração
+- compromisso de mexer em login, modais ou qualquer outra superfície sem sprint aberta e homologada
+- qualquer inferência de que snippets, tokens ou exemplos deste documento já aprovam a mudança direta desses módulos no código atual
 
-1. Modais de CRUD (ModalMaquina, ModalOperacao etc.) — padding, tipografia, inputs
-2. **`app/(operador)/scanner/page.tsx`** — Adaptar ao novo tema
-3. Toggle light/dark na topbar
-4. Revisão geral de espaçamentos
+## 9. Referência Técnica Ilustrativa
 
----
-
-## 9. Toggle Light/Dark
-
-**Implementação recomendada:** classe `.dark` na tag `<html>` via `localStorage`.
+O exemplo abaixo continua útil como referência de comportamento visual esperado para light/dark mode, mas não deve ser interpretado como decisão técnica final da aplicação.
 
 ```tsx
 // components/admin/ThemeToggle.tsx
@@ -438,5 +443,3 @@ export function ThemeToggle() {
 | Light mode | Branco frio | Off-white quente (#f8f7f4) |
 | Componentes | Estilos inline dispersos | Button/Card/Badge centralizados |
 | Login | Banner azul genérico | Minimalista, fundo texturado |
-
-**Complexidade:** 4 fases, ~12 arquivos modificados/criados. Sem mudança de arquitetura.

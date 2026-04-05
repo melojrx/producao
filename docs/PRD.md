@@ -601,6 +601,52 @@ Responsabilidades principais do supervisor:
 
 ## 8. MÓDULOS DO SISTEMA
 
+### 8.0 Governança visual do sistema administrativo
+
+O sistema administrativo deve seguir uma linguagem visual profissional, semântica e consistente, usando `docs/DESIGN_PROPOSAL.md` como direção oficial de design.
+
+Estado documental em `2026-04-05`:
+
+- o `DESIGN_PROPOSAL` permanece homologado como norte visual futuro do admin
+- a tentativa inicial de migração visual ampla foi revertida para restaurar o baseline anterior do frontend administrativo
+- portanto, esta seção registra a direção desejada de produto, e não o estado atualmente implementado no código
+- a futura migração de frontend continua prevista, mas a estratégia técnica de execução ainda precisa ser alinhada documentalmente antes de abrir nova sprint de implementação visual
+
+Decisão de produto:
+
+- `docs/DESIGN_PROPOSAL.md` define o norte visual do admin e da dashboard, mas não deve ser tratado como plano literal de implementação por arquivo
+- a futura consolidação visual do admin deve ser cirúrgica e orientada por superfícies reais do sistema, não por redesign aberto
+- o objetivo principal continua sendo garantir semântica visual profissional, dashboard consistente e reaproveitamento de componentes-base
+- para `/admin/dashboard` e para o shell administrativo, as referências visuais homologadas pelo usuário seguem como benchmark canônico de execução futura, inclusive em light mode e dark mode
+- para essas superfícies, o objetivo futuro deixa de ser apenas "aproximar" o `DESIGN_PROPOSAL`; o objetivo passa a ser atingir o mesmo padrão de composição, contraste, hierarquia, presença de sidebar, uso de cor e comportamento percebido da referência homologada
+- soluções excessivamente neutras, wireframe-like, predominantemente brancas/pretas ou com blocos todos do mesmo peso visual devem ser consideradas incorretas como direção futura, mesmo quando respeitarem tokens e tipografia
+- a migração técnica do frontend administrativo ainda não está fechada; antes de qualquer nova implementação visual, os passos técnicos, a ordem das superfícies e os critérios de homologação precisam estar explicitamente alinhados em sprint oficial aberta
+
+Princípios obrigatórios do admin:
+
+- tokens centralizados em `app/globals.css` para superfícies, texto, bordas, semânticas e tipografia
+- sidebar escura como assinatura visual do sistema administrativo
+- tipografia separando interface e dados:
+  - `Outfit` para labels, navegação, títulos e textos de interface
+  - `DM Mono` para KPIs, números, métricas e leituras operacionais
+- acento principal âmbar como linguagem de destaque do sistema
+- `info`, `success`, `warning` e `error` continuam existindo como semânticas de apoio; não devem competir com o acento principal como identidade visual
+- dashboard, CRUDs, relatórios, apontamentos e QR Codes administrativos devem compartilhar o mesmo vocabulário visual de cards, badges, inputs, tabelas e estados
+
+Critérios explícitos para dashboard e shell administrativo:
+
+- a sidebar deve seguir o mesmo padrão de presença visual da referência homologada: fundo slate escuro consistente, navegação com peso, item ativo forte, recolhimento profissional e ícones semanticamente claros com tamanho dominante
+- a dashboard deve seguir o mesmo padrão estrutural da referência homologada: barra superior de turno com status e ações, primeira linha de KPIs prioritários, gráfico principal em largura dominante e blocos operacionais subsequentes com pesos distintos
+- a paleta percebida deve seguir o mesmo padrão da referência homologada: sidebar escura, superfícies claras ou escuras com contraste correto, accent âmbar quente para ação e progresso, verde para sucesso, cinza neutro para metas/base, sem cair em página lavada de preto e branco
+- a diferença entre blocos prioritários e secundários deve ser perceptível em um único olhar; se todos os cards parecerem iguais, a execução visual está incorreta
+- a implementação pode adaptar conteúdo e nomenclatura ao domínio real do produto, mas não pode descaracterizar o padrão visual homologado de composição, contraste, cores e hierarquia
+
+Regra de exceção deliberada:
+
+- o scanner permanece temporariamente fora desta consolidação visual do admin
+- a linguagem visual do scanner pode continuar própria durante esta fase
+- qualquer revisão visual do scanner deve acontecer em sprint específica, sem bloquear a consistência do admin
+
 ### 8.1 Dashboard (/admin/dashboard)
 
 Interface principal do supervisor e do administrador.

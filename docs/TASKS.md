@@ -10,11 +10,14 @@
 ## INSTRUÇÃO PARA O AGENTE
 
 Antes de iniciar qualquer sprint, leia na ordem:
-1. `CLAUDE.md` — contexto técnico permanente (stack, padrões, convenções)
-2. `PRD.md` — contexto de negócio (fluxos, regras, modelo operacional e regras de domínio)
-3. `TASKS.md` — este arquivo (sprints, tasks, evidências)
+1. `AGENTS.md` — instruções permanentes do projeto e ritual obrigatório da sessão
+2. `docs/PRD.md` — contexto de negócio (fluxos, regras, modelo operacional e regras de domínio)
+3. `docs/TASKS.md` — este arquivo (sprints, tasks, evidências)
 
 Só inicie a execução após confirmar a leitura dos 3 documentos.
+
+Observação:
+- `CLAUDE.md` pode existir como referência histórica complementar, mas não substitui o ritual obrigatório definido em `AGENTS.md`
 
 Para cada task:
 1. Execute o que está especificado
@@ -784,7 +787,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 7 — Planejamento do turno V2
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 6 concluída.
 **Objetivo:** Transformar o cadastro estrutural do produto em planejamento executável do dia.
 
@@ -840,7 +843,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 8 — Scanner e apontamento V2
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 7 concluída.
 **Objetivo:** Registrar produção no contexto correto do turno, com bloqueios consistentes e sem excesso sobre o planejado.
 
@@ -883,7 +886,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 9 — Apontamentos atômicos, dashboard, relatórios e coexistência
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 8 concluída.
 **Objetivo:** Evoluir a V2 para registrar produção no nível correto de operador + operação + seção, trocar a leitura gerencial para esse consolidado e manter a base histórica consistente durante a transição.
 
@@ -1069,7 +1072,7 @@ Nunca avance de sprint sem confirmação explícita minha.
 ---
 
 ## SPRINT 11 — Edição do turno aberto
-**Status:** 🔭 Proposta
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 10 concluída.
 **Objetivo:** permitir que supervisor/admin incluam novas OPs em um turno já aberto, refletindo isso em toda a cadeia derivada sem exigir encerramento do turno.
 
@@ -1427,7 +1430,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   Homologação concluída em `2026-04-03` mantendo a decisão de produto de **não persistir** o dimensionamento setorial nesta etapa e tratá-lo apenas como prévia operacional do modal. Os cenários homologados ficaram cobertos em `lib/utils/dimensionamento-pessoas-setor.test.ts`: `1)` produto único com o exemplo documental `8 × 637 / 510 = 10`, `2)` múltiplas OPs compartilhando `Preparação` com consolidação da carga por setor, e `3)` déficit agregado quando a soma sugerida supera `operadoresDisponiveis`. A ausência de regressão no fluxo de abertura foi validada pela preservação explícita do payload em `lib/utils/turno-formulario.ts`, `components/dashboard/ModalNovoTurnoV2.tsx` e `lib/actions/turnos.ts`, sem introdução de campos persistidos de dimensionamento. Validação final executada com `node --test --experimental-strip-types lib/utils/dimensionamento-pessoas-setor.test.ts`, `npx tsc --noEmit` e inspeção do contrato compartilhado via `rg`, todos sem erros.
 
 ## SPRINT 15 — Consistência do progresso da OP entre demanda, setor e dashboard
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 12 concluída.
 **Objetivo:** corrigir a cadeia de consolidação da V2 para que `turno_setor_operacoes`, `turno_setor_demandas`, `turno_setores` e `turno_ops` permaneçam sincronizados após cada apontamento, eliminando divergências entre dashboard, scanner e relatórios.
 
@@ -1485,7 +1488,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   Homologação manual registrada em `2026-04-03`: a leitura ponta a ponta do contrato vigente de peças completas permaneceu coerente entre dashboard, modal da OP, scanner, `/admin/apontamentos` e relatórios V2, incluindo cenários com demandas já iniciadas e sem regressão observada após os ajustes de consolidação da Sprint 15.
 
 ## SPRINT 16 — KPI de progresso operacional ponderado por T.P.
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 15 concluída.
 **Objetivo:** separar explicitamente `quantidade concluída` de `progresso operacional` e implementar o novo KPI incremental da OP, do setor e do turno com ponderação por `tempo_padrao_min`.
 
@@ -1548,7 +1551,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   Homologação manual registrada em `2026-04-03`: scanner, `/admin/apontamentos`, dashboard, modal e relatórios V2 passaram a manter a mesma leitura de `progresso operacional` ponderado por T.P. e `peças completas`, sem reintroduzir ambiguidade visual e sem quebrar a compatibilidade esperada com o backfill da Sprint 15.
 
 ## SPRINT 17 — KPIs de eficiência por hora e por dia na dashboard V2
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 16 concluída.
 **Objetivo:** introduzir o domínio de eficiência operacional do operador na dashboard V2, com KPI horário por `hora + operador + operação` e KPI diário por operador, ambos ponderados por `tempo_padrao_min_snapshot` e separados do progresso operacional da OP.
 
@@ -1612,7 +1615,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   Homologação manual registrada em `2026-04-03`: a UI da dashboard V2 confirmou o bloco `Eficiência operacional` com jornada real do turno, leitura horária por `hora + operador + operação`, consolidação diária por operador e comportamento correto quando o mesmo operador alterna operações dentro da mesma hora, sem mistura com o KPI de progresso operacional da OP.
 
 ## SPRINT 18 — Ajuste cirúrgico do input de quantidade no scanner
-**Status:** ⏳ Planejada
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 17 concluída.
 **Objetivo:** corrigir o campo de quantidade do scanner V2 para aceitar digitação direta, permitir reset para `0` e impedir que a UI force o valor mínimo `1` antes do registro.
 
@@ -1923,3 +1926,222 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** A página de detalhe do produto passa a encaminhar o usuário para a duplicação na listagem, sem criar um formulário paralelo.
   Implementado em `app/admin/produtos/[id]/page.tsx` e `app/admin/produtos/page.tsx`, usando o parâmetro `duplicar` para abrir automaticamente o modal de duplicação na listagem.
   Homologação manual confirmada pelo usuário em `2026-04-03`: a duplicação de produto abriu o modal pré-carregado corretamente a partir do CRUD, preservou roteiro e setores do produto-base e manteve o salvamento como novo cadastro.
+
+## SPRINT 23 — Consolidação visual profissional do admin
+**Status:** 🔄 Em realinhamento documental
+**Pré-requisito:** Sprint 22 concluída.
+**Objetivo:** consolidar uma linguagem visual profissional, semântica e consistente no admin usando `docs/DESIGN_PROPOSAL.md` como direção de design, não como plano literal de implementação, preservando o scanner atual como exceção deliberada fora do escopo desta sprint.
+
+**Nota de replanejamento em `2026-04-05`:**
+- a tentativa de migração visual ampla do admin foi revertida no worktree para restaurar o baseline pré-migração
+- a documentação da sprint foi preservada, mas as entregas de código de tema, shell, dashboard e CRUDs precisam ser consideradas reabertas até nova execução oficial
+- antes de retomar implementação, a estratégia documental e o escopo da sprint precisam ser realinhados explicitamente
+- enquanto esta sprint permanecer em `realinhamento documental`, nenhuma task visual reaberta deve voltar a ser implementada no frontend sem nova confirmação explícita do usuário
+
+**Decisões de produto já homologadas para esta sprint:**
+- `docs/DESIGN_PROPOSAL.md` passa a ser o norte visual oficial do admin e da dashboard.
+- a proposta deve orientar semântica, tipografia, tokens, hierarquia visual e consistência entre superfícies, mas não precisa ser seguida literalmente como sequência de arquivos/fases.
+- o scanner mantém a linguagem visual atual por enquanto e volta a ser tratado como exceção explícita, fora do escopo desta sprint.
+- o foco desta sprint é consolidar o admin: dashboard, CRUDs, relatórios, apontamentos, QR Codes e componentes compartilhados.
+- para `/admin/dashboard` e para o shell administrativo, as referências visuais homologadas pelo usuário passam a ser o benchmark canônico de execução em light mode e dark mode.
+- nessas superfícies, o objetivo é atingir o mesmo padrão de composição, contraste, paleta, hierarquia e presença da navegação da referência homologada, e não apenas uma aproximação abstrata do `DESIGN_PROPOSAL`.
+
+- [x] **23.1 — Formalizar a governança visual da sprint e o escopo oficial**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Entregas mínimas:
+  - registrar em `docs/PRD.md` e/ou documentação de design que `docs/DESIGN_PROPOSAL.md` é direção visual oficial do admin
+  - registrar explicitamente que a sprint é de consolidação visual controlada, não de redesign aberto
+  - registrar o scanner como exceção deliberada, fora do escopo
+  - registrar os princípios obrigatórios: tokens centralizados, sidebar escura, tipografia `Outfit + DM Mono`, semântica profissional e consistência de componentes
+
+  Regras:
+  - não abrir refatoração visual genérica sem vínculo direto com as superfícies administrativas
+  - não introduzir uma segunda linguagem visual para telas novas do admin
+  - o scanner não deve bloquear nem contaminar a consolidação do admin nesta sprint
+
+  **Evidência:** A documentação oficial do projeto passa a distinguir claramente direção visual, escopo da sprint de consolidação e exceção deliberada do scanner.
+  Formalizado em `docs/PRD.md` na nova seção `8.0 Governança visual do sistema administrativo`, registrando `docs/DESIGN_PROPOSAL.md` como direção oficial do admin, a consolidação visual controlada como estratégia da Sprint 23, os princípios obrigatórios de tokens/semântica/tipografia e o scanner como exceção deliberada fora do escopo desta fase.
+
+- [ ] **23.2 — Fechar a fundação do tema e eliminar inconsistências semânticas**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `app/globals.css`
+  - `components/ui/Badge.tsx`
+  - primitives que dependem diretamente dos tokens globais
+
+  Entregas mínimas:
+  - corrigir tokens ausentes ou incoerentes do tema global
+  - eliminar variáveis extras que contrariem o princípio de acento principal único quando não forem estritamente necessárias
+  - garantir paridade entre light e dark mode para os tokens efetivamente usados
+  - alinhar `Badge`, `Button`, `Card`, inputs e estados semânticos ao contrato visual consolidado
+
+  Regras:
+  - todo estado visual recorrente deve nascer de token semântico, não de classe hardcoded de cor
+  - `info` continua permitido como semântica de apoio; não pode virar accent visual primário
+  - não criar novos tokens sem necessidade clara de uso transversal
+
+  **Evidência:** O tema global passa a cobrir todos os tokens realmente usados no admin, sem variáveis quebradas, e os componentes-base reutilizáveis passam a refletir o contrato visual consolidado.
+  Observação de replanejamento em `2026-04-05`: a execução anterior desta task foi revertida no worktree durante a restauração do frontend ao baseline pré-migração. A task permanece aberta e sem entrega válida no código atual.
+
+- [ ] **23.3 — Consolidar primeiro as superfícies mais visíveis: shell admin e dashboard**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `components/admin/AdminShell.tsx`
+  - `app/(admin)/dashboard/page.tsx`
+  - `components/dashboard/*`
+
+  Entregas mínimas:
+  - fechar a consistência da sidebar escura e topbar
+  - revisar KPIs, cards, badges, gráficos, tabelas e modais de dashboard para aderirem ao contrato visual consolidado
+  - garantir separação visual clara entre progresso operacional, eficiência, alertas e estados neutros
+  - remover resíduos de cores utilitárias antigas nas superfícies principais da dashboard
+
+  Regras:
+  - a dashboard deve virar a referência visual do sistema administrativo
+  - nenhum KPI central deve depender de estilos inline ou paleta hardcoded fora do sistema
+  - mudanças visuais não podem alterar a semântica dos indicadores nem o contrato dos dados
+
+  **Evidência:** `/admin/dashboard` e o shell administrativo passam a apresentar uma linguagem visual coesa, profissional e semanticamente estável, servindo como referência do sistema.
+  Observação de replanejamento em `2026-04-05`: a execução anterior desta task foi revertida no worktree durante a restauração do frontend ao baseline pré-migração. A task permanece aberta e sem entrega válida no código atual.
+
+- [ ] **23.3b — Recalibrar dashboard e navegação principal para refletirem o peso visual do DESIGN_PROPOSAL**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `components/admin/AdminShell.tsx`
+  - `app/(admin)/dashboard/page.tsx`
+  - `components/dashboard/CardKPI.tsx`
+  - `components/dashboard/ResumoPlanejamentoTurnoV2.tsx`
+  - `components/dashboard/StatusMaquinas.tsx`
+  - `components/dashboard/RankingOperadores.tsx`
+  - `components/dashboard/GraficoProducaoPorHora.tsx`
+  - demais blocos da dashboard que hoje estejam excessivamente neutros
+
+  Objetivo específico:
+  - corrigir a subexecução visual identificada após a `23.3`, aproximando a dashboard do peso, da hierarquia e da paleta previstos em `docs/DESIGN_PROPOSAL.md`, especialmente nas seções de paleta, tipografia, sidebar e KPI cards
+
+  Entregas mínimas:
+  - fortalecer a hero bar do turno com status, metas e ações em uma superfície mais marcada, com leitura operacional imediata
+  - transformar 3 ou 4 KPIs em cards realmente prioritários, evitando que todos tenham o mesmo peso visual
+  - reduzir o excesso de contorno e aumentar a hierarquia por contraste de fundo, sombra, densidade e agrupamento
+  - dar mais presença para a sidebar e para a navegação principal, incluindo estado recolhido profissional, ícones maiores, semânticos e visualmente mais fortes
+  - tratar gráficos, ranking e status de máquinas como blocos operacionais do painel, e não apenas caixas neutras
+  - aproximar a paleta do admin das cores previstas no `DESIGN_PROPOSAL`, preservando o slate escuro da sidebar (`#1c2333` / `#141824`), os estados semânticos e o accent âmbar do sistema
+
+  Regras:
+  - não voltar para a linguagem legacy nem para o visual excessivamente branco/preto e sem hierarquia
+  - a recalibração deve preservar a semântica profissional do sistema; o objetivo é aumentar presença, foco e pulso operacional, não introduzir efeitos decorativos
+  - a sidebar recolhida deve continuar legível, com affordance clara de navegação e ícones visualmente dominantes
+  - `Outfit` deve continuar sendo a tipografia de UI e `DM Mono` a tipografia de dados/KPIs
+  - os acentos de cor precisam cumprir função operacional clara: progresso, eficiência, meta, alerta e estado
+
+  **Evidência:** `/admin/dashboard` e o shell administrativo passam a refletir claramente o peso visual previsto no `DESIGN_PROPOSAL`, com hero bar mais forte, KPIs com hierarquia explícita, sidebar mais presente e blocos operacionais com contraste e função perceptível.
+  Observação de replanejamento em `2026-04-05`: a execução anterior desta task não homologou visualmente e depois foi revertida no worktree junto com a tentativa de migração ampla. A task permanece aberta e sem entrega válida no código atual.
+
+- [ ] **23.3c — Atingir paridade visual explícita com a referência homologada da dashboard e do shell**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `components/admin/AdminShell.tsx`
+  - `app/(admin)/dashboard/page.tsx`
+  - `components/dashboard/ResumoPlanejamentoTurnoV2.tsx`
+  - `components/dashboard/CardKPI.tsx`
+  - `components/dashboard/DashboardTabs.tsx`
+  - `components/dashboard/GraficoMetaGrupoTurnoV2.tsx`
+  - `components/dashboard/RankingOperadores.tsx`
+  - `components/dashboard/StatusMaquinas.tsx`
+  - demais superfícies que interfiram diretamente no padrão visual do monitor principal
+
+  Objetivo específico:
+  - sair do estado atual ainda excessivamente neutro e atingir o mesmo padrão visual percebido da referência homologada, tanto no modo claro quanto no modo escuro
+
+  Entregas mínimas:
+  - reproduzir o mesmo padrão estrutural da referência homologada: sidebar escura forte, barra de turno compacta e acionável, primeira linha de KPIs prioritários, gráfico principal dominante e blocos operacionais subsequentes com pesos distintos
+  - reproduzir o mesmo padrão de paleta percebida: fundo e superfícies com contraste correto, slate escuro na navegação, accent âmbar quente para ação/progresso, verde para sucesso e neutros cinza para base/meta
+  - reproduzir o mesmo padrão de presença e comportamento da sidebar: recolhimento profissional, ícones maiores, item ativo forte e leitura clara mesmo no estado colapsado
+  - eliminar a sensação de página wireframe/branca-preta/lavada, aumentando contraste, densidade e direção visual até que a tela tenha presença comparável à referência homologada
+  - garantir que o light mode e o dark mode preservem o mesmo padrão de hierarquia e identidade visual da referência
+
+  Regras:
+  - não basta "lembrar" a proposta; o resultado visual precisa ser reconhecível como pertencente ao mesmo padrão da referência homologada
+  - diferenças de conteúdo do domínio real são permitidas, mas diferenças de linguagem visual, pesos, cores e composição não
+  - se os blocos principais continuarem parecendo todos iguais, a task não está homologada
+  - se a sidebar continuar fraca ou sem recolhimento claro, a task não está homologada
+
+  **Evidência:** O usuário consegue comparar `/admin/dashboard` com a referência homologada em light mode e dark mode e reconhecer o mesmo padrão de composição, contraste, paleta, hierarquia e presença da navegação principal.
+  Observação de replanejamento em `2026-04-05`: a execução anterior desta task não homologou visualmente e foi revertida no worktree na restauração do baseline pré-migração. A task permanece aberta e sem entrega válida no código atual.
+
+- [ ] **23.4 — Migrar os CRUDs administrativos para a mesma linguagem visual**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/operadores`
+  - `/admin/maquinas`
+  - `/admin/operacoes`
+  - `/admin/produtos`
+  - `/admin/setores`
+  - `/admin/usuarios`
+  - modais e listagens compartilhadas
+
+  Entregas mínimas:
+  - padronizar campos de busca, tabelas, botões de ação, estados vazios e badges de status
+  - reduzir uso de cores utilitárias hardcoded nas listagens e modais
+  - garantir que páginas de detalhe e listagens contem a mesma história visual
+  - reaproveitar primitives consolidadas em vez de repetir classes locais divergentes
+
+  Regras:
+  - a migração deve priorizar consistência de semântica e leitura, não efeitos visuais
+  - ações destrutivas, alertas e estados inativos devem seguir a mesma convenção em todos os CRUDs
+  - evitar refatoração funcional fora do necessário para suportar a consolidação visual
+
+  **Evidência:** Os CRUDs do admin passam a compartilhar o mesmo vocabulário visual para busca, tabelas, badges, ações e modais, sem regressão funcional.
+  Observação de replanejamento em `2026-04-05`: a execução anterior desta task foi revertida no worktree durante a restauração do frontend ao baseline pré-migração. A task permanece aberta e sem entrega válida no código atual.
+
+- [ ] **23.5 — Unificar relatórios, apontamentos e QR Codes como superfícies operacionais do admin**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/relatorios`
+  - `/admin/apontamentos`
+  - `/admin/qrcodes`
+  - páginas e componentes de impressão relacionados ao admin
+
+  Entregas mínimas:
+  - alinhar filtros, resumos, tabelas e cards dessas superfícies ao mesmo sistema visual consolidado
+  - remover paletas antigas dispersas (`blue/slate/violet/amber` hardcoded) quando estiverem representando papéis semânticos já cobertos por tokens
+  - manter distinção clara entre leitura analítica, ação operacional e impressão
+  - tratar QR Codes e impressão como parte do admin, não como linguagem paralela
+
+  Regras:
+  - impressão pode manter adaptações próprias de mídia, mas não deve carregar uma identidade diferente do admin
+  - apontamentos administrativos devem permanecer funcionais e legíveis em desktop e tablet
+  - relatórios não podem reintroduzir estilos legacy depois da consolidação das primitives
+
+  **Evidência:** Relatórios, apontamentos e QR Codes passam a ser percebidos como partes do mesmo sistema administrativo, com semântica e hierarquia consistentes.
+
+- [ ] **23.6 — Criar guardrails de consistência visual e homologar a sprint**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Entregas mínimas:
+  - revisar os pontos críticos do admin para garantir ausência de regressão visual grosseira
+  - rodar `npx tsc --noEmit`
+  - registrar a lista de superfícies consolidadas e os resíduos conscientemente deixados fora do escopo
+  - documentar explicitamente que o scanner permanece fora da consolidação e deverá ter sprint própria se for revisitado
+
+  Regras:
+  - a homologação deve validar consistência entre dashboard, CRUDs, relatórios, apontamentos e QR Codes
+  - qualquer exceção visual mantida no admin deve ser deliberada e documentada
+  - não considerar a sprint concluída sem evidência textual da consolidação do vocabulário visual
+
+  **Evidência:** O admin homologado passa a exibir consistência visual entre dashboard, CRUDs, relatórios, apontamentos e QR Codes, com `npx tsc --noEmit` passando e com exceções remanescentes formalmente documentadas.
