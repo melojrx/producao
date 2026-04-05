@@ -13,7 +13,7 @@ O Codex deve ler os seguintes arquivos antes de escrever qualquer linha de códi
 ```
 1. AGENTS.md          (este arquivo)
 2. docs/PRD.md        (regras de negócio, fluxos, metas de produção)
-3. docs/TASKS.md      (sprint atual, tasks, evidências esperadas)
+3. docs/TASKS.md      (sprint atual, HUs, evidências esperadas)
 ```
 
 Observação:
@@ -21,8 +21,8 @@ Observação:
 
 Após a leitura, responda confirmando:
 - Qual sprint está ativa
-- Quais tasks estão pendentes nessa sprint
-- Qual é a evidência da primeira task
+- Quais HUs estão pendentes nessa sprint
+- Qual é a evidência da primeira HU
 
 Aguarde confirmação antes de executar.
 
@@ -30,11 +30,11 @@ Aguarde confirmação antes de executar.
 
 ## COMPORTAMENTO ESPERADO DO AGENTE
 
-- Execute uma task por vez, na ordem definida no TASKS.md
+- Execute uma HU por vez, na ordem definida no TASKS.md
 - Enquanto a sprint estiver explicitamente em `realinhamento documental`, não iniciar implementação de frontend sem reabertura oficial e confirmação do usuário
-- Após cada task: marque `[x]` no checkbox e escreva uma linha de evidência abaixo
+- Após cada HU: marque `[x]` no checkbox e escreva uma linha de evidência abaixo
 - Nunca avance de sprint sem confirmação explícita do usuário
-- Se encontrar ambiguidade em uma task, pergunte antes de implementar
+- Se encontrar ambiguidade em uma HU, pergunte antes de implementar
 - Prefira código funcional e simples a código sofisticado e quebrado
 - Sempre rode `npx tsc --noEmit` após criar ou editar arquivos TypeScript
 
