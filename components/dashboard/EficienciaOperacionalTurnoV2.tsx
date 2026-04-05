@@ -101,7 +101,11 @@ export function EficienciaOperacionalTurnoV2({
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <div
+          title="Buckets de `hora + operador + operação` disponíveis para leitura."
+          aria-label="Linhas horárias: Buckets de hora, operador e operação disponíveis para leitura."
+          className="rounded-2xl border border-blue-100 bg-blue-50 p-4"
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
               Linhas horárias
@@ -111,12 +115,13 @@ export function EficienciaOperacionalTurnoV2({
           <p className="mt-3 text-3xl font-semibold text-slate-900">
             {formatarNumero(destaqueResumo.linhasHora)}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
-            Buckets de `hora + operador + operação` disponíveis para leitura.
-          </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div
+          title="Consolidado diário por operador no escopo do turno carregado."
+          aria-label="Operadores no resumo: Consolidado diário por operador no escopo do turno carregado."
+          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-600">
               Operadores no resumo
@@ -126,12 +131,13 @@ export function EficienciaOperacionalTurnoV2({
           <p className="mt-3 text-3xl font-semibold text-slate-900">
             {formatarNumero(destaqueResumo.operadoresNoResumo)}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
-            Consolidado diário por operador no escopo do turno carregado.
-          </p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+        <div
+          title="Maior eficiência individual encontrada no resumo diário do turno."
+          aria-label="Melhor eficiência dia: Maior eficiência individual encontrada no resumo diário do turno."
+          className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
               Melhor eficiência dia
@@ -141,12 +147,13 @@ export function EficienciaOperacionalTurnoV2({
           <p className="mt-3 text-3xl font-semibold text-slate-900">
             {formatarNumero(destaqueResumo.melhorEficienciaDia, 2)}%
           </p>
-          <p className="mt-1 text-sm text-slate-600">
-            Maior eficiência individual encontrada no resumo diário do turno.
-          </p>
         </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+        <div
+          title="Média simples das eficiências diárias exibidas no turno atual."
+          aria-label="Média eficiência dia: Média simples das eficiências diárias exibidas no turno atual."
+          className="rounded-2xl border border-amber-100 bg-amber-50 p-4"
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
               Média eficiência dia
@@ -155,9 +162,6 @@ export function EficienciaOperacionalTurnoV2({
           </div>
           <p className="mt-3 text-3xl font-semibold text-slate-900">
             {formatarNumero(destaqueResumo.mediaEficienciaDia, 2)}%
-          </p>
-          <p className="mt-1 text-sm text-slate-600">
-            Média simples das eficiências diárias exibidas no turno atual.
           </p>
         </div>
       </div>

@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Boxes, CalendarRange, ClipboardList, PackageCheck, Target, TrendingUp } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { DashboardCompetenciaMensalNav } from '@/components/dashboard/DashboardCompetenciaMensalNav'
@@ -60,7 +59,7 @@ export function DashboardVisaoGeralTab({
             Cadastre a meta na página de apontamentos para liberar a leitura gerencial completa.
           </div>
         ) : (
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <CardKPI
               titulo="Meta Mensal"
               valor={resumoMetaMensal.metaPecas}
@@ -101,25 +100,6 @@ export function DashboardVisaoGeralTab({
             />
           </div>
         )}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <h3 className="text-base font-semibold text-slate-900">Gestão da meta mensal</h3>
-            <p className="text-sm text-slate-600">
-              O cadastro e a edição da meta mensal agora ficam na página de apontamentos, mantendo
-              o domínio administrativo de registros na mesma superfície.
-            </p>
-          </div>
-
-          <Link
-            href={`/admin/apontamentos?competencia=${resumoMetaMensal.competencia}`}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-white"
-          >
-            Abrir apontamentos
-          </Link>
-        </div>
       </section>
 
       <GraficoMetaMensalVisaoGeral resumoMetaMensal={resumoMetaMensal} />

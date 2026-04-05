@@ -35,6 +35,7 @@ export function CardKPI({
   motivoDesabilitado = 'Indisponível no contexto atual.',
 }: CardKPIProps) {
   const [valorAnimado, setValorAnimado] = useState(valor)
+  const tooltip = desabilitado ? motivoDesabilitado : descricao
 
   useEffect(() => {
     let frameId = 0
@@ -103,7 +104,9 @@ export function CardKPI({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className={`rounded-2xl border bg-linear-to-br ${tema.fundo} ${tema.borda} p-5 shadow-sm`}
+      title={tooltip}
+      aria-label={`${titulo}: ${tooltip}`}
+      className={`h-full min-h-[148px] rounded-2xl border bg-linear-to-br ${tema.fundo} ${tema.borda} p-5 shadow-sm`}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -117,10 +120,6 @@ export function CardKPI({
           <Icone size={20} />
         </div>
       </div>
-
-      <p className="mt-4 text-sm leading-6 text-slate-600">
-        {desabilitado ? motivoDesabilitado : descricao}
-      </p>
     </motion.article>
   )
 }

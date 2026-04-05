@@ -1,6 +1,6 @@
 'use client'
 
-import { Activity, Boxes, ClipboardList, PackageCheck, Target } from 'lucide-react'
+import { Boxes, ClipboardList, PackageCheck, Target } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { GraficoMetaGrupoTurnoV2 } from '@/components/dashboard/GraficoMetaGrupoTurnoV2'
 import type { ComparativoMetaGrupoHoraItem, TurnoOpV2 } from '@/types'
@@ -63,8 +63,45 @@ export function DashboardVisaoOperacionalTab({
 }: DashboardVisaoOperacionalTabProps) {
   return (
     <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
+        <CardKPI
+          titulo="Capacidade Produtiva"
+          valor={metaGrupo}
+          desabilitado={!turnoAberto}
+          motivoDesabilitado="Indisponível sem turno aberto. Este KPI é recalculado na abertura do próximo turno."
+          descricao={
+            mediaTpProduto > 0
+              ? `Meta coletiva do turno pela média simples dos T.Ps dos produtos planejados. T.P médio ${mediaTpProduto.toFixed(2)} min.`
+              : 'Meta coletiva do turno baseada na média simples dos T.Ps dos produtos planejados.'
+          }
+          icone={Target}
+          destaque="blue"
+        />
+        <CardKPI
+          titulo="Planejado"
+          valor={resumo.totalPlanejado}
+          descricao="Soma planejada das OPs do turno, sem supercontar o mesmo produto por setor."
+          icone={ClipboardList}
+          destaque="slate"
+        />
+        <CardKPI
+          titulo="Peças completas"
+          valor={resumo.totalRealizado}
+          descricao="Quantidade concluída do turno, preservando a leitura de peças completas separada do progresso operacional."
+          icone={PackageCheck}
+          destaque="emerald"
+        />
+        <CardKPI
+          titulo="Progresso do turno"
+          valor={resumo.progressoOperacionalTurnoPct}
+          descricao="Avanço operacional ponderado por T.P. das operações, sem depender apenas das peças completas."
+          icone={Boxes}
+          destaque="amber"
+        />
+      </div>
+
       {turnoAberto ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Operadores disponíveis
@@ -86,6 +123,13 @@ export function DashboardVisaoOperacionalTab({
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">OPs</p>
             <p className="mt-2 text-3xl font-semibold text-slate-900">{resumo.totalOps}</p>
+          </div>
+
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+              OPs em andamento
+            </p>
+            <p className="mt-2 text-3xl font-semibold text-blue-900">{resumo.opsEmAndamento}</p>
           </div>
 
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
@@ -120,52 +164,6 @@ export function DashboardVisaoOperacionalTab({
           </div>
         </section>
       ) : null}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <CardKPI
-          titulo="Capacidade Produtiva"
-          valor={metaGrupo}
-          desabilitado={!turnoAberto}
-          motivoDesabilitado="Indisponível sem turno aberto. Este KPI é recalculado na abertura do próximo turno."
-          descricao={
-            mediaTpProduto > 0
-              ? `Meta coletiva do turno pela média simples dos T.Ps dos produtos planejados. T.P médio ${mediaTpProduto.toFixed(2)} min.`
-              : 'Meta coletiva do turno baseada na média simples dos T.Ps dos produtos planejados.'
-          }
-          icone={Target}
-          destaque="blue"
-        />
-        <CardKPI
-          titulo="OPs em andamento"
-          valor={resumo.opsEmAndamento}
-          desabilitado={!turnoAberto}
-          motivoDesabilitado="Indisponível sem turno aberto. As OPs em andamento só fazem sentido no acompanhamento operacional corrente."
-          descricao="Quantidade de OPs já iniciadas, mas ainda não concluídas no turno carregado."
-          icone={Activity}
-          destaque="blue"
-        />
-        <CardKPI
-          titulo="Planejado"
-          valor={resumo.totalPlanejado}
-          descricao="Soma planejada das OPs do turno, sem supercontar o mesmo produto por setor."
-          icone={ClipboardList}
-          destaque="slate"
-        />
-        <CardKPI
-          titulo="Peças completas"
-          valor={resumo.totalRealizado}
-          descricao="Quantidade concluída do turno, preservando a leitura de peças completas separada do progresso operacional."
-          icone={PackageCheck}
-          destaque="emerald"
-        />
-        <CardKPI
-          titulo="Progresso do turno"
-          valor={resumo.progressoOperacionalTurnoPct}
-          descricao="Avanço operacional ponderado por T.P. das operações, sem depender apenas das peças completas."
-          icone={Boxes}
-          destaque="amber"
-        />
-      </div>
 
       {erroMetaGrupo ? (
         <section className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
