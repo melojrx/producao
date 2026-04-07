@@ -2522,6 +2522,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** O schema alvo e o PRD passam a descrever `operacoes.maquina_id` como vínculo oficial, sem `tipo_maquina_codigo` no contrato da operação.
   PRD reforçado em `docs/PRD.md` com a persistência oficial por `operacoes.maquina_id UUID REFERENCES maquinas(id)`, e migration preparatória criada em `scripts/sprint26_operacoes_maquina_codigo_manual.sql`, removendo o default automático de `operacoes.codigo`, introduzindo `maquina_id` e registrando o backfill obrigatório antes da remoção final de `tipo_maquina_codigo`.
+  A migration foi aplicada no projeto de produção `jsuufbgdcqxogimmocof` via Supabase Management API em `2026-04-07` (`POST /v1/projects/{ref}/database/query`). Validação read-only concluída na sequência: `information_schema.columns` retornou `codigo`, `maquina_id` e `tipo_maquina_codigo`, todos com `column_default = null`, confirmando a entrada de `maquina_id` e a remoção do default automático de `codigo` sem ainda remover a coluna legada antes do backfill final.
 
 - [x] **HU 26.2 — Como admin, quero cadastrar e editar operações escolhendo uma máquina específica pelo modelo, para manter o cadastro técnico consistente com as máquinas realmente existentes.**
   **Prioridade:** P0
