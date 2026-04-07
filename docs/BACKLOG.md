@@ -32,11 +32,13 @@
 | 20 | Ciclo de vida e exclusão segura de produtos | ✅ Concluída | 2 |
 | 21 | Relatório operacional de QR Codes do turno | ✅ Concluída | 2 |
 | 22 | Duplicação assistida de produtos | ✅ Concluída | 1 |
-| 23 | Consolidação visual profissional do admin | ⏳ Planejada | 3 |
+| 23 | Consolidação visual profissional do admin | 🔄 Em realinhamento documental | 3 |
+| 24 | Meta mensal global da fábrica | 🔄 Em execução | 2 |
+| 25 | Apontamentos operacionais sem preview e orientados por pendência | ✅ Concluída | 2 |
 
-**Total estimado: 50 dias úteis**
+**Total estimado: 54 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 abre uma frente cirúrgica de consolidação visual profissional do admin, usando `docs/DESIGN_PROPOSAL.md` como direção de design e não como plano literal de implementação; a dashboard e as superfícies administrativas passam a ser o foco de consistência, enquanto o scanner permanece explicitamente fora do escopo como exceção deliberada. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário. A Sprint 24 abriu a frente de meta mensal global da fábrica na dashboard e em `/admin/apontamentos`. A Sprint 25 fica planejada como simplificação do fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -330,6 +332,29 @@
 - Expor ações claras e coerentes no CRUD de produtos
 - Homologar cenários de produto virgem, produto com histórico e produto em turno aberto
 
+## SPRINT 24 — Meta mensal global da fábrica
+**Objetivo:** introduzir a meta mensal gerencial da fábrica na dashboard e em `/admin/apontamentos`, sem depender de turno ativo.
+**Entregável:** cadastro, edição e leitura da meta mensal por competência, com KPIs e evolução diária/semanal na `Visão Geral`.
+**Status:** 🔄 Em execução
+
+- Persistir uma meta mensal única por competência
+- Permitir cadastro e edição em `/admin/apontamentos`
+- Exibir KPIs mensais e leitura acumulada na `Visão Geral`
+- Separar `Visão Geral` gerencial de `Visão Operacional`
+- Homologar estados sem meta, sem produção e produção parcial
+
+## SPRINT 25 — Apontamentos operacionais sem preview e orientados por pendência
+**Objetivo:** simplificar o fluxo operacional de `/admin/apontamentos` para que o supervisor atue apenas sobre pendências reais, sem atravessar previews expandidos de seções.
+**Entregável:** aba `Operação do Turno` trabalhando com filtros de itens pendentes, formulário direto do recorte atual e quantidade inicial sugerida pelo saldo da operação.
+**Status:** ✅ Concluída
+
+- Limitar filtros operacionais a OPs, setores e operações com `saldo > 0`
+- Remover a dependência de preview expandido antes do formulário
+- Exibir diretamente o formulário acionável do recorte filtrado
+- Pré-preencher a quantidade com o saldo remanescente da operação
+- Recalcular o recorte após cada lançamento e retirar do fluxo os itens concluídos
+- Homologação funcional confirmada pelo usuário em `2026-04-07`
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -338,7 +363,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

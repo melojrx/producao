@@ -3,9 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Factory,
   Filter,
-  ListChecks,
   Minus,
   Package,
   Plus,
@@ -43,6 +41,28 @@ interface LancamentoDraft {
   operadorId: string
   turnoSetorOperacaoId: string
   quantidade: string
+}
+
+function saldoRestanteSecao(secao: TurnoSetorOpV2): number {
+  return Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0)
+}
+
+function saldoRestanteOperacao(operacao: TurnoSetorOperacaoApontamentoV2): number {
+  return Math.max(operacao.quantidadePlanejada - operacao.quantidadeRealizada, 0)
+}
+
+function statusPermiteApontamento(
+  status: TurnoSetorOpStatusV2 | TurnoSetorOperacaoStatusV2
+): boolean {
+  return status !== 'concluida' && status !== 'encerrada_manualmente'
+}
+
+function secaoEstaAcionavel(secao: TurnoSetorOpV2): boolean {
+  return statusPermiteApontamento(secao.status) && saldoRestanteSecao(secao) > 0
+}
+
+function operacaoEstaAcionavel(operacao: TurnoSetorOperacaoApontamentoV2): boolean {
+  return statusPermiteApontamento(operacao.status) && saldoRestanteOperacao(operacao) > 0
 }
 
 const estadoInicial: RegistrarApontamentosSupervisorActionState = {
@@ -90,12 +110,37 @@ function criarLancamentoDraft(
   operadores: TurnoOperadorV2[],
   operacoes: TurnoSetorOperacaoApontamentoV2[]
 ): LancamentoDraft {
+  const operacaoInicial = operacoes[0]
+
   return {
     id: criarIdLocal(),
     operadorId: operadores[0]?.operadorId ?? '',
-    turnoSetorOperacaoId: operacoes[0]?.id ?? '',
-    quantidade: '1',
+    turnoSetorOperacaoId: operacaoInicial?.id ?? '',
+    quantidade: operacaoInicial ? String(saldoRestanteOperacao(operacaoInicial)) : '',
   }
+}
+
+function obterQuantidadeSugerida(
+  turnoSetorOperacaoId: string,
+  operacoes: TurnoSetorOperacaoApontamentoV2[]
+): string {
+  const operacaoSelecionada = operacoes.find((operacao) => operacao.id === turnoSetorOperacaoId)
+
+  return operacaoSelecionada ? String(saldoRestanteOperacao(operacaoSelecionada)) : ''
+}
+
+function normalizarQuantidadeInput(valor: string, saldoMaximo: number): string {
+  if (valor.trim() === '') {
+    return ''
+  }
+
+  const quantidade = Number.parseInt(valor, 10)
+  if (!Number.isFinite(quantidade)) {
+    return ''
+  }
+
+  const quantidadeNormalizada = Math.min(Math.max(quantidade, 1), Math.max(saldoMaximo, 1))
+  return String(quantidadeNormalizada)
 }
 
 function statusSecaoTema(status: TurnoSetorOpStatusV2 | TurnoSetorOperacaoStatusV2): string {
@@ -125,36 +170,111 @@ export function PainelApontamentosSupervisor({
     estadoInicial
   )
   const pendenciaAnteriorRef = useRef(pendente)
+  const reconciliacaoPosSucessoRef = useRef<{
+    secaoId: string
+    secoesOrdenadas: string[]
+  } | null>(null)
   const [erroLocal, setErroLocal] = useState<string | null>(null)
+  const [mensagemFluxo, setMensagemFluxo] = useState<string | null>(null)
   const [filtroOp, setFiltroOp] = useState('')
   const [filtroSetor, setFiltroSetor] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
   const secoes = useMemo(() => montarSecoesComContexto(planejamento), [planejamento])
+  const secoesAcionaveis = useMemo(
+    () => secoes.filter((secao) => secaoEstaAcionavel(secao)),
+    [secoes]
+  )
+  const opcoesOp = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          secoesAcionaveis
+            .filter(
+              (secao) =>
+                (!filtroSetor || secao.setorId === filtroSetor) &&
+                (!filtroProduto || secao.produtoReferencia === filtroProduto)
+            )
+            .map((secao) => [
+              secao.turnoOpId,
+              {
+                id: secao.turnoOpId,
+                numeroOp: secao.numeroOp,
+                produtoReferencia: secao.produtoReferencia,
+              },
+            ])
+        ).values()
+      ).sort((primeiraOp, segundaOp) => primeiraOp.numeroOp.localeCompare(segundaOp.numeroOp)),
+    [filtroProduto, filtroSetor, secoesAcionaveis]
+  )
+  const opcoesSetor = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          secoesAcionaveis
+            .filter(
+              (secao) =>
+                (!filtroOp || secao.turnoOpId === filtroOp) &&
+                (!filtroProduto || secao.produtoReferencia === filtroProduto)
+            )
+            .map((secao) => [secao.setorId, secao])
+        ).values()
+      ).sort((primeiroSetor, segundoSetor) =>
+        compararSetoresPorOrdem(primeiroSetor, segundoSetor)
+      ),
+    [filtroOp, filtroProduto, secoesAcionaveis]
+  )
+  const opcoesProduto = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          secoesAcionaveis
+            .filter(
+              (secao) =>
+                (!filtroOp || secao.turnoOpId === filtroOp) &&
+                (!filtroSetor || secao.setorId === filtroSetor)
+            )
+            .map((secao) => [
+              secao.produtoReferencia,
+              {
+                referencia: secao.produtoReferencia,
+                nome: secao.produtoNome,
+              },
+            ])
+        ).values()
+      ).sort((primeiroProduto, segundoProduto) =>
+        primeiroProduto.referencia.localeCompare(segundoProduto.referencia)
+      ),
+    [filtroOp, filtroSetor, secoesAcionaveis]
+  )
   const secoesFiltradas = useMemo(
     () =>
-      secoes.filter((secao) => {
+      secoesAcionaveis.filter((secao) => {
         const correspondeOp = !filtroOp || secao.turnoOpId === filtroOp
         const correspondeSetor = !filtroSetor || secao.setorId === filtroSetor
         const correspondeProduto = !filtroProduto || secao.produtoReferencia === filtroProduto
 
         return correspondeOp && correspondeSetor && correspondeProduto
       }),
-    [filtroOp, filtroProduto, filtroSetor, secoes]
+    [filtroOp, filtroProduto, filtroSetor, secoesAcionaveis]
   )
   const [secaoSelecionadaId, setSecaoSelecionadaId] = useState<string>(
-    secoesFiltradas[0]?.id ?? secoes[0]?.id ?? ''
+    secoesFiltradas[0]?.id ?? secoesAcionaveis[0]?.id ?? ''
   )
   const [lancamentos, setLancamentos] = useState<LancamentoDraft[]>([])
 
   const secaoSelecionada = useMemo(
-    () => secoes.find((secao) => secao.id === secaoSelecionadaId) ?? secoesFiltradas[0] ?? null,
-    [secaoSelecionadaId, secoes, secoesFiltradas]
+    () =>
+      secoesAcionaveis.find((secao) => secao.id === secaoSelecionadaId) ?? secoesFiltradas[0] ?? null,
+    [secaoSelecionadaId, secoesAcionaveis, secoesFiltradas]
   )
 
   const operacoesDaSecao = useMemo(
     () =>
       secaoSelecionada
-        ? operacoesTurno.filter((operacao) => operacao.turnoSetorOpId === secaoSelecionada.id)
+        ? operacoesTurno.filter(
+            (operacao) =>
+              operacao.turnoSetorOpId === secaoSelecionada.id && operacaoEstaAcionavel(operacao)
+          )
         : [],
     [operacoesTurno, secaoSelecionada]
   )
@@ -170,6 +290,10 @@ export function PainelApontamentosSupervisor({
 
     return operadoresDaSecaoBase.length > 0 ? operadoresDaSecaoBase : planejamento.operadores
   }, [planejamento.operadores, secaoSelecionada])
+  const operacoesDaSecaoPorId = useMemo(
+    () => new Map(operacoesDaSecao.map((operacao) => [operacao.id, operacao])),
+    [operacoesDaSecao]
+  )
 
   const payloadLancamentos = useMemo(
     () =>
@@ -191,19 +315,86 @@ export function PainelApontamentosSupervisor({
   )
 
   useEffect(() => {
-    if (!secaoSelecionada && secoes.length > 0) {
-      setSecaoSelecionadaId(secoes[0].id)
+    if (!secaoSelecionada && secoesAcionaveis.length > 0) {
+      setSecaoSelecionadaId(secoesAcionaveis[0].id)
     }
-  }, [secaoSelecionada, secoes])
+  }, [secaoSelecionada, secoesAcionaveis])
 
   useEffect(() => {
+    if (filtroOp && !opcoesOp.some((op) => op.id === filtroOp)) {
+      setFiltroOp('')
+    }
+  }, [filtroOp, opcoesOp])
+
+  useEffect(() => {
+    if (filtroSetor && !opcoesSetor.some((secao) => secao.setorId === filtroSetor)) {
+      setFiltroSetor('')
+    }
+  }, [filtroSetor, opcoesSetor])
+
+  useEffect(() => {
+    if (filtroProduto && !opcoesProduto.some((produto) => produto.referencia === filtroProduto)) {
+      setFiltroProduto('')
+    }
+  }, [filtroProduto, opcoesProduto])
+
+  useEffect(() => {
+    setMensagemFluxo(null)
+  }, [filtroOp, filtroProduto, filtroSetor])
+
+  useEffect(() => {
+    const reconciliacaoPendente = reconciliacaoPosSucessoRef.current
+
     if (secoesFiltradas.length === 0) {
       setSecaoSelecionadaId('')
       setLancamentos([])
+      if (reconciliacaoPendente) {
+        setMensagemFluxo(
+          'Lançamento registrado. O recorte atual foi concluído e não restam pendências para os filtros ativos.'
+        )
+        reconciliacaoPosSucessoRef.current = null
+      }
       return
     }
 
     const secaoAindaVisivel = secoesFiltradas.some((secao) => secao.id === secaoSelecionadaId)
+
+    if (reconciliacaoPendente) {
+      const secaoAnteriorSegueDisponivel = secoesFiltradas.some(
+        (secao) => secao.id === reconciliacaoPendente.secaoId
+      )
+
+      if (secaoAnteriorSegueDisponivel) {
+        if (secaoSelecionadaId !== reconciliacaoPendente.secaoId) {
+          setSecaoSelecionadaId(reconciliacaoPendente.secaoId)
+          return
+        }
+
+        setMensagemFluxo(
+          'Lançamento registrado. O contexto atual ainda possui saldo e permanece pronto para o próximo apontamento.'
+        )
+        reconciliacaoPosSucessoRef.current = null
+        return
+      }
+
+      const proximaSecaoId =
+        reconciliacaoPendente.secoesOrdenadas
+          .slice(reconciliacaoPendente.secoesOrdenadas.indexOf(reconciliacaoPendente.secaoId) + 1)
+          .find((secaoId) => secoesFiltradas.some((secao) => secao.id === secaoId)) ??
+        secoesFiltradas[0]?.id ??
+        ''
+
+      if (proximaSecaoId && secaoSelecionadaId !== proximaSecaoId) {
+        setSecaoSelecionadaId(proximaSecaoId)
+        return
+      }
+
+      setMensagemFluxo(
+        'Lançamento registrado. O item atual foi concluído e a tela avançou para a próxima pendência acionável.'
+      )
+      reconciliacaoPosSucessoRef.current = null
+      return
+    }
 
     if (!secaoAindaVisivel) {
       setSecaoSelecionadaId(secoesFiltradas[0].id)
@@ -218,23 +409,38 @@ export function PainelApontamentosSupervisor({
 
     setLancamentos((estadoAtual) => {
       if (estadoAtual.length > 0) {
-        const proximoEstado = estadoAtual.map((lancamento) => ({
-          ...lancamento,
-          operadorId:
+        const proximoEstado = estadoAtual.map((lancamento) => {
+          const operadorId =
             operadoresDaSecao.some((operador) => operador.operadorId === lancamento.operadorId)
               ? lancamento.operadorId
-              : (operadoresDaSecao[0]?.operadorId ?? ''),
-          turnoSetorOperacaoId: operacoesDaSecao.some(
+              : (operadoresDaSecao[0]?.operadorId ?? '')
+          const turnoSetorOperacaoId = operacoesDaSecao.some(
             (operacao) => operacao.id === lancamento.turnoSetorOperacaoId
           )
             ? lancamento.turnoSetorOperacaoId
-            : (operacoesDaSecao[0]?.id ?? ''),
-        }))
+            : (operacoesDaSecao[0]?.id ?? '')
+          const operacaoSelecionada = operacoesDaSecao.find(
+            (operacao) => operacao.id === turnoSetorOperacaoId
+          )
+          const saldoMaximo = operacaoSelecionada ? saldoRestanteOperacao(operacaoSelecionada) : 0
+          const quantidade =
+            turnoSetorOperacaoId !== lancamento.turnoSetorOperacaoId
+              ? obterQuantidadeSugerida(turnoSetorOperacaoId, operacoesDaSecao)
+              : normalizarQuantidadeInput(lancamento.quantidade, saldoMaximo)
+
+          return {
+            ...lancamento,
+            operadorId,
+            turnoSetorOperacaoId,
+            quantidade,
+          }
+        })
 
         const estadoMudou = proximoEstado.some(
           (lancamento, index) =>
             lancamento.operadorId !== estadoAtual[index]?.operadorId ||
-            lancamento.turnoSetorOperacaoId !== estadoAtual[index]?.turnoSetorOperacaoId
+            lancamento.turnoSetorOperacaoId !== estadoAtual[index]?.turnoSetorOperacaoId ||
+            lancamento.quantidade !== estadoAtual[index]?.quantidade
         )
 
         return estadoMudou ? proximoEstado : estadoAtual
@@ -257,15 +463,20 @@ export function PainelApontamentosSupervisor({
     }
 
     setErroLocal(null)
+    setMensagemFluxo(null)
     if (secaoSelecionada) {
-      setLancamentos([criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao)])
+      reconciliacaoPosSucessoRef.current = {
+        secaoId: secaoSelecionada.id,
+        secoesOrdenadas: secoesFiltradas.map((secao) => secao.id),
+      }
     }
     router.refresh()
-  }, [estado.sucesso, operacoesDaSecao, operadoresDaSecao, pendente, router, secaoSelecionada])
+  }, [estado.sucesso, pendente, router, secaoSelecionada, secoesFiltradas])
 
   function selecionarSecao(secaoId: string): void {
     setSecaoSelecionadaId(secaoId)
     setErroLocal(null)
+    setMensagemFluxo(null)
   }
 
   function adicionarLancamento(): void {
@@ -311,197 +522,130 @@ export function PainelApontamentosSupervisor({
 
     const possuiLancamentoInvalido = lancamentos.some((lancamento) => {
       const quantidade = Number.parseInt(lancamento.quantidade, 10)
+      const operacaoSelecionada = operacoesDaSecaoPorId.get(lancamento.turnoSetorOperacaoId)
       return (
         !lancamento.operadorId ||
         !lancamento.turnoSetorOperacaoId ||
+        !operacaoSelecionada ||
         !Number.isInteger(quantidade) ||
-        quantidade <= 0
+        quantidade <= 0 ||
+        quantidade > saldoRestanteOperacao(operacaoSelecionada)
       )
     })
 
     if (possuiLancamentoInvalido) {
-      return 'Preencha operador, operação e quantidade válida em todas as linhas.'
+      return 'Preencha operador, operação e quantidade válida sem ultrapassar o saldo da operação.'
+    }
+
+    const quantidadePorOperacao = new Map<string, number>()
+
+    for (const lancamento of lancamentos) {
+      const quantidade = Number.parseInt(lancamento.quantidade, 10)
+      const totalAtual = quantidadePorOperacao.get(lancamento.turnoSetorOperacaoId) ?? 0
+      quantidadePorOperacao.set(lancamento.turnoSetorOperacaoId, totalAtual + quantidade)
+    }
+
+    const excedeuSaldoAgregado = Array.from(quantidadePorOperacao.entries()).some(
+      ([turnoSetorOperacaoId, quantidadeTotal]) => {
+        const operacaoSelecionada = operacoesDaSecaoPorId.get(turnoSetorOperacaoId)
+
+        return operacaoSelecionada
+          ? quantidadeTotal > saldoRestanteOperacao(operacaoSelecionada)
+          : true
+      }
+    )
+
+    if (excedeuSaldoAgregado) {
+      return 'A soma das linhas não pode ultrapassar o saldo pendente da mesma operação.'
     }
 
     return null
   }
 
-  const secoesPendentes = planejamento.demandasSetor?.length
-    ? planejamento.demandasSetor.filter((demanda) => demanda.status !== 'concluida').length
-    : secoes.filter((secao) => secao.status !== 'concluida').length
-  const totalPlanejado = planejamento.ops.reduce((soma, op) => soma + op.quantidadePlanejada, 0)
-  const totalRealizado = planejamento.ops.reduce((soma, op) => soma + op.quantidadeConcluida, 0)
   const saldoSecaoSelecionada = secaoSelecionada
-    ? Math.max(secaoSelecionada.quantidadePlanejada - secaoSelecionada.quantidadeConcluida, 0)
+    ? saldoRestanteSecao(secaoSelecionada)
     : 0
 
   return (
     <section className="space-y-6">
-      <section className="grid gap-6 xl:grid-cols-[1.2fr,1.8fr]">
-        <div className="space-y-4">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-slate-500" />
-              <h2 className="text-base font-semibold text-slate-900">Filtros rápidos</h2>
+      <section className="space-y-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-slate-500" />
+            <h2 className="text-base font-semibold text-slate-900">Filtros rápidos</h2>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-op" className="text-sm font-medium text-slate-700">
+                OP
+              </label>
+              <select
+                id="filtro-op"
+                value={filtroOp}
+                onChange={(event) => setFiltroOp(event.target.value)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todas as OPs</option>
+                {opcoesOp.map((op) => (
+                  <option key={op.id} value={op.id}>
+                    {op.numeroOp} · {op.produtoReferencia}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filtro-op" className="text-sm font-medium text-slate-700">
-                  OP
-                </label>
-                <select
-                  id="filtro-op"
-                  value={filtroOp}
-                  onChange={(event) => setFiltroOp(event.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Todas as OPs</option>
-                  {planejamento.ops.map((op) => (
-                    <option key={op.id} value={op.id}>
-                      {op.numeroOp} · {op.produtoReferencia}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filtro-setor" className="text-sm font-medium text-slate-700">
-                  Setor
-                </label>
-                <select
-                  id="filtro-setor"
-                  value={filtroSetor}
-                  onChange={(event) => setFiltroSetor(event.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Todos os setores</option>
-                  {Array.from(new Map(secoes.map((secao) => [secao.setorId, secao])).values()).map(
-                    (secao) => (
-                      <option key={secao.setorId} value={secao.setorId}>
-                        {secao.setorNome}
-                      </option>
-                    )
-                  )}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filtro-produto" className="text-sm font-medium text-slate-700">
-                  Produto
-                </label>
-                <select
-                  id="filtro-produto"
-                  value={filtroProduto}
-                  onChange={(event) => setFiltroProduto(event.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Todos os produtos</option>
-                  {Array.from(
-                    new Map(secoes.map((secao) => [secao.produtoReferencia, secao])).values()
-                  ).map((secao) => (
-                    <option key={secao.produtoReferencia} value={secao.produtoReferencia}>
-                      {secao.produtoReferencia} · {secao.produtoNome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900">Seções do turno</h2>
-                <p className="text-sm text-slate-600">
-                  Selecione a seção que vai receber os apontamentos deste momento.
-                </p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                {secoesFiltradas.length} seção(ões)
-              </span>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-setor" className="text-sm font-medium text-slate-700">
+                Setor
+              </label>
+              <select
+                id="filtro-setor"
+                value={filtroSetor}
+                onChange={(event) => setFiltroSetor(event.target.value)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos os setores</option>
+                {opcoesSetor.map((secao) => (
+                  <option key={secao.setorId} value={secao.setorId}>
+                    {secao.setorNome}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="mt-4 space-y-3">
-              {secoesFiltradas.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                  Nenhuma seção encontrada para os filtros atuais.
-                </div>
-              ) : (
-                secoesFiltradas.map((secao) => {
-                  const saldo = Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0)
-                  const progresso = secao.progressoOperacionalPct
-                  const selecionada = secao.id === secaoSelecionada?.id
-
-                  return (
-                    <button
-                      key={secao.id}
-                      type="button"
-                      onClick={() => selecionarSecao(secao.id)}
-                      className={`w-full rounded-2xl border px-4 py-4 text-left transition-colors ${
-                        selecionada
-                          ? 'border-blue-300 bg-blue-50 shadow-sm'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {secao.numeroOp} · {secao.setorNome}
-                          </p>
-                          <p className="text-sm text-slate-600">
-                            {secao.produtoReferencia} · {secao.produtoNome}
-                          </p>
-                        </div>
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusSecaoTema(secao.status)}`}
-                        >
-                          {secao.status}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                        <div className="rounded-xl bg-white/80 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Planejado</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {secao.quantidadePlanejada}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-white/80 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Realizado</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {secao.quantidadeConcluida}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-white/80 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Saldo</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{saldo}</p>
-                        </div>
-                        <div className="rounded-xl bg-white/80 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Progresso</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {progresso.toFixed(0)}%
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })
-              )}
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-produto" className="text-sm font-medium text-slate-700">
+                Produto
+              </label>
+              <select
+                id="filtro-produto"
+                value={filtroProduto}
+                onChange={(event) => setFiltroProduto(event.target.value)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos os produtos</option>
+                {opcoesProduto.map((produto) => (
+                  <option key={produto.referencia} value={produto.referencia}>
+                    {produto.referencia} · {produto.nome}
+                  </option>
+                ))}
+              </select>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           {!secaoSelecionada ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-600">
-              Selecione uma seção para visualizar as operações e registrar os apontamentos.
+              Nenhuma pendência operacional encontrada para os filtros atuais.
             </div>
           ) : (
             <div className="space-y-5">
-              <div className="flex flex-col gap-4 border-b border-slate-200 pb-5">
+              <div className="space-y-4 border-b border-slate-200 pb-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
+                    <p className="text-sm font-semibold text-blue-700">Contexto operacional</p>
                     <h2 className="text-xl font-semibold text-slate-900">
                       {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome}
                     </h2>
@@ -516,9 +660,40 @@ export function PainelApontamentosSupervisor({
                   </span>
                 </div>
 
+                {secoesFiltradas.length > 1 ? (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="contexto-secao" className="text-sm font-medium text-slate-700">
+                      Contexto acionável
+                    </label>
+                    <select
+                      id="contexto-secao"
+                      value={secaoSelecionada.id}
+                      onChange={(event) => selecionarSecao(event.target.value)}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {secoesFiltradas.map((secao) => (
+                        <option key={secao.id} value={secao.id}>
+                          {secao.numeroOp} · {secao.setorNome} · saldo {saldoRestanteSecao(secao)}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500">
+                      Os filtros atuais ainda possuem mais de uma pendência. Escolha o contexto que
+                      vai receber o lançamento agora.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    O recorte filtrado já convergiu para uma única pendência acionável. O formulário
+                    abaixo está pronto para lançamento direto.
+                  </div>
+                )}
+
                 <div className="grid gap-3 md:grid-cols-4">
                   <article className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Planejado</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Planejado
+                    </p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">
                       {secaoSelecionada.quantidadePlanejada}
                     </p>
@@ -532,7 +707,9 @@ export function PainelApontamentosSupervisor({
                     </p>
                   </article>
                   <article className="rounded-2xl bg-amber-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Saldo</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                      Saldo
+                    </p>
                     <p className="mt-2 text-2xl font-semibold text-amber-900">
                       {saldoSecaoSelecionada}
                     </p>
@@ -548,133 +725,100 @@ export function PainelApontamentosSupervisor({
                 </div>
               </div>
 
-              <section className="grid gap-5 lg:grid-cols-[1.1fr,1.4fr]">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <ListChecks size={16} className="text-slate-500" />
-                    <h3 className="text-base font-semibold text-slate-900">Operações da seção</h3>
+              <div className="space-y-4">
+                {origemOperadores === 'fallback_ativos' ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Este turno ainda não possui operadores alocados nominalmente. A tela está
+                    exibindo os operadores ativos do cadastro como fallback operacional até que a
+                    alocação do turno seja preenchida.
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Lançamentos do supervisor
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      O formulário já está focado no contexto filtrado. Registre apenas o que foi
+                      concluído neste momento.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={adicionarLancamento}
+                    disabled={pendente || operacoesDaSecao.length === 0}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Plus size={16} />
+                    Nova linha
+                  </button>
+                </div>
+
+                {estado.erro ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {estado.erro}
+                  </div>
+                ) : null}
+
+                {estado.sucesso && estado.mensagem ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    {estado.mensagem}
+                  </div>
+                ) : null}
+
+                {mensagemFluxo ? (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    {mensagemFluxo}
+                  </div>
+                ) : null}
+
+                {erroLocal ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {erroLocal}
+                  </div>
+                ) : null}
+
+                <form
+                  action={executar}
+                  className="space-y-4"
+                  onSubmit={(event) => {
+                    const erro = validarFormulario()
+                    if (erro) {
+                      event.preventDefault()
+                      setErroLocal(erro)
+                      return
+                    }
+
+                    setErroLocal(null)
+                  }}
+                >
+                  <input type="hidden" name="turno_setor_op_id" value={secaoSelecionada.id} />
+                  <input type="hidden" name="lancamentos" value={payloadLancamentos} />
+
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        <Package size={16} />
+                        {operacoesDaSecao.length} operação(ões) acionável(is)
+                      </span>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        <UserRound size={16} />
+                        {operadoresDaSecao.length} operador(es) elegível(is)
+                      </span>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
-                    {operacoesDaSecao.map((operacao) => {
-                      const saldoOperacao = Math.max(
-                        operacao.quantidadePlanejada - operacao.quantidadeRealizada,
-                        0
+                    {lancamentos.map((lancamento, index) => {
+                      const operacaoSelecionada = operacoesDaSecaoPorId.get(
+                        lancamento.turnoSetorOperacaoId
                       )
+                      const saldoMaximo = operacaoSelecionada
+                        ? saldoRestanteOperacao(operacaoSelecionada)
+                        : 0
 
                       return (
-                        <article
-                          key={operacao.id}
-                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">
-                                {operacao.sequencia}. {operacao.operacaoCodigo}
-                              </p>
-                              <p className="text-sm text-slate-600">{operacao.operacaoDescricao}</p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                T.P {operacao.tempoPadraoMinSnapshot} min · Máquina{' '}
-                                {operacao.tipoMaquinaCodigo ?? 'manual'}
-                              </p>
-                            </div>
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusSecaoTema(operacao.status)}`}
-                            >
-                              {operacao.status}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Planejado</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {operacao.quantidadePlanejada}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Realizado</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {operacao.quantidadeRealizada}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Saldo</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {saldoOperacao}
-                              </p>
-                            </div>
-                          </div>
-                        </article>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {origemOperadores === 'fallback_ativos' ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                      Este turno ainda não possui operadores alocados nominalmente. A tela está
-                      exibindo os operadores ativos do cadastro como fallback operacional até que a
-                      alocação do turno seja preenchida.
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-semibold text-slate-900">Lançamentos do supervisor</h3>
-                      <p className="text-sm text-slate-600">
-                        Adicione uma linha por operador e operação concluída neste momento.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={adicionarLancamento}
-                      disabled={pendente || operacoesDaSecao.length === 0}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Plus size={16} />
-                      Nova linha
-                    </button>
-                  </div>
-
-                  {estado.erro ? (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {estado.erro}
-                    </div>
-                  ) : null}
-
-                  {estado.sucesso && estado.mensagem ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                      {estado.mensagem}
-                    </div>
-                  ) : null}
-
-                  {erroLocal ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                      {erroLocal}
-                    </div>
-                  ) : null}
-
-                  <form
-                    action={executar}
-                    className="space-y-4"
-                    onSubmit={(event) => {
-                      const erro = validarFormulario()
-                      if (erro) {
-                        event.preventDefault()
-                        setErroLocal(erro)
-                        return
-                      }
-
-                      setErroLocal(null)
-                    }}
-                  >
-                    <input type="hidden" name="turno_setor_op_id" value={secaoSelecionada.id} />
-                    <input type="hidden" name="lancamentos" value={payloadLancamentos} />
-
-                    <div className="space-y-3">
-                      {lancamentos.map((lancamento, index) => (
                         <div
                           key={lancamento.id}
                           className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
@@ -696,9 +840,7 @@ export function PainelApontamentosSupervisor({
 
                           <div className="grid gap-3 md:grid-cols-3">
                             <div className="flex flex-col gap-1">
-                              <label className="text-sm font-medium text-slate-700">
-                                Operador
-                              </label>
+                              <label className="text-sm font-medium text-slate-700">Operador</label>
                               <select
                                 value={lancamento.operadorId}
                                 onChange={(event) =>
@@ -718,23 +860,27 @@ export function PainelApontamentosSupervisor({
                             </div>
 
                             <div className="flex flex-col gap-1">
-                              <label className="text-sm font-medium text-slate-700">
-                                Operação
-                              </label>
+                              <label className="text-sm font-medium text-slate-700">Operação</label>
                               <select
                                 value={lancamento.turnoSetorOperacaoId}
-                                onChange={(event) =>
+                                onChange={(event) => {
+                                  const turnoSetorOperacaoId = event.target.value
+
                                   atualizarLancamento(lancamento.id, {
-                                    turnoSetorOperacaoId: event.target.value,
+                                    turnoSetorOperacaoId,
+                                    quantidade: obterQuantidadeSugerida(
+                                      turnoSetorOperacaoId,
+                                      operacoesDaSecao
+                                    ),
                                   })
-                                }
+                                }}
                                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
                                 <option value="">Selecione</option>
                                 {operacoesDaSecao.map((operacao) => (
                                   <option key={operacao.id} value={operacao.id}>
-                                    {operacao.sequencia}. {operacao.operacaoCodigo} ·{' '}
-                                    {operacao.operacaoDescricao}
+                                    {operacao.sequencia}. {operacao.operacaoCodigo} · saldo{' '}
+                                    {saldoRestanteOperacao(operacao)}
                                   </option>
                                 ))}
                               </select>
@@ -747,57 +893,46 @@ export function PainelApontamentosSupervisor({
                               <input
                                 type="number"
                                 min={1}
+                                max={operacaoSelecionada ? saldoMaximo : undefined}
                                 step={1}
                                 value={lancamento.quantidade}
                                 onChange={(event) =>
                                   atualizarLancamento(lancamento.id, {
-                                    quantidade: event.target.value,
+                                    quantidade: normalizarQuantidadeInput(
+                                      event.target.value,
+                                      saldoMaximo
+                                    ),
                                   })
                                 }
                                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
+                              <p className="text-xs text-slate-500">
+                                Sugestão automática: saldo atual da operação selecionada.
+                              </p>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      )
+                    })}
+                  </div>
 
-                    <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="space-y-1">
-                          <p className="font-semibold">Resumo da seção selecionada</p>
-                          <p>
-                            {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · saldo atual{' '}
-                            {saldoSecaoSelecionada}.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <Factory size={16} />
-                          {operadoresDaSecao.length} operador(es) disponível(is) para esta seção
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+                    <p className="text-sm text-slate-500">
+                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · saldo atual{' '}
+                      {saldoSecaoSelecionada}.
+                    </p>
 
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Package size={16} />
-                        {operacoesDaSecao.length} operação(ões) derivada(s) da seção
-                        <UserRound size={16} className="ml-3" />
-                        {operadoresDaSecao.length} operador(es) elegível(is)
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={pendente || secaoSelecionada.status === 'concluida'}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Save size={16} />
-                        {pendente ? 'Registrando...' : 'Registrar lançamentos'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </section>
+                    <button
+                      type="submit"
+                      disabled={pendente || secaoSelecionada.status === 'concluida'}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Save size={16} />
+                      {pendente ? 'Registrando...' : 'Registrar lançamentos'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </section>

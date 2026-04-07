@@ -2349,3 +2349,141 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** A sprint fecha com a dashboard reorganizada, meta mensal persistida, leitura diária/semanal/mensal disponível e `npx tsc --noEmit` passando sem erros.
   Validado em `components/dashboard/PainelMetaMensalFormulario.tsx`, `components/apontamentos/PainelMetaMensalApontamentos.tsx`, `components/apontamentos/ApontamentosTabs.tsx`, `components/dashboard/DashboardVisaoGeralTab.tsx`, `components/dashboard/DashboardVisaoOperacionalTab.tsx`, `components/dashboard/DashboardOperadoresTab.tsx`, `lib/actions/metas-mensais.ts`, `lib/queries/metas-mensais.ts`, `docs/PRD.md` e `docs/TASKS.md`. A `Visão Geral` passou a permanecer como leitura mensal gerencial, o fluxo de cadastro/edição da meta mensal da competência selecionada foi deslocado para `/admin/apontamentos`, a página de apontamentos passou a se organizar nas abas `Gestão Mensal` e `Operação do Turno`, os estados `sem meta`, `sem produção` e `produção parcial` permanecem cobertos na leitura mensal, a separação entre `Visão Geral`, `Visão Operacional` e `Operadores` foi mantida, e a limitação consciente da curva média foi reforçada no PRD. `npx tsc --noEmit` validado sem erros em `2026-04-05`.
+
+## SPRINT 25 — Apontamentos operacionais sem preview e orientados por pendência
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 24 homologada e confirmação explícita do usuário para abertura oficial da sprint.
+**Objetivo:** simplificar `/admin/apontamentos` para que a aba `Operação do Turno` trabalhe com um fluxo direto de lançamento por pendência acionável, sem preview expandido das seções, sem filtros para itens concluídos e com quantidade sugerida a partir do saldo da operação.
+
+**Nota de proposta em `2026-04-06`:**
+- o feedback de UX indicou que o fluxo atual de `preview de seções -> detalhe -> formulário` está adicionando atrito desnecessário ao supervisor
+- quando a intenção operacional já é apontar uma OP filtrada, a tela deve convergir imediatamente para o formulário acionável do recorte escolhido
+- OPs, setores e operações já concluídos deixam de ser opções operacionais válidas nessa superfície
+- o saldo da operação passa a ser a sugestão padrão de quantidade para reduzir digitação manual repetitiva
+
+**Decisões de produto propostas para esta sprint:**
+- `/admin/apontamentos` continua sendo a rota administrativa segura de supervisão e contingência
+- a aba `Operação do Turno` deixa de privilegiar uma visão geral expandida de seções antes do lançamento
+- filtros operacionais passam a listar apenas pendências reais com saldo maior que `0`
+- itens já concluídos continuam podendo existir em dashboard e relatórios, mas saem do fluxo operacional de lançamento
+- o formulário deve abrir diretamente no recorte filtrado e usar o saldo remanescente da operação como quantidade inicial sugerida
+- após cada lançamento, a UI deve recalcular o recorte atual e eliminar automaticamente do fluxo os itens que foram concluídos
+
+- [x] **HU 25.1 — Como supervisor, quero que os filtros de `/admin/apontamentos` mostrem apenas OPs, setores e operações ainda pendentes, para não perder tempo navegando por itens já concluídos.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/apontamentos`
+  - queries e read models usados pela aba `Operação do Turno`
+
+  Tarefas:
+  - revisar o contrato das queries operacionais da página
+  - excluir das opções de filtro qualquer OP com saldo integralmente zerado
+  - excluir do filtro de setor qualquer setor já concluído dentro da OP selecionada
+  - excluir da lista de operações qualquer operação já concluída no recorte atual
+  - garantir que produto, OP, setor e operação mantenham consistência entre si quando o filtro anterior mudar
+  - preservar a leitura histórica dos concluídos apenas em dashboard, relatórios e detalhes não operacionais
+
+  Regras:
+  - `saldo > 0` passa a ser o critério operacional de elegibilidade para filtro e lançamento
+  - itens concluídos não devem reaparecer por inconsistência de ordenação, cache ou fallback de UI
+  - a remoção de concluídos do fluxo operacional não pode apagar nem distorcer histórico
+
+  **Evidência:** Ao abrir `/admin/apontamentos`, os filtros da aba `Operação do Turno` deixam de oferecer OPs, setores e operações concluídos, mantendo apenas pendências reais e coerentes entre si.
+  Implementado em `components/apontamentos/PainelApontamentosSupervisor.tsx` em `2026-04-07`, filtrando a UI operacional por contextos acionáveis (`saldo > 0` e status diferente de `concluida`/`encerrada_manualmente`), encadeando as opções de `OP`, `setor` e `produto` a partir desse subconjunto e removendo operações concluídas também da seção selecionada. `npx tsc --noEmit` validado sem erros.
+
+- [x] **HU 25.2 — Como supervisor, quero que a aba `Operação do Turno` mostre diretamente o formulário do recorte filtrado, para lançar produção sem atravessar uma prévia longa de seções.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `components/apontamentos/PainelApontamentosSupervisor.tsx`
+  - componentes auxiliares da aba `Operação do Turno`
+
+  Tarefas:
+  - remover a dependência do fluxo `preview expandido -> escolha visual -> formulário`
+  - transformar o bloco principal da tela em um formulário acionável orientado pelos filtros atuais
+  - manter apenas um resumo contextual enxuto de OP, produto, setor, planejado, realizado e saldo
+  - abrir diretamente o formulário quando o recorte filtrado já identificar um único contexto elegível
+  - revisar estados vazios e mensagens quando não houver pendências para o filtro escolhido
+
+  Regras:
+  - a tela operacional deve priorizar ação, não inspeção
+  - o resumo contextual não pode competir visualmente com o formulário nem reintroduzir uma lista longa de seções
+  - a simplificação da UI não pode alterar o contrato transacional do lançamento
+
+  **Evidência:** Com uma OP filtrada, `/admin/apontamentos` deixa de exibir a prévia completa das seções e passa a abrir diretamente o formulário correspondente ao recorte operacional escolhido.
+  Implementado em `components/apontamentos/PainelApontamentosSupervisor.tsx` em `2026-04-07`, removendo a vitrine expandida de `Seções do turno` e o preview detalhado de `Operações da seção`, promovendo o formulário a bloco principal da aba `Operação do Turno` e mantendo apenas um `Contexto operacional` enxuto com seletor compacto quando ainda houver mais de uma pendência elegível no recorte filtrado. `npx tsc --noEmit` validado sem erros.
+
+- [x] **HU 25.3 — Como supervisor, quero receber a quantidade já preenchida com o saldo da operação, para registrar rapidamente o restante planejado sem digitar manualmente em toda ação.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Telas/blocos afetados:
+  - formulário de lançamento de `/admin/apontamentos`
+  - actions e validações ligadas à quantidade operacional
+
+  Tarefas:
+  - calcular o saldo remanescente da operação no recorte atual
+  - preencher a quantidade inicial do formulário com esse saldo
+  - manter a possibilidade de editar manualmente a quantidade para um valor válido menor ou igual ao saldo
+  - impedir envio acima do saldo pendente
+  - atualizar a sugestão automaticamente quando o supervisor trocar OP, setor, produto ou operação
+
+  Regras:
+  - o valor sugerido é operacional, não obrigatório
+  - a sugestão nunca pode ultrapassar o saldo real da operação
+  - mudanças de filtro não podem reaproveitar quantidade stale de um recorte anterior
+
+  **Evidência:** Ao selecionar uma operação pendente em `/admin/apontamentos`, o campo de quantidade já abre com o saldo remanescente correto, respeita edição manual e continua bloqueando excesso acima do saldo.
+  Implementado em `components/apontamentos/PainelApontamentosSupervisor.tsx` em `2026-04-07`, fazendo cada novo lançamento nascer com a quantidade sugerida pelo saldo da primeira operação acionável, reaplicando a sugestão automaticamente quando a operação do draft muda e recalculando a quantidade quando o contexto filtrado troca de seção/OP/setor/produto. O input passou a respeitar `max` por operação e a validação do formulário agora bloqueia tanto excesso por linha quanto excesso agregado quando múltiplas linhas apontam para a mesma operação. `npx tsc --noEmit` validado sem erros.
+
+- [x] **HU 25.4 — Como supervisor, quero que a tela avance naturalmente após cada lançamento, para continuar apontando apenas o que ainda falta sem reprocessar itens já encerrados.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/apontamentos`
+  - estados client-side e revalidação após lançamento
+
+  Tarefas:
+  - recalcular o recorte operacional imediatamente após cada lançamento bem-sucedido
+  - remover do fluxo visível a operação concluída quando o saldo chegar a `0`
+  - manter o formulário no mesmo contexto quando ainda houver saldo naquele recorte
+  - avançar para a próxima pendência elegível quando o item atual for encerrado
+  - revisar mensagens de sucesso para reforçar o próximo passo operacional
+
+  Regras:
+  - a UX pós-save deve reduzir cliques e evitar novo filtro manual desnecessário
+  - o avanço automático não pode conduzir o supervisor para contexto inconsistente com os filtros ativos
+  - se não houver mais pendência no recorte, a tela deve comunicar claramente que o contexto foi concluído
+
+  **Evidência:** Após registrar um lançamento, `/admin/apontamentos` atualiza o saldo do contexto, remove do fluxo o que foi concluído e mantém o supervisor apenas nas pendências ainda acionáveis.
+  Implementado em `components/apontamentos/PainelApontamentosSupervisor.tsx` em `2026-04-07`, armazenando o contexto operacional imediatamente antes do `router.refresh()` e reconciliando a tela quando os dados atualizados chegam: se a seção atual ainda tem saldo, ela permanece selecionada; se saiu do fluxo, a UI avança para a próxima pendência elegível dentro do mesmo recorte filtrado; se não restarem pendências, a área operacional informa a conclusão do recorte. A tela também passou a exibir mensagens explícitas de continuidade/avanço pós-save para o supervisor. `npx tsc --noEmit` validado sem erros.
+
+- [x] **HU 25.5 — Como produto, quero homologar a nova UX de apontamentos com cenários reais de OP parcial e OP concluída, para garantir que o ganho de fluidez não gere regressão operacional.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar cenário com OP parcialmente concluída e múltiplos setores pendentes
+  - validar cenário com setor concluído e outro setor ainda pendente dentro da mesma OP
+  - validar cenário em que a última operação pendente é concluída e o item sai dos filtros
+  - rodar `npx tsc --noEmit`
+  - registrar evidências da homologação funcional e das limitações conscientes, se houver
+
+  Regras:
+  - a homologação precisa confirmar redução real de atrito para o supervisor
+  - a validação deve cobrir filtros, formulário direto, sugestão de saldo e comportamento pós-save
+  - a sprint não pode ser considerada concluída sem validar a ausência de itens concluídos no fluxo operacional
+
+  **Evidência:** Em `/admin/apontamentos`, o supervisor consegue filtrar apenas pendências reais, lançar direto no formulário sem atravessar previews longos, usar a quantidade sugerida pelo saldo e ver itens concluídos saindo do fluxo operacional sem regressões técnicas; `npx tsc --noEmit` passa sem erros.
+  Homologação funcional confirmada pelo usuário em `2026-04-07`: o fluxo operacional foi validado com recortes reais de OP parcial e de conclusão, confirmando que a tela passou a operar sem preview expandido, com filtros apenas de pendências, sugestão automática de saldo e avanço pós-save sem regressão observada.
+
+**Evidências consolidadas da Sprint 25:**
+- `/admin/apontamentos` passou a operar apenas sobre pendências reais, removendo OPs, setores e operações concluídos do fluxo de lançamento.
+- A aba `Operação do Turno` deixou de usar preview expandido de seções e passou a abrir diretamente o formulário do recorte filtrado.
+- A quantidade de cada lançamento passou a nascer do saldo da operação selecionada, com bloqueio de excesso por linha e por soma agregada da mesma operação.
+- O comportamento pós-save passou a manter o contexto quando ainda há saldo e a avançar automaticamente para a próxima pendência elegível quando o item atual sai do fluxo.
+- `npx tsc --noEmit` foi validado sem erros durante a execução e permaneceu consistente até a homologação funcional.

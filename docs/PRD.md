@@ -890,14 +890,28 @@ Interface administrativa de captura incremental da produção.
 - `Gestão Mensal` concentra o cadastro, a edição e a navegação por competência da meta mensal
 - `Operação do Turno` concentra a abertura/edição/encerramento do turno e os lançamentos incrementais do supervisor
 - turno aberto fixo como contexto
-- filtros por OP, setor e produto
-- lista de seções com planejado, realizado, saldo e progresso
-- detalhe da seção com operações previstas e operadores do turno
-- múltiplas linhas de lançamento no mesmo envio
-- cada linha contém operador, operação e quantidade
+- filtros por OP, setor e produto, sempre limitados a pendências realmente acionáveis do contexto atual
+- a aba operacional deve priorizar o lançamento direto e não uma prévia expandida de todas as seções antes do formulário
+- OPs totalmente concluídas não devem aparecer como opção de filtro operacional
+- ao selecionar uma OP, o filtro de setor deve listar apenas setores daquela OP que ainda possuam saldo pendente
+- operações totalmente concluídas dentro do recorte filtrado não devem aparecer como opção de lançamento
+- quando o recorte filtrado resultar em um único contexto elegível, a interface deve abrir diretamente o formulário correspondente
+- o bloco principal da tela deve ser o formulário acionável do recorte atual, com resumo contextual enxuto em vez de uma lista longa de previews
+- cada linha de lançamento contém operador, operação e quantidade
+- a quantidade inicial sugerida deve vir pré-preenchida com o saldo remanescente da operação selecionada, sempre respeitando o teto do saldo pendente
+- múltiplas linhas no mesmo envio continuam permitidas apenas quando fizerem sentido dentro do mesmo recorte operacional escolhido
 - gravação transacional dos lançamentos
 - atualização imediata da operação, seção, OP, turno, dashboard e relatórios
+- após cada gravação, a interface deve recalcular o recorte atual e permanecer no próximo estado acionável: manter o formulário se ainda houver saldo ou retirar do fluxo o item que foi concluído
 - quando o supervisor abrir um novo turno a partir desta rota, o pós-save deve redirecionar para `/admin/qrcodes` para imprimir os QRs operacionais antes de retornar ao monitor da TV
+
+Fluxo alvo da aba `Operação do Turno`:
+1. supervisor abre a aba operacional com o turno aberto como contexto fixo
+2. sistema oferece apenas OPs com pendências reais de apontamento
+3. ao escolher a OP, sistema reduz os filtros seguintes para apenas setores, produtos e operações ainda pendentes naquele recorte
+4. a tela deixa de abrir uma vitrine de todas as seções da OP e passa a mostrar diretamente o formulário acionável do recorte escolhido
+5. o supervisor escolhe o operador e confirma ou ajusta a quantidade já sugerida pelo saldo remanescente da operação
+6. ao registrar, a UI atualiza imediatamente o saldo e conduz o supervisor para a próxima pendência elegível, sem reintroduzir OPs, setores ou operações já encerrados
 
 ### 8.4 Cadastro de Setores (/admin/setores)
 
