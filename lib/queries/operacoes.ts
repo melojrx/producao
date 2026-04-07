@@ -3,21 +3,21 @@ import type { OperacaoListItem } from '@/types'
 import type { Tables } from '@/types/supabase'
 
 type OperacaoRow = Tables<'operacoes'>
+type MaquinaRow = Tables<'maquinas'>
 type SetorRow = Tables<'setores'>
 
-function mapearOperacoesComTipo(
+function mapearOperacoes(
   operacoes: OperacaoRow[],
-  tiposMaquina: Tables<'tipos_maquina'>[],
+  maquinas: MaquinaRow[],
   setores: SetorRow[]
 ): OperacaoListItem[] {
-  const tiposPorCodigo = new Map(tiposMaquina.map((tipo) => [tipo.codigo, tipo.nome]))
+  const maquinasPorId = new Map(maquinas.map((maquina) => [maquina.id, maquina]))
   const setoresPorId = new Map(setores.map((setor) => [setor.id, setor]))
 
   return operacoes.map((operacao) => ({
     ...operacao,
-    tipoNome: operacao.tipo_maquina_codigo
-      ? tiposPorCodigo.get(operacao.tipo_maquina_codigo) ?? null
-      : null,
+    maquinaCodigo: operacao.maquina_id ? maquinasPorId.get(operacao.maquina_id)?.codigo ?? null : null,
+    maquinaModelo: operacao.maquina_id ? maquinasPorId.get(operacao.maquina_id)?.modelo ?? null : null,
     setorCodigo: operacao.setor_id ? setoresPorId.get(operacao.setor_id)?.codigo ?? null : null,
     setorNome: operacao.setor_id ? setoresPorId.get(operacao.setor_id)?.nome ?? null : null,
   }))
@@ -28,12 +28,12 @@ export async function listarOperacoes(): Promise<OperacaoListItem[]> {
 
   const [
     { data: operacoes, error: operacoesError },
-    { data: tiposMaquina, error: tiposError },
+    { data: maquinas, error: maquinasError },
     { data: setores, error: setoresError },
   ] =
     await Promise.all([
       supabase.from('operacoes').select('*').order('codigo'),
-      supabase.from('tipos_maquina').select('*').order('nome'),
+      supabase.from('maquinas').select('*').order('modelo').order('codigo'),
       supabase.from('setores').select('*').order('codigo'),
     ])
 
@@ -41,15 +41,15 @@ export async function listarOperacoes(): Promise<OperacaoListItem[]> {
     throw new Error(`Erro ao listar operações: ${operacoesError.message}`)
   }
 
-  if (tiposError) {
-    throw new Error(`Erro ao listar tipos de máquina: ${tiposError.message}`)
+  if (maquinasError) {
+    throw new Error(`Erro ao listar máquinas das operações: ${maquinasError.message}`)
   }
 
   if (setoresError) {
     throw new Error(`Erro ao listar setores das operações: ${setoresError.message}`)
   }
 
-  return mapearOperacoesComTipo(operacoes, tiposMaquina, setores)
+  return mapearOperacoes(operacoes, maquinas, setores)
 }
 
 export async function buscarOperacaoPorId(id: string): Promise<OperacaoListItem | null> {
@@ -66,22 +66,22 @@ export async function buscarOperacaoPorId(id: string): Promise<OperacaoListItem 
   }
 
   const [
-    { data: tiposMaquina, error: tiposError },
+    { data: maquinas, error: maquinasError },
     { data: setores, error: setoresError },
   ] = await Promise.all([
-    supabase.from('tipos_maquina').select('*').order('nome'),
+    supabase.from('maquinas').select('*').order('modelo').order('codigo'),
     supabase.from('setores').select('*').order('codigo'),
   ])
 
-  if (tiposError) {
-    throw new Error(`Erro ao listar tipos de máquina: ${tiposError.message}`)
+  if (maquinasError) {
+    throw new Error(`Erro ao listar máquinas das operações: ${maquinasError.message}`)
   }
 
   if (setoresError) {
     throw new Error(`Erro ao listar setores das operações: ${setoresError.message}`)
   }
 
-  return mapearOperacoesComTipo([operacao], tiposMaquina, setores)[0] ?? null
+  return mapearOperacoes([operacao], maquinas, setores)[0] ?? null
 }
 
 export async function buscarOperacaoPorToken(token: string): Promise<OperacaoListItem | null> {
@@ -98,20 +98,20 @@ export async function buscarOperacaoPorToken(token: string): Promise<OperacaoLis
   }
 
   const [
-    { data: tiposMaquina, error: tiposError },
+    { data: maquinas, error: maquinasError },
     { data: setores, error: setoresError },
   ] = await Promise.all([
-    supabase.from('tipos_maquina').select('*').order('nome'),
+    supabase.from('maquinas').select('*').order('modelo').order('codigo'),
     supabase.from('setores').select('*').order('codigo'),
   ])
 
-  if (tiposError) {
-    throw new Error(`Erro ao listar tipos de máquina: ${tiposError.message}`)
+  if (maquinasError) {
+    throw new Error(`Erro ao listar máquinas das operações: ${maquinasError.message}`)
   }
 
   if (setoresError) {
     throw new Error(`Erro ao listar setores das operações: ${setoresError.message}`)
   }
 
-  return mapearOperacoesComTipo([operacao], tiposMaquina, setores)[0] ?? null
+  return mapearOperacoes([operacao], maquinas, setores)[0] ?? null
 }

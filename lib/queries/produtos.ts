@@ -5,15 +5,18 @@ import type { Tables } from '@/types/supabase'
 type ProdutoRow = Tables<'produtos'>
 type ProdutoOperacaoRow = Tables<'produto_operacoes'>
 type OperacaoRow = Tables<'operacoes'>
+type MaquinaRow = Tables<'maquinas'>
 type SetorRow = Tables<'setores'>
 
 function mapearProdutosComRoteiro(
   produtos: ProdutoRow[],
   produtoOperacoes: ProdutoOperacaoRow[],
   operacoes: OperacaoRow[],
+  maquinas: MaquinaRow[],
   setores: SetorRow[]
 ): ProdutoListItem[] {
   const operacoesPorId = new Map(operacoes.map((operacao) => [operacao.id, operacao]))
+  const maquinasPorId = new Map(maquinas.map((maquina) => [maquina.id, maquina]))
   const setoresPorId = new Map(setores.map((setor) => [setor.id, setor]))
   const roteiroPorProduto = new Map<string, ProdutoRoteiroItem[]>()
 
@@ -29,6 +32,7 @@ function mapearProdutosComRoteiro(
 
     const roteiroAtual = roteiroPorProduto.get(item.produto_id) ?? []
     const setor = operacao.setor_id ? setoresPorId.get(operacao.setor_id) : null
+    const maquina = operacao.maquina_id ? maquinasPorId.get(operacao.maquina_id) ?? null : null
     roteiroAtual.push({
       produtoOperacaoId: item.id,
       operacaoId: operacao.id,
@@ -36,7 +40,9 @@ function mapearProdutosComRoteiro(
       codigo: operacao.codigo,
       descricao: operacao.descricao,
       tempoPadraoMin: operacao.tempo_padrao_min,
-      tipoMaquinaCodigo: operacao.tipo_maquina_codigo,
+      maquinaId: operacao.maquina_id,
+      maquinaCodigo: maquina?.codigo ?? null,
+      maquinaModelo: maquina?.modelo ?? null,
       setorId: operacao.setor_id,
       setorCodigo: setor?.codigo ?? null,
       setorNome: setor?.nome ?? null,
@@ -66,12 +72,14 @@ export async function listarProdutos(): Promise<ProdutoListItem[]> {
     { data: produtos, error: produtosError },
     { data: produtoOperacoes, error: produtoOpsError },
     { data: operacoes, error: operacoesError },
+    { data: maquinas, error: maquinasError },
     { data: setores, error: setoresError },
   ] =
     await Promise.all([
       supabase.from('produtos').select('*').order('nome'),
       supabase.from('produto_operacoes').select('*').order('sequencia'),
       supabase.from('operacoes').select('*').order('codigo'),
+      supabase.from('maquinas').select('*').order('modelo').order('codigo'),
       supabase.from('setores').select('*').order('codigo'),
     ])
 
@@ -87,11 +95,15 @@ export async function listarProdutos(): Promise<ProdutoListItem[]> {
     throw new Error(`Erro ao listar operações: ${operacoesError.message}`)
   }
 
+  if (maquinasError) {
+    throw new Error(`Erro ao listar máquinas do roteiro: ${maquinasError.message}`)
+  }
+
   if (setoresError) {
     throw new Error(`Erro ao listar setores do roteiro: ${setoresError.message}`)
   }
 
-  return mapearProdutosComRoteiro(produtos, produtoOperacoes, operacoes, setores)
+  return mapearProdutosComRoteiro(produtos, produtoOperacoes, operacoes, maquinas, setores)
 }
 
 export async function buscarProdutoComRoteiro(id: string): Promise<ProdutoListItem | null> {
@@ -117,10 +129,14 @@ export async function buscarProdutoComRoteiro(id: string): Promise<ProdutoListIt
 
   const [
     { data: operacoes, error: operacoesError },
+    { data: maquinas, error: maquinasError },
     { data: setores, error: setoresError },
   ] = await Promise.all([
     operacaoIds.length
       ? supabase.from('operacoes').select('*').in('id', operacaoIds)
+      : Promise.resolve({ data: [], error: null }),
+    operacaoIds.length
+      ? supabase.from('maquinas').select('*').order('modelo').order('codigo')
       : Promise.resolve({ data: [], error: null }),
     supabase.from('setores').select('*').order('codigo'),
   ])
@@ -129,9 +145,13 @@ export async function buscarProdutoComRoteiro(id: string): Promise<ProdutoListIt
     throw new Error(`Erro ao listar operações do roteiro: ${operacoesError.message}`)
   }
 
+  if (maquinasError) {
+    throw new Error(`Erro ao listar máquinas do roteiro: ${maquinasError.message}`)
+  }
+
   if (setoresError) {
     throw new Error(`Erro ao listar setores do roteiro: ${setoresError.message}`)
   }
 
-  return mapearProdutosComRoteiro([produto], produtoOperacoes, operacoes, setores)[0] ?? null
+  return mapearProdutosComRoteiro([produto], produtoOperacoes, operacoes, maquinas, setores)[0] ?? null
 }

@@ -1,12 +1,12 @@
 import { ListaOperacoes } from '../../(admin)/operacoes/ListaOperacoes'
-import { listarTiposMaquina } from '@/lib/queries/maquinas'
+import { listarMaquinas } from '@/lib/queries/maquinas'
 import { listarOperacoes } from '@/lib/queries/operacoes'
 import { listarSetores } from '@/lib/queries/setores'
 
 export default async function AdminOperacoesPage() {
-  const [operacoes, tiposMaquina, setores] = await Promise.all([
+  const [operacoes, maquinas, setores] = await Promise.all([
     listarOperacoes(),
-    listarTiposMaquina(),
+    listarMaquinas(),
     listarSetores(),
   ])
 
@@ -19,7 +19,7 @@ export default async function AdminOperacoesPage() {
         </p>
       </div>
 
-      <ListaOperacoes operacoesIniciais={operacoes} tiposMaquina={tiposMaquina} setores={setores} />
+      <ListaOperacoes operacoesIniciais={operacoes} maquinas={maquinas} setores={setores} />
     </div>
   )
 }

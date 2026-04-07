@@ -58,22 +58,24 @@ export async function criarOperacao(
 
   const supabase = createAdminClient()
 
+  const codigo = obterTexto(formData, 'codigo')
   const descricao = obterTexto(formData, 'descricao')
   const setorId = obterTexto(formData, 'setor_id')
-  const tipoMaquinaCodigo = obterTextoOpcional(formData, 'tipo_maquina_codigo')
+  const maquinaId = obterTextoOpcional(formData, 'maquina_id')
   const tempoPadraoMin = obterNumero(formData, 'tempo_padrao_min')
 
-  if (!descricao || !setorId || !tipoMaquinaCodigo || tempoPadraoMin <= 0) {
-    return { erro: 'Setor, descrição, tipo da máquina e T.P válido são obrigatórios' }
+  if (!codigo || !descricao || !setorId || !maquinaId || tempoPadraoMin <= 0) {
+    return { erro: 'Código, setor, descrição, máquina e T.P válido são obrigatórios' }
   }
 
   const metaHora = calcularMetaHora(tempoPadraoMin)
   const metaDia = calcularMetaDia(tempoPadraoMin, MINUTOS_TURNO_PADRAO)
 
   const { error } = await supabase.from('operacoes').insert({
+    codigo,
     descricao,
+    maquina_id: maquinaId,
     setor_id: setorId,
-    tipo_maquina_codigo: tipoMaquinaCodigo,
     tempo_padrao_min: tempoPadraoMin,
     meta_hora: metaHora,
     meta_dia: metaDia,
@@ -177,14 +179,15 @@ export async function editarOperacao(
 
   const supabase = createAdminClient()
 
+  const codigo = obterTexto(formData, 'codigo')
   const descricao = obterTexto(formData, 'descricao')
   const setorId = obterTexto(formData, 'setor_id')
-  const tipoMaquinaCodigo = obterTextoOpcional(formData, 'tipo_maquina_codigo')
+  const maquinaId = obterTextoOpcional(formData, 'maquina_id')
   const tempoPadraoMin = obterNumero(formData, 'tempo_padrao_min')
   const ativa = obterAtiva(formData)
 
-  if (!descricao || !setorId || !tipoMaquinaCodigo || tempoPadraoMin <= 0) {
-    return { erro: 'Setor, descrição, tipo da máquina e T.P válido são obrigatórios' }
+  if (!codigo || !descricao || !setorId || !maquinaId || tempoPadraoMin <= 0) {
+    return { erro: 'Código, setor, descrição, máquina e T.P válido são obrigatórios' }
   }
 
   const metaHora = calcularMetaHora(tempoPadraoMin)
@@ -193,9 +196,10 @@ export async function editarOperacao(
   const { error } = await supabase
     .from('operacoes')
     .update({
+      codigo,
       descricao,
+      maquina_id: maquinaId,
       setor_id: setorId,
-      tipo_maquina_codigo: tipoMaquinaCodigo,
       tempo_padrao_min: tempoPadraoMin,
       meta_hora: metaHora,
       meta_dia: metaDia,

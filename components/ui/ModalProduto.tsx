@@ -187,7 +187,8 @@ export function ModalProduto({
     const correspondeAoTermo =
       operacao.codigo.toLocaleLowerCase().includes(termoBuscaOperacao) ||
       operacao.descricao.toLocaleLowerCase().includes(termoBuscaOperacao) ||
-      (operacao.tipoNome?.toLocaleLowerCase().includes(termoBuscaOperacao) ?? false)
+      (operacao.maquinaModelo?.toLocaleLowerCase().includes(termoBuscaOperacao) ?? false) ||
+      (operacao.maquinaCodigo?.toLocaleLowerCase().includes(termoBuscaOperacao) ?? false)
 
     return correspondeAoTermo || roteiroIds.includes(operacao.id)
   })
@@ -505,8 +506,8 @@ export function ModalProduto({
                         <div className="min-w-0">
                           <p className="truncate text-sm text-gray-600">
                             <span className="font-medium text-gray-900">{operacao.codigo}</span>{' '}
-                            • {operacao.descricao} • {operacao.tipoNome ?? 'Sem tipo'} • T.P{' '}
-                            {operacao.tempo_padrao_min}
+                            • {operacao.descricao} • {operacao.maquinaModelo ?? 'Sem máquina'} •
+                            {' '}T.P {operacao.tempo_padrao_min}
                           </p>
                         </div>
                         <button
@@ -610,8 +611,7 @@ export function ModalProduto({
                                       <span className="font-medium text-gray-900">
                                         {operacao.codigo}
                                       </span>{' '}
-                                      • {operacao.descricao} • {operacao.tipoNome ?? 'Sem tipo'} •
-                                      {' '}T.P {operacao.tempo_padrao_min}
+                                      • {operacao.descricao} • {operacao.maquinaModelo ?? 'Sem máquina'} • T.P {operacao.tempo_padrao_min}
                                     </p>
                                   </div>
                                   <button

@@ -5,18 +5,18 @@ import { X } from 'lucide-react'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
 import { criarOperacao, editarOperacao } from '@/lib/actions/operacoes'
 import { calcularMetaDia, calcularMetaHora } from '@/lib/utils/producao'
-import type { FormActionState, OperacaoListItem, SetorOption, TipoMaquinaOption } from '@/types'
+import type { FormActionState, MaquinaOption, OperacaoListItem, SetorOption } from '@/types'
 
 interface ModalOperacaoProps {
   operacao?: OperacaoListItem
-  tiposMaquina: TipoMaquinaOption[]
+  maquinas: MaquinaOption[]
   setores: SetorOption[]
   aoFechar: () => void
 }
 
 const estadoInicial: FormActionState = { erro: undefined, sucesso: false }
 
-export function ModalOperacao({ operacao, tiposMaquina, setores, aoFechar }: ModalOperacaoProps) {
+export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOperacaoProps) {
   const acao = operacao ? editarOperacao.bind(null, operacao.id) : criarOperacao
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
   const [tempoPadraoMin, setTempoPadraoMin] = useState(
@@ -73,6 +73,21 @@ export function ModalOperacao({ operacao, tiposMaquina, setores, aoFechar }: Mod
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-1">
+              <label htmlFor="codigo" className="text-sm font-medium text-gray-700">
+                Código <span aria-hidden>*</span>
+              </label>
+              <input
+                id="codigo"
+                name="codigo"
+                type="text"
+                required
+                defaultValue={operacao?.codigo ?? ''}
+                placeholder="Informe o código real da operação"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
               <label htmlFor="setor_id" className="text-sm font-medium text-gray-700">
                 Setor <span aria-hidden>*</span>
               </label>
@@ -93,34 +108,32 @@ export function ModalOperacao({ operacao, tiposMaquina, setores, aoFechar }: Mod
                 ))}
               </select>
             </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="tipo_maquina_codigo" className="text-sm font-medium text-gray-700">
-                Tipo de máquina <span aria-hidden>*</span>
-              </label>
-              <select
-                id="tipo_maquina_codigo"
-                name="tipo_maquina_codigo"
-                required
-                defaultValue={operacao?.tipo_maquina_codigo ?? ''}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="" disabled>
-                  Selecione um tipo
-                </option>
-                {tiposMaquina.map((tipo) => (
-                  <option key={tipo.codigo} value={tipo.codigo}>
-                    {tipo.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-gray-500">Código</p>
-            <p className="text-lg font-semibold text-gray-900">
-              {operacao?.codigo ?? 'Será gerado automaticamente ao salvar'}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="maquina_id" className="text-sm font-medium text-gray-700">
+              Máquina <span aria-hidden>*</span>
+            </label>
+            <select
+              id="maquina_id"
+              name="maquina_id"
+              required
+              defaultValue={operacao?.maquina_id ?? ''}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            >
+              <option value="" disabled>
+                Selecione uma máquina
+              </option>
+              {maquinas.map((maquina) => (
+                <option key={maquina.id} value={maquina.id}>
+                  {maquina.modelo}
+                  {maquina.codigo ? ` • ${maquina.codigo}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              Use a codificação oficial da operação. O sistema não gera mais esse campo
+              automaticamente.
             </p>
           </div>
 

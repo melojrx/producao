@@ -205,7 +205,7 @@ export function ModalDetalhesSecaoTurno({
                           <p className="text-sm text-slate-600">{operacao.operacaoDescricao}</p>
                           <p className="mt-1 text-xs font-medium text-slate-500">
                             Sequência {operacao.sequencia} · T.P {operacao.tempoPadraoMinSnapshot}{' '}
-                            min · Máquina {operacao.tipoMaquinaCodigo ?? 'manual'}
+                            min · Máquina {operacao.maquinaModelo ?? operacao.maquinaCodigo ?? 'não informada'}
                           </p>
                           <div className="mt-3 grid gap-2 sm:grid-cols-3">
                             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">

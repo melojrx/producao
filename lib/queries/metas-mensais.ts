@@ -205,7 +205,8 @@ function calcularQuantidadeConcluidaConsolidada(
       encerradoEm: null,
       operacaoCodigo: '',
       operacaoDescricao: '',
-      tipoMaquinaCodigo: null,
+      maquinaCodigo: null,
+      maquinaModelo: null,
     }))
   )
 

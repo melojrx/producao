@@ -5,15 +5,15 @@ import { useState } from 'react'
 import { Eye, Pencil, Plus, Search } from 'lucide-react'
 import { OperacaoLifecycleActions } from '@/components/admin/actions/OperacaoLifecycleActions'
 import { ModalOperacao } from '@/components/ui/ModalOperacao'
-import type { OperacaoListItem, SetorOption, TipoMaquinaOption } from '@/types'
+import type { MaquinaOption, OperacaoListItem, SetorOption } from '@/types'
 
 interface ListaOperacoesProps {
   operacoesIniciais: OperacaoListItem[]
-  tiposMaquina: TipoMaquinaOption[]
+  maquinas: MaquinaOption[]
   setores: SetorOption[]
 }
 
-export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: ListaOperacoesProps) {
+export function ListaOperacoes({ operacoesIniciais, maquinas, setores }: ListaOperacoesProps) {
   const [modalAberto, setModalAberto] = useState(false)
   const [operacaoEditando, setOperacaoEditando] = useState<OperacaoListItem | undefined>()
   const [busca, setBusca] = useState('')
@@ -23,7 +23,8 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: Lis
     return (
       operacao.codigo.toLowerCase().includes(termo) ||
       operacao.descricao.toLowerCase().includes(termo) ||
-      (operacao.tipoNome ?? '').toLowerCase().includes(termo) ||
+      (operacao.maquinaModelo ?? '').toLowerCase().includes(termo) ||
+      (operacao.maquinaCodigo ?? '').toLowerCase().includes(termo) ||
       (operacao.setorNome ?? '').toLowerCase().includes(termo)
     )
   })
@@ -50,7 +51,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: Lis
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por código, descrição, tipo ou setor..."
+            placeholder="Buscar por código, descrição, máquina ou setor..."
             aria-label="Buscar operações"
             className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -75,7 +76,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: Lis
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Código</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Descrição</th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
-                  Tipo
+                  Máquina
                 </th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 lg:table-cell">
                   Setor
@@ -104,7 +105,9 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: Lis
                     <td className="px-4 py-3 font-medium text-gray-900">{operacao.codigo}</td>
                     <td className="px-4 py-3 text-gray-600">{operacao.descricao}</td>
                     <td className="hidden px-4 py-3 text-gray-600 md:table-cell">
-                      {operacao.tipoNome ?? '—'}
+                      {operacao.maquinaModelo
+                        ? `${operacao.maquinaModelo}${operacao.maquinaCodigo ? ` • ${operacao.maquinaCodigo}` : ''}`
+                        : '—'}
                     </td>
                     <td className="hidden px-4 py-3 text-gray-600 lg:table-cell">
                       {operacao.setorNome ?? 'Não definido'}
@@ -167,7 +170,7 @@ export function ListaOperacoes({ operacoesIniciais, tiposMaquina, setores }: Lis
       {modalAberto ? (
         <ModalOperacao
           operacao={operacaoEditando}
-          tiposMaquina={tiposMaquina}
+          maquinas={maquinas}
           setores={setores}
           aoFechar={() => setModalAberto(false)}
         />

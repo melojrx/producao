@@ -694,6 +694,7 @@ export type Database = {
           created_at: string | null
           descricao: string
           id: string
+          maquina_id: string | null
           meta_dia: number | null
           meta_hora: number | null
           qr_code_token: string
@@ -703,10 +704,11 @@ export type Database = {
         }
         Insert: {
           ativa?: boolean | null
-          codigo?: string
+          codigo: string
           created_at?: string | null
           descricao: string
           id?: string
+          maquina_id?: string | null
           meta_dia?: number | null
           meta_hora?: number | null
           qr_code_token?: string
@@ -720,6 +722,7 @@ export type Database = {
           created_at?: string | null
           descricao?: string
           id?: string
+          maquina_id?: string | null
           meta_dia?: number | null
           meta_hora?: number | null
           qr_code_token?: string
@@ -728,6 +731,13 @@ export type Database = {
           tipo_maquina_codigo?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "operacoes_maquina_id_fkey"
+            columns: ["maquina_id"]
+            isOneToOne: false
+            referencedRelation: "maquinas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "operacoes_setor_id_fkey"
             columns: ["setor_id"]

@@ -2487,3 +2487,113 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 - A quantidade de cada lançamento passou a nascer do saldo da operação selecionada, com bloqueio de excesso por linha e por soma agregada da mesma operação.
 - O comportamento pós-save passou a manter o contexto quando ainda há saldo e a avançar automaticamente para a próxima pendência elegível quando o item atual sai do fluxo.
 - `npx tsc --noEmit` foi validado sem erros durante a execução e permaneceu consistente até a homologação funcional.
+
+## SPRINT 26 — Operações com máquina específica e código manual
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 25 concluída e confirmação explícita do usuário para abertura oficial da sprint.
+**Objetivo:** alinhar o cadastro de operações ao domínio atual de máquinas patrimoniais, removendo `tipo_maquina_codigo`, vinculando a operação a uma máquina específica cadastrada e tornando o `codigo` da operação um campo manual livre.
+
+**Nota de proposta em `2026-04-07`:**
+- o cadastro de operações ainda carrega `tipo_maquina_codigo`, apesar de esse conceito já não existir no contrato atual de `maquinas`
+- a decisão homologada é que cada operação passe a apontar para uma máquina específica já cadastrada
+- a UI deve exibir o `modelo` da máquina como referência principal de escolha, preservando o vínculo técnico por `id`
+- o código da operação deixa de ser gerado automaticamente e passa a ser informado manualmente pelo usuário
+
+**Decisões de produto propostas para esta sprint:**
+- `operacoes.tipo_maquina_codigo` deve sair do schema, dos types, das actions, das queries e da UI
+- `operacoes.maquina_id` passa a ser o vínculo correto com a tabela `maquinas`
+- o select de máquina no CRUD de operações deve listar a máquina cadastrada com foco em `modelo`, sem perder capacidade de desambiguação
+- `codigo` da operação continua obrigatório e único, mas agora é digitado manualmente
+- a mudança deve preservar QR Code, cálculo de T.P, metas, roteiro de produto e leituras derivadas do turno
+
+- [x] **HU 26.1 — Como produto, quero formalizar no schema e no PRD que a operação aponta para uma máquina específica cadastrada, para eliminar o resíduo de `tipo_maquina` do domínio de operações.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - remover `tipo_maquina_codigo` do contrato alvo de `operacoes`
+  - introduzir `maquina_id` como vínculo da operação com `maquinas`
+  - revisar restrições, foreign keys e impacto em backfill/migração
+  - documentar explicitamente no PRD a nova regra de vínculo por máquina específica
+
+  Regras:
+  - o vínculo deve ser técnico por `id`, nunca por texto livre de `modelo`
+  - a remoção de `tipo_maquina_codigo` não pode reintroduzir dependência operacional de `maquinas` no turno
+
+  **Evidência:** O schema alvo e o PRD passam a descrever `operacoes.maquina_id` como vínculo oficial, sem `tipo_maquina_codigo` no contrato da operação.
+  PRD reforçado em `docs/PRD.md` com a persistência oficial por `operacoes.maquina_id UUID REFERENCES maquinas(id)`, e migration preparatória criada em `scripts/sprint26_operacoes_maquina_codigo_manual.sql`, removendo o default automático de `operacoes.codigo`, introduzindo `maquina_id` e registrando o backfill obrigatório antes da remoção final de `tipo_maquina_codigo`.
+
+- [x] **HU 26.2 — Como admin, quero cadastrar e editar operações escolhendo uma máquina específica pelo modelo, para manter o cadastro técnico consistente com as máquinas realmente existentes.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/operacoes`
+  - `components/ui/ModalOperacao.tsx`
+  - queries auxiliares de máquinas e operações
+
+  Tarefas:
+  - remover o select de `tipo de máquina`
+  - adicionar select de `máquina`
+  - popular a escolha usando o `modelo` das máquinas cadastradas
+  - garantir comportamento consistente em criação, edição, listagem e detalhe
+
+  Regras:
+  - a UI deve priorizar o `modelo` como label principal
+  - se houver ambiguidade de modelos, a interface deve continuar distinguindo os itens de forma segura
+
+  **Evidência:** O CRUD de operações passa a salvar e editar a operação escolhendo uma máquina específica cadastrada, exibida na UI pelo `modelo`.
+  Implementado em `lib/actions/operacoes.ts`, `lib/queries/operacoes.ts`, `lib/queries/maquinas.ts`, `components/ui/ModalOperacao.tsx`, `app/admin/operacoes/page.tsx`, `app/(admin)/operacoes/ListaOperacoes.tsx`, `app/admin/operacoes/[id]/page.tsx`, `types/index.ts` e `types/supabase.ts`. O fluxo administrativo deixou de carregar `tipos_maquina`, passou a exigir `maquina_id` no modal e exibe a máquina pelo `modelo`, com apoio do `codigo` para desambiguação na listagem e no detalhe. `npx tsc --noEmit` validado sem erros após a mudança.
+
+- [x] **HU 26.3 — Como admin, quero informar manualmente o código da operação, para que o cadastro reflita a codificação real do negócio sem geração automática imposta pelo sistema.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - remover a geração automática de código da operação no fluxo atual
+  - tornar `codigo` um input manual obrigatório no modal
+  - preservar unicidade de `codigo`
+  - revisar mensagens de erro para conflito de código duplicado
+
+  Regras:
+  - `codigo` continua obrigatório
+  - a UI não deve sugerir que o sistema ainda gera o código automaticamente
+
+  **Evidência:** O modal de operação exige `codigo` manual, salva com sucesso quando único e bloqueia conflito quando já existir outro cadastro com o mesmo código.
+  Implementado em `components/ui/ModalOperacao.tsx`, `lib/actions/operacoes.ts` e `types/supabase.ts`. O bloco visual que sugeria geração automática foi removido, o formulário passou a exigir `codigo` tanto na criação quanto na edição, e as actions agora persistem explicitamente esse campo mantendo a proteção por unicidade via erro `23505`. `npx tsc --noEmit` validado sem erros após a mudança.
+
+- [x] **HU 26.4 — Como sistema, quero propagar o novo contrato de operação para types, queries e leituras derivadas, para evitar inconsistência entre CRUD, produtos, scanner e relatórios.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - regenerar `types/supabase.ts`
+  - revisar `types/index.ts`
+  - ajustar `lib/queries/operacoes.ts`
+  - ajustar queries e mapeamentos que ainda leem `tipo_maquina_codigo`
+  - revisar impacto em produtos, turno, scanner e relatórios
+
+  Regras:
+  - nenhuma leitura ativa deve continuar esperando `tipo_maquina_codigo`
+  - a mudança de contrato não pode quebrar cálculo de metas, QR, roteiro ou apontamento
+
+  **Evidência:** Types, queries e leituras derivadas deixam de depender de `tipo_maquina_codigo` e passam a refletir o vínculo da operação com `maquina_id`.
+  Implementado em `types/index.ts`, `lib/queries/produtos.ts`, `lib/queries/turno-setor-operacoes-base.ts`, `components/scanner/SelecaoOperacaoScanner.tsx`, `components/dashboard/ModalDetalhesSecaoTurno.tsx`, `lib/queries/metas-mensais.ts` e `lib/queries/eficiencia-operacional-turno-base.test.ts`. O contrato derivado passou a expor `maquinaModelo` e `maquinaCodigo` no lugar de `tipoMaquinaCodigo`, cobrindo roteiro de produto, planejamento operacional do turno, scanner e telas de detalhe. Após a varredura, o único resíduo restante de `tipo_maquina_codigo` ficou restrito ao shape bruto de `types/supabase.ts`, coerente com a migration ainda não aplicada para remoção física da coluna. `npx tsc --noEmit` validado sem erros após a propagação.
+
+- [x] **HU 26.5 — Como produto, quero homologar a migração do cadastro de operações para máquina específica e código manual, para garantir consistência funcional sem regressão nos fluxos dependentes.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar criação de operação com máquina específica
+  - validar edição de operação existente
+  - validar conflito de código manual duplicado
+  - validar leituras de produto, turno, scanner e relatórios impactadas pelo novo contrato
+  - rodar `npx tsc --noEmit`
+
+  Regras:
+  - a homologação precisa cobrir criação, edição e leitura
+  - a sprint não fecha sem confirmar a remoção completa de `tipo_maquina_codigo` do fluxo ativo
+
+  **Evidência:** O sistema passa a cadastrar operações com `codigo` manual e `maquina_id`, sem regressão observada nos fluxos dependentes e com `npx tsc --noEmit` passando sem erros.
+  Homologação funcional confirmada pelo usuário em `2026-04-07`, cobrindo criação, edição, escolha de máquina específica, código manual e leituras derivadas de produto, turno, scanner e detalhes operacionais. A sprint foi encerrada com `npx tsc --noEmit` validado sem erros e sem dependência funcional restante de `tipo_maquina_codigo` no fluxo ativo.

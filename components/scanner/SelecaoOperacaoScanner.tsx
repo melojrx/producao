@@ -84,7 +84,7 @@ export function SelecaoOperacaoScanner({
                   <p className="mt-1 text-sm text-slate-300">{operacao.operacaoDescricao}</p>
                   <p className="mt-1 text-xs text-slate-400">
                     T.P {operacao.tempoPadraoMinSnapshot} min · Máquina{' '}
-                    {operacao.tipoMaquinaCodigo ?? 'manual'}
+                    {operacao.maquinaModelo ?? operacao.maquinaCodigo ?? 'não informada'}
                   </p>
                 </div>
                 <span

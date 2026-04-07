@@ -390,8 +390,6 @@ export interface RelatorioFiltros {
   operadorId: string
 }
 
-export interface TipoMaquinaOption extends Tables<'tipos_maquina'> {}
-
 export interface SetorOption extends Tables<'setores'> {}
 
 export interface SetorListItem extends Tables<'setores'> {}
@@ -413,10 +411,13 @@ export interface UsuarioSistemaListItem extends UsuarioSistemaV2 {
 
 export interface MaquinaListItem extends Tables<'maquinas'> {}
 
+export interface MaquinaOption extends Tables<'maquinas'> {}
+
 export interface OperadorListItem extends Tables<'operadores'> {}
 
 export interface OperacaoListItem extends Tables<'operacoes'> {
-  tipoNome: string | null
+  maquinaCodigo: string | null
+  maquinaModelo: string | null
   setorCodigo: number | null
   setorNome: string | null
 }
@@ -428,7 +429,9 @@ export interface ProdutoRoteiroItem {
   codigo: string
   descricao: string
   tempoPadraoMin: number
-  tipoMaquinaCodigo: string | null
+  maquinaId: string | null
+  maquinaCodigo: string | null
+  maquinaModelo: string | null
   setorId: string | null
   setorCodigo: number | null
   setorNome: string | null
@@ -575,7 +578,8 @@ export interface TurnoSetorOperacaoV2 {
 export interface TurnoSetorOperacaoApontamentoV2 extends TurnoSetorOperacaoV2 {
   operacaoCodigo: string
   operacaoDescricao: string
-  tipoMaquinaCodigo: string | null
+  maquinaCodigo: string | null
+  maquinaModelo: string | null
 }
 
 export interface PlanejamentoTurnoV2 {

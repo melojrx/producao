@@ -929,13 +929,22 @@ Setores iniciais:
 
 ### 8.5 Cadastro de Operações (/admin/operacoes)
 
-- código sequencial automático
+- código manual livre
 - descrição
-- máquina ou tipo de máquina
+- máquina específica cadastrada
 - setor
 - situação
 - tempo padrão manual
 - QR de cadastro
+
+Regras obrigatórias:
+- `operacoes` não deve mais depender de `tipo_maquina`
+- cada operação aponta para uma `maquina` específica já cadastrada no sistema
+- o vínculo oficial persistido no schema deve ser `operacoes.maquina_id UUID REFERENCES maquinas(id)`
+- o vínculo persistido da operação com a máquina deve usar a identidade da máquina cadastrada, e não apenas texto solto do modelo
+- na UI do CRUD de operações, a seleção de máquina deve exibir o campo `modelo` da máquina como referência principal de escolha
+- o `codigo` da operação deixa de ser gerado automaticamente e passa a ser preenchido manualmente pelo usuário
+- o `codigo` continua obrigatório e único no cadastro de operações
 
 ### 8.6 Cadastro de Produtos (/admin/produtos)
 
@@ -1049,8 +1058,8 @@ Fluxo profissional de produção:
 - situação
 
 `operacoes`
-- código sequencial
-- máquina ou tipo de máquina
+- código manual livre
+- máquina específica cadastrada (`maquina_id`)
 - descrição
 - situação
 - tempo padrão
@@ -1080,6 +1089,8 @@ Decisão de domínio:
 - `maquinas` não participa da derivação operacional do turno
 - `maquinas` não deve carregar `tipo_maquina` nem vinculação direta com `setor` no contrato alvo
 - o contexto operacional da V2 nasce de `operacoes`, `setores`, `turno_setores` e `turno_setor_demandas`
+- isso não impede que `operacoes` referenciem uma máquina específica cadastrada para fins de cadastro técnico, exibição e rastreabilidade administrativa
+- o campo exibido para escolha dessa máquina no CRUD de operações deve usar o `modelo` da tabela `maquinas`, preservando o vínculo técnico por `id`
 
 `operadores`
 - matrícula sequencial

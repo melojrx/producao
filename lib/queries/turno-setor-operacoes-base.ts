@@ -3,13 +3,16 @@ import type { Database, Tables } from '@/types/supabase'
 import type { TurnoSetorOperacaoApontamentoV2 } from '@/types'
 
 type TurnoSetorOperacaoRow = Tables<'turno_setor_operacoes'>
-type OperacaoResumoRow = Pick<Tables<'operacoes'>, 'id' | 'codigo' | 'descricao' | 'tipo_maquina_codigo'>
+type OperacaoResumoRow = Pick<Tables<'operacoes'>, 'id' | 'codigo' | 'descricao' | 'maquina_id'>
+type MaquinaResumoRow = Pick<Tables<'maquinas'>, 'id' | 'codigo' | 'modelo'>
 
 function mapearOperacoesSecao(
   operacoesSecao: TurnoSetorOperacaoRow[],
-  operacoes: OperacaoResumoRow[]
+  operacoes: OperacaoResumoRow[],
+  maquinas: MaquinaResumoRow[]
 ): TurnoSetorOperacaoApontamentoV2[] {
   const operacoesPorId = new Map((operacoes ?? []).map((operacao) => [operacao.id, operacao]))
+  const maquinasPorId = new Map((maquinas ?? []).map((maquina) => [maquina.id, maquina]))
 
   return operacoesSecao
     .map((operacaoSecao) => {
@@ -18,6 +21,8 @@ function mapearOperacoesSecao(
       if (!operacao) {
         return null
       }
+
+      const maquina = operacao.maquina_id ? maquinasPorId.get(operacao.maquina_id) ?? null : null
 
       return {
         id: operacaoSecao.id,
@@ -38,7 +43,8 @@ function mapearOperacoesSecao(
         encerradoEm: operacaoSecao.encerrado_em,
         operacaoCodigo: operacao.codigo,
         operacaoDescricao: operacao.descricao,
-        tipoMaquinaCodigo: operacao.tipo_maquina_codigo,
+        maquinaCodigo: maquina?.codigo ?? null,
+        maquinaModelo: maquina?.modelo ?? null,
       }
     })
     .filter((operacao): operacao is TurnoSetorOperacaoApontamentoV2 => Boolean(operacao))
@@ -75,7 +81,7 @@ async function listarOperacoesBase(
 
   const { data: operacoes, error: operacoesError } = await supabase
     .from('operacoes')
-    .select('id, codigo, descricao, tipo_maquina_codigo')
+    .select('id, codigo, descricao, maquina_id')
     .in('id', operacaoIds)
     .returns<OperacaoResumoRow[]>()
 
@@ -83,7 +89,27 @@ async function listarOperacoesBase(
     throw new Error(`Erro ao carregar o cadastro das operações do turno: ${operacoesError.message}`)
   }
 
-  return mapearOperacoesSecao(operacoesSecao ?? [], operacoes ?? [])
+  const maquinaIds = Array.from(
+    new Set(
+      (operacoes ?? [])
+        .map((operacao) => operacao.maquina_id)
+        .filter((maquinaId): maquinaId is string => Boolean(maquinaId))
+    )
+  )
+
+  const { data: maquinas, error: maquinasError } = maquinaIds.length
+    ? await supabase
+        .from('maquinas')
+        .select('id, codigo, modelo')
+        .in('id', maquinaIds)
+        .returns<MaquinaResumoRow[]>()
+    : { data: [], error: null }
+
+  if (maquinasError) {
+    throw new Error(`Erro ao carregar as máquinas das operações do turno: ${maquinasError.message}`)
+  }
+
+  return mapearOperacoesSecao(operacoesSecao ?? [], operacoes ?? [], maquinas ?? [])
 }
 
 export async function listarTurnoSetorOperacoesDoTurnoComClient(

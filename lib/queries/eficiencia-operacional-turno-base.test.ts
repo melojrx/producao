@@ -40,7 +40,8 @@ test('mantem linhas separadas por operacao na mesma hora e consolida o dia do op
       encerradoEm: null,
       operacaoCodigo: 'OP-A',
       operacaoDescricao: 'Costura A',
-      tipoMaquinaCodigo: 'rt',
+      maquinaCodigo: 'MAQ-001',
+      maquinaModelo: 'Reta 1 agulha',
     },
     {
       id: 'tso-2',
@@ -61,7 +62,8 @@ test('mantem linhas separadas por operacao na mesma hora e consolida o dia do op
       encerradoEm: null,
       operacaoCodigo: 'OP-B',
       operacaoDescricao: 'Costura B',
-      tipoMaquinaCodigo: 'rt',
+      maquinaCodigo: 'MAQ-001',
+      maquinaModelo: 'Reta 1 agulha',
     },
   ]
 
