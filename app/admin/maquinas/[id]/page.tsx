@@ -41,7 +41,7 @@ export default async function MaquinaDetalhePage({
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <DetailField label="Modelo" value={maquina.modelo ?? 'Não informado'} />
+        <DetailField label="Máquina" value={maquina.modelo ?? 'Não informado'} />
         <DetailField label="Marca" value={maquina.marca ?? 'Não informada'} />
         <DetailField label="Patrimônio" value={maquina.numero_patrimonio ?? 'Não informado'} />
         <DetailField label="Status" value={maquina.status ?? 'ativa'} />

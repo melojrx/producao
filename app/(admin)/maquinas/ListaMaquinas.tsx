@@ -54,7 +54,7 @@ export function ListaMaquinas({ maquinasIniciais }: ListaMaquinasProps) {
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por código, modelo, marca ou patrimônio..."
+            placeholder="Buscar por código, máquina, marca ou patrimônio..."
             aria-label="Buscar máquinas"
             className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -79,7 +79,7 @@ export function ListaMaquinas({ maquinasIniciais }: ListaMaquinasProps) {
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Código</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Marca</th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
-                  Modelo
+                  Máquina
                 </th>
                 <th className="hidden px-4 py-3 text-left font-medium text-gray-600 md:table-cell">
                   Patrimônio

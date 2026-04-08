@@ -5,9 +5,22 @@ import { TabelaRelatorios } from '@/components/relatorios/TabelaRelatorios'
 import { listarOperadores } from '@/lib/queries/operadores'
 import { buscarPaginaRelatoriosV2 } from '@/lib/queries/relatorios-v2'
 import { obterDataHojeLocal } from '@/lib/utils/data'
-import type { RelatorioFiltros } from '@/types'
+import type { RelatorioFiltros, RelatorioSortField, SortDirection } from '@/types'
 
 const PAGE_SIZE = 12
+const RELATORIO_SORT_FIELDS: RelatorioSortField[] = [
+  'origem',
+  'numeroOp',
+  'setorNome',
+  'operadorNome',
+  'operacaoCodigo',
+  'quantidadeApontada',
+  'quantidadeRealizadaOperacao',
+  'quantidadeRealizadaSecao',
+  'quantidadeRealizadaOp',
+  'statusOp',
+  'ultimaLeituraEm',
+]
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -26,6 +39,8 @@ function adicionarDias(dataBase: string, dias: number): string {
 function normalizarFiltros(searchParams: Record<string, string | string[] | undefined>): {
   filtros: RelatorioFiltros
   page: number
+  sortBy: RelatorioSortField
+  sortDir: SortDirection
 } {
   const hoje = obterDataHojeLocal()
   const dataInicio = valorString(searchParams.dataInicio) || adicionarDias(hoje, -6)
@@ -35,6 +50,8 @@ function normalizarFiltros(searchParams: Record<string, string | string[] | unde
   const setorId = valorString(searchParams.setorId)
   const operadorId = valorString(searchParams.operadorId)
   const pageParam = Number.parseInt(valorString(searchParams.page), 10)
+  const sortByParam = valorString(searchParams.sortBy)
+  const sortDirParam = valorString(searchParams.sortDir)
 
   return {
     filtros: {
@@ -46,6 +63,10 @@ function normalizarFiltros(searchParams: Record<string, string | string[] | unde
       operadorId,
     },
     page: Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1,
+    sortBy: RELATORIO_SORT_FIELDS.includes(sortByParam as RelatorioSortField)
+      ? (sortByParam as RelatorioSortField)
+      : 'ultimaLeituraEm',
+    sortDir: sortDirParam === 'asc' ? 'asc' : 'desc',
   }
 }
 
@@ -53,7 +74,7 @@ export default async function AdminRelatoriosPage(props: {
   searchParams: SearchParams
 }) {
   const resolvedSearchParams = await props.searchParams
-  const { filtros, page } = normalizarFiltros(resolvedSearchParams)
+  const { filtros, page, sortBy, sortDir } = normalizarFiltros(resolvedSearchParams)
 
   const [operadores, paginaRelatorios] = await Promise.all([
     listarOperadores(),
@@ -61,6 +82,8 @@ export default async function AdminRelatoriosPage(props: {
       filtros,
       page,
       pageSize: PAGE_SIZE,
+      sortBy,
+      sortDir,
     }),
   ])
 
@@ -86,10 +109,12 @@ export default async function AdminRelatoriosPage(props: {
       <ResumoRelatorios resumo={paginaRelatorios.resumo} />
 
       <TabelaRelatorios
-        itens={paginaRelatorios.itens}
+        itens={paginaRelatorios.items}
         filtros={filtros}
-        page={page}
-        pageSize={PAGE_SIZE}
+        page={paginaRelatorios.page}
+        pageSize={paginaRelatorios.pageSize}
+        sortBy={paginaRelatorios.sortBy}
+        sortDir={paginaRelatorios.sortDir}
         total={paginaRelatorios.total}
       />
 

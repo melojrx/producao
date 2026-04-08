@@ -1,12 +1,37 @@
 import Link from 'next/link'
-import type { RelatorioFiltros, RelatorioRegistroItem } from '@/types'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react'
+import type {
+  RelatorioFiltros,
+  RelatorioRegistroItem,
+  RelatorioSortField,
+  SortDirection,
+} from '@/types'
 
 interface TabelaRelatoriosProps {
   itens: RelatorioRegistroItem[]
   filtros: RelatorioFiltros
   page: number
   pageSize: number
+  sortBy: RelatorioSortField
+  sortDir: SortDirection
   total: number
+}
+
+interface SortableHeaderProps {
+  activeField: RelatorioSortField
+  className?: string
+  direction: SortDirection
+  field: RelatorioSortField
+  filtros: RelatorioFiltros
+  label: string
 }
 
 function formatarDataHora(hora: string): string {
@@ -53,7 +78,24 @@ function valorConsolidado(item: RelatorioRegistroItem, valor: number): string {
   return String(valor)
 }
 
-function construirHrefPaginacao(filtros: RelatorioFiltros, page: number): string {
+function construirPaginas(totalPages: number, currentPage: number): number[] {
+  const inicio = Math.max(1, currentPage - 2)
+  const fim = Math.min(totalPages, currentPage + 2)
+  const paginas: number[] = []
+
+  for (let pagina = inicio; pagina <= fim; pagina += 1) {
+    paginas.push(pagina)
+  }
+
+  return paginas
+}
+
+function construirHrefTabela(
+  filtros: RelatorioFiltros,
+  page: number,
+  sortBy: RelatorioSortField,
+  sortDir: SortDirection
+): string {
   const params = new URLSearchParams()
   params.set('dataInicio', filtros.dataInicio)
   params.set('dataFim', filtros.dataFim)
@@ -72,8 +114,37 @@ function construirHrefPaginacao(filtros: RelatorioFiltros, page: number): string
   }
 
   params.set('page', String(page))
+  params.set('sortBy', sortBy)
+  params.set('sortDir', sortDir)
 
   return `/admin/relatorios?${params.toString()}`
+}
+
+function SortableHeader({
+  activeField,
+  className,
+  direction,
+  field,
+  filtros,
+  label,
+}: SortableHeaderProps) {
+  const isActive = field === activeField
+  const Icon = !isActive ? ArrowUpDown : direction === 'asc' ? ArrowUp : ArrowDown
+  const nextDirection = isActive && direction === 'asc' ? 'desc' : 'asc'
+
+  return (
+    <th className={className}>
+      <Link
+        href={construirHrefTabela(filtros, 1, field, nextDirection)}
+        className={`inline-flex items-center gap-2 text-left transition-colors ${
+          isActive ? 'text-slate-900' : 'text-slate-600 hover:text-slate-900'
+        }`}
+      >
+        <span>{label}</span>
+        <Icon size={14} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+      </Link>
+    </th>
+  )
 }
 
 export function TabelaRelatorios({
@@ -81,9 +152,14 @@ export function TabelaRelatorios({
   filtros,
   page,
   pageSize,
+  sortBy,
+  sortDir,
   total,
 }: TabelaRelatoriosProps) {
   const totalPaginas = Math.max(1, Math.ceil(total / pageSize))
+  const paginaInicialItem = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const paginaFinalItem = total === 0 ? 0 : Math.min(total, page * pageSize)
+  const paginas = construirPaginas(totalPaginas, page)
   const podeVoltar = page > 1
   const podeAvancar = page < totalPaginas
 
@@ -96,22 +172,111 @@ export function TabelaRelatorios({
         </p>
       </div>
 
+      <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          Mostrando <span className="font-semibold text-slate-900">{paginaInicialItem}</span>-
+          <span className="font-semibold text-slate-900">{paginaFinalItem}</span> de{' '}
+          <span className="font-semibold text-slate-900">{total}</span> registros
+        </p>
+        <p>
+          Página <span className="font-semibold text-slate-900">{page}</span> de{' '}
+          <span className="font-semibold text-slate-900">{totalPaginas}</span>
+        </p>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1320px] text-sm">
           <thead className="bg-slate-50 text-left text-slate-600">
             <tr>
-              <th className="px-4 py-3 font-medium">Origem</th>
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="origem"
+                filtros={filtros}
+                label="Origem"
+              />
               <th className="px-4 py-3 font-medium">Turno</th>
-              <th className="px-4 py-3 font-medium">OP</th>
-              <th className="px-4 py-3 font-medium">Setor</th>
-              <th className="px-4 py-3 font-medium">Operador</th>
-              <th className="px-4 py-3 font-medium">Operação</th>
-              <th className="px-4 py-3 font-medium">Apontado</th>
-              <th className="px-4 py-3 font-medium">Realizado operação</th>
-              <th className="px-4 py-3 font-medium">Realizado seção</th>
-              <th className="px-4 py-3 font-medium">Realizado OP</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Último apontamento</th>
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="numeroOp"
+                filtros={filtros}
+                label="OP"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="setorNome"
+                filtros={filtros}
+                label="Setor"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="operadorNome"
+                filtros={filtros}
+                label="Operador"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="operacaoCodigo"
+                filtros={filtros}
+                label="Operação"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="quantidadeApontada"
+                filtros={filtros}
+                label="Apontado"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="quantidadeRealizadaOperacao"
+                filtros={filtros}
+                label="Realizado operação"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="quantidadeRealizadaSecao"
+                filtros={filtros}
+                label="Realizado seção"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="quantidadeRealizadaOp"
+                filtros={filtros}
+                label="Realizado OP"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="statusOp"
+                filtros={filtros}
+                label="Status"
+              />
+              <SortableHeader
+                activeField={sortBy}
+                className="px-4 py-3 font-medium"
+                direction={sortDir}
+                field="ultimaLeituraEm"
+                filtros={filtros}
+                label="Último apontamento"
+              />
             </tr>
           </thead>
           <tbody>
@@ -180,34 +345,84 @@ export function TabelaRelatorios({
         </table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
-          Página {page} de {totalPaginas}
-        </p>
+      <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          {podeVoltar ? (
+            <Link
+              href={construirHrefTabela(filtros, 1, sortBy, sortDir)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <ChevronsLeft size={16} />
+              Primeira
+            </Link>
+          ) : (
+            <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 opacity-50">
+              <ChevronsLeft size={16} />
+              Primeira
+            </span>
+          )}
+          {podeVoltar ? (
+            <Link
+              href={construirHrefTabela(filtros, Math.max(1, page - 1), sortBy, sortDir)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <ChevronLeft size={16} />
+              Anterior
+            </Link>
+          ) : (
+            <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 opacity-50">
+              <ChevronLeft size={16} />
+              Anterior
+            </span>
+          )}
+        </div>
 
-        <div className="flex gap-2">
-          <Link
-            href={construirHrefPaginacao(filtros, Math.max(1, page - 1))}
-            aria-disabled={!podeVoltar}
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${
-              podeVoltar
-                ? 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                : 'cursor-not-allowed border border-slate-200 text-slate-400'
-            }`}
-          >
-            Anterior
-          </Link>
-          <Link
-            href={construirHrefPaginacao(filtros, Math.min(totalPaginas, page + 1))}
-            aria-disabled={!podeAvancar}
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${
-              podeAvancar
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'cursor-not-allowed bg-slate-200 text-slate-500'
-            }`}
-          >
-            Próxima
-          </Link>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {paginas.map((paginaNumero) => (
+            <Link
+              key={paginaNumero}
+              href={construirHrefTabela(filtros, paginaNumero, sortBy, sortDir)}
+              aria-current={paginaNumero === page ? 'page' : undefined}
+              className={`min-w-10 rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors ${
+                paginaNumero === page
+                  ? 'bg-blue-600 text-white'
+                  : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {paginaNumero}
+            </Link>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {podeAvancar ? (
+            <Link
+              href={construirHrefTabela(filtros, Math.min(totalPaginas, page + 1), sortBy, sortDir)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Próxima
+              <ChevronRight size={16} />
+            </Link>
+          ) : (
+            <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 opacity-50">
+              Próxima
+              <ChevronRight size={16} />
+            </span>
+          )}
+          {podeAvancar ? (
+            <Link
+              href={construirHrefTabela(filtros, totalPaginas, sortBy, sortDir)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Última
+              <ChevronsRight size={16} />
+            </Link>
+          ) : (
+            <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 opacity-50">
+              Última
+              <ChevronsRight size={16} />
+            </span>
+          )}
         </div>
       </div>
     </section>

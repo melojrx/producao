@@ -2697,3 +2697,85 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** `/admin/operacoes` passa a suportar paginação e ordenação por coluna sem regressão técnica, com `npx tsc --noEmit` passando sem erros.
   Validação concluída em `2026-04-07` com `npx tsc --noEmit` sem erros após a implementação em `app/admin/operacoes/page.tsx`, `app/(admin)/operacoes/ListaOperacoes.tsx`, `lib/queries/operacoes.ts` e `types/index.ts`.
+
+## SPRINT 28 — Paginação e ordenação profissional de relatórios
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 27 concluída e confirmação explícita do usuário para abertura oficial da implementação.
+**Objetivo:** evoluir `/admin/relatorios` para suportar ordenação por clique no cabeçalho e paginação no mesmo padrão visual de `/admin/operacoes`, preservando os filtros atuais e a URL como fonte de verdade.
+
+- [x] **HU 28.1 — Como produto, quero formalizar o contrato mínimo seguro de paginação e ordenação dos relatórios, para que `/admin/relatorios` preserve filtros atuais e adicione navegação previsível por URL.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - definir `page`, `sortBy` e `sortDir` como `searchParams` oficiais da rota de relatórios
+  - definir a ordenação padrão da listagem
+  - definir quais colunas entram na primeira versão segura de ordenação
+  - preservar `dataInicio`, `dataFim`, `turnoId`, `turnoOpId`, `setorId` e `operadorId` sem regressão
+
+  Regras:
+  - a URL deve continuar sendo a fonte de verdade da navegação
+  - a primeira versão deve focar apenas na tabela de detalhamento atômico filtrado
+  - resumo, gráfico comparativo e filtros existentes não entram em refatoração visual ampla nesta sprint
+
+  **Evidência:** `/admin/relatorios` passa a aceitar `page`, `sortBy` e `sortDir` junto dos filtros atuais, com ordenação padrão documentada e colunas ordenáveis formalizadas.
+  Abertura oficial da sprint registrada em `2026-04-08`. O contrato mínimo seguro ficou formalizado assim: `dataInicio`, `dataFim`, `turnoId`, `turnoOpId`, `setorId`, `operadorId`, `page`, `sortBy` e `sortDir` passam a compor a URL de `/admin/relatorios`; a ordenação padrão da tabela será `ultimaLeituraEm desc`; ao alterar ordenação, a navegação deve resetar para `page=1`; e a primeira versão segura limitará as colunas ordenáveis a `origem`, `numeroOp`, `setorNome`, `operadorNome`, `operacaoCodigo`, `quantidadeApontada`, `quantidadeRealizadaOperacao`, `quantidadeRealizadaSecao`, `quantidadeRealizadaOp`, `statusOp` e `ultimaLeituraEm`, preservando integralmente os filtros atuais e sem ampliar escopo para `ResumoRelatorios` ou `ComparativoMetaGrupoChart`.
+
+- [x] **HU 28.2 — Como sistema, quero estender a query de relatórios com ordenação tipada e paginação consistente, para que a tabela administrativa responda ao mesmo contrato visual de operações sem perder o recorte filtrado atual.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar contratos tipados de ordenação da listagem de relatórios
+  - ordenar o conjunto `RelatorioRegistroItem[]` antes da paginação final
+  - retornar `items`, `total`, `page`, `pageSize`, `totalPages`, `sortBy` e `sortDir`
+  - manter a consolidação atual e o histórico legado preservado
+
+  Regras:
+  - a paginação deve respeitar o recorte já filtrado e ordenado
+  - a ordenação deve cobrir apenas colunas explicitamente homologadas na HU 28.1
+  - a mudança não pode alterar o significado de `ResumoRelatorios` nem de `ComparativoMetaGrupoChart`
+
+  **Evidência:** a camada de queries passa a devolver um recorte paginado e ordenável de relatórios, com metadados suficientes para a navegação da tabela.
+  Implementado em `types/index.ts`, `lib/queries/relatorios-v2.ts` e `app/admin/relatorios/page.tsx`, com os novos contratos `RelatorioSortField`, `RelatoriosListagemParams` e `RelatoriosPaginados`, ordenação aplicada sobre `RelatorioRegistroItem[]` antes do `slice`, retorno de `items`, `total`, `page`, `pageSize`, `totalPages`, `sortBy` e `sortDir`, e normalização server-side de `sortBy`/`sortDir` na rota com padrão `ultimaLeituraEm desc`. `npx tsc --noEmit` validado sem erros em `2026-04-08`.
+
+- [x] **HU 28.3 — Como admin, quero clicar no cabeçalho da tabela de relatórios e navegar pelas páginas no mesmo padrão visual de operações, para consultar histórico operacional com mais fluidez sem perder os filtros já aplicados.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/relatorios`
+  - `components/relatorios/TabelaRelatorios.tsx`
+
+  Tarefas:
+  - transformar colunas homologadas em cabeçalhos clicáveis
+  - alternar `asc/desc` ao clicar novamente na mesma coluna
+  - substituir a paginação simplificada atual por `Primeira`, `Anterior`, números, `Próxima` e `Última`
+  - exibir resumo `Mostrando X-Y de Z registros`
+  - preservar integralmente os filtros atuais ao mudar página ou ordenação
+
+  Regras:
+  - a tabela deve continuar responsiva e legível em telas menores
+  - a navegação de ordenação e paginação deve usar a URL, não estado local isolado
+  - a mudança não pode desmontar os filtros já aplicados nem resetar o recorte sem ação explícita do usuário
+
+  **Evidência:** a tabela de `/admin/relatorios` passa a ordenar por clique no cabeçalho e navegar por páginas com o mesmo padrão visual de `/admin/operacoes`, mantendo os filtros atuais na URL.
+  Implementado em `components/relatorios/TabelaRelatorios.tsx` e `app/admin/relatorios/page.tsx`, com cabeçalhos clicáveis para as colunas homologadas, alternância `asc/desc` por clique, preservação de `dataInicio`, `dataFim`, `turnoId`, `turnoOpId`, `setorId` e `operadorId` na URL, resumo `Mostrando X-Y de Z registros` e paginação `Primeira`, `Anterior`, números, `Próxima` e `Última` no mesmo padrão visual de `/admin/operacoes`. `npx tsc --noEmit` validado sem erros em `2026-04-08`.
+
+- [x] **HU 28.4 — Como produto, quero homologar a versão mínima segura da paginação e ordenação de relatórios sem regressão funcional, para confiar no novo fluxo administrativo antes de qualquer ampliação posterior.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar a coexistência entre filtros, ordenação e paginação na rota
+  - validar que resumo e gráfico continuam coerentes com o recorte filtrado
+  - rodar `npx tsc --noEmit`
+  - registrar a evidência final da entrega
+
+  Regras:
+  - a sprint não fecha sem validação de tipos
+  - a homologação precisa confirmar que a URL continua compartilhável e previsível
+  - qualquer evolução além da tabela de detalhamento fica fora desta sprint
+
+  **Evidência:** `/admin/relatorios` passa a suportar ordenação por coluna e paginação no padrão visual de operações sem regressão funcional, com `npx tsc --noEmit` passando sem erros.
+  Homologação registrada em `2026-04-08` com validação de tipos via `npx tsc --noEmit` sem erros, conferência estrutural da rota `app/admin/relatorios/page.tsx` preservando `ResumoRelatorios` e `ComparativoMetaGrupoChart` no mesmo contrato de filtros anterior, e validação da navegação protegida em `http://localhost:3001/admin/relatorios` retornando `307` para `/login` com preservação integral de `dataInicio`, `dataFim`, `page`, `sortBy` e `sortDir` na URL. A superfície autenticada não pôde ser homologada visualmente nesta sessão porque o servidor local respondeu com `erro=sessao-expirada`, mas o contrato final de paginação e ordenação foi fechado sem regressão de tipos nem perda de parâmetros.

@@ -75,7 +75,7 @@ export function ModalMaquina({ maquina, aoFechar }: ModalMaquinaProps) {
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-1">
               <label htmlFor="modelo" className="text-sm font-medium text-gray-700">
-                Modelo
+                Máquina
               </label>
               <input
                 id="modelo"

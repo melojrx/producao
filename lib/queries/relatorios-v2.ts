@@ -8,27 +8,23 @@ import type {
   ComparativoMetaGrupoItem,
   RelatorioFiltros,
   RelatorioRegistroItem,
+  RelatorioSortField,
+  RelatoriosListagemParams,
+  RelatoriosPaginados,
   RelatorioResumoItem,
   RelatorioSetorOption,
   RelatorioTurnoOpOption,
   RelatorioTurnoOption,
+  SortDirection,
   TurnoOpStatusV2,
 } from '@/types'
 import type { Tables } from '@/types/supabase'
 
-interface BuscarPaginaRelatoriosV2Params {
-  filtros: RelatorioFiltros
-  page: number
-  pageSize: number
-}
-
-export interface BuscarPaginaRelatoriosV2Resultado {
+export interface BuscarPaginaRelatoriosV2Resultado extends RelatoriosPaginados {
   comparativo: ComparativoMetaGrupoItem[]
-  itens: RelatorioRegistroItem[]
   ops: RelatorioTurnoOpOption[]
   resumo: RelatorioResumoItem
   setores: RelatorioSetorOption[]
-  total: number
   turnos: RelatorioTurnoOption[]
 }
 
@@ -181,6 +177,111 @@ function formatarTurnoLabelLegado(dataProducao: string | null, horaRegistro: str
   }
 
   return `Legado · ${formatarTurnoLabel(timestamp)}`
+}
+
+function normalizarTexto(valor: string | null | undefined): string {
+  return (valor ?? '').trim().toLocaleLowerCase('pt-BR')
+}
+
+function valorOrdenacaoTexto(
+  item: RelatorioRegistroItem,
+  sortBy: RelatorioSortField
+): string {
+  if (sortBy === 'origem') {
+    return normalizarTexto(item.origem)
+  }
+
+  if (sortBy === 'numeroOp') {
+    return normalizarTexto(`${item.numeroOp} ${item.produtoReferencia} ${item.produtoNome}`)
+  }
+
+  if (sortBy === 'setorNome') {
+    return normalizarTexto(item.setorNome)
+  }
+
+  if (sortBy === 'operadorNome') {
+    return normalizarTexto(item.operadorNome)
+  }
+
+  if (sortBy === 'operacaoCodigo') {
+    return normalizarTexto(`${item.operacaoCodigo} ${item.operacaoDescricao}`)
+  }
+
+  if (sortBy === 'statusOp') {
+    return normalizarTexto(item.statusOp)
+  }
+
+  if (sortBy === 'ultimaLeituraEm') {
+    return item.ultimaLeituraEm
+  }
+
+  return ''
+}
+
+function valorOrdenacaoNumero(
+  item: RelatorioRegistroItem,
+  sortBy: RelatorioSortField
+): number {
+  if (sortBy === 'quantidadeApontada') {
+    return item.quantidadeApontada
+  }
+
+  if (sortBy === 'quantidadeRealizadaOperacao') {
+    return item.quantidadeRealizadaOperacao
+  }
+
+  if (sortBy === 'quantidadeRealizadaSecao') {
+    return item.quantidadeRealizadaSecao
+  }
+
+  if (sortBy === 'quantidadeRealizadaOp') {
+    return item.quantidadeRealizadaOp
+  }
+
+  return 0
+}
+
+function compararRelatorios(
+  primeiroItem: RelatorioRegistroItem,
+  segundoItem: RelatorioRegistroItem,
+  sortBy: RelatorioSortField,
+  sortDir: SortDirection
+): number {
+  const fator = sortDir === 'asc' ? 1 : -1
+
+  if (
+    sortBy === 'quantidadeApontada' ||
+    sortBy === 'quantidadeRealizadaOperacao' ||
+    sortBy === 'quantidadeRealizadaSecao' ||
+    sortBy === 'quantidadeRealizadaOp'
+  ) {
+    const diferenca =
+      valorOrdenacaoNumero(primeiroItem, sortBy) - valorOrdenacaoNumero(segundoItem, sortBy)
+
+    if (diferenca !== 0) {
+      return diferenca * fator
+    }
+  } else {
+    const comparacaoTexto = valorOrdenacaoTexto(primeiroItem, sortBy).localeCompare(
+      valorOrdenacaoTexto(segundoItem, sortBy),
+      'pt-BR',
+      { sensitivity: 'base' }
+    )
+
+    if (comparacaoTexto !== 0) {
+      return comparacaoTexto * fator
+    }
+  }
+
+  const comparacaoDataFallback = segundoItem.ultimaLeituraEm.localeCompare(primeiroItem.ultimaLeituraEm)
+
+  if (comparacaoDataFallback !== 0) {
+    return comparacaoDataFallback
+  }
+
+  return primeiroItem.id.localeCompare(segundoItem.id, 'pt-BR', {
+    sensitivity: 'base',
+  })
 }
 
 function normalizarStatusResumo(statuses: TurnoOpStatusV2[]): RelatorioResumoItem['statusGeral'] {
@@ -950,20 +1051,31 @@ function construirOpcoesSetor(base: BaseRelatorioV2): RelatorioSetorOption[] {
 }
 
 export async function buscarPaginaRelatoriosV2(
-  params: BuscarPaginaRelatoriosV2Params
+  params: RelatoriosListagemParams
 ): Promise<BuscarPaginaRelatoriosV2Resultado> {
   const base = await carregarBaseRelatorioV2(params.filtros)
-  const itens = construirItensRelatorio(base)
-  const from = (params.page - 1) * params.pageSize
-  const to = from + params.pageSize
+  const itensOrdenados = [...construirItensRelatorio(base)].sort((primeiroItem, segundoItem) =>
+    compararRelatorios(primeiroItem, segundoItem, params.sortBy, params.sortDir)
+  )
+  const total = itensOrdenados.length
+  const pageSize = params.pageSize > 0 ? params.pageSize : 20
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const page = Math.min(Math.max(1, params.page), totalPages)
+  const from = (page - 1) * pageSize
+  const to = from + pageSize
 
   return {
     comparativo: construirComparativoRelatorio(base, params.filtros),
-    itens: itens.slice(from, to),
+    items: itensOrdenados.slice(from, to),
     ops: construirOpcoesOp(base),
+    page,
+    pageSize,
     resumo: construirResumoRelatorio(base, params.filtros),
+    sortBy: params.sortBy,
+    sortDir: params.sortDir,
     setores: construirOpcoesSetor(base),
-    total: itens.length,
+    total,
+    totalPages,
     turnos: construirOpcoesTurno(base),
   }
 }

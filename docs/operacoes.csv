@@ -1,0 +1,115 @@
+F14;Final;Bainha com fenda 2x;2AG;1,9398
+P51;Preparação;Fixado fenda da bainha 2x;2AG;0,616344
+P50;Preparação;Chuleado unir dianteiro elastico;OV;0,628706666666667
+P49;Preparação;Revel;2AG;0,595766666666667
+P48;Preparação;Fixar cós na reta;RT;0,7852
+P47;Preparação;Rebater laterais do bolso fole ESP 2x;2AG;1,342
+P46;Preparação;Rebater portiola quadrada 2x;2AG;0,497963333333333
+T18;Traseiro;Pranchar bolso 2 cantos 2x;MAN;0,54372
+P45;Preparação;Rebatimento e fixado do ilhete 2x;2AG;1,2932
+P44;Preparação;União de botão 1x;2AG;0,32391
+T13;Traseiro;Pranchar portiola T4 2x;MAN;0,812475
+M16;Montagem;Rebatimento do entre perna;BP;0,465
+T17;Traseiro;Pregar Bolso Trazeiro 3 cantos 2x;2AG;0,813333333333333
+T16;Traseiro;Pregar Bolso Lateral GRANDE 4 cantos com portiola 2x;2AG;1,952
+T15;Traseiro;Pregar Bolso Trazeiro 4 cantos 2x;2AG;0,69
+T14;Traseiro;Pranchar bolso fole 2x;MAN;0,86
+M15;Montagem;Pregar bolso lateral com portiola 2x + bolsinho lateral 1x;2AG;1,7568
+P43;Preparação;Zig zag reforço 2x na filigrama;FIL;0,57
+P42;Preparação;Zig zag reforço 2x;RT;1,284
+M14;Montagem;Interlocar pernas ;INT;0,31
+M13;Montagem;Pregar detalhe do bolsinho lateral 1x;2AG;0,77409
+P41;Preparação;Passar vies detalhe do bolso lateral 1x;2AG;0,509146666666667
+T12;Traseiro;Pregar portiola traseira 2x;2AG;0,268196666666667
+T11;Traseiro;Pranchar Portiola ibama 2x;MAN;0,42
+P40;Preparação;Virar portiola 2x;MAN;0,502166666666667
+P39;Preparação;Fixar portiolola ibama 2x;2AG;0,74298
+D16;Dianteiro;Pranchar Reforço 2x;MAN;0,510216666666667
+T10;Traseiro;Pranchar lapela;MAN;0,613333333333333
+P38;Preparação;Chulear portiola;OV;0,162666666666667
+M12;Montagem;Fixado Elastico;12AG;0,5625
+P37;Preparação;Cortar e Abrir ponta de cinto 1x;MAN;0,19
+P36;Preparação;Fazer cinto 1x;COS;0,13
+P35;Preparação;Unir cinto 1x;OV;0,2
+P34;Preparação;Casar cinto 1x;MAN;0,1
+P33;Preparação;Fixar o reforço;RT;0,6
+P32;Preparação;Zig zag joelho com esponja 2X ;2AG;3,05
+M11;Montagem;Pregar bolso fole 2X;2AG;1,43
+D15;Dianteiro;Pranchar seta 2x;MAN;0,325833333333333
+D14;Dianteiro;Costurinha;RT;0,42
+D13;Dianteiro;Pranchar bolso dianteiro 2x;MAN;0,43
+P31;Preparação;Ponta cinto;2AG;0,63
+M10;Montagem;Pregar portiola lateral 2x;2AG;0,55
+T9;Traseiro;Pranchar bolso lateral 2x;MAN;0,34
+T8;Traseiro;Pranchar portiola T2 quadrada 2x;MAN;0,56
+F13;Final;Ponta dupla;2AG;1,01666666666667
+F12;Final;Fazer Passante ou cortar passante;RT;0,76
+D12;Dianteiro;Fixar ilhete no cós 2x;RT;0,36
+T7;Traseiro;Pregar tarjeta  1x;2AG;0,406666666666667
+P30;Preparação;Costurinha da seta 2X;2AG;0,21
+P29;Preparação;Rebater Seta  2X;2AG;0,76
+M9;Montagem;Marcar bolso lateral 2x;MAN;0,23575
+P28;Preparação;Chuleado da braguilha de botão;OV;0,0797066666666667
+T6;Traseiro;Levis bolso traseiro 2x ;2AG;1,03374666666667
+P27;Preparação;Chulear bolso traseiro 1X;OV;0,0813333333333333
+P26;Preparação;Rebater laterais do bolso fole 2x;2AG;1,22
+P25;Preparação;Fixado do canto bolso fole 2x;2AG;0,31
+P24;Preparação;Rebater prega de bolso  2x;2AG;0,264333333333333
+P23;Preparação;Fixado da prega do bolso 2x;RT;0,42
+P22;Preparação;Fazer Prega de bolso e fixado 2x;RT;1
+D11;Dianteiro;Fixar Cinto 2x;RT;0,4258
+F11;Final;Chulear bainha ;OV;0,51
+P1;Preparação;Bainha de bolso relogio;Bp;0,12
+F10;Final;Travete elastico;TRAV;0,1
+D1;Dianteiro;Chulear dianteiro;ov;0,14
+D10;Dianteiro;Fixar e rebater braguilha;rt;0,42
+D2;Dianteiro;curvo;2Ag;0,4
+D3;Dianteiro;uniao;2Ag;0,55
+D4;Dianteiro;ganchinho;2Ag;0,55
+D5;Dianteiro;Casar cos;man;0,09
+D6;Dianteiro;unir cos;ov;0,14
+D7;Dianteiro;passar cos;12ag;0,25
+D8;Dianteiro;Cortar e abrir cos;man;0,25
+D9;Dianteiro;Pregar bolso chapado frente 2x;2Ag;1,1
+F1;Final;ponta cos;rt;0,76
+F2;Final;bainha;rt;0,55
+F3;Final;travete geral peça básica;trav;0,8
+F4;Final;Travete geral peça cargo;TRAV;0,87
+F5;Final;pregar 5 passante;trav;0,92
+F6;Final;Pregar 7 passantes;trav;1,1
+F7;Final;revisão;man;0,75
+F8;Final;chulear elastico total;ov;0,55
+F9;Final;rebater elastico total;12ag;0,6
+M1;Montagem;colecionar;man;0,65
+M2;Montagem;fechar lateral;int;0,56
+M3;Montagem;Rebatimento lateral;Bp;0,55
+M4;Montagem;passar faixa e Cortar;12ag;0,42
+M5;Montagem;Fechar entre pernas;int;0,49
+M6;Montagem;bolso lateral com portiola 2x;2Ag;1,05
+M7;Montagem;Cortar cadarço;MAN;0,0958333333333333
+M8;Montagem;Colocar cadarço;MAN;0,2875
+P10;Preparação;prepara ziper ambos os lados;rt;0,55
+P11;Preparação;rebater portiola 2x;2Ag;1
+P12;Preparação;chulear reforço 2x;ov;0,2
+P13;Preparação;pregar reforço do entre perna 2x;2Ag;0,85
+P14;Preparação;pregar reforço do joelho 2x;2Ag;1,49
+P15;Preparação;fazer matalesse do reforço joelho 2x;rt;1,1
+P16;Preparação;fazer matalesse do reforço gancho 2x;rt;0,85
+P17;Preparação;"pregar velcro em ""x"" tam P 1x";FIL;0,16
+P18;Preparação;Pregar velcro quadrado tam P 1x;FIL;0,14
+P19;Preparação;"Pregar velcro em ""X"" tam G 1x";FIL;0,2
+P2;Preparação;Prega bolso relogio;2Ag;0,25
+P21;Preparação;Bainha de bolso aparelhada 2X;BP;0,17
+P20;Preparação;Pregar velcro quadrado tam G 1x;FIL;0,2
+P3;Preparação;pregar vista no forro;Gol;0,35
+P4;Preparação;Fixar etiqueta;rt;0,4
+P5;Preparação;Fixar forro abertura;int;0,5
+P6;Preparação;Abertura;2Ag;0,55
+P7;Preparação;fechar saquinho;int;0,4
+P8;Preparação;Fixar saquinho;rt;0,55
+P9;Preparação;chulear braguilha aberta e fechada 1X;ov;0,55
+T1;Traseiro;pregar bolso Traseiro com portiola 2x;2Ag;1,1
+T2;Traseiro;chulear meio  elastico;ov;0,2
+T3;Traseiro;rebater meio elastico;12ag;0,31
+T4;Traseiro;bainha de bolso PESPONTO 2X;2Ag;0,57
+T5;Traseiro;pranchar bolso costa 2x;man;0,42

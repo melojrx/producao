@@ -390,6 +390,19 @@ export interface RelatorioFiltros {
   operadorId: string
 }
 
+export type RelatorioSortField =
+  | 'origem'
+  | 'numeroOp'
+  | 'setorNome'
+  | 'operadorNome'
+  | 'operacaoCodigo'
+  | 'quantidadeApontada'
+  | 'quantidadeRealizadaOperacao'
+  | 'quantidadeRealizadaSecao'
+  | 'quantidadeRealizadaOp'
+  | 'statusOp'
+  | 'ultimaLeituraEm'
+
 export interface SetorOption extends Tables<'setores'> {}
 
 export interface SetorListItem extends Tables<'setores'> {}
@@ -450,6 +463,24 @@ export interface OperacoesPaginadas {
   totalPages: number
   busca: string
   sortBy: OperacaoSortField
+  sortDir: SortDirection
+}
+
+export interface RelatoriosListagemParams {
+  filtros: RelatorioFiltros
+  page: number
+  pageSize: number
+  sortBy: RelatorioSortField
+  sortDir: SortDirection
+}
+
+export interface RelatoriosPaginados {
+  items: RelatorioRegistroItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  sortBy: RelatorioSortField
   sortDir: SortDirection
 }
 
