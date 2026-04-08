@@ -2598,3 +2598,102 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   **Evidência:** O sistema passa a cadastrar operações com `codigo` manual e `maquina_id`, sem regressão observada nos fluxos dependentes e com `npx tsc --noEmit` passando sem erros.
   Homologação funcional confirmada pelo usuário em `2026-04-07`, cobrindo criação, edição, escolha de máquina específica, código manual e leituras derivadas de produto, turno, scanner e detalhes operacionais. A sprint foi encerrada com `npx tsc --noEmit` validado sem erros e sem dependência funcional restante de `tipo_maquina_codigo` no fluxo ativo.
+
+## SPRINT 27 — Paginação e ordenação profissional do CRUD de operações
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 26 concluída e confirmação explícita do usuário para abertura oficial da sprint.
+**Objetivo:** evoluir `/admin/operacoes` para suportar paginação profissional, ordenação por clique no cabeçalho e persistência do estado via URL, sem regressão no CRUD atual.
+
+- [x] **HU 27.1 — Como produto, quero formalizar o contrato da listagem paginada e ordenável de operações, para que a rota administrativa use URL como fonte de verdade da navegação e da ordenação.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - definir `page`, `busca`, `sortBy` e `sortDir` como `searchParams` da rota
+  - definir ordenação padrão da tela
+  - definir quais colunas são oficialmente ordenáveis
+  - preservar o CRUD de criação, edição, detalhe e ciclo de vida já existente
+
+  Regras:
+  - a URL deve ser a fonte de verdade para paginação, busca e ordenação
+  - a ordenação padrão da tela deve abrir em `codigo asc`
+  - a mudança não pode quebrar a abertura do modal nem a navegação de detalhe
+
+  **Evidência:** `/admin/operacoes` passa a aceitar `page`, `busca`, `sortBy` e `sortDir` na URL e abre com ordenação padrão consistente.
+  Implementado em `app/admin/operacoes/page.tsx`, formalizando `page`, `busca`, `sortBy` e `sortDir` como `searchParams`, com ordenação padrão em `codigo asc` e `pageSize = 20`.
+
+- [x] **HU 27.2 — Como sistema, quero criar uma query paginada e ordenável de operações, para que a tela admin não dependa mais de renderizar a lista inteira sem estrutura de navegação.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar um read model para paginação de operações
+  - aplicar busca textual por código, descrição, máquina e setor
+  - aplicar ordenação por colunas suportadas
+  - retornar `items`, `total`, `page`, `pageSize` e `totalPages`
+
+  Regras:
+  - a paginação deve respeitar o recorte já filtrado e ordenado
+  - a ordenação precisa cobrir colunas textuais, numéricas e status
+  - o contrato novo deve preservar o shape atual de `OperacaoListItem`
+
+  **Evidência:** A camada de queries passa a devolver um recorte paginado e ordenável de operações, com metadados suficientes para a navegação da tabela.
+  Implementado em `lib/queries/operacoes.ts` e `types/index.ts`, com `listarOperacoesPaginadas()`, contratos tipados de listagem (`OperacoesListagemParams`, `OperacoesPaginadas`, `OperacaoSortField`, `SortDirection`) e comparadores para busca/ordenação por `codigo`, `descricao`, `maquina`, `setor`, `tempo_padrao_min`, `meta_hora`, `meta_dia` e `ativa`.
+
+- [x] **HU 27.3 — Como admin, quero que a page de operações carregue a listagem a partir dos `searchParams`, para manter a navegação previsível e compartilhável.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - adaptar `app/admin/operacoes/page.tsx` para ler `searchParams`
+  - carregar a listagem paginada a partir do servidor
+  - continuar carregando `maquinas` e `setores` para o modal
+  - repassar à UI o estado atual da listagem
+
+  Regras:
+  - a rota deve continuar sendo renderizada no server
+  - busca, página e ordenação devem sobreviver ao refresh
+  - a mudança não pode afetar criação/edição de operação
+
+  **Evidência:** Recarregar `/admin/operacoes` preserva a página atual, a busca atual e a ordenação atual sem perder funcionalidade do CRUD.
+  Implementado em `app/admin/operacoes/page.tsx`, substituindo a leitura integral por `listarOperacoesPaginadas()` e repassando à interface os metadados de paginação, busca e ordenação juntamente com `maquinas` e `setores`.
+
+- [x] **HU 27.4 — Como admin, quero clicar no cabeçalho da coluna e navegar entre páginas na própria tabela, para consultar muitas operações com fluidez e sem ruído operacional.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/operacoes`
+  - `app/(admin)/operacoes/ListaOperacoes.tsx`
+
+  Tarefas:
+  - transformar colunas relevantes em cabeçalhos clicáveis
+  - alternar `asc/desc` ao clicar novamente na mesma coluna
+  - adicionar paginação com navegação `Primeira`, `Anterior`, números, `Próxima` e `Última`
+  - exibir resumo `Mostrando X-Y de Z operações`
+  - manter busca funcional com atualização da URL
+
+  Regras:
+  - a tabela deve continuar responsiva
+  - a navegação de ordenação e paginação deve usar a URL, não estado local isolado
+  - a UI não pode perder o modal de criação/edição nem as ações existentes
+
+  **Evidência:** A tabela de `/admin/operacoes` passa a ordenar por clique no cabeçalho, navegar por páginas e manter o contexto pela URL.
+  Implementado em `app/(admin)/operacoes/ListaOperacoes.tsx`, com cabeçalhos clicáveis, indicadores visuais de direção, busca por formulário com persistência em URL, paginação completa e manutenção das ações de editar, detalhe e ciclo de vida no mesmo grid.
+
+- [x] **HU 27.5 — Como produto, quero homologar a paginação e ordenação da listagem de operações sem regressão técnica, para confiar no novo fluxo administrativo com volume maior de cadastros.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar a nova listagem com paginação e ordenação
+  - validar a manutenção do CRUD existente na mesma tela
+  - rodar `npx tsc --noEmit`
+  - registrar a evidência final da entrega
+
+  Regras:
+  - a sprint não fecha sem validação de tipos
+  - a homologação precisa confirmar coexistência entre tabela paginada e modal do CRUD
+
+  **Evidência:** `/admin/operacoes` passa a suportar paginação e ordenação por coluna sem regressão técnica, com `npx tsc --noEmit` passando sem erros.
+  Validação concluída em `2026-04-07` com `npx tsc --noEmit` sem erros após a implementação em `app/admin/operacoes/page.tsx`, `app/(admin)/operacoes/ListaOperacoes.tsx`, `lib/queries/operacoes.ts` e `types/index.ts`.

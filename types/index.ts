@@ -422,6 +422,37 @@ export interface OperacaoListItem extends Tables<'operacoes'> {
   setorNome: string | null
 }
 
+export type SortDirection = 'asc' | 'desc'
+
+export type OperacaoSortField =
+  | 'codigo'
+  | 'descricao'
+  | 'maquina'
+  | 'setor'
+  | 'tempo_padrao_min'
+  | 'meta_hora'
+  | 'meta_dia'
+  | 'ativa'
+
+export interface OperacoesListagemParams {
+  busca: string
+  page: number
+  pageSize: number
+  sortBy: OperacaoSortField
+  sortDir: SortDirection
+}
+
+export interface OperacoesPaginadas {
+  items: OperacaoListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  busca: string
+  sortBy: OperacaoSortField
+  sortDir: SortDirection
+}
+
 export interface ProdutoRoteiroItem {
   produtoOperacaoId: string
   operacaoId: string
