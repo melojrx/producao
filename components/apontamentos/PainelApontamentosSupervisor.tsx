@@ -879,8 +879,7 @@ export function PainelApontamentosSupervisor({
                                 <option value="">Selecione</option>
                                 {operacoesDaSecao.map((operacao) => (
                                   <option key={operacao.id} value={operacao.id}>
-                                    {operacao.sequencia}. {operacao.operacaoCodigo} · saldo{' '}
-                                    {saldoRestanteOperacao(operacao)}
+                                    {operacao.operacaoCodigo} · {operacao.operacaoDescricao}
                                   </option>
                                 ))}
                               </select>
