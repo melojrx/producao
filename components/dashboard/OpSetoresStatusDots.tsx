@@ -7,8 +7,12 @@ interface OpSetoresStatusDotsProps {
 }
 
 function classeStatusDot(status: OpSetorStatusDotItem['status']): string {
-  if (status === 'concluida' || status === 'encerrada_manualmente') {
+  if (status === 'concluida') {
     return 'bg-emerald-500 ring-emerald-200'
+  }
+
+  if (status === 'encerrada_manualmente') {
+    return 'bg-slate-400 ring-slate-200'
   }
 
   if (status === 'em_andamento') {
