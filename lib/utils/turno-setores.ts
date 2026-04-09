@@ -1,5 +1,6 @@
 import type {
   PlanejamentoTurnoV2,
+  TurnoOpStatusV2,
   TurnoSetorDemandaStatusV2,
   TurnoSetorStatusV2,
 } from '@/types'
@@ -11,6 +12,7 @@ export interface TurnoSetorDemandaDashboardItem {
   turnoOpId: string
   setorId: string
   setorCodigo: number
+  setorNome: string
   numeroOp: string
   produtoId: string
   produtoNome: string
@@ -41,6 +43,26 @@ export interface TurnoSetorDashboardItem {
   iniciadoEm: string | null
   encerradoEm: string | null
   demandas: TurnoSetorDemandaDashboardItem[]
+}
+
+export interface OpSetorStatusDotItem {
+  setorId: string
+  setorNome: string
+  setorCodigo: number
+  status: TurnoSetorDemandaStatusV2 | TurnoSetorStatusV2
+}
+
+export interface TurnoOpResumoDashboardItem {
+  id: string
+  numeroOp: string
+  produtoReferencia: string
+  produtoNome: string
+  produtoNomeResumido: string
+  quantidadePlanejada: number
+  quantidadeConcluida: number
+  progressoOperacionalPct: number
+  status: TurnoOpStatusV2
+  setores: OpSetorStatusDotItem[]
 }
 
 function ordenarDemandas(
@@ -110,6 +132,7 @@ function mapearDemandasLegadas(
         turnoOpId: secao.turnoOpId,
         setorId: secao.setorId,
         setorCodigo: secao.setorCodigo,
+        setorNome: secao.setorNome,
         numeroOp: op.numeroOp,
         produtoId: op.produtoId,
         produtoNome: op.produtoNome,
@@ -126,6 +149,47 @@ function mapearDemandasLegadas(
     .filter((demanda): demanda is TurnoSetorDemandaDashboardItem => Boolean(demanda))
 }
 
+function mapearDemandasPlanejamentoParaDashboard(
+  planejamento: Pick<
+    PlanejamentoTurnoV2,
+    'ops' | 'setoresAtivos' | 'demandasSetor' | 'secoesSetorOp'
+  >
+): TurnoSetorDemandaDashboardItem[] {
+  const setorNomePorId = new Map<string, string>()
+
+  for (const setor of planejamento.setoresAtivos ?? []) {
+    setorNomePorId.set(setor.setorId, setor.setorNome)
+  }
+
+  for (const secao of planejamento.secoesSetorOp) {
+    setorNomePorId.set(secao.setorId, secao.setorNome)
+  }
+
+  if (planejamento.demandasSetor && planejamento.demandasSetor.length > 0) {
+    return planejamento.demandasSetor.map((demanda) => ({
+      id: demanda.id,
+      turnoSetorId: demanda.turnoSetorId,
+      turnoOpId: demanda.turnoOpId,
+      setorId: demanda.setorId,
+      setorCodigo: demanda.setorCodigo,
+      setorNome: setorNomePorId.get(demanda.setorId) ?? `Setor ${demanda.setorCodigo}`,
+      numeroOp: demanda.numeroOp,
+      produtoId: demanda.produtoId,
+      produtoNome: demanda.produtoNome,
+      produtoReferencia: demanda.produtoReferencia,
+      quantidadePlanejada: demanda.quantidadePlanejada,
+      quantidadeRealizada: demanda.quantidadeRealizada,
+      quantidadeConcluida: demanda.quantidadeConcluida,
+      progressoOperacionalPct: demanda.progressoOperacionalPct,
+      cargaPlanejadaTp: demanda.cargaPlanejadaTp,
+      cargaRealizadaTp: demanda.cargaRealizadaTp,
+      status: demanda.status,
+    }))
+  }
+
+  return mapearDemandasLegadas(planejamento)
+}
+
 function agruparDemandasPorSetor(
   demandas: TurnoSetorDemandaDashboardItem[]
 ): Map<string, TurnoSetorDemandaDashboardItem[]> {
@@ -140,30 +204,33 @@ function agruparDemandasPorSetor(
   return mapa
 }
 
+function resumirNomeProduto(nome: string): string {
+  const nomeNormalizado = nome.trim()
+
+  if (nomeNormalizado.length <= 72) {
+    return nomeNormalizado
+  }
+
+  const palavras = nomeNormalizado.split(/\s+/)
+  let resumoAtual = ''
+
+  for (const palavra of palavras) {
+    const candidato = resumoAtual ? `${resumoAtual} ${palavra}` : palavra
+
+    if (candidato.length > 72) {
+      break
+    }
+
+    resumoAtual = candidato
+  }
+
+  return `${resumoAtual.trim()}...`
+}
+
 export function mapearSetoresTurnoParaDashboard(
   planejamento: Pick<PlanejamentoTurnoV2, 'turno' | 'ops' | 'setoresAtivos' | 'demandasSetor' | 'secoesSetorOp'>
 ): TurnoSetorDashboardItem[] {
-  const demandas =
-    planejamento.demandasSetor && planejamento.demandasSetor.length > 0
-      ? planejamento.demandasSetor.map((demanda) => ({
-          id: demanda.id,
-          turnoSetorId: demanda.turnoSetorId,
-          turnoOpId: demanda.turnoOpId,
-          setorId: demanda.setorId,
-          setorCodigo: demanda.setorCodigo,
-          numeroOp: demanda.numeroOp,
-          produtoId: demanda.produtoId,
-          produtoNome: demanda.produtoNome,
-          produtoReferencia: demanda.produtoReferencia,
-          quantidadePlanejada: demanda.quantidadePlanejada,
-          quantidadeRealizada: demanda.quantidadeRealizada,
-          quantidadeConcluida: demanda.quantidadeConcluida,
-          progressoOperacionalPct: demanda.progressoOperacionalPct,
-          cargaPlanejadaTp: demanda.cargaPlanejadaTp,
-          cargaRealizadaTp: demanda.cargaRealizadaTp,
-          status: demanda.status,
-        }))
-      : mapearDemandasLegadas(planejamento)
+  const demandas = mapearDemandasPlanejamentoParaDashboard(planejamento)
 
   const demandasPorSetor = agruparDemandasPorSetor(demandas)
   const setoresMapeados = new Map<string, TurnoSetorDashboardItem>()
@@ -291,4 +358,44 @@ export function mapearPossuiProducaoPorOp(
   }
 
   return mapa
+}
+
+export function mapearOpsTurnoParaDashboard(
+  planejamento: Pick<PlanejamentoTurnoV2, 'ops' | 'setoresAtivos' | 'demandasSetor' | 'secoesSetorOp'>
+): TurnoOpResumoDashboardItem[] {
+  const demandas = mapearDemandasPlanejamentoParaDashboard(planejamento)
+
+  const demandasPorOp = new Map<string, TurnoSetorDemandaDashboardItem[]>()
+
+  for (const demanda of demandas) {
+    const demandasAtuais = demandasPorOp.get(demanda.turnoOpId) ?? []
+    demandasAtuais.push(demanda)
+    demandasPorOp.set(demanda.turnoOpId, demandasAtuais)
+  }
+
+  return [...planejamento.ops]
+    .sort((primeiraOp, segundaOp) => primeiraOp.numeroOp.localeCompare(segundaOp.numeroOp))
+    .map((op) => {
+      const setores = [...(demandasPorOp.get(op.id) ?? [])]
+        .sort((primeiroSetor, segundoSetor) => compararSetoresPorOrdem(primeiroSetor, segundoSetor))
+        .map((demanda) => ({
+          setorId: demanda.setorId,
+          setorNome: demanda.setorNome,
+          setorCodigo: demanda.setorCodigo,
+          status: demanda.status,
+        }))
+
+      return {
+        id: op.id,
+        numeroOp: op.numeroOp,
+        produtoReferencia: op.produtoReferencia,
+        produtoNome: op.produtoNome,
+        produtoNomeResumido: resumirNomeProduto(op.produtoNome),
+        quantidadePlanejada: op.quantidadePlanejada,
+        quantidadeConcluida: op.quantidadeConcluida,
+        progressoOperacionalPct: op.progressoOperacionalPct,
+        status: op.status,
+        setores,
+      }
+    })
 }

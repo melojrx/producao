@@ -6,6 +6,7 @@ import {
   type DashboardTabId,
 } from '@/components/dashboard/DashboardTabs'
 import { DashboardOperadoresTab } from '@/components/dashboard/DashboardOperadoresTab'
+import { ModalDetalhesSetorTurno } from '@/components/dashboard/ModalDetalhesSetorTurno'
 import { DashboardVisaoGeralTab } from '@/components/dashboard/DashboardVisaoGeralTab'
 import { DashboardVisaoOperacionalTab } from '@/components/dashboard/DashboardVisaoOperacionalTab'
 import { ModalDetalhesOpTurno } from '@/components/dashboard/ModalDetalhesOpTurno'
@@ -13,7 +14,10 @@ import { ResumoPlanejamentoTurnoV2 } from '@/components/dashboard/ResumoPlanejam
 import { useMetaGrupoTurnoV2 } from '@/hooks/useMetaGrupoTurnoV2'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
-import { mapearSetoresTurnoParaDashboard } from '@/lib/utils/turno-setores'
+import {
+  mapearOpsTurnoParaDashboard,
+  mapearSetoresTurnoParaDashboard,
+} from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
   MetaMensalResumoDashboard,
@@ -77,6 +81,7 @@ export function MonitorPlanejamentoTurnoV2({
 }: MonitorPlanejamentoTurnoV2Props) {
   const [abaAtiva, setAbaAtiva] = useState<DashboardTabId>('visao_geral')
   const [turnoOpSelecionadaId, setTurnoOpSelecionadaId] = useState<string | null>(null)
+  const [setorSelecionadoId, setSetorSelecionadoId] = useState<string | null>(null)
   const { planejamento, ultimaAtualizacao, statusConexao, estaCarregando, erro } =
     useRealtimePlanejamentoTurnoV2(initialPlanning)
   const {
@@ -104,6 +109,8 @@ export function MonitorPlanejamentoTurnoV2({
         progressoSetoresPct: 0,
         setoresPendentes: 0,
         ops: [] as TurnoOpV2[],
+        opsAbertasLista: [],
+        setoresCardsLista: [],
         setoresPendentesLista: [],
         setoresConcluidosLista: [],
         setoresAtivos: [],
@@ -113,6 +120,9 @@ export function MonitorPlanejamentoTurnoV2({
     const setoresAtivos = mapearSetoresTurnoParaDashboard(planejamento)
     const setoresPendentesLista = setoresAtivos.filter((setor) => setor.status !== 'concluida')
     const setoresConcluidosLista = setoresAtivos.filter((setor) => setor.status === 'concluida')
+    const opsAbertasLista = mapearOpsTurnoParaDashboard(planejamento).filter(
+      (op) => op.status !== 'concluida'
+    )
 
     return {
       opsEmAndamento: planejamento.ops.filter((op) => op.status === 'em_andamento').length,
@@ -147,6 +157,8 @@ export function MonitorPlanejamentoTurnoV2({
           : 0,
       setoresPendentes: setoresPendentesLista.length,
       ops: planejamento.ops,
+      opsAbertasLista,
+      setoresCardsLista: setoresAtivos,
       setoresPendentesLista,
       setoresConcluidosLista,
       setoresAtivos,
@@ -173,6 +185,10 @@ export function MonitorPlanejamentoTurnoV2({
   }, [planejamento, turnoOpSelecionadaId])
 
   const turnoAberto = planejamento?.origem === 'aberto'
+  const setorSelecionado = useMemo(
+    () => resumo.setoresCardsLista.find((setor) => setor.setorId === setorSelecionadoId) ?? null,
+    [resumo.setoresCardsLista, setorSelecionadoId]
+  )
 
   return (
     <section className="space-y-6">
@@ -204,6 +220,7 @@ export function MonitorPlanejamentoTurnoV2({
           comparativoPorHora={comparativoPorHora}
           estaCarregandoGrafico={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
           onSelecionarOp={setTurnoOpSelecionadaId}
+          onSelecionarSetor={setSetorSelecionadoId}
         />
       ) : abaAtiva === 'operadores' && planejamento ? (
         <DashboardOperadoresTab
@@ -228,6 +245,13 @@ export function MonitorPlanejamentoTurnoV2({
             (operacao) => operacao.turnoOpId === opSelecionada.op.id
           )}
           aoFechar={() => setTurnoOpSelecionadaId(null)}
+        />
+      ) : null}
+
+      {setorSelecionado ? (
+        <ModalDetalhesSetorTurno
+          setor={setorSelecionado}
+          aoFechar={() => setSetorSelecionadoId(null)}
         />
       ) : null}
     </section>

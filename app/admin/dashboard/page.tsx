@@ -3,6 +3,7 @@ import { buscarResumoMetaMensalDashboard } from '@/lib/queries/metas-mensais'
 import { listarProdutos } from '@/lib/queries/produtos'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
 import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/utils/data'
+import type { ProdutoListItem } from '@/types'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -18,8 +19,8 @@ export default async function AdminDashboardPage(props: {
     normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
     obterCompetenciaMesAtual()
 
-  const [produtosCatalogo, planejamentoTurnoV2, resumoMetaMensal] = await Promise.all([
-    listarProdutos(),
+  const [produtosCatalogoResultado, planejamentoTurnoV2, resumoMetaMensal] = await Promise.all([
+    listarProdutos().catch(() => [] as ProdutoListItem[]),
     buscarTurnoAbertoOuUltimoEncerrado(),
     buscarResumoMetaMensalDashboard(competenciaSelecionada),
   ])
@@ -29,7 +30,7 @@ export default async function AdminDashboardPage(props: {
       <MonitorPlanejamentoTurnoV2
         initialPlanning={planejamentoTurnoV2}
         resumoMetaMensal={resumoMetaMensal}
-        produtosCatalogo={produtosCatalogo}
+        produtosCatalogo={produtosCatalogoResultado}
       />
     </main>
   )
