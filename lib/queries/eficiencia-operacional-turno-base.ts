@@ -4,6 +4,7 @@ import { calcularMetaHora } from '@/lib/utils/producao'
 import type {
   EficienciaOperacionalDiaRegistroV2,
   EficienciaOperacionalHoraRegistroV2,
+  EficienciaOperacionalOperacaoRegistroV2,
   ResumoEficienciaOperacionalTurnoV2,
   TurnoSetorOperacaoApontamentoV2,
 } from '@/types'
@@ -136,12 +137,14 @@ export function consolidarResumoEficienciaOperacionalTurno(
     return {
       porHora: [],
       porDia: [],
+      porOperacao: [],
     }
   }
 
   const operadoresPorId = new Map(operadores.map((operador) => [operador.id, operador]))
   const dataTurno = formatarDataLocal(turno.iniciadoEm)
-  const agregacaoPorHora = new Map<string, EficienciaOperacionalHoraRegistroV2>()
+  const agregacaoPorHoraOperador = new Map<string, EficienciaOperacionalHoraRegistroV2>()
+  const agregacaoPorOperacao = new Map<string, EficienciaOperacionalOperacaoRegistroV2>()
   const agregacaoPorDia = new Map<string, EficienciaOperacionalDiaRegistroV2>()
 
   for (const registro of registros) {
@@ -169,22 +172,54 @@ export function consolidarResumoEficienciaOperacionalTurno(
       continue
     }
 
-    const chaveHora = [hora, registro.operadorId, operacaoTurno.operacaoId, tempoPadraoMinSnapshot].join(
-      ':'
-    )
-    const horaAtual = agregacaoPorHora.get(chaveHora)
+    const chaveHoraOperador = [hora, registro.operadorId].join(':')
+    const horaOperadorAtual = agregacaoPorHoraOperador.get(chaveHoraOperador)
 
-    if (horaAtual) {
-      horaAtual.quantidadeRealizada += quantidadeRealizada
-      horaAtual.minutosPadraoRealizados = arredondarIndicador(
-        horaAtual.minutosPadraoRealizados + minutosPadraoRealizados
+    if (horaOperadorAtual) {
+      horaOperadorAtual.quantidadeRealizada += quantidadeRealizada
+      horaOperadorAtual.minutosPadraoRealizados = arredondarIndicador(
+        horaOperadorAtual.minutosPadraoRealizados + minutosPadraoRealizados
       )
-      horaAtual.eficienciaPct = calcularEficienciaOperacionalPct(
-        horaAtual.minutosPadraoRealizados,
+      horaOperadorAtual.eficienciaPct = calcularEficienciaOperacionalPct(
+        horaOperadorAtual.minutosPadraoRealizados,
         MINUTOS_POR_HORA
       )
     } else {
-      agregacaoPorHora.set(chaveHora, {
+      agregacaoPorHoraOperador.set(chaveHoraOperador, {
+        turnoId: turno.id,
+        hora,
+        operadorId: operador.id,
+        operadorNome: operador.nome,
+        operadorMatricula: operador.matricula,
+        totalOperacoes: 0,
+        quantidadeRealizada,
+        minutosPadraoRealizados: arredondarIndicador(minutosPadraoRealizados),
+        eficienciaPct: calcularEficienciaOperacionalPct(
+          minutosPadraoRealizados,
+          MINUTOS_POR_HORA
+        ),
+      })
+    }
+
+    const chaveOperacao = [
+      hora,
+      registro.operadorId,
+      operacaoTurno.operacaoId,
+      tempoPadraoMinSnapshot,
+    ].join(':')
+    const operacaoAtual = agregacaoPorOperacao.get(chaveOperacao)
+
+    if (operacaoAtual) {
+      operacaoAtual.quantidadeRealizada += quantidadeRealizada
+      operacaoAtual.minutosPadraoRealizados = arredondarIndicador(
+        operacaoAtual.minutosPadraoRealizados + minutosPadraoRealizados
+      )
+      operacaoAtual.eficienciaPct = calcularEficienciaOperacionalPct(
+        operacaoAtual.minutosPadraoRealizados,
+        MINUTOS_POR_HORA
+      )
+    } else {
+      agregacaoPorOperacao.set(chaveOperacao, {
         turnoId: turno.id,
         hora,
         operadorId: operador.id,
@@ -234,17 +269,38 @@ export function consolidarResumoEficienciaOperacionalTurno(
     }
   }
 
+  const totaisOperacoesPorHoraOperador = new Map<string, number>()
+
+  for (const operacao of agregacaoPorOperacao.values()) {
+    const chaveHoraOperador = `${operacao.hora}:${operacao.operadorId}`
+    totaisOperacoesPorHoraOperador.set(
+      chaveHoraOperador,
+      (totaisOperacoesPorHoraOperador.get(chaveHoraOperador) ?? 0) + 1
+    )
+  }
+
+  for (const registroPorHora of agregacaoPorHoraOperador.values()) {
+    registroPorHora.totalOperacoes =
+      totaisOperacoesPorHoraOperador.get(`${registroPorHora.hora}:${registroPorHora.operadorId}`) ??
+      0
+  }
+
   return {
-    porHora: Array.from(agregacaoPorHora.values()).sort(
+    porHora: Array.from(agregacaoPorHoraOperador.values()).sort(
       (primeiroRegistro, segundoRegistro) =>
         primeiroRegistro.hora.localeCompare(segundoRegistro.hora) ||
-        primeiroRegistro.operadorNome.localeCompare(segundoRegistro.operadorNome) ||
-        primeiroRegistro.operacaoDescricao.localeCompare(segundoRegistro.operacaoDescricao)
+        primeiroRegistro.operadorNome.localeCompare(segundoRegistro.operadorNome)
     ),
     porDia: Array.from(agregacaoPorDia.values()).sort(
       (primeiroRegistro, segundoRegistro) =>
         segundoRegistro.eficienciaPct - primeiroRegistro.eficienciaPct ||
         primeiroRegistro.operadorNome.localeCompare(segundoRegistro.operadorNome)
+    ),
+    porOperacao: Array.from(agregacaoPorOperacao.values()).sort(
+      (primeiroRegistro, segundoRegistro) =>
+        primeiroRegistro.hora.localeCompare(segundoRegistro.hora) ||
+        primeiroRegistro.operadorNome.localeCompare(segundoRegistro.operadorNome) ||
+        primeiroRegistro.operacaoDescricao.localeCompare(segundoRegistro.operacaoDescricao)
     ),
   }
 }
@@ -276,6 +332,7 @@ export async function listarResumoEficienciaOperacionalTurnoComClient(
     return {
       porHora: [],
       porDia: [],
+      porOperacao: [],
     }
   }
 
@@ -312,6 +369,7 @@ export async function listarResumoEficienciaOperacionalTurnoComClient(
     return {
       porHora: [],
       porDia: [],
+      porOperacao: [],
     }
   }
 

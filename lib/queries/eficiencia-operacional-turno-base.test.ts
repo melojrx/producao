@@ -13,7 +13,7 @@ const {
   consolidarResumoEficienciaOperacionalTurno,
 }: typeof import('./eficiencia-operacional-turno-base') = await import(moduloEficienciaUrl.href)
 
-test('mantem linhas separadas por operacao na mesma hora e consolida o dia do operador', () => {
+test('consolida a hora do operador sem perder o detalhamento por operacao na mesma hora', () => {
   const turno: TurnoEficienciaOperacionalConsolidavel = {
     id: 'turno-1',
     iniciadoEm: '2026-04-03T08:00:00-03:00',
@@ -103,9 +103,31 @@ test('mantem linhas separadas por operacao na mesma hora e consolida o dia do op
     operadores
   )
 
-  assert.equal(resumo.porHora.length, 2)
+  assert.equal(resumo.porHora.length, 1)
   assert.deepEqual(
     resumo.porHora.map((registro) => ({
+      hora: registro.hora,
+      operadorId: registro.operadorId,
+      totalOperacoes: registro.totalOperacoes,
+      quantidadeRealizada: registro.quantidadeRealizada,
+      minutosPadraoRealizados: registro.minutosPadraoRealizados,
+      eficienciaPct: registro.eficienciaPct,
+    })),
+    [
+      {
+        hora: '2026-04-03T08:00:00',
+        operadorId: 'operador-1',
+        totalOperacoes: 2,
+        quantidadeRealizada: 100,
+        minutosPadraoRealizados: 60,
+        eficienciaPct: 100,
+      },
+    ]
+  )
+
+  assert.equal(resumo.porOperacao.length, 2)
+  assert.deepEqual(
+    resumo.porOperacao.map((registro) => ({
       hora: registro.hora,
       operacaoId: registro.operacaoId,
       quantidadeRealizada: registro.quantidadeRealizada,

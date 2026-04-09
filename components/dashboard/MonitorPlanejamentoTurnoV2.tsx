@@ -206,7 +206,10 @@ export function MonitorPlanejamentoTurnoV2({
           onSelecionarOp={setTurnoOpSelecionadaId}
         />
       ) : abaAtiva === 'operadores' && planejamento ? (
-        <DashboardOperadoresTab resumo={planejamento.eficienciaOperacional} />
+        <DashboardOperadoresTab
+          resumo={planejamento.eficienciaOperacional}
+          operadoresDisponiveis={planejamento.turno.operadoresDisponiveis}
+        />
       ) : !estaCarregando ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Nenhum turno disponível para monitoramento neste momento.

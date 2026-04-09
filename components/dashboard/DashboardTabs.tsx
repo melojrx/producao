@@ -31,7 +31,8 @@ export function DashboardTabs({ abaAtiva, onChange }: DashboardTabsProps) {
     {
       id: 'operadores',
       titulo: 'Operadores',
-      descricao: 'Eficiência por hora e resumo diário dos operadores no turno carregado.',
+      descricao:
+        'Eficiência por hora, eficiência do dia por operador e detalhamento por operação.',
       icone: Users,
     },
   ]

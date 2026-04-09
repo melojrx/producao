@@ -266,6 +266,18 @@ export interface EficienciaOperacionalHoraRegistroV2 {
   operadorId: string
   operadorNome: string
   operadorMatricula: string
+  totalOperacoes: number
+  quantidadeRealizada: number
+  minutosPadraoRealizados: number
+  eficienciaPct: number
+}
+
+export interface EficienciaOperacionalOperacaoRegistroV2 {
+  turnoId: string
+  hora: string
+  operadorId: string
+  operadorNome: string
+  operadorMatricula: string
   operacaoId: string
   operacaoCodigo: string
   operacaoDescricao: string
@@ -291,6 +303,7 @@ export interface EficienciaOperacionalDiaRegistroV2 {
 export interface ResumoEficienciaOperacionalTurnoV2 {
   porHora: EficienciaOperacionalHoraRegistroV2[]
   porDia: EficienciaOperacionalDiaRegistroV2[]
+  porOperacao: EficienciaOperacionalOperacaoRegistroV2[]
 }
 
 export interface ComparativoMetaGrupoHoraItem {
