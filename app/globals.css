@@ -39,6 +39,11 @@ body {
   }
 }
 
+@keyframes tv-progress-bar {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
 @layer base {
   input,
   select,

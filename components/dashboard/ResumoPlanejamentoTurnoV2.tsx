@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Signal } from 'lucide-react'
+import { Monitor, Signal } from 'lucide-react'
 import type { StatusConexaoRealtimeTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
@@ -92,16 +92,28 @@ export function ResumoPlanejamentoTurnoV2({
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-2 md:max-w-[12rem] md:items-end">
-          <span
-            className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
-              planejamento.origem === 'aberto'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {tituloOrigem}
-          </span>
+        <div className="flex w-full flex-col gap-2 md:max-w-[14rem] md:items-end">
+          <div className="flex w-full items-center justify-between gap-2 md:justify-end">
+            <span
+              className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                planejamento.origem === 'aberto'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {tituloOrigem}
+            </span>
+
+            <button
+              type="button"
+              aria-label="Abrir painel TV em nova aba"
+              onClick={() => window.open('/tv', '_blank')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              <Monitor size={13} />
+              Painel TV
+            </button>
+          </div>
 
           <div className="w-full text-right">
             <p className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
