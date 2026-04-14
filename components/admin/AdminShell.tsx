@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
+  Activity,
   Building2,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  Factory,
   FileBarChart2,
   LayoutDashboard,
   LogOut,
@@ -97,15 +97,14 @@ export function AdminShell({
               : 'flex h-16 items-center justify-between px-6'
           }`}
         >
-          <span className="text-lg font-bold text-gray-900">
-            {sidebarCollapsed ? (
-              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg text-gray-700">
-                <Factory className="h-5 w-5" aria-hidden="true" />
-              </span>
-            ) : (
-              'Produção'
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600">
+              <Activity className="h-5 w-5 text-white" aria-hidden="true" />
+            </div>
+            {!sidebarCollapsed && (
+              <span className="text-lg font-bold text-gray-900">Produção</span>
             )}
-          </span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -131,7 +130,7 @@ export function AdminShell({
                 title={label}
                 className={`mb-1 flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-indigo-50 text-indigo-700'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 } ${
                   sidebarCollapsed ? 'justify-center gap-0' : 'gap-3'
