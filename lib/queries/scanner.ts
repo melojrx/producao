@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import {
+  listarTurnoSetorOperacoesDoTurnoComClient,
   listarTurnoSetorOperacoesPorDemandaComClient,
   listarTurnoSetorOperacoesPorSecaoComClient,
 } from '@/lib/queries/turno-setor-operacoes-base'
@@ -7,6 +8,8 @@ import {
   consolidarDemandasPorOperacoes,
   consolidarSetorScaneadoPorDemandas,
 } from '@/lib/utils/consolidacao-turno'
+import { enriquecerDemandasComFluxoSequencial } from '@/lib/utils/fluxo-sequencial-turno'
+import { aplicarCapacidadeOperacionalDemandas } from '@/lib/utils/hidratacao-capacidade-setor-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurnoBloco,
@@ -14,6 +17,8 @@ import type {
   MaquinaScaneada,
   OperacaoScaneada,
   OperadorScaneado,
+  TurnoOpV2,
+  TurnoSetorDemandaV2,
   TurnoSetorDemandaScaneada,
   TurnoSetorOperacaoApontamentoV2,
   TurnoSetorScaneado,
@@ -357,6 +362,108 @@ interface TurnoSetorDemandaScannerRow {
   }[] | null
 }
 
+interface TurnoSetorDemandaFluxoScannerRow {
+  turno_id: string
+  id: string
+  turno_op_id: string
+  produto_id: string
+  turno_setor_id: string
+  turno_setor_op_legacy_id: string | null
+  setor_id: string
+  quantidade_planejada: number
+  quantidade_realizada: number
+  status: string
+  iniciado_em: string | null
+  encerrado_em: string | null
+  setores:
+    | {
+        codigo: number
+        nome: string
+      }
+    | {
+        codigo: number
+        nome: string
+      }[]
+    | null
+}
+
+interface TurnoScannerResumoRow {
+  id: string
+  operadores_disponiveis: number
+  minutos_turno: number
+}
+
+interface TurnoOpScannerResumoRow {
+  id: string
+  turno_id: string
+  numero_op: string
+  produto_id: string
+  quantidade_planejada: number
+  quantidade_realizada: number
+  quantidade_planejada_original?: number | null
+  quantidade_planejada_remanescente?: number | null
+  turno_op_origem_id?: string | null
+  status: TurnoOpV2['status']
+  iniciado_em: string | null
+  encerrado_em: string | null
+}
+
+interface ProdutoScannerResumoRow {
+  id: string
+  nome: string
+  referencia: string
+  tp_produto_min: number | null
+}
+
+function extrairRegistroUnico<T>(valor: T | T[] | null | undefined): T | null {
+  if (!valor) {
+    return null
+  }
+
+  return Array.isArray(valor) ? valor[0] ?? null : valor
+}
+
+function mapearOpsTurnoScanner(
+  ops: TurnoOpScannerResumoRow[],
+  produtos: ProdutoScannerResumoRow[]
+): TurnoOpV2[] {
+  const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]))
+
+  return ops
+    .map((op) => {
+      const produto = produtosPorId.get(op.produto_id)
+
+      if (!produto) {
+        return null
+      }
+
+      return {
+        id: op.id,
+        turnoId: op.turno_id,
+        numeroOp: op.numero_op,
+        produtoId: op.produto_id,
+        produtoReferencia: produto.referencia,
+        produtoNome: produto.nome,
+        tpProdutoMin: produto.tp_produto_min ?? 0,
+        quantidadePlanejada: op.quantidade_planejada,
+        quantidadeRealizada: op.quantidade_realizada,
+        quantidadeConcluida: op.quantidade_realizada,
+        progressoOperacionalPct: 0,
+        cargaPlanejadaTp: 0,
+        cargaRealizadaTp: 0,
+        quantidadePlanejadaOriginal: op.quantidade_planejada_original ?? op.quantidade_planejada,
+        quantidadePlanejadaRemanescente:
+          op.quantidade_planejada_remanescente ??
+          Math.max(op.quantidade_planejada - op.quantidade_realizada, 0),
+        turnoOpOrigemId: op.turno_op_origem_id ?? null,
+        status: op.status,
+        iniciadoEm: op.iniciado_em,
+        encerradoEm: op.encerrado_em,
+      }
+    })
+    .filter((op): op is TurnoOpV2 => Boolean(op))
+}
+
 export async function buscarDemandasScaneadasPorTurnoSetor(
   turnoSetorId: string
 ): Promise<TurnoSetorDemandaScaneada[]> {
@@ -394,8 +501,8 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
   }
 
   const demandasBase = data.map((demanda) => {
-    const turnoOp = Array.isArray(demanda.turno_ops) ? demanda.turno_ops[0] : demanda.turno_ops
-    const produto = Array.isArray(demanda.produtos) ? demanda.produtos[0] : demanda.produtos
+    const turnoOp = extrairRegistroUnico(demanda.turno_ops)
+    const produto = extrairRegistroUnico(demanda.produtos)
 
     return {
       id: demanda.id,
@@ -422,11 +529,236 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
     }
   })
 
+  const turnoId = demandasBase[0]?.turnoId ?? null
+  const turnoOpIds = Array.from(new Set(demandasBase.map((demanda) => demanda.turnoOpId).filter(Boolean)))
+
+  let demandasComFluxo = demandasBase
+
+  if (turnoId && turnoOpIds.length > 0) {
+    const [{ data: turnoResumo, error: turnoResumoError }, { data: opsTurno, error: opsTurnoError }] =
+      await Promise.all([
+        supabase
+          .from('turnos')
+          .select('id, operadores_disponiveis, minutos_turno')
+          .eq('id', turnoId)
+          .maybeSingle<TurnoScannerResumoRow>(),
+        supabase
+          .from('turno_ops')
+          .select(
+            'id, turno_id, numero_op, produto_id, quantidade_planejada, quantidade_realizada, quantidade_planejada_original, quantidade_planejada_remanescente, turno_op_origem_id, status, iniciado_em, encerrado_em'
+          )
+          .eq('turno_id', turnoId)
+          .in('id', turnoOpIds)
+          .order('created_at', { ascending: true })
+          .returns<TurnoOpScannerResumoRow[]>(),
+      ])
+
+    const { data: demandasRelacionadas, error: demandasRelacionadasError } = await supabase
+      .from('turno_setor_demandas')
+      .select(
+        `
+          turno_id,
+          id,
+          turno_setor_id,
+          turno_op_id,
+          produto_id,
+          turno_setor_op_legacy_id,
+          setor_id,
+          quantidade_planejada,
+          quantidade_realizada,
+          status,
+          iniciado_em,
+          encerrado_em,
+          setores!inner (
+            codigo,
+            nome
+          )
+        `
+      )
+      .eq('turno_id', turnoId)
+      .in('turno_op_id', turnoOpIds)
+      .order('created_at', { ascending: true })
+      .returns<TurnoSetorDemandaFluxoScannerRow[]>()
+
+    const podeAplicarCapacidade =
+      !turnoResumoError &&
+      Boolean(turnoResumo) &&
+      !opsTurnoError &&
+      Array.isArray(opsTurno) &&
+      opsTurno.length > 0 &&
+      !demandasRelacionadasError &&
+      Boolean(demandasRelacionadas)
+
+    if (podeAplicarCapacidade) {
+      const produtoIds = Array.from(
+        new Set((opsTurno ?? []).map((op) => op.produto_id).filter(Boolean))
+      )
+      const { data: produtos, error: produtosError } = produtoIds.length
+        ? await supabase
+            .from('produtos')
+            .select('id, nome, referencia, tp_produto_min')
+            .in('id', produtoIds)
+            .returns<ProdutoScannerResumoRow[]>()
+        : { data: [], error: null }
+
+      const operacoesTurno = await listarTurnoSetorOperacoesDoTurnoComClient(supabase, turnoId)
+
+      if (!produtosError) {
+        const turnoResumoAtual = turnoResumo
+
+        if (turnoResumoAtual) {
+          const opsPlanejamento = mapearOpsTurnoScanner(opsTurno ?? [], produtos ?? [])
+          const demandasPlanejamentoBase = (demandasRelacionadas ?? [])
+            .map((demanda) => {
+              const setor = extrairRegistroUnico(demanda.setores)
+              const op = opsPlanejamento.find((item) => item.id === demanda.turno_op_id)
+
+              if (!setor || !op) {
+                return null
+              }
+
+              return {
+                id: demanda.id,
+                turnoSetorId: demanda.turno_setor_id,
+                turnoId: demanda.turno_id,
+                turnoOpId: demanda.turno_op_id,
+                setorId: demanda.setor_id,
+                setorCodigo: setor.codigo,
+                setorNome: setor.nome,
+                produtoId: demanda.produto_id,
+                numeroOp: op.numeroOp,
+                produtoReferencia: op.produtoReferencia,
+                produtoNome: op.produtoNome,
+                quantidadePlanejada: demanda.quantidade_planejada,
+                quantidadeRealizada: demanda.quantidade_realizada,
+                quantidadeConcluida: demanda.quantidade_realizada,
+                progressoOperacionalPct: 0,
+                cargaPlanejadaTp: 0,
+                cargaRealizadaTp: 0,
+                status: demanda.status as TurnoSetorDemandaV2['status'],
+                iniciadoEm: demanda.iniciado_em,
+                encerradoEm: demanda.encerrado_em,
+                turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+              }
+            })
+            .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
+          const demandasEnriquecidas = enriquecerDemandasComFluxoSequencial(
+            consolidarDemandasPorOperacoes(demandasPlanejamentoBase, operacoesTurno)
+          )
+          const demandasComCapacidade = aplicarCapacidadeOperacionalDemandas({
+            turno: {
+              operadoresDisponiveis: turnoResumoAtual.operadores_disponiveis,
+              minutosTurno: turnoResumoAtual.minutos_turno,
+            },
+            demandasSetor: demandasEnriquecidas,
+            operacoesSecao: operacoesTurno,
+            ops: opsPlanejamento,
+          })
+          const diagnosticosPorDemandaId = new Map(
+            demandasComCapacidade.map((demanda) => [demanda.id, demanda] as const)
+          )
+
+          demandasComFluxo = demandasBase.map((demanda) => {
+            const diagnostico = diagnosticosPorDemandaId.get(demanda.id)
+
+            if (!diagnostico) {
+              return demanda
+            }
+
+            return {
+              ...demanda,
+              posicaoFila: diagnostico.posicaoFila,
+              statusFila: diagnostico.statusFila,
+              quantidadeBacklogSetor: diagnostico.quantidadeBacklogSetor,
+              quantidadeAceitaTurno: diagnostico.quantidadeAceitaTurno,
+              quantidadeExcedenteTurno: diagnostico.quantidadeExcedenteTurno,
+              quantidadePendenteSetor: diagnostico.quantidadePendenteSetor,
+              quantidadeLiberadaSetor: diagnostico.quantidadeLiberadaSetor,
+              quantidadeDisponivelApontamento: diagnostico.quantidadeDisponivelApontamento,
+              quantidadeBloqueadaAnterior: diagnostico.quantidadeBloqueadaAnterior,
+              setorAnteriorId: diagnostico.setorAnteriorId,
+              setorAnteriorCodigo: diagnostico.setorAnteriorCodigo,
+              setorAnteriorNome: diagnostico.setorAnteriorNome,
+            }
+          })
+        }
+      }
+    } else if (!demandasRelacionadasError && demandasRelacionadas) {
+      const demandasFluxoBase = demandasRelacionadas
+        .map((demanda) => {
+          const setor = extrairRegistroUnico(demanda.setores)
+
+          if (!setor) {
+            return null
+          }
+
+          return {
+            id: demanda.id,
+            turnoOpId: demanda.turno_op_id,
+            setorId: demanda.setor_id,
+            setorCodigo: setor.codigo,
+            setorNome: setor.nome,
+            quantidadePlanejada: demanda.quantidade_planejada,
+            quantidadeRealizada: demanda.quantidade_realizada,
+            status: demanda.status as TurnoSetorDemandaScaneada['status'],
+            iniciadoEm: demanda.iniciado_em,
+            encerradoEm: demanda.encerrado_em,
+          }
+        })
+        .filter(
+          (
+            demanda
+          ): demanda is {
+            id: string
+            turnoOpId: string
+            setorId: string
+            setorCodigo: number
+            setorNome: string
+            quantidadePlanejada: number
+            quantidadeRealizada: number
+            status: TurnoSetorDemandaScaneada['status']
+            iniciadoEm: string | null
+            encerradoEm: string | null
+          } => Boolean(demanda)
+        )
+      const diagnosticosPorDemandaId = new Map(
+        enriquecerDemandasComFluxoSequencial(demandasFluxoBase).map((demanda) => [
+          demanda.id,
+          demanda,
+        ] as const)
+      )
+
+      demandasComFluxo = demandasBase.map((demanda) => {
+        const diagnostico = diagnosticosPorDemandaId.get(demanda.id)
+
+        if (!diagnostico) {
+          return demanda
+        }
+
+        return {
+          ...demanda,
+          posicaoFila: diagnostico.posicaoFila,
+          statusFila: diagnostico.statusFila,
+          quantidadeBacklogSetor: diagnostico.quantidadeBacklogSetor,
+          quantidadeAceitaTurno: diagnostico.quantidadeAceitaTurno,
+          quantidadeExcedenteTurno: diagnostico.quantidadeExcedenteTurno,
+          quantidadePendenteSetor: diagnostico.quantidadePendenteSetor,
+          quantidadeLiberadaSetor: diagnostico.quantidadeLiberadaSetor,
+          quantidadeDisponivelApontamento: diagnostico.quantidadeDisponivelApontamento,
+          quantidadeBloqueadaAnterior: diagnostico.quantidadeBloqueadaAnterior,
+          setorAnteriorId: diagnostico.setorAnteriorId,
+          setorAnteriorCodigo: diagnostico.setorAnteriorCodigo,
+          setorAnteriorNome: diagnostico.setorAnteriorNome,
+        }
+      })
+    }
+  }
+
   const operacoesPorDemanda = await Promise.all(
-    demandasBase.map((demanda) => buscarOperacoesScaneadasPorDemanda(demanda))
+    demandasComFluxo.map((demanda) => buscarOperacoesScaneadasPorDemanda(demanda))
   )
 
-  return consolidarDemandasPorOperacoes(demandasBase, operacoesPorDemanda.flat())
+  return consolidarDemandasPorOperacoes(demandasComFluxo, operacoesPorDemanda.flat())
 }
 
 export async function buscarOperacoesScaneadasPorSecao(

@@ -8,6 +8,10 @@ import {
 import { buscarPlanejamentoTurnoPorId } from '@/lib/queries/turnos'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ABRIR_TURNO_FORM_FIELDS } from '@/lib/utils/turno-formulario'
+import {
+  calcularQuantidadePlanejadaRemanescenteCarryOver,
+  normalizarDemandasCarryOverEntreTurnos,
+} from '@/lib/utils/carry-over-turno'
 import type {
   AdicionarTurnoOpV2Input,
   CarregarPendenciasTurnoAnteriorInput,
@@ -15,6 +19,7 @@ import type {
   EditarTurnoOpV2Input,
   FormActionState,
   PlanejamentoTurnoV2,
+  TurnoSetorDemandaStatusV2,
   TurnoOpPlanejadaInput,
 } from '@/types'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
@@ -71,6 +76,35 @@ interface TurnoSetorOperacaoCarryOverBase {
   setorId: string
   operacaoId: string
   quantidadeRealizada: number
+}
+
+interface TurnoSetorDemandaCarryOverFluxoRow {
+  id: string
+  turno_op_id: string
+  setor_id: string
+  quantidade_planejada: number
+  quantidade_realizada: number
+  status: TurnoSetorDemandaRow['status']
+  iniciado_em: string | null
+  encerrado_em: string | null
+  setores:
+    | {
+        codigo: number
+        nome: string
+      }
+    | {
+        codigo: number
+        nome: string
+      }[]
+    | null
+}
+
+function extrairRegistroUnico<T>(valor: T | T[] | null | undefined): T | null {
+  if (!valor) {
+    return null
+  }
+
+  return Array.isArray(valor) ? valor[0] ?? null : valor
 }
 
 function inteiroPositivo(valor: number): boolean {
@@ -404,7 +438,13 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
         0,
         Math.min(op.quantidade_planejada, quantidadeRealizadaConsolidada)
       )
-      const quantidadePlanejadaRemanescente = Math.max(op.quantidade_planejada - quantidadeRealizada, 0)
+      const quantidadePlanejadaRemanescente = calcularQuantidadePlanejadaRemanescenteCarryOver({
+        quantidadePlanejadaOrigem: op.quantidade_planejada,
+        demandasOrigem: demandasTurnoOp.map((demanda) => ({
+          quantidadeRealizada: demanda.quantidade_realizada,
+        })),
+        quantidadeRealizadaFallback: quantidadeRealizada,
+      })
 
       return {
         id: op.id,
@@ -605,15 +645,37 @@ async function inserirTurnoOp(
 
 async function hidratarProgressoCarryOverDaOp(
   turnoOpOrigemId: string,
-  turnoOpDestinoId: string
+  turnoOpDestinoId: string,
+  quantidadePlanejadaDestino: number
 ): Promise<{ erro?: string }> {
   const supabase = createAdminClient()
 
   const [
+    { data: demandasOrigem, error: demandasOrigemError },
     { data: operacoesOrigem, error: operacoesOrigemError },
-    { data: secoesDestino, error: secoesDestinoError },
     { data: operacoesDestino, error: operacoesDestinoError },
   ] = await Promise.all([
+    supabase
+      .from('turno_setor_demandas')
+      .select(
+        `
+          id,
+          turno_op_id,
+          setor_id,
+          quantidade_planejada,
+          quantidade_realizada,
+          status,
+          iniciado_em,
+          encerrado_em,
+          setores!inner (
+            codigo,
+            nome
+          )
+        `
+      )
+      .eq('turno_op_id', turnoOpOrigemId)
+      .order('created_at', { ascending: true })
+      .returns<TurnoSetorDemandaCarryOverFluxoRow[]>(),
     supabase
       .from('turno_setor_operacoes')
       .select('setor_id, operacao_id, quantidade_realizada')
@@ -621,11 +683,6 @@ async function hidratarProgressoCarryOverDaOp(
       .returns<
         Pick<TurnoSetorOperacaoRow, 'setor_id' | 'operacao_id' | 'quantidade_realizada'>[]
       >(),
-    supabase
-      .from('turno_setor_ops')
-      .select('id')
-      .eq('turno_op_id', turnoOpDestinoId)
-      .returns<Pick<TurnoSetorOpRow, 'id'>[]>(),
     supabase
       .from('turno_setor_operacoes')
       .select('id, turno_setor_op_id, setor_id, operacao_id, quantidade_planejada')
@@ -638,15 +695,15 @@ async function hidratarProgressoCarryOverDaOp(
       >(),
   ])
 
-  if (operacoesOrigemError) {
+  if (demandasOrigemError) {
     return {
-      erro: `Erro ao carregar o progresso do turno anterior para carry-over: ${operacoesOrigemError.message}`,
+      erro: `Erro ao carregar as demandas do turno anterior para carry-over: ${demandasOrigemError.message}`,
     }
   }
 
-  if (secoesDestinoError) {
+  if (operacoesOrigemError) {
     return {
-      erro: `Erro ao carregar as seções derivadas do novo turno no carry-over: ${secoesDestinoError.message}`,
+      erro: `Erro ao carregar o progresso do turno anterior para carry-over: ${operacoesOrigemError.message}`,
     }
   }
 
@@ -681,6 +738,49 @@ async function hidratarProgressoCarryOverDaOp(
     return {}
   }
 
+  const snapshotsCarryOverPorSetorId = new Map(
+    normalizarDemandasCarryOverEntreTurnos({
+      quantidadePlanejadaDestino,
+      demandasOrigem: (demandasOrigem ?? [])
+        .map((demanda) => {
+          const setor = extrairRegistroUnico(demanda.setores)
+
+          if (!setor) {
+            return null
+          }
+
+          return {
+            id: demanda.id,
+            turnoOpId: demanda.turno_op_id,
+            setorId: demanda.setor_id,
+            setorCodigo: setor.codigo,
+            setorNome: setor.nome,
+            quantidadePlanejada: demanda.quantidade_planejada,
+            quantidadeRealizada: demanda.quantidade_realizada,
+            status: demanda.status as TurnoSetorDemandaStatusV2,
+            iniciadoEm: demanda.iniciado_em,
+            encerradoEm: demanda.encerrado_em,
+          }
+        })
+        .filter(
+          (
+            demanda
+          ): demanda is {
+            id: string
+            turnoOpId: string
+            setorId: string
+            setorCodigo: number
+            setorNome: string
+            quantidadePlanejada: number
+            quantidadeRealizada: number
+            status: TurnoSetorDemandaStatusV2
+            iniciadoEm: string | null
+            encerradoEm: string | null
+          } => Boolean(demanda)
+        ),
+    }).map((snapshot) => [snapshot.setorId, snapshot] as const)
+  )
+
   const secoesAfetadas = new Set<string>()
 
   for (const operacaoDestino of operacoesDestino ?? []) {
@@ -696,8 +796,13 @@ async function hidratarProgressoCarryOverDaOp(
       continue
     }
 
+    const snapshotCarryOver = snapshotsCarryOverPorSetorId.get(operacaoDestino.setor_id)
+    const quantidadeLiberadaSetor =
+      snapshotCarryOver?.quantidadeRealizadaDestino ?? operacaoDestino.quantidade_planejada
+
     const quantidadeRealizada = Math.min(
       operacaoDestino.quantidade_planejada,
+      quantidadeLiberadaSetor,
       progressoOrigem.quantidadeRealizada
     )
 
@@ -778,7 +883,8 @@ async function carregarPendenciasTurnoAnteriorInternamente(
 
     const { erro: erroHidratacao } = await hidratarProgressoCarryOverDaOp(
       pendencia.id,
-      turnoOp.id
+      turnoOp.id,
+      turnoOp.quantidade_planejada
     )
 
     if (erroHidratacao) {

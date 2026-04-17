@@ -122,6 +122,60 @@ function calcularSaldoRestante(quantidadePlanejada: number, quantidadeRealizada:
   return Math.max(quantidadePlanejada - quantidadeRealizada, 0)
 }
 
+function calcularSaldoAceitoDemanda(
+  demanda: Pick<
+    TurnoSetorDemandaScaneada,
+    | 'quantidadeAceitaTurno'
+    | 'quantidadeDisponivelApontamento'
+    | 'quantidadeLiberadaSetor'
+    | 'quantidadePlanejada'
+    | 'quantidadeRealizada'
+  >
+): number {
+  if (typeof demanda.quantidadeAceitaTurno === 'number') {
+    return demanda.quantidadeAceitaTurno
+  }
+
+  if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
+    return demanda.quantidadeRealizada + demanda.quantidadeDisponivelApontamento
+  }
+
+  if (typeof demanda.quantidadeLiberadaSetor === 'number') {
+    return demanda.quantidadeLiberadaSetor
+  }
+
+  return demanda.quantidadePlanejada
+}
+
+function calcularQuantidadeExpostaDemanda(
+  demanda: Pick<
+    TurnoSetorDemandaScaneada,
+    | 'quantidadeAceitaTurno'
+    | 'quantidadeDisponivelApontamento'
+    | 'quantidadeLiberadaSetor'
+    | 'quantidadePlanejada'
+    | 'quantidadeRealizada'
+  >
+): number {
+  return demanda.quantidadeRealizada + calcularSaldoAceitoDemanda(demanda)
+}
+
+function calcularSaldoDisponivelSequencialDemanda(demanda: TurnoSetorDemandaScaneada): number {
+  return demanda.quantidadeDisponivelApontamento ?? demanda.saldoRestante
+}
+
+function calcularSaldoDisponivelSequencialOperacao(
+  demanda: TurnoSetorDemandaScaneada,
+  operacao: TurnoSetorOperacaoApontamentoV2
+): number {
+  const quantidadeExpostaDemanda = calcularQuantidadeExpostaDemanda(demanda)
+
+  return Math.max(
+    Math.min(operacao.quantidadePlanejada, quantidadeExpostaDemanda) - operacao.quantidadeRealizada,
+    0
+  )
+}
+
 function derivarStatusDemanda(
   statusAtual: TurnoSetorDemandaScaneada['status'],
   quantidadePlanejada: number,
@@ -344,11 +398,13 @@ export function useScanner(options: UseScannerOptions = {}) {
       (demanda) =>
         demanda.status !== 'concluida' &&
         demanda.status !== 'encerrada_manualmente' &&
-        demanda.saldoRestante > 0
+        demanda.saldoRestante > 0 &&
+        calcularSaldoDisponivelSequencialDemanda(demanda) > 0
     )
 
     if (demandasAtivas.length === 0) {
-      const mensagem = 'O setor aberto não possui OPs/produtos com saldo para apontamento.'
+      const mensagem =
+        'O setor aberto não possui OPs/produtos liberados pelo fluxo anterior para apontamento.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -464,11 +520,12 @@ export function useScanner(options: UseScannerOptions = {}) {
         (operacao) =>
           operacao.status !== 'concluida' &&
           operacao.status !== 'encerrada_manualmente' &&
-          calcularSaldoRestante(operacao.quantidadePlanejada, operacao.quantidadeRealizada) > 0
+          calcularSaldoDisponivelSequencialOperacao(demandaSelecionada, operacao) > 0
       )
 
       if (operacoesDisponiveis.length === 0) {
-        const mensagem = 'A OP/produto escolhida não possui operações com saldo para apontamento.'
+        const mensagem =
+          'A OP/produto escolhida ainda não possui lote liberado pelo setor anterior para esta operação.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
@@ -506,9 +563,22 @@ export function useScanner(options: UseScannerOptions = {}) {
       estado.operacaoSelecionada.quantidadePlanejada,
       estado.operacaoSelecionada.quantidadeRealizada
     )
+    const saldoSequencialOperacao = calcularSaldoDisponivelSequencialOperacao(
+      estado.demandaSelecionada,
+      estado.operacaoSelecionada
+    )
 
     if (quantidade > saldoOperacao) {
       const mensagem = `A quantidade informada ultrapassa o saldo da operação. Saldo disponível: ${saldoOperacao}.`
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    if (quantidade > saldoSequencialOperacao) {
+      const mensagem =
+        estado.demandaSelecionada.setorAnteriorNome && saldoSequencialOperacao === 0
+          ? `Esta operação ainda não recebeu peças liberadas de ${estado.demandaSelecionada.setorAnteriorNome}.`
+          : `A quantidade informada ultrapassa o lote liberado pelo fluxo anterior. Disponível agora: ${saldoSequencialOperacao}.`
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -562,10 +632,26 @@ export function useScanner(options: UseScannerOptions = {}) {
         resultado.saldoRestanteDemanda ??
         resultado.saldoRestanteSecao ??
         calcularSaldoRestante(estado.demandaSelecionada.quantidadePlanejada, quantidadeRealizadaDemanda)
+      const quantidadeExpostaDemanda = calcularQuantidadeExpostaDemanda(estado.demandaSelecionada)
+      const quantidadeBacklogSetor = calcularSaldoRestante(
+        estado.demandaSelecionada.quantidadePlanejada,
+        quantidadeRealizadaDemanda
+      )
+      const quantidadeDisponivelApontamento = Math.max(
+        quantidadeExpostaDemanda - quantidadeRealizadaDemanda,
+        0
+      )
       const demandaAtualizada: TurnoSetorDemandaScaneada = {
         ...estado.demandaSelecionada,
         quantidadeRealizada: quantidadeRealizadaDemanda,
         saldoRestante: saldoRestanteDemanda,
+        quantidadeBacklogSetor,
+        quantidadeAceitaTurno: quantidadeDisponivelApontamento,
+        quantidadeExcedenteTurno: Math.max(
+          quantidadeBacklogSetor - quantidadeDisponivelApontamento,
+          0
+        ),
+        quantidadeDisponivelApontamento,
         status:
           (resultado.statusTurnoSetorDemanda as TurnoSetorDemandaScaneada['status'] | undefined) ??
           (resultado.statusTurnoSetorOp as TurnoSetorDemandaScaneada['status'] | undefined) ??

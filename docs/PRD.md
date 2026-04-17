@@ -153,8 +153,9 @@ Resultado:
 Durante a abertura do turno, o sistema deve calcular uma sugestão de quantidade de pessoas por setor para apoiar a distribuição da equipe disponível no dia.
 
 Objetivos:
-- transformar a carga planejada das OPs em leitura operacional por setor
-- indicar quantas pessoas seriam necessárias em cada setor para cumprir o planejado do turno
+- transformar a carga pendente real das OPs em leitura operacional por setor
+- indicar quantas pessoas seriam necessárias em cada setor para cumprir o planejado do turno respeitando o estágio real de cada OP
+- sinalizar taxativamente quando a demanda que está entrando no turno estiver desconforme com a capacidade produtiva disponível
 - apoiar a tomada de decisão do supervisor sem bloquear a abertura do turno nesta primeira versão
 
 Entradas obrigatórias:
@@ -163,37 +164,104 @@ Entradas obrigatórias:
 - lista de `turno_ops` planejadas com `quantidadePlanejada`
 - roteiro do produto com operações válidas e setor vinculado
 - `tempoPadraoMin` de cada operação
+- estado real de continuidade de cada OP reaproveitada no carry-over
+- setores já concluídos, setor atual em andamento e saldo efetivamente pendente por setor da OP
 
-Fórmula por setor:
+Base de cálculo:
 
 ```text
 tp_total_setor_produto = SUM(tempoPadraoMin das operações do produto naquele setor)
 
-carga_min_setor = SUM(quantidadePlanejada da OP × tp_total_setor_produto)
+capacidade_min_setor = operadores_alocados_setor × minutosTurno
 
-pessoas_necessarias_setor = CEIL(carga_min_setor / minutosTurno)
+carga_pendente_real_setor_min =
+  SUM(quantidade_pendente_real_no_setor_da_OP × tp_total_setor_produto)
+
+eficiencia_requerida_setor =
+  (carga_pendente_real_setor_min / capacidade_min_setor) × 100
+```
+
+Quando o setor estiver processando uma única OP/produto, a leitura em peças pode ser exibida assim:
+
+```text
+capacidade_pecas_setor = FLOOR(capacidade_min_setor / tp_total_setor_produto)
 ```
 
 Exemplo:
 
 ```text
-tp_total_setor_produto = 8 min
-meta_planejada = 637 peças
+tp_total_setor_produto = 5 min
+operadores_alocados_setor = 7
 minutos_turno = 510 min
 
-pessoas_necessarias_setor = CEIL((8 × 637) / 510)
-                           = CEIL(9.99)
-                           = 10
+capacidade_min_setor = 7 × 510
+                     = 3570 min
+
+capacidade_pecas_setor = FLOOR(3570 / 5)
+                       = 714 peças
 ```
 
 Regras obrigatórias:
 - o cálculo deve usar o `minutosTurno` efetivamente informado na abertura do turno, e não um valor fixo hardcoded
-- quando houver múltiplas OPs no mesmo turno, o cálculo do setor deve somar a carga de todas as OPs que passam por ele
+- quando houver múltiplas OPs no mesmo turno, o cálculo do setor deve somar apenas a carga pendente real das OPs que ainda precisam passar por aquele setor
+- OPs reaproveitadas por carry-over não podem voltar a consumir carga em setores já concluídos
+- se uma OP já concluiu `Preparação` e `Frente`, sua carga pendente do novo turno deve começar em `Costa`, ou no setor efetivamente pendente mais avançado
+- se houver produção parcial em um setor, a prévia deve considerar apenas o saldo realmente pendente naquele setor e a continuidade liberada para os setores seguintes
 - o arredondamento deve ser sempre para cima com `CEIL`, porque fração de pessoa representa necessidade adicional de capacidade
 - o cálculo deve ser exibido como sugestão operacional e não como restrição rígida nesta primeira etapa
 - a soma das pessoas sugeridas por setor pode ultrapassar `operadoresDisponiveis`; quando isso acontecer, a UI deve sinalizar déficit de capacidade sem impedir a abertura do turno
+- quando `eficiencia_requerida_setor > 100%`, ou quando a carga pendente exigir mais minutos do que a capacidade disponível do setor, a UI deve exibir um alerta taxativo de desconformidade entre demanda e capacidade
+- a leitura de desconformidade deve existir tanto no nível do setor quanto no resumo geral do turno em abertura
 - a persistência do dimensionamento por setor no banco fica fora do escopo inicial
 - nesta primeira etapa, a abertura e gravação do turno continuam exatamente com o contrato atual
+
+Evolução obrigatória homologada após a Sprint 29:
+
+- a capacidade setorial deixa de ser apenas alerta visual e passa a limitar a quantidade que cada setor pode aceitar no turno
+- uma OP nova não pode mais injetar automaticamente sua quantidade total em todos os setores futuros do mesmo turno
+- para o setor inicial do roteiro, o sistema pode aceitar no turno no máximo o que couber na capacidade daquele setor para o dia
+- para setores seguintes, o sistema pode aceitar no turno no máximo a menor quantidade entre:
+  - saldo pendente real já existente naquele setor
+  - quantidade realmente concluída no setor anterior e transferível
+  - capacidade disponível daquele setor no turno
+- o excedente que não couber na capacidade do setor não desaparece, não é perdido e não pode ser tratado como liberado; ele permanece como backlog setorial para turnos futuros
+- se um setor aceitar uma quantidade no turno, mas não concluir tudo, o saldo aceito e não concluído também compõe o backlog setorial do próximo turno
+- o carry-over passa a ser obrigatoriamente setorial e parcelado, nunca apenas um saldo genérico da OP
+
+Fórmulas obrigatórias da evolução:
+
+```text
+backlog_setor_turno =
+  saldo_nao_aceito_do_setor +
+  saldo_aceito_e_nao_concluido_do_setor
+
+capacidade_pecas_setor =
+  FLOOR((operadores_alocados_setor × minutosTurno) / tp_total_setor_produto)
+
+quantidade_aceita_turno_setor =
+  MIN(backlog_setor_turno, capacidade_pecas_setor)
+
+saldo_nao_aceito_turno_setor =
+  backlog_setor_turno - quantidade_aceita_turno_setor
+
+saldo_carry_over_setor_proximo_turno =
+  saldo_nao_aceito_turno_setor +
+  (quantidade_aceita_turno_setor - quantidade_concluida_turno_setor)
+```
+
+Exemplo obrigatório:
+
+```text
+demanda original da OP = 1000 peças
+capacidade do setor no turno = 501 peças
+quantidade aceita no turno = 501 peças
+quantidade concluída no turno = 401 peças
+
+saldo carry-over do setor no próximo turno =
+  (1000 - 501) + (501 - 401)
+  499 + 100
+  599 peças
+```
 
 ### 5.2.2 Edição do turno aberto
 
@@ -225,6 +293,10 @@ Restrições obrigatórias:
 - a inclusão de nova OP não pode alterar nem apagar produção já registrada de outras OPs do turno
 - a edição de uma OP já existente só pode alterar `produto` ou `quantidade_planejada` se ainda não houver produção apontada naquela OP
 - se a OP já tiver produção, ela pode no máximo receber ajustes administrativos não estruturais, nunca regeração destrutiva da cadeia derivada
+- a inclusão de uma nova OP no turno aberto não pode mais liberar sua quantidade integral em todos os setores do roteiro no mesmo dia
+- o primeiro setor elegível da nova OP deve respeitar a capacidade daquele turno
+- setores seguintes só podem receber quantidade efetivamente transferida do setor anterior, também respeitando sua própria capacidade diária
+- qualquer excedente acima da capacidade do setor deve permanecer como backlog setorial parcelado para turnos seguintes
 
 Impacto esperado:
 - o turno continua o mesmo
@@ -347,6 +419,15 @@ Durante a execução, a dashboard acompanha em tempo real:
 - setores apresentados na ordem estrutural do fluxo, usando `setor.codigo` crescente como referência visual principal
 - sem exibir os QRs operacionais como cards permanentes, já que a dashboard é uma superfície pública de monitoramento contínuo na TV
 
+Kanban operacional obrigatório na `Visão Operacional`:
+- a dashboard deve exibir um componente em estilo kanban com uma coluna por setor, seguindo a ordem oficial do fluxo fabril
+- as colunas devem respeitar a sequência obrigatória `Preparação -> Frente -> Costa -> Montagem -> Final`
+- cada card deve representar a OP ou o lote exatamente no setor em que ele se encontra naquele momento
+- uma mesma OP não pode aparecer simultaneamente em duas colunas, exceto quando houver fracionamento real por quantidade; nesse caso, cada lote deve aparecer como card independente
+- o card deve deixar claro se a OP/lote está `em fila`, `liberada`, `em produção`, `parcial` ou `concluída no setor`
+- a coluna do setor deve exibir posição FIFO, capacidade consumida, capacidade restante em minutos e alerta visual de gargalo
+- toda atualização do kanban deve ser em tempo real, sem refresh manual
+
 Com edição de turno aberto, a dashboard também precisa:
 - permitir incluir novas OPs sem perder o contexto do turno atual
 - recalcular imediatamente os agregados do turno após cada inclusão
@@ -438,9 +519,15 @@ Capacidade nominal do turno = operadores_disponiveis × minutos_turno
 
 Meta do Grupo V2 = floor((operadores_disponiveis × minutos_turno) / media_tp_produto_turno)
 
-Carga planejada do setor no turno = SUM(quantidadePlanejada da OP × tp_total_setor_produto)
+Carga pendente real do setor no turno = SUM(quantidade_pendente_real_no_setor_da_OP × tp_total_setor_produto)
 
-Pessoas necessárias no setor = ceil(carga_planejada_setor_min / minutos_turno)
+Pessoas necessárias no setor = ceil(carga_pendente_real_setor_min / minutos_turno)
+
+Capacidade do setor em minutos (capacidade_min_setor) = operadores_alocados_setor × minutos_turno
+
+Carga pendente real do setor = SUM(quantidade_pendente_real_no_setor_da_OP × tp_total_setor_produto)
+
+Eficiência requerida do setor = (carga_pendente_real_setor_min / capacidade_min_setor) × 100
 
 Progresso da operação da seção = quantidade_realizada_turno_setor_operacao / quantidade_planejada
 
@@ -471,11 +558,25 @@ Restrições:
 
 Regra obrigatória da prévia de pessoas por setor:
 - a prévia de pessoas por setor pertence ao fluxo de abertura do turno, não à KPI gerencial consolidada da dashboard
-- a prévia deve ser calculada por setor a partir da carga planejada das OPs selecionadas
-- a prévia deve somar a carga de múltiplas OPs quando elas compartilharem o mesmo setor
+- a prévia deve ser calculada por setor a partir da carga pendente real das OPs selecionadas
+- a prévia deve somar a carga de múltiplas OPs quando elas compartilharem o mesmo setor e ainda dependerem dele no fluxo sequencial
+- a prévia não pode tratar uma OP de carry-over como se ela reiniciasse em todos os setores
+- setores já finalizados da OP devem contribuir com carga zero na prévia do novo turno
+- a prévia deve exibir desconformidade taxativa quando a carga pendente do setor exigir mais minutos do que a capacidade disponível
 - a prévia deve usar `ceil` para o arredondamento final por setor
 - a prévia não substitui a `Meta do Grupo V2`
 - a prévia não deve alterar o payload salvo do turno nesta primeira etapa
+
+Regra obrigatória da capacidade setorial operacional:
+- a leitura de capacidade do setor na dashboard operacional deve distinguir claramente:
+  - backlog total do setor
+  - quantidade aceita no turno
+  - quantidade concluída no turno
+  - saldo excedente para turnos futuros
+- o sistema não pode usar a capacidade setorial apenas como alerta enquanto continuar liberando ao setor mais peças do que ele consegue aceitar no turno
+- quando houver diferença entre backlog total e quantidade aceita no turno, o setor deve sinalizar parcelamento obrigatório da produção
+- setor inicial do roteiro pode nascer com backlog total da OP, mas só com a quantidade aceita do turno liberada para processamento
+- setores seguintes não podem nascer com a quantidade total da OP se ainda não receberam transferência real do setor anterior
 
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`
@@ -1343,7 +1444,53 @@ Impacto funcional da consistência:
 - o status de uma demanda no scanner deve permanecer coerente com o andamento real das operações daquela demanda
 - relatórios V2 e saldos operacionais não podem exibir `0%` de progresso operacional quando já houver produção consolidada nas operações da mesma demanda
 
-#### 9.3.6 Regra de carry-over entre turnos
+#### 9.3.6 Modelo sequencial de capacidade e fila por setor
+
+O domínio operacional oficial passa a ser sequencial por capacidade, fila e transferência real de lotes.
+
+Fluxo obrigatório:
+
+1. `Preparação`
+2. `Frente`
+3. `Costa`
+4. `Montagem`
+5. `Final`
+
+Regras obrigatórias:
+
+- a produção não ocorre simultaneamente em todos os setores da OP
+- uma OP só pode existir em um setor por vez
+- a única exceção é o fracionamento real por quantidade, originado pelo apontamento real
+- quando houver fracionamento, cada lote vira uma unidade operacional independente, sem duplicar quantidade
+- a soma dos lotes de uma OP nunca pode ultrapassar a quantidade total planejada ou remanescente
+- a movimentação entre setores deve sempre reduzir a quantidade do setor de origem e adicionar a mesma quantidade ao próximo setor
+- cada setor opera como fila FIFO
+- entrar na fila não significa iniciar produção automaticamente
+- um setor pode processar mais de uma OP ou lote ao mesmo tempo, desde que a soma da carga em minutos respeite sua capacidade produtiva disponível no turno
+- a métrica principal do sistema é `peças finalizadas` no setor `Final`; produções intermediárias não representam resultado final da fábrica
+
+Fórmulas obrigatórias:
+
+```text
+capacidade_minutos_setor = operadores_alocados_setor × minutos_turno
+
+carga_lote_setor_min = quantidade_lote × tp_total_setor_produto
+
+capacidade_restante_setor_min =
+  capacidade_minutos_setor - SUM(carga_realizada_ou_reservada_dos_lotes_no_setor)
+
+capacidade_pecas_setor =
+  FLOOR(capacidade_minutos_setor / tp_total_setor_produto)
+```
+
+Contrato mínimo sugerido para a implementação:
+
+- `turno_setores` deve passar a refletir `ordem_fluxo`, `operadores_alocados`, `capacidade_minutos_total`, `capacidade_minutos_consumida` e `capacidade_minutos_restante`
+- `turno_setor_demandas` deve conseguir refletir `posicao_fila`, `status_fila`, `quantidade_backlog_setor`, `quantidade_aceita_turno`, `quantidade_nao_aceita_turno`, `quantidade_em_producao_setor`, `quantidade_concluida_setor` e `quantidade_transferida_proximo_setor`
+- `turno_ops` deve conseguir refletir `setor_fluxo_atual_id`, `quantidade_finalizada` e a continuidade entre turnos sem perder rastreabilidade do saldo
+- o contrato do backend deve tratar minutos como base da capacidade real do setor; leitura em peças é apenas derivação contextual
+
+#### 9.3.7 Regra de carry-over entre turnos
 
 O turno continua podendo ser encerrado manualmente, mas a produção não concluída precisa atravessar a troca de turno.
 
@@ -1356,15 +1503,24 @@ Regra alvo:
   - novas OPs do dia
 - o histórico do turno anterior permanece fechado e íntegro
 - o novo turno recebe apenas o saldo faltante, nunca o total original já parcialmente produzido
+- o carry-over deve reabrir cada OP exatamente no setor pendente em que ela ficou, sem reintroduzir carga nos setores já concluídos
+- se uma OP estiver fracionada no encerramento do turno, cada lote pendente deve manter sua posição de fila e seu setor corrente na continuidade do novo turno
+- a prévia do novo turno deve usar o estado real do carry-over como fonte de verdade para a carga pendente por setor
+- o carry-over do setor passa a ser calculado pela soma de:
+  - saldo que o setor ainda não conseguiu aceitar no turno anterior por falta de capacidade
+  - saldo que o setor aceitou no turno anterior, mas não concluiu
+- se o setor anterior concluiu mais peças do que o próximo setor conseguiu aceitar no turno, esse excedente deve abrir como backlog do próximo setor no turno seguinte, sem reabrir o setor anterior
+- o parcelamento da OP entre turnos pode se repetir quantas vezes forem necessárias até o backlog setorial zerar
 
 Contrato mínimo sugerido:
 
 - `turno_ops.turno_op_origem_id` para rastrear continuidade entre turnos
 - `quantidade_planejada_original`
 - `quantidade_planejada_remanescente`
+- snapshot do `setor_fluxo_atual_id` e do saldo pendente por setor/lote
 - ação explícita de `carregar pendências do turno anterior` na abertura do novo turno
 
-#### 9.3.7 Liberdade administrativa
+#### 9.3.8 Liberdade administrativa
 
 Como o contexto fabril muda durante o dia, o sistema precisa oferecer edição administrativa ampla, com auditoria.
 
@@ -1374,15 +1530,17 @@ Diretriz:
 - alterações destrutivas sobre produção já apontada continuam exigindo regra e auditoria
 - o produto deve priorizar operação realista do chão, não rigidez excessiva de modelagem
 
-#### 9.3.8 Estratégia de refatoração
+#### 9.3.9 Estratégia de refatoração
 
 Para reduzir regressão:
 
 1. introduzir a nova estrutura setorial do turno sem apagar o histórico existente
-2. migrar QR, dashboard e scanner para `turno + setor`
-3. manter compatibilidade temporária de relatórios durante a transição
-4. homologar o novo fluxo no chão antes de remover a leitura antiga
-5. só depois consolidar a limpeza de entidades e telas residuais
+2. formalizar o contrato de capacidade/fila por setor antes de propagar a mudança para UI
+3. corrigir a prévia da abertura do turno para usar apenas a carga pendente real por setor
+4. migrar QR, dashboard e scanner para `turno + setor` com fila sequencial explícita
+5. manter compatibilidade temporária de relatórios durante a transição
+6. homologar o novo fluxo no chão antes de remover a leitura antiga
+7. só depois consolidar a limpeza de entidades e telas residuais
 
 ---
 

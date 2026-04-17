@@ -40,8 +40,11 @@ test('calcula a necessidade de pessoas por setor com arredondamento para cima', 
 
   assert.equal(resultado.totalOperadoresSugeridos, 10)
   assert.equal(resultado.totalOperadoresNecessarios, 10)
+  assert.equal(resultado.capacidadeTotalMinutos, 5100)
+  assert.equal(resultado.capacidadeTotalMinutosRestante, 4)
   assert.equal(resultado.coberturaGeralPct, 100)
   assert.equal(resultado.eficienciaRequeridaPct, 99.922)
+  assert.equal(resultado.diagnosticoCapacidade, 'dentro_capacidade')
   assert.equal(resultado.deficitOperadores, 0)
   assert.equal(resultado.setores.length, 1)
   assert.deepEqual(resultado.setores[0], {
@@ -49,20 +52,24 @@ test('calcula a necessidade de pessoas por setor com arredondamento para cima', 
     setorCodigo: null,
     setorNome: 'Preparação',
     cargaMinutos: 5096,
+    capacidadeMinutos: 5100,
+    capacidadeMinutosRestante: 4,
     operadoresSugeridos: 10,
     operadoresNecessarios: 10,
     coberturaPct: 100,
     deficitOperadores: 0,
     eficienciaRequeridaPct: 99.922,
+    diagnosticoCapacidade: 'dentro_capacidade',
     contribuicoes: [
       {
         numeroOp: 'OP-1111',
         produtoId: 'produto-1111',
         produtoNome: 'Modelo 1111',
         produtoReferencia: '1111',
-        quantidadePlanejada: 637,
+        quantidadeConsiderada: 637,
         tpTotalSetorProduto: 8,
         cargaMinutos: 5096,
+        origemCarga: 'planejada_integral',
       },
     ],
   })
@@ -131,25 +138,127 @@ test('consolida múltiplas OPs no mesmo setor e sinaliza déficit agregado', () 
 
   assert.equal(resultado.totalOperadoresSugeridos, 4)
   assert.equal(resultado.totalOperadoresNecessarios, 6)
+  assert.equal(resultado.capacidadeTotalMinutos, 1200)
+  assert.equal(resultado.capacidadeTotalMinutosRestante, 0)
   assert.equal(resultado.coberturaGeralPct, 87.273)
   assert.equal(resultado.eficienciaRequeridaPct, 114.583)
+  assert.equal(resultado.diagnosticoCapacidade, 'acima_capacidade')
   assert.equal(resultado.deficitOperadores, 2)
   assert.equal(preparacao?.cargaMinutos, 875)
+  assert.equal(preparacao?.capacidadeMinutos, 900)
+  assert.equal(preparacao?.capacidadeMinutosRestante, 25)
   assert.equal(preparacao?.operadoresSugeridos, 3)
   assert.equal(preparacao?.operadoresNecessarios, 3)
   assert.equal(preparacao?.coberturaPct, 100)
   assert.equal(preparacao?.eficienciaRequeridaPct, 97.222)
+  assert.equal(preparacao?.diagnosticoCapacidade, 'dentro_capacidade')
   assert.equal(preparacao?.contribuicoes.length, 2)
   assert.equal(montagem?.cargaMinutos, 400)
+  assert.equal(montagem?.capacidadeMinutos, 300)
+  assert.equal(montagem?.capacidadeMinutosRestante, 0)
   assert.equal(montagem?.operadoresSugeridos, 1)
   assert.equal(montagem?.operadoresNecessarios, 2)
   assert.equal(montagem?.coberturaPct, 75)
   assert.equal(montagem?.eficienciaRequeridaPct, 133.333)
+  assert.equal(montagem?.diagnosticoCapacidade, 'acima_capacidade')
   assert.equal(finalizacao?.cargaMinutos, 100)
+  assert.equal(finalizacao?.capacidadeMinutos, 0)
+  assert.equal(finalizacao?.capacidadeMinutosRestante, 0)
   assert.equal(finalizacao?.operadoresSugeridos, 0)
   assert.equal(finalizacao?.operadoresNecessarios, 1)
   assert.equal(finalizacao?.coberturaPct, 0)
   assert.equal(finalizacao?.eficienciaRequeridaPct, null)
+  assert.equal(finalizacao?.diagnosticoCapacidade, 'acima_capacidade')
+})
+
+test('usa apenas os setores pendentes reais no carry-over em vez de reabrir o roteiro completo', () => {
+  const input: DimensionamentoPessoasSetorInput = {
+    operadoresDisponiveis: 4,
+    minutosTurno: 300,
+    ops: [
+      {
+        numeroOp: 'OP-500',
+        produtoId: 'produto-500',
+        produtoNome: 'Calça Carry Over',
+        produtoReferencia: 'REF-500',
+        quantidadePlanejada: 100,
+        roteiro: [],
+        cargasSetoriais: [
+          {
+            setorId: 'setor-costa',
+            setorNome: 'Costa',
+            quantidadePendente: 20,
+            tpTotalSetorProduto: 1.5,
+          },
+          {
+            setorId: 'setor-montagem',
+            setorNome: 'Montagem',
+            quantidadePendente: 100,
+            tpTotalSetorProduto: 2,
+          },
+          {
+            setorId: 'setor-final',
+            setorNome: 'Final',
+            quantidadePendente: 100,
+            tpTotalSetorProduto: 1,
+          },
+        ],
+      },
+    ],
+  }
+
+  const resultado = calcularDimensionamentoPessoasPorSetor(input)
+
+  assert.deepEqual(
+    resultado.setores.map((setor) => ({
+      setorId: setor.setorId,
+      cargaMinutos: setor.cargaMinutos,
+      capacidadeMinutos: setor.capacidadeMinutos,
+      diagnosticoCapacidade: setor.diagnosticoCapacidade,
+      contribuicoes: setor.contribuicoes.map((contribuicao) => ({
+        quantidadeConsiderada: contribuicao.quantidadeConsiderada,
+        origemCarga: contribuicao.origemCarga,
+      })),
+    })),
+    [
+      {
+        setorId: 'setor-costa',
+        cargaMinutos: 30,
+        capacidadeMinutos: 300,
+        diagnosticoCapacidade: 'dentro_capacidade',
+        contribuicoes: [
+          {
+            quantidadeConsiderada: 20,
+            origemCarga: 'carry_over_setorial',
+          },
+        ],
+      },
+      {
+        setorId: 'setor-final',
+        cargaMinutos: 100,
+        capacidadeMinutos: 300,
+        diagnosticoCapacidade: 'dentro_capacidade',
+        contribuicoes: [
+          {
+            quantidadeConsiderada: 100,
+            origemCarga: 'carry_over_setorial',
+          },
+        ],
+      },
+      {
+        setorId: 'setor-montagem',
+        cargaMinutos: 200,
+        capacidadeMinutos: 300,
+        diagnosticoCapacidade: 'dentro_capacidade',
+        contribuicoes: [
+          {
+            quantidadeConsiderada: 100,
+            origemCarga: 'carry_over_setorial',
+          },
+        ],
+      },
+    ]
+  )
 })
 
 test('ignora operações inválidas do roteiro e quantidades não positivas sem quebrar a consolidação', () => {
@@ -207,12 +316,18 @@ test('ignora operações inválidas do roteiro e quantidades não positivas sem 
   assert.equal(resultado.setores.length, 1)
   assert.equal(resultado.setores[0]?.setorNome, 'Preparação')
   assert.equal(resultado.setores[0]?.cargaMinutos, 100)
+  assert.equal(resultado.setores[0]?.capacidadeMinutos, 240)
+  assert.equal(resultado.setores[0]?.capacidadeMinutosRestante, 140)
   assert.equal(resultado.setores[0]?.operadoresSugeridos, 1)
   assert.equal(resultado.setores[0]?.operadoresNecessarios, 1)
   assert.equal(resultado.setores[0]?.coberturaPct, 100)
   assert.equal(resultado.setores[0]?.eficienciaRequeridaPct, 41.667)
+  assert.equal(resultado.setores[0]?.diagnosticoCapacidade, 'dentro_capacidade')
   assert.equal(resultado.totalOperadoresSugeridos, 1)
   assert.equal(resultado.totalOperadoresNecessarios, 1)
+  assert.equal(resultado.capacidadeTotalMinutos, 240)
+  assert.equal(resultado.capacidadeTotalMinutosRestante, 140)
   assert.equal(resultado.eficienciaRequeridaPct, 41.667)
+  assert.equal(resultado.diagnosticoCapacidade, 'dentro_capacidade')
   assert.equal(resultado.deficitOperadores, 0)
 })

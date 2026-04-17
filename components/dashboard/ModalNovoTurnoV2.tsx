@@ -35,6 +35,23 @@ interface AvisoPreviaDimensionamento {
   mensagem: string
 }
 
+function formatarStatusFila(statusFila?: string): string {
+  switch (statusFila) {
+    case 'em_fila':
+      return 'Em fila'
+    case 'liberada':
+      return 'Liberada'
+    case 'em_producao':
+      return 'Em produção'
+    case 'parcial':
+      return 'Parcial'
+    case 'concluida_setor':
+      return 'Concluída no setor'
+    default:
+      return 'Sem fila'
+  }
+}
+
 function criarIdLocal(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -192,6 +209,23 @@ export function ModalNovoTurnoV2({
   const operadoresDisponiveisNumero = parseNumeroInteiroPositivo(operadoresDisponiveis)
   const minutosTurnoNumero = parseNumeroInteiroPositivo(minutosTurno)
   const produtosPorId = new Map(produtos.map((produto) => [produto.id, produto]))
+  const demandasPendentesPorTurnoOpId = new Map<string, NonNullable<PlanejamentoTurnoDashboardV2['demandasSetor']>[number][] >()
+
+  for (const demanda of planejamentoAtual?.demandasSetor ?? []) {
+    if ((demanda.quantidadePendenteSetor ?? 0) <= 0) {
+      continue
+    }
+
+    const demandasTurnoOp = demandasPendentesPorTurnoOpId.get(demanda.turnoOpId)
+
+    if (demandasTurnoOp) {
+      demandasTurnoOp.push(demanda)
+      continue
+    }
+
+    demandasPendentesPorTurnoOpId.set(demanda.turnoOpId, [demanda])
+  }
+
   const avisosPrevia: AvisoPreviaDimensionamento[] = []
   const opsParaDimensionamento: DimensionamentoPessoasSetorInput['ops'] = []
 
@@ -237,6 +271,18 @@ export function ModalNovoTurnoV2({
   if (carregarPendencias) {
     for (const pendencia of pendenciasSelecionadas) {
       const produtoSelecionado = produtosPorId.get(pendencia.produtoId)
+      const demandasPendentes = [...(demandasPendentesPorTurnoOpId.get(pendencia.id) ?? [])].sort(
+        (primeiraDemanda, segundaDemanda) => {
+          const primeiroCodigo = primeiraDemanda.setorCodigo ?? Number.MAX_SAFE_INTEGER
+          const segundoCodigo = segundaDemanda.setorCodigo ?? Number.MAX_SAFE_INTEGER
+
+          if (primeiroCodigo !== segundoCodigo) {
+            return primeiroCodigo - segundoCodigo
+          }
+
+          return primeiraDemanda.setorId.localeCompare(segundaDemanda.setorId)
+        }
+      )
 
       if (!produtoSelecionado) {
         avisosPrevia.push({
@@ -246,10 +292,10 @@ export function ModalNovoTurnoV2({
         continue
       }
 
-      if (produtoSelecionado.roteiro.length === 0) {
+      if (demandasPendentes.length === 0) {
         avisosPrevia.push({
-          id: `pendencia-sem-roteiro-${pendencia.id}`,
-          mensagem: `A pendência ${pendencia.numeroOp} usa o produto ${produtoSelecionado.nome}, mas ele não possui roteiro válido para dimensionamento.`,
+          id: `pendencia-sem-carga-setorial-${pendencia.id}`,
+          mensagem: `A pendência ${pendencia.numeroOp} não trouxe carga pendente real por setor. A prévia ignorou este carry-over para não simular reinício indevido do roteiro.`,
         })
         continue
       }
@@ -260,12 +306,16 @@ export function ModalNovoTurnoV2({
         produtoNome: produtoSelecionado.nome,
         produtoReferencia: produtoSelecionado.referencia,
         quantidadePlanejada: pendencia.quantidadePlanejadaRemanescente,
-        roteiro: produtoSelecionado.roteiro.map((item) => ({
-          operacaoId: item.operacaoId,
-          setorId: item.setorId,
-          setorCodigo: item.setorCodigo,
-          setorNome: item.setorNome,
-          tempoPadraoMin: item.tempoPadraoMin,
+        roteiro: [],
+        cargasSetoriais: demandasPendentes.map((demanda) => ({
+          setorId: demanda.setorId,
+          setorCodigo: demanda.setorCodigo,
+          setorNome: demanda.setorNome,
+          quantidadePendente: demanda.quantidadePendenteSetor ?? 0,
+          tpTotalSetorProduto:
+            demanda.quantidadePlanejada > 0
+              ? demanda.cargaPlanejadaTp / demanda.quantidadePlanejada
+              : 0,
         })),
       })
     }
@@ -278,11 +328,13 @@ export function ModalNovoTurnoV2({
   })
   const totalSetoresDimensionados = resumoDimensionamento.setores.length
   const totalOpsDimensionadas = opsParaDimensionamento.length
-  const saldoOperadores = Math.max(
-    operadoresDisponiveisNumero - resumoDimensionamento.totalOperadoresSugeridos,
-    0
-  )
   const existeDeficitDimensionamento = resumoDimensionamento.deficitOperadores > 0
+  const setoresDesconformes = resumoDimensionamento.setores.filter(
+    (setor) => setor.diagnosticoCapacidade === 'acima_capacidade'
+  )
+  const existeDesconformidadeCapacidade =
+    resumoDimensionamento.diagnosticoCapacidade === 'acima_capacidade' ||
+    setoresDesconformes.length > 0
 
   const existeTurnoAberto = planejamentoAtual?.origem === 'aberto'
   const titulo = 'Novo Turno'
@@ -519,7 +571,7 @@ export function ModalNovoTurnoV2({
                         />
                       </div>
 
-                      <div className="grid gap-3 text-xs text-slate-600 sm:grid-cols-3">
+                      <div className="grid gap-3 text-xs text-slate-600 sm:grid-cols-4">
                         <div className="rounded-xl bg-white px-3 py-2">
                           <div className="uppercase tracking-wide text-slate-400">Original</div>
                           <div className="mt-1 text-sm font-semibold text-slate-900">
@@ -538,6 +590,18 @@ export function ModalNovoTurnoV2({
                           <div className="uppercase tracking-wide text-slate-400">Saldo</div>
                           <div className="mt-1 text-sm font-semibold text-slate-900">
                             {pendencia.quantidadePlanejadaRemanescente}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <div className="uppercase tracking-wide text-slate-400">
+                            Posição atual
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {pendencia.setorFluxoAtualNome ?? 'Setor pendente não identificado'}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {formatarStatusFila(pendencia.statusFilaAtual)}
                           </div>
                         </div>
                       </div>
@@ -693,14 +757,47 @@ export function ModalNovoTurnoV2({
               </div>
             ) : null}
 
+            {existeDesconformidadeCapacidade ? (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="font-semibold">
+                      A demanda selecionada está desconforme com a capacidade produtiva do turno.
+                    </p>
+                    <p>
+                      A prévia exige{' '}
+                      {formatarCargaMinutos(
+                        resumoDimensionamento.setores.reduce((soma, setor) => soma + setor.cargaMinutos, 0)
+                      )}{' '}
+                      para apenas {formatarCargaMinutos(resumoDimensionamento.capacidadeTotalMinutos)} de
+                      capacidade distribuída.
+                    </p>
+                    {setoresDesconformes.length > 0 ? (
+                      <p>
+                        Setores críticos:{' '}
+                        {setoresDesconformes
+                          .map(
+                            (setor) =>
+                              `${setor.setorNome} (${formatarCargaMinutos(setor.cargaMinutos)} para ${formatarCargaMinutos(setor.capacidadeMinutos)})`
+                          )
+                          .join(', ')}
+                        .
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {minutosTurnoNumero <= 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
                 Informe os minutos do turno para calcular a distribuição sugerida por setor.
               </div>
             ) : totalOpsDimensionadas === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                Adicione pelo menos uma OP válida ou selecione pendências com roteiro para gerar a
-                prévia setorial.
+                Adicione pelo menos uma OP válida ou selecione pendências com carga setorial
+                pendente para gerar a prévia.
               </div>
             ) : (
               <>
@@ -738,33 +835,55 @@ export function ModalNovoTurnoV2({
 
                   <div
                     className={`rounded-2xl border px-4 py-4 ${
-                      existeDeficitDimensionamento
-                        ? 'border-amber-200 bg-amber-50'
+                      existeDesconformidadeCapacidade
+                        ? 'border-red-200 bg-red-50'
+                        : existeDeficitDimensionamento
+                          ? 'border-amber-200 bg-amber-50'
                         : 'border-emerald-200 bg-emerald-50'
                     }`}
                   >
                     <p
                       className={`text-xs font-medium uppercase tracking-wide ${
-                        existeDeficitDimensionamento ? 'text-amber-700' : 'text-emerald-700'
+                        existeDesconformidadeCapacidade
+                          ? 'text-red-700'
+                          : existeDeficitDimensionamento
+                            ? 'text-amber-700'
+                            : 'text-emerald-700'
                       }`}
                     >
-                      {existeDeficitDimensionamento ? 'Eficiência requerida' : 'Cobertura'}
+                      {existeDesconformidadeCapacidade
+                        ? 'Desconformidade'
+                        : existeDeficitDimensionamento
+                          ? 'Eficiência requerida'
+                          : 'Cobertura'}
                     </p>
                     <p
                       className={`mt-2 text-3xl font-semibold ${
-                        existeDeficitDimensionamento ? 'text-amber-900' : 'text-emerald-900'
+                        existeDesconformidadeCapacidade
+                          ? 'text-red-900'
+                          : existeDeficitDimensionamento
+                            ? 'text-amber-900'
+                            : 'text-emerald-900'
                       }`}
                     >
-                      {existeDeficitDimensionamento
+                      {existeDesconformidadeCapacidade
+                        ? formatarPercentual(resumoDimensionamento.eficienciaRequeridaPct ?? 0)
+                        : existeDeficitDimensionamento
                         ? formatarPercentual(resumoDimensionamento.eficienciaRequeridaPct ?? 0)
                         : `${resumoDimensionamento.coberturaGeralPct.toFixed(0)}%`}
                     </p>
                     <p
                       className={`mt-1 text-xs ${
-                        existeDeficitDimensionamento ? 'text-amber-700' : 'text-emerald-700'
+                        existeDesconformidadeCapacidade
+                          ? 'text-red-700'
+                          : existeDeficitDimensionamento
+                            ? 'text-amber-700'
+                            : 'text-emerald-700'
                       }`}
                     >
-                      {existeDeficitDimensionamento
+                      {existeDesconformidadeCapacidade
+                        ? 'A demanda do turno ultrapassa a capacidade produtiva distribuída'
+                        : existeDeficitDimensionamento
                         ? 'Percentual médio necessário da equipe atual para cumprir a demanda'
                         : 'Carga do turno plenamente coberta'}
                     </p>
@@ -784,6 +903,10 @@ export function ModalNovoTurnoV2({
                             Carga prevista de {formatarCargaMinutos(setor.cargaMinutos)} no turno.
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
+                            Capacidade distribuída de {formatarCargaMinutos(setor.capacidadeMinutos)} com saldo livre de{' '}
+                            {formatarCargaMinutos(setor.capacidadeMinutosRestante)}.
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
                             {setor.eficienciaRequeridaPct
                               ? `Eficiência requerida de ${formatarPercentual(setor.eficienciaRequeridaPct)} para cumprir este setor com a equipe sugerida.`
                               : 'Sem equipe sugerida automaticamente para este setor; revise a distribuição manualmente.'}
@@ -801,14 +924,12 @@ export function ModalNovoTurnoV2({
                         </div>
                       </div>
 
-                      {setor.eficienciaRequeridaPct && setor.eficienciaRequeridaPct > 100 ? (
-                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                          Este setor exige {formatarPercentual(setor.eficienciaRequeridaPct)} da
-                          equipe sugerida para cumprir a carga planejada.
+                      {setor.diagnosticoCapacidade === 'acima_capacidade' ? (
+                        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                          Desconforme: este setor precisa de {formatarCargaMinutos(setor.cargaMinutos)} para apenas{' '}
+                          {formatarCargaMinutos(setor.capacidadeMinutos)} de capacidade disponível.
                         </div>
-                      ) : null}
-
-                      {!setor.eficienciaRequeridaPct && setor.cargaMinutos > 0 ? (
+                      ) : !setor.eficienciaRequeridaPct && setor.cargaMinutos > 0 ? (
                         <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                           O cálculo proporcional não alocou equipe automática aqui. Reavalie a
                           distribuição manualmente se este setor for prioritário.
@@ -828,7 +949,10 @@ export function ModalNovoTurnoV2({
                                 </p>
                                 <p className="text-xs text-slate-500">
                                   {contribuicao.produtoReferencia ?? 'Sem referência'} ·{' '}
-                                  {contribuicao.quantidadePlanejada} peças
+                                  {contribuicao.quantidadeConsiderada}{' '}
+                                  {contribuicao.origemCarga === 'carry_over_setorial'
+                                    ? 'peças pendentes neste setor'
+                                    : 'peças planejadas'}
                                 </p>
                               </div>
 

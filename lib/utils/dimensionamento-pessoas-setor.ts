@@ -1,3 +1,9 @@
+import {
+  calcularResumoCapacidadeSetor,
+  calcularCargaPendenteSetorEmMinutos,
+} from './capacidade-setor.ts'
+import type { DiagnosticoCapacidadeSetorV2 } from '@/types'
+
 const ORDEM_DECIMAL_PT_BR = 1000
 
 export interface DimensionamentoSetorOperacaoInput {
@@ -15,6 +21,15 @@ export interface DimensionamentoSetorOpInput {
   produtoReferencia: string | null
   quantidadePlanejada: number
   roteiro: DimensionamentoSetorOperacaoInput[]
+  cargasSetoriais?: DimensionamentoSetorCargaInput[]
+}
+
+export interface DimensionamentoSetorCargaInput {
+  setorId: string
+  setorCodigo?: number | null
+  setorNome: string
+  quantidadePendente: number
+  tpTotalSetorProduto: number
 }
 
 export interface DimensionamentoPessoasSetorInput {
@@ -28,9 +43,10 @@ export interface DimensionamentoSetorContribuicaoItem {
   produtoId: string
   produtoNome: string
   produtoReferencia: string | null
-  quantidadePlanejada: number
+  quantidadeConsiderada: number
   tpTotalSetorProduto: number
   cargaMinutos: number
+  origemCarga: 'planejada_integral' | 'carry_over_setorial'
 }
 
 export interface DimensionamentoPessoasSetorItem {
@@ -38,11 +54,14 @@ export interface DimensionamentoPessoasSetorItem {
   setorCodigo: number | null
   setorNome: string
   cargaMinutos: number
+  capacidadeMinutos: number
+  capacidadeMinutosRestante: number
   operadoresSugeridos: number
   operadoresNecessarios: number
   coberturaPct: number
   deficitOperadores: number
   eficienciaRequeridaPct: number | null
+  diagnosticoCapacidade: DiagnosticoCapacidadeSetorV2
   contribuicoes: DimensionamentoSetorContribuicaoItem[]
 }
 
@@ -51,9 +70,12 @@ export interface DimensionamentoPessoasSetorResumo {
   minutosTurno: number
   totalOperadoresSugeridos: number
   totalOperadoresNecessarios: number
+  capacidadeTotalMinutos: number
+  capacidadeTotalMinutosRestante: number
   coberturaGeralPct: number
   deficitOperadores: number
   eficienciaRequeridaPct: number | null
+  diagnosticoCapacidade: DiagnosticoCapacidadeSetorV2
   setores: DimensionamentoPessoasSetorItem[]
 }
 
@@ -172,6 +194,53 @@ function ordenarContribuicoes(
   })
 }
 
+function extrairCargasSetoriais(
+  op: DimensionamentoSetorOpInput
+): Array<{
+  setorId: string
+  setorCodigo: number | null
+  setorNome: string
+  quantidadeConsiderada: number
+  tpTotalSetorProduto: number
+  origemCarga: DimensionamentoSetorContribuicaoItem['origemCarga']
+}> {
+  if (op.cargasSetoriais && op.cargasSetoriais.length > 0) {
+    return op.cargasSetoriais
+      .map((carga) => ({
+        setorId: carga.setorId,
+        setorCodigo: carga.setorCodigo ?? null,
+        setorNome: carga.setorNome,
+        quantidadeConsiderada: Math.floor(normalizarNumeroPositivo(carga.quantidadePendente)),
+        tpTotalSetorProduto: normalizarNumeroPositivo(carga.tpTotalSetorProduto),
+        origemCarga: 'carry_over_setorial' as const,
+      }))
+      .filter(
+        (carga) =>
+          Boolean(carga.setorId && carga.setorNome) &&
+          carga.quantidadeConsiderada > 0 &&
+          carga.tpTotalSetorProduto > 0
+      )
+      .sort((primeiroSetor, segundoSetor) =>
+        compararSetoresPorOrdemLocal(primeiroSetor, segundoSetor)
+      )
+  }
+
+  const quantidadePlanejada = Math.floor(normalizarNumeroPositivo(op.quantidadePlanejada))
+
+  if (quantidadePlanejada <= 0) {
+    return []
+  }
+
+  return consolidarTpTotalPorSetor(op.roteiro).map((totalSetor) => ({
+    setorId: totalSetor.setorId,
+    setorCodigo: totalSetor.setorCodigo,
+    setorNome: totalSetor.setorNome,
+    quantidadeConsiderada: quantidadePlanejada,
+    tpTotalSetorProduto: totalSetor.tpTotalSetorProduto,
+    origemCarga: 'planejada_integral' as const,
+  }))
+}
+
 function distribuirOperadoresPorCarga(
   setoresBase: SetorDistribuicaoBase[],
   operadoresDisponiveis: number
@@ -262,25 +331,23 @@ export function calcularDimensionamentoPessoasPorSetor(
   const acumuladores = new Map<string, AcumuladorSetor>()
 
   for (const op of input.ops) {
-    const quantidadePlanejada = Math.floor(normalizarNumeroPositivo(op.quantidadePlanejada))
+    const cargasSetoriais = extrairCargasSetoriais(op)
 
-    if (quantidadePlanejada <= 0) {
-      continue
-    }
-
-    const totaisPorSetor = consolidarTpTotalPorSetor(op.roteiro)
-
-    for (const totalSetor of totaisPorSetor) {
-      const cargaMinutos = arredondarNumero(quantidadePlanejada * totalSetor.tpTotalSetorProduto)
+    for (const totalSetor of cargasSetoriais) {
+      const cargaMinutos = calcularCargaPendenteSetorEmMinutos(
+        totalSetor.quantidadeConsiderada,
+        totalSetor.tpTotalSetorProduto
+      )
       const acumuladorAtual = acumuladores.get(totalSetor.setorId)
       const contribuicao: DimensionamentoSetorContribuicaoItem = {
         numeroOp: op.numeroOp,
         produtoId: op.produtoId,
         produtoNome: op.produtoNome,
         produtoReferencia: op.produtoReferencia,
-        quantidadePlanejada,
+        quantidadeConsiderada: totalSetor.quantidadeConsiderada,
         tpTotalSetorProduto: totalSetor.tpTotalSetorProduto,
         cargaMinutos,
+        origemCarga: totalSetor.origemCarga,
       }
 
       if (acumuladorAtual) {
@@ -320,26 +387,29 @@ export function calcularDimensionamentoPessoasPorSetor(
 
   const setores = setoresBase.map<DimensionamentoPessoasSetorItem>((setorBase) => {
     const operadoresSugeridos = operadoresDistribuidosPorSetor.get(setorBase.setorId) ?? 0
-    const capacidadeMinutos = operadoresSugeridos * minutosTurno
+    const resumoCapacidade = calcularResumoCapacidadeSetor({
+      operadoresAlocados: operadoresSugeridos,
+      minutosTurno,
+      cargaPendenteMinutos: setorBase.cargaMinutos,
+    })
     const coberturaPct =
       setorBase.cargaMinutos > 0
-        ? Math.min((capacidadeMinutos / setorBase.cargaMinutos) * 100, 100)
+        ? Math.min((resumoCapacidade.capacidadeMinutosTotal / setorBase.cargaMinutos) * 100, 100)
         : 0
-    const eficienciaRequeridaPct =
-      operadoresSugeridos > 0 && minutosTurno > 0
-        ? arredondarNumero((setorBase.cargaMinutos / capacidadeMinutos) * 100)
-        : null
 
     return {
       setorId: setorBase.setorId,
       setorCodigo: setorBase.setorCodigo,
       setorNome: setorBase.setorNome,
       cargaMinutos: setorBase.cargaMinutos,
+      capacidadeMinutos: resumoCapacidade.capacidadeMinutosTotal,
+      capacidadeMinutosRestante: resumoCapacidade.capacidadeMinutosRestante,
       operadoresSugeridos,
       operadoresNecessarios: setorBase.operadoresNecessarios,
       coberturaPct: arredondarNumero(coberturaPct),
       deficitOperadores: Math.max(setorBase.operadoresNecessarios - operadoresSugeridos, 0),
-      eficienciaRequeridaPct,
+      eficienciaRequeridaPct: resumoCapacidade.eficienciaRequeridaPct,
+      diagnosticoCapacidade: resumoCapacidade.diagnosticoCapacidade,
       contribuicoes: setorBase.contribuicoes,
     }
   })
@@ -353,25 +423,30 @@ export function calcularDimensionamentoPessoasPorSetor(
     0
   )
   const cargaTotalMinutos = setores.reduce((soma, setor) => soma + setor.cargaMinutos, 0)
+  const capacidadeTotalMinutos = setores.reduce((soma, setor) => soma + setor.capacidadeMinutos, 0)
   const coberturaGeralPct =
     cargaTotalMinutos > 0
       ? arredondarNumero(
           Math.min((totalOperadoresSugeridos * minutosTurno * 100) / cargaTotalMinutos, 100)
         )
       : 0
-  const eficienciaRequeridaPct =
-    totalOperadoresSugeridos > 0 && minutosTurno > 0
-      ? arredondarNumero((cargaTotalMinutos / (totalOperadoresSugeridos * minutosTurno)) * 100)
-      : null
+  const resumoCapacidadeGeral = calcularResumoCapacidadeSetor({
+    operadoresAlocados: totalOperadoresSugeridos,
+    minutosTurno,
+    cargaPendenteMinutos: cargaTotalMinutos,
+  })
 
   return {
     operadoresDisponiveis,
     minutosTurno,
     totalOperadoresSugeridos,
     totalOperadoresNecessarios,
+    capacidadeTotalMinutos,
+    capacidadeTotalMinutosRestante: resumoCapacidadeGeral.capacidadeMinutosRestante,
     coberturaGeralPct,
     deficitOperadores: Math.max(totalOperadoresNecessarios - totalOperadoresSugeridos, 0),
-    eficienciaRequeridaPct,
+    eficienciaRequeridaPct: resumoCapacidadeGeral.eficienciaRequeridaPct,
+    diagnosticoCapacidade: resumoCapacidadeGeral.diagnosticoCapacidade,
     setores,
   }
 }

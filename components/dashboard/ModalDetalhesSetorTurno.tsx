@@ -24,6 +24,10 @@ function obterTemaStatus(status: TurnoSetorDashboardItem['status'] | TurnoSetorD
   return 'bg-slate-100 text-slate-700'
 }
 
+function formatarQuantidade(valor: number): string {
+  return valor.toLocaleString('pt-BR')
+}
+
 export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorTurnoProps) {
   return (
     <div
@@ -60,29 +64,51 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
         </div>
 
         <div className="space-y-6 p-6">
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Demandas</p>
               <p className="mt-2 text-3xl font-semibold text-slate-900">{setor.demandas.length}</p>
             </article>
 
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Planejado</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">{setor.quantidadePlanejada}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Backlog</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">
+                {formatarQuantidade(setor.quantidadeBacklogTotal)}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                Aceito no turno
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-blue-900">
+                {formatarQuantidade(setor.quantidadeAceitaTurno)}
+              </p>
             </article>
 
             <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
                 Peças completas
               </p>
-              <p className="mt-2 text-3xl font-semibold text-emerald-900">{setor.quantidadeConcluida}</p>
+              <p className="mt-2 text-3xl font-semibold text-emerald-900">
+                {formatarQuantidade(setor.quantidadeConcluida)}
+              </p>
             </article>
 
             <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                Progresso operacional
+                Excedente
               </p>
               <p className="mt-2 text-3xl font-semibold text-amber-900">
+                {formatarQuantidade(setor.quantidadeExcedenteTurno)}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                Progresso operacional
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-violet-900">
                 {setor.progressoOperacionalPct.toFixed(0)}%
               </p>
             </article>
@@ -120,11 +146,6 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                     </span>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-                    <span>Peças completas {demanda.quantidadeConcluida}</span>
-                    <span>Planejado {demanda.quantidadePlanejada}</span>
-                  </div>
-
                   <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
                     <div
                       className="h-full rounded-full bg-blue-600 transition-all"
@@ -132,31 +153,49 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                     />
                   </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        Planejado
+                        Backlog
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-900">
-                        {demanda.quantidadePlanejada}
+                        {formatarQuantidade(demanda.quantidadeBacklogSetor)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        Peças completas
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                        Aceito
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
-                        {demanda.quantidadeConcluida}
+                      <p className="mt-1 text-sm font-semibold text-blue-900">
+                        {formatarQuantidade(demanda.quantidadeAceitaTurno)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        Carga T.P.
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
+                        Concluido
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
-                        {demanda.cargaRealizadaTp.toFixed(2)} / {demanda.cargaPlanejadaTp.toFixed(2)}
+                      <p className="mt-1 text-sm font-semibold text-emerald-900">
+                        {formatarQuantidade(demanda.quantidadeConcluida)}
                       </p>
                     </div>
+                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
+                        Excedente
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-amber-900">
+                        {formatarQuantidade(demanda.quantidadeExcedenteTurno)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                    <span>
+                      Disponível agora {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
+                    </span>
+                    <span>
+                      Carga T.P. {demanda.cargaRealizadaTp.toFixed(2)} /{' '}
+                      {demanda.cargaPlanejadaTp.toFixed(2)}
+                    </span>
                   </div>
                 </article>
               ))}

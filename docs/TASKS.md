@@ -2773,9 +2773,250 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - registrar a evidência final da entrega
 
   Regras:
-  - a sprint não fecha sem validação de tipos
-  - a homologação precisa confirmar que a URL continua compartilhável e previsível
-  - qualquer evolução além da tabela de detalhamento fica fora desta sprint
+- a sprint não fecha sem validação de tipos
+- a homologação precisa confirmar que a URL continua compartilhável e previsível
+- qualquer evolução além da tabela de detalhamento fica fora desta sprint
 
   **Evidência:** `/admin/relatorios` passa a suportar ordenação por coluna e paginação no padrão visual de operações sem regressão funcional, com `npx tsc --noEmit` passando sem erros.
   Homologação registrada em `2026-04-08` com validação de tipos via `npx tsc --noEmit` sem erros, conferência estrutural da rota `app/admin/relatorios/page.tsx` preservando `ResumoRelatorios` e `ComparativoMetaGrupoChart` no mesmo contrato de filtros anterior, e validação da navegação protegida em `http://localhost:3001/admin/relatorios` retornando `307` para `/login` com preservação integral de `dataInicio`, `dataFim`, `page`, `sortBy` e `sortDir` na URL. A superfície autenticada não pôde ser homologada visualmente nesta sessão porque o servidor local respondeu com `erro=sessao-expirada`, mas o contrato final de paginação e ordenação foi fechado sem regressão de tipos nem perda de parâmetros.
+
+## SPRINT 29 — Capacidade setorial sequencial, fila real e kanban operacional
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 28 concluída e confirmação explícita do usuário para abertura oficial desta frente em `2026-04-15`.
+**Objetivo:** fazer o sistema sair do modelo de demanda distribuída simultaneamente para todos os setores e assumir oficialmente um fluxo de produção real por capacidade, sequência, fila e movimentação de lotes, corrigindo a prévia de abertura do turno e expondo na dashboard um kanban operacional em tempo real.
+
+**Decisões de produto homologadas para esta sprint:**
+- a fábrica continua tendo `Meta Mensal` e `Meta Diária` de saída como referência gerencial principal
+- a produção operacional deve seguir a sequência obrigatória `Preparação -> Frente -> Costa -> Montagem -> Final`
+- uma OP não pode existir em dois setores ao mesmo tempo, exceto quando houver fracionamento real por quantidade
+- o fracionamento nasce do apontamento real; o sistema não pode inventar lotes automaticamente
+- cada setor funciona como fila FIFO com capacidade limitada por minutos do turno
+- um setor pode processar mais de uma OP/lote ao mesmo tempo, desde que a soma da carga em minutos respeite sua capacidade disponível
+- a métrica principal do sistema passa a ser `peças finalizadas` no setor `Final`; produção intermediária não representa resultado final
+- na abertura do turno, a prévia deve considerar apenas a carga pendente real por setor de cada OP, inclusive carry-over, sem recolocar carga em setores já concluídos
+- a abertura do turno deve alertar taxativamente quando a demanda selecionada estiver desconforme com a capacidade produtiva do turno
+- a dashboard deve exibir um kanban operacional em tempo real mostrando em qual setor cada OP/lote está exatamente naquele momento
+
+- [x] **HU 29.1 — Como produto, quero formalizar o domínio de capacidade sequencial, fila e carry-over real no PRD e no plano da sprint, para que a implementação futura tenha uma regra única e sem ambiguidade.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - formalizar no `docs/PRD.md` que a produção não ocorre simultaneamente em todos os setores
+  - formalizar a sequência obrigatória `Preparação -> Frente -> Costa -> Montagem -> Final`
+  - formalizar a regra de fila FIFO com capacidade baseada em minutos
+  - formalizar que a prévia do turno deve usar carga pendente real por setor e não reiniciar carry-over em todos os setores
+  - formalizar a necessidade de um kanban operacional em tempo real na dashboard
+
+  Regras:
+  - o PRD deve distinguir claramente `Meta do Grupo`, `Meta Diária de saída` e `capacidade setorial`
+  - o PRD deve explicitar que minutos são a base de verdade da capacidade do setor
+  - a documentação não pode permitir interpretação de que a mesma OP ocupa todos os setores ao mesmo tempo
+
+  **Evidência:** `docs/PRD.md` passa a registrar o fluxo sequencial por capacidade e fila, a correção da prévia de carry-over e o kanban operacional em tempo real como direção oficial do produto.
+  Formalizado em `2026-04-15` com atualização das seções `5.2.1`, `5.5`, `6` e `9.3` do `docs/PRD.md`, incluindo capacidade setorial baseada em minutos, desconformidade taxativa na abertura do turno, carry-over reaberto no setor pendente correto e kanban setorial em tempo real na dashboard.
+
+- [x] **HU 29.2 — Como sistema, quero introduzir contratos tipados e funções puras para capacidade do setor, fila e posição atual da OP/lote, para que backend, scanner, apontamentos e dashboard compartilhem a mesma semântica.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - definir contratos tipados para `status_fila`, `posicao_fila`, `setor_fluxo_atual`, `capacidade_minutos_total`, `capacidade_minutos_consumida` e `capacidade_minutos_restante`
+  - criar funções puras para calcular capacidade do setor, carga pendente real e diagnóstico de desconformidade
+  - criar funções puras para consolidar a posição atual da OP/lote no fluxo
+  - garantir que `types/`, `lib/utils/` e queries compartilhem o mesmo contrato
+
+  Regras:
+  - sem `any`
+  - minutos são a unidade oficial da capacidade
+  - leitura em peças deve ser derivada e contextual, nunca a base de verdade para setores com múltiplas OPs/produtos
+
+  **Evidência:** o código passa a expor contratos tipados e funções puras reutilizáveis para capacidade, fila e posição atual da OP/lote, com `npx tsc --noEmit` passando sem erros.
+  Implementado em `types/index.ts`, `lib/utils/capacidade-setor.ts`, `lib/utils/capacidade-setor.test.ts`, `lib/utils/dimensionamento-pessoas-setor.ts`, `lib/utils/dimensionamento-pessoas-setor.test.ts`, `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts`. O domínio agora expõe `TurnoSetorFilaStatusV2`, `DiagnosticoCapacidadeSetorV2`, resumos puros de capacidade em minutos, posição atual da OP/lote no fluxo e enriquecimento tipado de `demandasSetor`/`ops` com `statusFila`, `posicaoFila` e `setorFluxoAtual`. `npx tsc --noEmit` validado sem erros em `2026-04-16`.
+
+- [x] **HU 29.3 — Como supervisor, quero que a abertura do turno use a carga pendente real por setor e alerte desconformidade de capacidade, para não iniciar o dia com uma leitura falsa da demanda.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Telas/blocos afetados:
+  - modal de `Novo Turno`
+  - queries e utilitários da prévia setorial
+  - componentes de carry-over e resumo de capacidade
+
+  Tarefas:
+  - corrigir a prévia para que OPs de carry-over contribuam apenas a partir do setor efetivamente pendente
+  - zerar a carga dos setores já concluídos da OP na prévia do novo turno
+  - considerar saldo parcial real quando a OP/lote estiver em andamento dentro de um setor
+  - exibir carga em minutos, capacidade em minutos e eficiência requerida por setor
+  - exibir alerta taxativo quando a demanda superar a capacidade do setor ou do turno
+
+  Regras:
+  - a prévia não pode tratar carry-over como reinício integral da OP
+  - setores já finalizados devem aparecer como concluídos, não como carga reaberta
+  - o alerta precisa ser explícito, não apenas um texto brando de sugestão
+
+  **Evidência:** na abertura do turno, OPs reaproveitadas passam a consumir apenas os setores realmente pendentes, e a UI informa claramente quando a demanda selecionada está acima da capacidade produtiva disponível.
+  Implementado em `components/dashboard/ModalNovoTurnoV2.tsx`, `lib/utils/dimensionamento-pessoas-setor.ts` e `lib/utils/dimensionamento-pessoas-setor.test.ts`. O carry-over da prévia agora nasce de `planejamentoAtual.demandasSetor` com `quantidadePendenteSetor > 0`, ignorando setores já concluídos e sem simular reinício do roteiro completo; a superfície de abertura passou a mostrar `posição atual` da pendência, capacidade distribuída por setor e alerta taxativo de desconformidade quando a carga em minutos supera a capacidade do setor ou do turno. `npx tsc --noEmit` validado sem erros em `2026-04-16`.
+
+- [x] **HU 29.4 — Como sistema, quero que apontamentos e continuidade de turno respeitem fila sequencial e fracionamento real, para que a OP avance no fluxo sem duplicação fictícia entre setores.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - propagar no backend a regra de que uma OP só ocupa um setor por vez, salvo lotes fracionados
+  - fazer a movimentação de lote reduzir saldo no setor de origem e liberar a mesma quantidade para o próximo setor
+  - preservar fila FIFO por setor ao liberar ou retomar lotes
+  - refletir corretamente a posição atual da OP/lote em carry-over entre turnos
+  - manter rastreabilidade de quem apontou, qual lote avançou e quanto foi transferido
+
+  Regras:
+  - fracionamento só pode nascer de apontamento real
+  - a soma dos lotes não pode ultrapassar a quantidade da OP
+  - produção intermediária não pode ser confundida com saída final da fábrica
+
+  **Evidência:** uma OP/lote passa a avançar setor a setor sem duplicação simultânea indevida, mantendo rastreabilidade de fila e continuidade entre turnos.
+  Implementado em `lib/utils/fluxo-sequencial-turno.ts`, `lib/queries/fluxo-sequencial-turno-base.ts`, `lib/actions/producao.ts`, `lib/actions/turnos.ts`, `lib/queries/scanner.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts` e `hooks/useScanner.ts`. O backend agora calcula a quantidade liberada por setor a partir do realizado do setor anterior, bloqueia apontamentos acima do lote realmente liberado tanto no scanner quanto no apontamento em lote do supervisor, mantém a fila por setor com diagnóstico de bloqueio/liberação no planejamento e saneia o carry-over para não reidratar progresso downstream acima do que o fluxo anterior realmente concluiu. Cobertura utilitária adicionada em `lib/utils/fluxo-sequencial-turno.test.ts`. `npx tsc --noEmit` validado sem erros em `2026-04-16`.
+
+- [x] **HU 29.5 — Como supervisor, quero visualizar um kanban operacional em tempo real na dashboard, para saber exatamente em que setor cada OP/lote está e onde estão os gargalos do turno.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Telas/blocos afetados:
+  - `/admin/dashboard`
+  - componentes da aba `Visão Operacional`
+  - hooks/queries de realtime do turno
+
+  Tarefas:
+  - criar um componente kanban com uma coluna por setor na ordem oficial do fluxo
+  - exibir cards de OP/lote apenas na coluna do setor atual
+  - exibir posição na fila, status operacional e dados mínimos da OP/produto
+  - exibir capacidade consumida/restante e sinais de gargalo por setor
+  - atualizar o kanban em tempo real sem refresh manual
+
+  Regras:
+  - uma mesma OP não pode aparecer em duas colunas ao mesmo tempo, exceto quando houver lotes fracionados
+  - lotes fracionados devem aparecer como cards distintos e rastreáveis
+  - o kanban precisa coexistir com KPIs e gráficos atuais sem quebrar a `Visão Operacional`
+
+  **Evidência:** a dashboard passa a mostrar um kanban setorial em tempo real, com colunas `Preparação`, `Frente`, `Costa`, `Montagem` e `Final`, refletindo posição de fila, status e gargalos do turno atual.
+  Implementado em `components/dashboard/KanbanOperacionalTurno.tsx`, integrado via `components/dashboard/DashboardVisaoOperacionalTab.tsx` e `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`. O quadro consome `demandasSetor` e `setoresAtivos` já enriquecidos pelo backend, exibindo cards apenas para saldos efetivamente liberados/em produção, resumo de fila por setor, capacidade comprometida/restante e alerta de gargalo por capacidade. `npx tsc --noEmit` validado sem erros em `2026-04-16`.
+
+- [x] **HU 29.6 — Como produto, quero homologar a primeira versão do fluxo sequencial por capacidade, para confiar na abertura do turno, no carry-over e na leitura operacional em tempo real sem regressão de tipos.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - validar cenários com OP nova, carry-over, setor já concluído e setor parcial
+  - validar cenário com fracionamento real por apontamento
+  - validar desconformidade de capacidade na abertura do turno
+  - validar o kanban em tempo real na dashboard
+  - rodar `npx tsc --noEmit`
+
+  Regras:
+  - a sprint não fecha sem validação de tipos
+  - a homologação precisa confirmar que produção intermediária não está sendo exibida como saída final
+  - qualquer simplificação consciente do primeiro corte deve ficar documentada na evidência final
+
+  **Evidência:** a abertura do turno, o carry-over, os apontamentos e a dashboard passam a refletir o mesmo modelo sequencial por capacidade e fila, com `npx tsc --noEmit` passando sem erros.
+  Homologação concluída em `2026-04-16` com validação executável de capacidade, carry-over, fila sequencial e kanban em `lib/utils/capacidade-setor.test.ts`, `lib/utils/dimensionamento-pessoas-setor.test.ts`, `lib/utils/fluxo-sequencial-turno.test.ts` e `lib/utils/kanban-operacional-turno.test.ts`, todos aprovados via `node --test --experimental-strip-types`. A sprint também ganhou a extração pura `lib/utils/kanban-operacional-turno.ts`, consumida por `components/dashboard/KanbanOperacionalTurno.tsx`, cobrindo os cenários de OP nova, carry-over com setor já concluído e setor parcial, fracionamento real refletido por demandas setoriais com saldo liberado, desconformidade de capacidade na abertura e leitura em tempo real do quadro operacional. `npx tsc --noEmit` validado sem erros. Simplificação consciente deste primeiro corte: o fracionamento permanece rastreado no nível de `demanda setorial + quantidade liberada`, sem introduzir uma entidade persistida de lote independente nesta sprint.
+
+## SPRINT 30 — Capacidade como trava real e parcelamento setorial entre turnos
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 29 concluída e confirmação explícita do usuário para abrir a evolução do domínio em `2026-04-16`.
+**Objetivo:** fazer a capacidade setorial deixar de ser apenas diagnóstico e passar a limitar de fato a quantidade aceita por cada setor no turno, parcelando automaticamente o excedente da OP em backlog setorial para turnos futuros.
+
+**Decisões de produto homologadas para esta sprint:**
+- a OP continua preservando sua demanda total original como referência administrativa
+- o setor deixa de aceitar automaticamente toda a demanda da OP no turno quando sua capacidade diária for menor que o backlog real
+- o setor inicial do roteiro pode nascer com backlog total da OP, mas só com a quantidade aceita do turno liberada para processamento
+- setores seguintes não podem nascer com a quantidade total da OP antes de receber transferência real do setor anterior
+- o carry-over passa a ser setorial e parcelado, somando:
+  - saldo que o setor não conseguiu aceitar por falta de capacidade no turno anterior
+  - saldo que o setor aceitou, mas não conseguiu concluir
+- se um setor concluir mais do que o próximo setor consegue aceitar no turno, o excedente vira backlog do próximo setor para o turno seguinte
+- a dashboard operacional deve distinguir backlog total, quantidade aceita no turno, quantidade concluída e saldo excedente para próximos turnos
+
+- [x] **HU 30.1 — Como produto, quero formalizar a proposta técnica de capacidade como trava real e carry-over setorial parcelado, para que a próxima implementação altere o domínio com clareza e sem ambiguidade.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - formalizar no `docs/PRD.md` que a capacidade setorial passa a limitar a quantidade aceita no turno
+  - formalizar que uma nova OP não pode mais injetar sua quantidade integral em todos os setores futuros do mesmo dia
+  - formalizar a composição do carry-over setorial como `não aceito + aceito não concluído`
+  - abrir a próxima sprint no `docs/TASKS.md` e no `docs/BACKLOG.md` com proposta objetiva de implementação
+  - registrar impactos em tabelas, queries/actions e ordem segura de entrega
+
+  Regras:
+  - a proposta deve preservar rastreabilidade da demanda total original da OP
+  - o parcelamento deve acontecer por setor, não apenas por OP
+  - a proposta não pode depender de uma entidade nova de lote persistido nesta primeira evolução
+  - o plano deve priorizar refatoração incremental e compatível com o histórico já produzido
+
+  Proposta técnica objetiva:
+  - Regras de domínio:
+    `demanda total da OP` continua existindo em `turno_ops`, mas o setor passa a trabalhar com `backlog real`, `quantidade aceita no turno`, `quantidade concluída` e `saldo excedente`.
+    `Preparação` pode aceitar no turno no máximo `floor((operadores_alocados × minutos_turno) / tp_total_setor_produto)`.
+    Para setores seguintes, a quantidade aceita no turno fica limitada pela menor quantidade entre backlog setorial existente, transferível real do setor anterior e capacidade diária do setor.
+    No encerramento do turno, o próximo carry-over setorial é calculado como `saldo não aceito + saldo aceito não concluído`.
+  - Impactos nas tabelas:
+    `turno_ops`: preservar `quantidade_planejada_original` e `quantidade_planejada_remanescente` como contrato administrativo da OP, acrescentando a leitura de `quantidade_finalizada` sem perder continuidade entre turnos.
+    `turno_setor_demandas`: deixar de usar apenas `quantidade_planejada` como conceito ambíguo e passar a refletir explicitamente `quantidade_backlog_setor`, `quantidade_aceita_turno`, `quantidade_nao_aceita_turno`, `quantidade_realizada`, `quantidade_pendente_setor` e `quantidade_transferida_proximo_setor`.
+    `turno_setor_operacoes`: alinhar o volume operacional do setor à quantidade efetivamente aceita no turno, preservando fallback legacy por `turno_setor_op_id` enquanto houver dados antigos sem `turno_setor_demanda_id`.
+    `turno_setores`: continuar agregando o setor físico do turno, mas com snapshot explícito de `operadores_alocados`, `capacidade_minutos_total`, `capacidade_minutos_consumida` e `capacidade_minutos_restante` coerente com a quantidade aceita naquele dia.
+  - Mudanças esperadas em queries/actions:
+    `lib/actions/turnos.ts`: abrir e editar turno calculando apenas a quantidade aceita por setor no dia, sem distribuir automaticamente a OP inteira por todos os setores.
+    `lib/actions/producao.ts`: bloquear transferência para o próximo setor acima da capacidade restante do turno e acumular excedente como backlog do setor seguinte.
+    `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts`: expor backlog setorial, aceito no turno, concluído e excedente com semântica única para dashboard, scanner e apontamentos.
+    `lib/queries/scanner.ts` e `lib/queries/fluxo-sequencial-turno-base.ts`: recalcular disponibilidade operacional a partir da quantidade aceita no turno, não do total administrativo da OP.
+    `lib/utils/dimensionamento-pessoas-setor.ts`, `lib/utils/capacidade-setor.ts` e utilitários de fluxo: separar claramente capacidade diagnóstica de capacidade operacional aceita no turno.
+  - Ordem segura de entrega:
+    1. introduzir contratos tipados e campos explícitos de backlog/aceite sem remover o contrato antigo de leitura
+    2. adaptar abertura e edição do turno para limitar apenas o setor elegível do dia pela capacidade real
+    3. adaptar apontamentos e transferência entre setores para respeitar a capacidade restante do setor de destino
+    4. recalcular carry-over setorial parcelado no encerramento e na abertura do turno seguinte
+    5. atualizar dashboard, scanner e `/admin/apontamentos` para distinguir backlog total, aceito no turno, concluído e excedente
+    6. homologar cenários com OP nova, setor inicial saturado, setor seguinte sem capacidade, carry-over repetido e turnos consecutivos
+
+  **Evidência:** o produto passa a ter uma proposta técnica formal para transformar capacidade setorial em trava real de produção, com parcelamento setorial entre turnos descrito em `PRD`, `TASKS` e `BACKLOG`.
+  Formalizado em `2026-04-16` com atualização das seções `5.2.1`, `5.2.2`, `6` e `9.3.7` do `docs/PRD.md`, abertura oficial da `Sprint 30` no `docs/TASKS.md` e registro do entregável correspondente no `docs/BACKLOG.md`.
+
+- [x] **HU 30.2 — Como sistema, quero explicitar contratos e snapshots de backlog setorial, quantidade aceita e saldo excedente, para que a capacidade real do turno deixe de depender de campos ambíguos.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - introduzir contratos tipados compartilhados para `quantidadeBacklogSetor`, `quantidadeAceitaTurno` e `quantidadeExcedenteTurno`
+  - expor snapshot puro no util central do fluxo sequencial
+  - propagar o novo snapshot para `TurnoSetorDemandaV2` e `TurnoSetorDemandaScaneada`
+  - ajustar consumidores do planejamento setorial para priorizar o novo contrato sem quebrar compatibilidade
+  - validar a mudança com testes utilitários e `npx tsc --noEmit`
+
+  Regras:
+  - nesta HU, `quantidadeAceitaTurno` representa a parcela do backlog que já pode ser trabalhada agora segundo a semântica atual do fluxo
+  - a limitação por capacidade diária real entra na HU 30.3/30.4; aqui o objetivo é remover ambiguidade de contrato
+  - `quantidadePendenteSetor`, `quantidadeLiberadaSetor` e `quantidadeDisponivelApontamento` continuam existindo por compatibilidade, mas deixam de ser o único vocabulário do domínio
+
+  **Evidência:** o domínio passa a expor snapshots explícitos de backlog, aceite e excedente no turno, compartilhados entre fluxo sequencial, planejamento do turno, scanner e kanban, com testes e tipos aprovados.
+  Implementado em `types/index.ts`, `lib/utils/fluxo-sequencial-turno.ts`, `lib/utils/fluxo-sequencial-turno.test.ts`, `lib/queries/scanner.ts`, `lib/utils/hidratacao-capacidade-setor-turno.ts` e `lib/utils/kanban-operacional-turno.ts`. O contrato agora expõe `SnapshotParcelamentoDemandaTurnoV2`, `quantidadeBacklogSetor`, `quantidadeAceitaTurno` e `quantidadeExcedenteTurno`, derivados de forma pura no enriquecimento sequencial e reutilizados como fonte preferencial nas leituras de capacidade e presença no quadro. Validação concluída em `2026-04-16` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 30.3 — Como supervisor, quero que abertura e edição do turno aceitem por setor apenas o que cabe na capacidade do dia, para não prometer produção acima do que o setor consegue absorver.**
+  **Prioridade:** P0
+  **Risco:** Alto
+  **Evidência:** o planejamento do turno passou a aplicar a capacidade diária real por setor sobre as demandas elegíveis do fluxo, limitando `quantidadeAceitaTurno`, `quantidadeDisponivelApontamento`, `secoesSetorOp` e `operacoesSecao` ao que cabe no dia. A mesma trava passou a alimentar a validação sequencial dos apontamentos via `lib/queries/fluxo-sequencial-turno-base.ts`, eliminando a promessa artificial de produção acima da absorção do setor. Implementado em `lib/utils/hidratacao-capacidade-setor-turno.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/fluxo-sequencial-turno-base.ts`, `app/(admin)/apontamentos/page.tsx` e `lib/utils/hidratacao-capacidade-setor-turno.test.ts`. Validação concluída em `2026-04-16` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/kanban-operacional-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 30.4 — Como sistema, quero que a transferência entre setores respeite também a capacidade do setor de destino, para que o excedente vire backlog real do próximo turno em vez de lotar artificialmente o fluxo atual.**
+  **Prioridade:** P0
+  **Risco:** Alto
+  **Evidência:** o scanner passou a recalcular as demandas do setor com o mesmo pipeline de fluxo + capacidade usado no planejamento do turno, de modo que a liberação para o setor de destino fique limitada pelo que cabe no dia e não apenas pelo realizado do setor anterior. O hook local do scanner também deixou de usar `quantidadeLiberadaSetor` como teto implícito e passou a respeitar o snapshot aceito/disponível do turno ao filtrar demandas, operações e recalcular o saldo após cada apontamento. Implementado em `lib/queries/scanner.ts` e `hooks/useScanner.ts`, reaproveitando `aplicarCapacidadeOperacionalDemandas` e o snapshot sequencial já usado em `turnos` e `apontamentos`. Validação concluída em `2026-04-16` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/kanban-operacional-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 30.5 — Como supervisor, quero ver na dashboard e nos apontamentos a diferença entre backlog total, aceito no turno, concluído e excedente, para agir sobre a produção real e não sobre uma fila inflada artificialmente.**
+  **Prioridade:** P1
+  **Risco:** Médio
+  **Evidência:** A dashboard operacional e `/admin/apontamentos` passaram a distinguir backlog total, aceito no turno, concluído e excedente no topo da visão, nos cards por OP/setor, no kanban e nos modais de detalhe, usando o snapshot setorial real derivado de `demandasSetor` em vez do vocabulário antigo de `planejado/saldo`. Implementado em `lib/utils/turno-setores.ts`, `components/dashboard/DashboardVisaoOperacionalTab.tsx`, `components/dashboard/KanbanOperacionalTurno.tsx`, `components/dashboard/ResumoOpTurnoCard.tsx`, `components/dashboard/ResumoSetorTurnoCard.tsx`, `components/dashboard/ModalDetalhesOpTurno.tsx`, `components/dashboard/ModalDetalhesSecaoTurno.tsx`, `components/dashboard/ModalDetalhesSetorTurno.tsx`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` e `components/apontamentos/PainelApontamentosSupervisor.tsx`. `npx tsc --noEmit` validado sem erros em `2026-04-16`.
+
+- [x] **HU 30.6 — Como produto, quero homologar o parcelamento setorial entre turnos com capacidade como trava real, para confiar que o carry-over repetido continua íntegro em cenários de saturação diária.**
+  **Prioridade:** P0
+  **Risco:** Alto
+  **Evidência:** o carry-over entre turnos passou a usar um utilitário puro para normalizar o progresso setorial sobre o saldo remanescente da OP, preservando a continuidade do setor pendente sem reabrir artificialmente setores já concluídos dentro do lote remanescente. A Sprint 30 agora cobre explicitamente cenários de saturação diária repetida com carry-over recorrente por meio de testes automatizados do parcelamento entre turnos.
+  Implementado em `lib/utils/carry-over-turno.ts`, `lib/utils/carry-over-turno.test.ts` e `lib/actions/turnos.ts`. A action de abertura do turno passou a reutilizar `calcularQuantidadePlanejadaRemanescenteCarryOver()` e `normalizarDemandasCarryOverEntreTurnos()` ao selecionar pendências e reidratar o progresso do turno anterior, eliminando a lógica ad hoc do carry-over. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/carry-over-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.

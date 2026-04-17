@@ -34,6 +34,10 @@ interface SecaoComContexto extends TurnoSetorOpV2 {
   numeroOp: string
   produtoNome: string
   produtoReferencia: string
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
+  quantidadeDisponivelApontamento: number
 }
 
 interface LancamentoDraft {
@@ -44,6 +48,16 @@ interface LancamentoDraft {
 }
 
 function saldoRestanteSecao(secao: TurnoSetorOpV2): number {
+  const secaoComParcelamento = secao as Partial<SecaoComContexto>
+
+  if (typeof secaoComParcelamento.quantidadeDisponivelApontamento === 'number') {
+    return Math.max(secaoComParcelamento.quantidadeDisponivelApontamento, 0)
+  }
+
+  if (typeof secaoComParcelamento.quantidadeAceitaTurno === 'number') {
+    return Math.max(secaoComParcelamento.quantidadeAceitaTurno - secao.quantidadeConcluida, 0)
+  }
+
   return Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0)
 }
 
@@ -79,6 +93,11 @@ function criarIdLocal(): string {
 
 function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComContexto[] {
   const opPorId = new Map(planejamento.ops.map((op) => [op.id, op]))
+  const demandaPorSecaoLegacyId = new Map(
+    (planejamento.demandasSetor ?? [])
+      .filter((demanda) => Boolean(demanda.turnoSetorOpLegacyId))
+      .map((demanda) => [demanda.turnoSetorOpLegacyId, demanda] as const)
+  )
 
   return planejamento.secoesSetorOp
     .map((secao) => {
@@ -88,11 +107,25 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
         return null
       }
 
+      const demanda =
+        demandaPorSecaoLegacyId.get(secao.id) ??
+        (planejamento.demandasSetor ?? []).find(
+          (item) => item.turnoOpId === secao.turnoOpId && item.setorId === secao.setorId
+        )
+
       return {
         ...secao,
         numeroOp: op.numeroOp,
         produtoNome: op.produtoNome,
         produtoReferencia: op.produtoReferencia,
+        quantidadeBacklogTotal:
+          demanda?.quantidadeBacklogSetor ??
+          Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
+        quantidadeAceitaTurno: demanda?.quantidadeAceitaTurno ?? secao.quantidadePlanejada,
+        quantidadeExcedenteTurno: demanda?.quantidadeExcedenteTurno ?? 0,
+        quantidadeDisponivelApontamento:
+          demanda?.quantidadeDisponivelApontamento ??
+          Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0),
       }
     })
     .filter((secao): secao is SecaoComContexto => Boolean(secao))
@@ -673,7 +706,8 @@ export function PainelApontamentosSupervisor({
                     >
                       {secoesFiltradas.map((secao) => (
                         <option key={secao.id} value={secao.id}>
-                          {secao.numeroOp} · {secao.setorNome} · saldo {saldoRestanteSecao(secao)}
+                          {secao.numeroOp} · {secao.setorNome} · aceito{' '}
+                          {secao.quantidadeAceitaTurno} · disponível {saldoRestanteSecao(secao)}
                         </option>
                       ))}
                     </select>
@@ -692,15 +726,23 @@ export function PainelApontamentosSupervisor({
                 <div className="grid gap-3 md:grid-cols-4">
                   <article className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Planejado
+                      Backlog total
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">
-                      {secaoSelecionada.quantidadePlanejada}
+                      {secaoSelecionada.quantidadeBacklogTotal}
+                    </p>
+                  </article>
+                  <article className="rounded-2xl bg-blue-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                      Aceito no turno
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-blue-900">
+                      {secaoSelecionada.quantidadeAceitaTurno}
                     </p>
                   </article>
                   <article className="rounded-2xl bg-emerald-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                      Peças completas
+                      Concluído
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-emerald-900">
                       {secaoSelecionada.quantidadeConcluida}
@@ -708,20 +750,18 @@ export function PainelApontamentosSupervisor({
                   </article>
                   <article className="rounded-2xl bg-amber-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                      Saldo
+                      Excedente
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-amber-900">
-                      {saldoSecaoSelecionada}
+                      {secaoSelecionada.quantidadeExcedenteTurno}
                     </p>
                   </article>
-                  <article className="rounded-2xl bg-blue-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                      Progresso operacional
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-blue-900">
-                      {secaoSelecionada.progressoOperacionalPct.toFixed(0)}%
-                    </p>
-                  </article>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  Disponível para apontamento agora: <span className="font-semibold">{saldoSecaoSelecionada}</span>
+                  {' · '}
+                  Progresso operacional: <span className="font-semibold">{secaoSelecionada.progressoOperacionalPct.toFixed(0)}%</span>
                 </div>
               </div>
 
@@ -805,6 +845,10 @@ export function PainelApontamentosSupervisor({
                       <span className="inline-flex items-center gap-2 font-medium">
                         <UserRound size={16} />
                         {operadoresDaSecao.length} operador(es) elegível(is)
+                      </span>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        Aceito {secaoSelecionada.quantidadeAceitaTurno} · disponível{' '}
+                        {saldoSecaoSelecionada}
                       </span>
                     </div>
                   </div>
@@ -917,8 +961,9 @@ export function PainelApontamentosSupervisor({
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
                     <p className="text-sm text-slate-500">
-                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · saldo atual{' '}
-                      {saldoSecaoSelecionada}.
+                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · backlog{' '}
+                      {secaoSelecionada.quantidadeBacklogTotal} · aceito{' '}
+                      {secaoSelecionada.quantidadeAceitaTurno} · disponível {saldoSecaoSelecionada}.
                     </p>
 
                     <button

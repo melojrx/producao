@@ -22,6 +22,10 @@ interface SecaoDetalheOp extends TurnoSetorOpV2 {
   produtoNome: string
   produtoReferencia: string
   numeroOp: string
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
+  quantidadeDisponivelApontamento: number
 }
 
 interface ModalDetalhesSecaoTurnoProps {
@@ -65,7 +69,6 @@ export function ModalDetalhesSecaoTurno({
     (atividade) => atividade.turnoSetorOpId === secao.id
   )
   const operadoresSemSetor = operadoresTurno.filter((operador) => !operador.setorId)
-  const saldoRestante = Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0)
   const progresso = secao.progressoOperacionalPct
 
   return (
@@ -112,9 +115,20 @@ export function ModalDetalhesSecaoTurno({
         <div className="flex flex-col gap-6 p-6">
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Planejado</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Backlog total
+              </p>
               <p className="mt-2 text-3xl font-semibold text-slate-900">
-                {secao.quantidadePlanejada}
+                {secao.quantidadeBacklogTotal}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                Aceito no turno
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-blue-900">
+                {secao.quantidadeAceitaTurno}
               </p>
             </article>
 
@@ -128,28 +142,23 @@ export function ModalDetalhesSecaoTurno({
             </article>
 
             <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Saldo</p>
-              <p className="mt-2 text-3xl font-semibold text-amber-900">{saldoRestante}</p>
-            </article>
-
-            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                Progresso operacional
+              <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                Excedente
               </p>
-              <p className="mt-2 text-3xl font-semibold text-blue-900">
-                {progresso.toFixed(0)}%
-              </p>
-              <p className="mt-1 text-xs font-medium text-blue-800">
-                {secao.cargaRealizadaTp.toFixed(2)} / {secao.cargaPlanejadaTp.toFixed(2)} min
+              <p className="mt-2 text-3xl font-semibold text-amber-900">
+                {secao.quantidadeExcedenteTurno}
               </p>
             </article>
 
             <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                Operações previstas
+                Progresso operacional
               </p>
               <p className="mt-2 text-3xl font-semibold text-violet-900">
-                {operacoesSetor.length}
+                {progresso.toFixed(0)}%
+              </p>
+              <p className="mt-1 text-xs font-medium text-violet-800">
+                {secao.cargaRealizadaTp.toFixed(2)} / {secao.cargaPlanejadaTp.toFixed(2)} min
               </p>
             </article>
           </section>
@@ -163,6 +172,10 @@ export function ModalDetalhesSecaoTurno({
               <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                 <QrCode size={14} />
                 QR {secao.qrCodeToken.slice(0, 16)}...
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                <ClipboardCheck size={14} />
+                Disponível agora {secao.quantidadeDisponivelApontamento}
               </div>
             </div>
           </section>

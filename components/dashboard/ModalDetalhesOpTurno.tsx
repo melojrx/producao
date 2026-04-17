@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { ModalDetalhesSecaoTurno } from '@/components/dashboard/ModalDetalhesSecaoTurno'
+import type { TurnoOpResumoDashboardItem } from '@/lib/utils/turno-setores'
 import type {
   ProdutoListItem,
   TurnoOperadorAtividadeSetorV2,
@@ -25,10 +26,15 @@ interface SecaoDetalheOp extends TurnoSetorOpV2 {
   produtoNome: string
   produtoReferencia: string
   numeroOp: string
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
+  quantidadeDisponivelApontamento: number
 }
 
 interface ModalDetalhesOpTurnoProps {
   op: TurnoOpV2
+  opResumo: TurnoOpResumoDashboardItem | null
   secoes: SecaoDetalheOp[]
   iniciadoEmTurno: string
   produtosCatalogo: ProdutoListItem[]
@@ -68,6 +74,7 @@ function obterTemaStatus(status: TurnoOpStatusV2 | TurnoSetorOpStatusV2): string
 
 export function ModalDetalhesOpTurno({
   op,
+  opResumo,
   secoes,
   iniciadoEmTurno,
   produtosCatalogo,
@@ -79,7 +86,6 @@ export function ModalDetalhesOpTurno({
   const [secaoSelecionadaId, setSecaoSelecionadaId] = useState<string | null>(null)
   const secoesConcluidas = secoes.filter((secao) => secao.status === 'concluida').length
   const secoesPendentes = secoes.length - secoesConcluidas
-  const saldoRestante = Math.max(op.quantidadePlanejada - op.quantidadeConcluida, 0)
   const progresso = op.progressoOperacionalPct
   const secaoSelecionada = useMemo(
     () => secoes.find((secao) => secao.id === secaoSelecionadaId) ?? null,
@@ -169,19 +175,35 @@ export function ModalDetalhesOpTurno({
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Planejado
+                    Backlog
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-slate-900">
-                    {op.quantidadePlanejada}
+                    {opResumo?.quantidadeBacklogTotal ?? 0}
                   </p>
                 </div>
                 <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
                   <ClipboardList size={18} />
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                    Aceito no turno
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold text-blue-900">
+                    {opResumo?.quantidadeAceitaTurno ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
+                  <Package size={18} />
                 </div>
               </div>
             </article>
@@ -206,9 +228,11 @@ export function ModalDetalhesOpTurno({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                    Saldo restante
+                    Excedente
                   </p>
-                  <p className="mt-2 text-3xl font-semibold text-amber-900">{saldoRestante}</p>
+                  <p className="mt-2 text-3xl font-semibold text-amber-900">
+                    {opResumo?.quantidadeExcedenteTurno ?? 0}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
                   <Activity size={18} />
@@ -270,10 +294,6 @@ export function ModalDetalhesOpTurno({
                   (operacao) => operacao.turnoSetorOpId === secao.id
                 )
                 const progressoSecao = secao.progressoOperacionalPct
-                const saldoSecao = Math.max(
-                  secao.quantidadePlanejada - secao.quantidadeConcluida,
-                  0
-                )
 
                 return (
                   <button
@@ -297,30 +317,41 @@ export function ModalDetalhesOpTurno({
                       </span>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="mt-4 grid gap-3 sm:grid-cols-4">
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                          Planejado
+                          Backlog
                         </p>
                         <p className="mt-2 text-xl font-semibold text-slate-900">
-                          {secao.quantidadePlanejada}
+                          {secao.quantidadeBacklogTotal}
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                          Peças completas
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                          Aceito
                         </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900">
+                        <p className="mt-2 text-xl font-semibold text-blue-900">
+                          {secao.quantidadeAceitaTurno}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
+                          Concluido
+                        </p>
+                        <p className="mt-2 text-xl font-semibold text-emerald-900">
                           {secao.quantidadeConcluida}
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                          Saldo
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
+                          Excedente
                         </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900">{saldoSecao}</p>
+                        <p className="mt-2 text-xl font-semibold text-amber-900">
+                          {secao.quantidadeExcedenteTurno}
+                        </p>
                       </div>
                     </div>
 

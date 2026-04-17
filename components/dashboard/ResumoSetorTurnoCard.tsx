@@ -23,6 +23,10 @@ function corStatus(status: TurnoSetorDashboardItem['status']): string {
   return 'bg-slate-100 text-slate-700'
 }
 
+function formatarQuantidade(valor: number): string {
+  return valor.toLocaleString('pt-BR')
+}
+
 export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardProps) {
   return (
     <button
@@ -42,9 +46,39 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
         </span>
       </div>
 
-      <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
-        <span>{setor.quantidadeConcluida} peças completas</span>
-        <span>{setor.quantidadePlanejada} planejado</span>
+      <div className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
+        <div className="rounded-xl bg-slate-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            Backlog
+          </p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {formatarQuantidade(setor.quantidadeBacklogTotal)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-blue-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+            Aceito
+          </p>
+          <p className="mt-1 font-semibold text-blue-900">
+            {formatarQuantidade(setor.quantidadeAceitaTurno)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-emerald-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+            Concluido
+          </p>
+          <p className="mt-1 font-semibold text-emerald-900">
+            {formatarQuantidade(setor.quantidadeConcluida)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-amber-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+            Excedente
+          </p>
+          <p className="mt-1 font-semibold text-amber-900">
+            {formatarQuantidade(setor.quantidadeExcedenteTurno)}
+          </p>
+        </div>
       </div>
 
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">

@@ -23,6 +23,10 @@ export interface TurnoSetorDemandaDashboardItem {
   progressoOperacionalPct: number
   cargaPlanejadaTp: number
   cargaRealizadaTp: number
+  quantidadeBacklogSetor: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
+  quantidadeDisponivelApontamento: number
   status: TurnoSetorDemandaStatusV2
 }
 
@@ -38,6 +42,9 @@ export interface TurnoSetorDashboardItem {
   progressoOperacionalPct: number
   cargaPlanejadaTp: number
   cargaRealizadaTp: number
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
   qrCodeToken: string
   status: TurnoSetorStatusV2
   iniciadoEm: string | null
@@ -60,9 +67,63 @@ export interface TurnoOpResumoDashboardItem {
   produtoNomeResumido: string
   quantidadePlanejada: number
   quantidadeConcluida: number
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
   progressoOperacionalPct: number
   status: TurnoOpStatusV2
   setores: OpSetorStatusDotItem[]
+}
+
+function normalizarNumero(valor?: number | null): number {
+  return Number.isFinite(valor) ? Number(valor) : 0
+}
+
+function obterQuantidadeBacklog(demanda: {
+  quantidadeBacklogSetor?: number
+  quantidadePendenteSetor?: number
+  quantidadePlanejada: number
+  quantidadeConcluida: number
+}): number {
+  if (typeof demanda.quantidadeBacklogSetor === 'number') {
+    return normalizarNumero(demanda.quantidadeBacklogSetor)
+  }
+
+  if (typeof demanda.quantidadePendenteSetor === 'number') {
+    return normalizarNumero(demanda.quantidadePendenteSetor)
+  }
+
+  return Math.max(
+    normalizarNumero(demanda.quantidadePlanejada) - normalizarNumero(demanda.quantidadeConcluida),
+    0
+  )
+}
+
+function obterQuantidadeAceitaTurno(demanda: {
+  quantidadeAceitaTurno?: number
+  quantidadeDisponivelApontamento?: number
+  quantidadeLiberadaSetor?: number
+  quantidadePlanejada: number
+}): number {
+  if (typeof demanda.quantidadeAceitaTurno === 'number') {
+    return normalizarNumero(demanda.quantidadeAceitaTurno)
+  }
+
+  if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
+    return normalizarNumero(demanda.quantidadeDisponivelApontamento)
+  }
+
+  if (typeof demanda.quantidadeLiberadaSetor === 'number') {
+    return normalizarNumero(demanda.quantidadeLiberadaSetor)
+  }
+
+  return normalizarNumero(demanda.quantidadePlanejada)
+}
+
+function obterQuantidadeExcedenteTurno(demanda: {
+  quantidadeExcedenteTurno?: number
+}): number {
+  return normalizarNumero(demanda.quantidadeExcedenteTurno)
 }
 
 function ordenarDemandas(
@@ -143,6 +204,13 @@ function mapearDemandasLegadas(
         progressoOperacionalPct: secao.progressoOperacionalPct,
         cargaPlanejadaTp: secao.cargaPlanejadaTp,
         cargaRealizadaTp: secao.cargaRealizadaTp,
+        quantidadeBacklogSetor: Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
+        quantidadeAceitaTurno: secao.quantidadePlanejada,
+        quantidadeExcedenteTurno: 0,
+        quantidadeDisponivelApontamento: Math.max(
+          secao.quantidadePlanejada - secao.quantidadeRealizada,
+          0
+        ),
         status: secao.status,
       }
     })
@@ -183,6 +251,10 @@ function mapearDemandasPlanejamentoParaDashboard(
       progressoOperacionalPct: demanda.progressoOperacionalPct,
       cargaPlanejadaTp: demanda.cargaPlanejadaTp,
       cargaRealizadaTp: demanda.cargaRealizadaTp,
+      quantidadeBacklogSetor: obterQuantidadeBacklog(demanda),
+      quantidadeAceitaTurno: obterQuantidadeAceitaTurno(demanda),
+      quantidadeExcedenteTurno: obterQuantidadeExcedenteTurno(demanda),
+      quantidadeDisponivelApontamento: normalizarNumero(demanda.quantidadeDisponivelApontamento),
       status: demanda.status,
     }))
   }
@@ -253,6 +325,18 @@ export function mapearSetoresTurnoParaDashboard(
       (soma, demanda) => soma + demanda.cargaRealizadaTp,
       0
     )
+    const quantidadeBacklogTotal = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.quantidadeBacklogSetor,
+      0
+    )
+    const quantidadeAceitaTurno = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.quantidadeAceitaTurno,
+      0
+    )
+    const quantidadeExcedenteTurno = demandasDoSetor.reduce(
+      (soma, demanda) => soma + demanda.quantidadeExcedenteTurno,
+      0
+    )
     const progressoOperacionalPct =
       cargaPlanejadaTp > 0 ? Math.min((cargaRealizadaTp / cargaPlanejadaTp) * 100, 100) : 0
 
@@ -268,6 +352,9 @@ export function mapearSetoresTurnoParaDashboard(
       progressoOperacionalPct,
       cargaPlanejadaTp,
       cargaRealizadaTp,
+      quantidadeBacklogTotal,
+      quantidadeAceitaTurno,
+      quantidadeExcedenteTurno,
       qrCodeToken: setor.qrCodeToken,
       status: deduzirStatusSetor(demandasDoSetor, setor.status),
       iniciadoEm: setor.iniciadoEm,
@@ -299,6 +386,18 @@ export function mapearSetoresTurnoParaDashboard(
         ),
         quantidadeConcluida: demandasDoSetor.reduce(
           (soma, demanda) => soma + demanda.quantidadeConcluida,
+          0
+        ),
+        quantidadeBacklogTotal: demandasDoSetor.reduce(
+          (soma, demanda) => soma + demanda.quantidadeBacklogSetor,
+          0
+        ),
+        quantidadeAceitaTurno: demandasDoSetor.reduce(
+          (soma, demanda) => soma + demanda.quantidadeAceitaTurno,
+          0
+        ),
+        quantidadeExcedenteTurno: demandasDoSetor.reduce(
+          (soma, demanda) => soma + demanda.quantidadeExcedenteTurno,
           0
         ),
         progressoOperacionalPct:
@@ -393,6 +492,18 @@ export function mapearOpsTurnoParaDashboard(
         produtoNomeResumido: resumirNomeProduto(op.produtoNome),
         quantidadePlanejada: op.quantidadePlanejada,
         quantidadeConcluida: op.quantidadeConcluida,
+        quantidadeBacklogTotal: (demandasPorOp.get(op.id) ?? []).reduce(
+          (soma, demanda) => soma + demanda.quantidadeBacklogSetor,
+          0
+        ),
+        quantidadeAceitaTurno: (demandasPorOp.get(op.id) ?? []).reduce(
+          (soma, demanda) => soma + demanda.quantidadeAceitaTurno,
+          0
+        ),
+        quantidadeExcedenteTurno: (demandasPorOp.get(op.id) ?? []).reduce(
+          (soma, demanda) => soma + demanda.quantidadeExcedenteTurno,
+          0
+        ),
         progressoOperacionalPct: op.progressoOperacionalPct,
         status: op.status,
         setores,

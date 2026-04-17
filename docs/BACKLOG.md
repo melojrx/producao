@@ -358,6 +358,31 @@
 - Recalcular o recorte após cada lançamento e retirar do fluxo os itens concluídos
 - Homologação funcional confirmada pelo usuário em `2026-04-07`
 
+## SPRINT 29 — Capacidade setorial sequencial, fila real e kanban operacional
+**Objetivo:** fazer o sistema abandonar a leitura de demanda distribuída simultaneamente para todos os setores e assumir oficialmente um fluxo sequencial por capacidade, fila e movimentação real de saldos entre setores.
+**Entregável:** abertura do turno com carga pendente real por setor, apontamentos respeitando liberação sequencial, carry-over coerente com o setor pendente e dashboard com kanban operacional em tempo real.
+**Status:** ✅ Concluída
+
+- Formalizar no PRD o modelo sequencial por capacidade, fila FIFO e carry-over real
+- Introduzir contratos tipados e funções puras para capacidade, fila e posição atual da OP/lote
+- Corrigir a prévia de abertura do turno para usar apenas carga pendente real por setor e alertar desconformidade de capacidade
+- Propagar no backend a liberação sequencial entre setores, bloqueando excesso acima do lote liberado
+- Exibir o kanban operacional em tempo real na dashboard V2
+- Homologação concluída em `2026-04-16` com `node --test --experimental-strip-types` nos utilitários da sprint e `npx tsc --noEmit`, ambos sem erros
+
+## SPRINT 30 — Capacidade como trava real e parcelamento setorial entre turnos
+**Objetivo:** transformar a capacidade setorial em limitador operacional efetivo do turno, fazendo a OP ser aceita parceladamente por setor e carregando o excedente como backlog setorial para turnos futuros.
+**Entregável:** turno aberto e carry-over trabalhando com `backlog setorial`, `quantidade aceita no turno`, `quantidade concluída` e `saldo excedente`, sem liberar a mesma OP integralmente para todos os setores do mesmo dia.
+**Status:** ✅ Concluída
+
+- Formalizar no PRD o parcelamento setorial entre turnos como comportamento oficial do produto
+- Explicitar contratos de backlog, aceite e excedente sem perder a demanda total original da OP
+- Limitar abertura e edição do turno à capacidade real do setor elegível
+- Respeitar capacidade do setor de destino ao transferir produção entre setores
+- Atualizar dashboard, scanner e apontamentos para distinguir backlog total, aceito no turno, concluído e excedente
+- Homologar cenários com saturação diária repetida e carry-over setorial recorrente
+- Homologação concluída em `2026-04-17` com utilitário puro de carry-over setorial recorrente, testes de saturação repetida entre turnos e `npx tsc --noEmit` sem erros
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

@@ -43,6 +43,18 @@ export type TurnoSetorOperacaoStatusV2 =
   | 'em_andamento'
   | 'concluida'
   | 'encerrada_manualmente'
+export type TurnoSetorFilaStatusV2 =
+  | 'sem_fila'
+  | 'em_fila'
+  | 'liberada'
+  | 'em_producao'
+  | 'parcial'
+  | 'concluida_setor'
+export type DiagnosticoCapacidadeSetorV2 =
+  | 'sem_carga'
+  | 'dentro_capacidade'
+  | 'no_limite'
+  | 'acima_capacidade'
 
 export interface FormActionState {
   erro?: string
@@ -107,6 +119,55 @@ export interface IndicadoresOperacionais {
   cargaRealizadaTp: number
 }
 
+export interface CalculoCapacidadeSetorInput {
+  operadoresAlocados: number
+  minutosTurno: number
+  cargaPendenteMinutos: number
+  tpTotalSetorProduto?: number | null
+}
+
+export interface ResumoCapacidadeSetorV2 {
+  operadoresAlocados: number
+  minutosTurno: number
+  cargaPendenteMinutos: number
+  capacidadeMinutosTotal: number
+  capacidadeMinutosRestante: number
+  capacidadePecas: number | null
+  eficienciaRequeridaPct: number | null
+  diagnosticoCapacidade: DiagnosticoCapacidadeSetorV2
+}
+
+export interface PosicaoFilaSetorV2 {
+  posicaoFila: number | null
+  statusFila: TurnoSetorFilaStatusV2
+}
+
+export interface SnapshotParcelamentoDemandaTurnoV2 {
+  quantidadeBacklogSetor: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
+}
+
+export interface EtapaFluxoSetorV2 {
+  setorId: string
+  setorCodigo: number | null
+  setorNome: string
+  quantidadePlanejada: number
+  quantidadeConcluida: number
+  posicaoFila?: number | null
+  statusFila?: TurnoSetorFilaStatusV2 | null
+}
+
+export interface PosicaoFluxoOpLoteV2 {
+  setorFluxoAtualId: string | null
+  setorFluxoAtualCodigo: number | null
+  setorFluxoAtualNome: string | null
+  ordemFluxoAtual: number | null
+  statusFilaAtual: TurnoSetorFilaStatusV2
+  quantidadePendenteAtual: number
+  quantidadeFinalizada: number
+}
+
 export interface TurnoSetorOpScaneado {
   id: string
   turnoId: string
@@ -162,6 +223,18 @@ export interface TurnoSetorDemandaScaneada {
   progressoOperacionalPct: number
   cargaPlanejadaTp: number
   cargaRealizadaTp: number
+  posicaoFila?: number | null
+  statusFila?: TurnoSetorFilaStatusV2
+  quantidadeBacklogSetor?: number
+  quantidadeAceitaTurno?: number
+  quantidadeExcedenteTurno?: number
+  quantidadePendenteSetor?: number
+  quantidadeLiberadaSetor?: number
+  quantidadeDisponivelApontamento?: number
+  quantidadeBloqueadaAnterior?: number
+  setorAnteriorId?: string | null
+  setorAnteriorCodigo?: number | null
+  setorAnteriorNome?: string | null
   saldoRestante: number
   status: TurnoSetorDemandaStatusV2
   turnoSetorOpLegacyId: string | null
@@ -566,6 +639,12 @@ export interface TurnoOpV2 {
   quantidadePlanejadaOriginal: number
   quantidadePlanejadaRemanescente: number
   turnoOpOrigemId: string | null
+  setorFluxoAtualId?: string | null
+  setorFluxoAtualCodigo?: number | null
+  setorFluxoAtualNome?: string | null
+  ordemFluxoAtual?: number | null
+  statusFilaAtual?: TurnoSetorFilaStatusV2
+  quantidadePendenteAtual?: number
   status: TurnoOpStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null
@@ -584,6 +663,11 @@ export interface TurnoSetorV2 {
   cargaPlanejadaTp: number
   cargaRealizadaTp: number
   qrCodeToken: string
+  operadoresAlocados?: number
+  capacidadeMinutosTotal?: number
+  capacidadeMinutosRestante?: number
+  eficienciaRequeridaPct?: number | null
+  diagnosticoCapacidade?: DiagnosticoCapacidadeSetorV2
   status: TurnoSetorStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null
@@ -596,6 +680,7 @@ export interface TurnoSetorDemandaV2 {
   turnoOpId: string
   setorId: string
   setorCodigo: number
+  setorNome: string
   produtoId: string
   numeroOp: string
   produtoReferencia: string
@@ -606,6 +691,18 @@ export interface TurnoSetorDemandaV2 {
   progressoOperacionalPct: number
   cargaPlanejadaTp: number
   cargaRealizadaTp: number
+  posicaoFila?: number | null
+  statusFila?: TurnoSetorFilaStatusV2
+  quantidadeBacklogSetor?: number
+  quantidadeAceitaTurno?: number
+  quantidadeExcedenteTurno?: number
+  quantidadePendenteSetor?: number
+  quantidadeLiberadaSetor?: number
+  quantidadeDisponivelApontamento?: number
+  quantidadeBloqueadaAnterior?: number
+  setorAnteriorId?: string | null
+  setorAnteriorCodigo?: number | null
+  setorAnteriorNome?: string | null
   status: TurnoSetorDemandaStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null

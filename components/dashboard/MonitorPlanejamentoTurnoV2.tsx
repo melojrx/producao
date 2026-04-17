@@ -17,6 +17,7 @@ import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
 import {
   mapearOpsTurnoParaDashboard,
   mapearSetoresTurnoParaDashboard,
+  type TurnoOpResumoDashboardItem,
 } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {
@@ -37,13 +38,23 @@ interface SecaoComContexto extends TurnoSetorOpV2 {
   numeroOp: string
   produtoNome: string
   produtoReferencia: string
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
+  quantidadeDisponivelApontamento: number
 }
 
 function mapearSecoesComContexto(
   secoes: TurnoSetorOpV2[],
-  ops: TurnoOpV2[]
+  ops: TurnoOpV2[],
+  demandas = [] as PlanejamentoTurnoDashboardV2['demandasSetor']
 ): SecaoComContexto[] {
   const opPorId = new Map(ops.map((op) => [op.id, op]))
+  const demandaPorSecaoLegacyId = new Map(
+    (demandas ?? [])
+      .filter((demanda) => Boolean(demanda.turnoSetorOpLegacyId))
+      .map((demanda) => [demanda.turnoSetorOpLegacyId, demanda] as const)
+  )
 
   return secoes
     .map((secao) => {
@@ -52,11 +63,24 @@ function mapearSecoesComContexto(
         return null
       }
 
+      const demanda =
+        demandaPorSecaoLegacyId.get(secao.id) ??
+        (demandas ?? []).find(
+          (item) => item.turnoOpId === secao.turnoOpId && item.setorId === secao.setorId
+        )
+
       return {
         ...secao,
         numeroOp: op.numeroOp,
         produtoNome: op.produtoNome,
         produtoReferencia: op.produtoReferencia,
+        quantidadeBacklogTotal:
+          demanda?.quantidadeBacklogSetor ?? Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
+        quantidadeAceitaTurno: demanda?.quantidadeAceitaTurno ?? secao.quantidadePlanejada,
+        quantidadeExcedenteTurno: demanda?.quantidadeExcedenteTurno ?? 0,
+        quantidadeDisponivelApontamento:
+          demanda?.quantidadeDisponivelApontamento ??
+          Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0),
       }
     })
     .filter((secao): secao is SecaoComContexto => Boolean(secao))
@@ -96,6 +120,9 @@ export function MonitorPlanejamentoTurnoV2({
     if (!planejamento) {
       return {
         opsEmAndamento: 0,
+        quantidadeBacklogTotal: 0,
+        quantidadeAceitaTurno: 0,
+        quantidadeExcedenteTurno: 0,
         totalPlanejado: 0,
         totalRealizado: 0,
         progressoOperacionalTurnoPct: 0,
@@ -118,14 +145,25 @@ export function MonitorPlanejamentoTurnoV2({
     }
 
     const setoresAtivos = mapearSetoresTurnoParaDashboard(planejamento)
+    const opsResumoLista = mapearOpsTurnoParaDashboard(planejamento)
     const setoresPendentesLista = setoresAtivos.filter((setor) => setor.status !== 'concluida')
     const setoresConcluidosLista = setoresAtivos.filter((setor) => setor.status === 'concluida')
-    const opsAbertasLista = mapearOpsTurnoParaDashboard(planejamento).filter(
-      (op) => op.status !== 'concluida'
-    )
+    const opsAbertasLista = opsResumoLista.filter((op) => op.status !== 'concluida')
 
     return {
       opsEmAndamento: planejamento.ops.filter((op) => op.status === 'em_andamento').length,
+      quantidadeBacklogTotal: opsResumoLista.reduce(
+        (soma, op) => soma + op.quantidadeBacklogTotal,
+        0
+      ),
+      quantidadeAceitaTurno: opsResumoLista.reduce(
+        (soma, op) => soma + op.quantidadeAceitaTurno,
+        0
+      ),
+      quantidadeExcedenteTurno: opsResumoLista.reduce(
+        (soma, op) => soma + op.quantidadeExcedenteTurno,
+        0
+      ),
       totalPlanejado: planejamento.ops.reduce((soma, op) => soma + op.quantidadePlanejada, 0),
       totalRealizado: planejamento.ops.reduce((soma, op) => soma + op.quantidadeConcluida, 0),
       progressoOperacionalTurnoPct:
@@ -176,12 +214,19 @@ export function MonitorPlanejamentoTurnoV2({
     }
 
     const secoes = ordenarSecoes(
-      mapearSecoesComContexto(planejamento.secoesSetorOp, planejamento.ops).filter(
+      mapearSecoesComContexto(
+        planejamento.secoesSetorOp,
+        planejamento.ops,
+        planejamento.demandasSetor
+      ).filter(
         (secao) => secao.turnoOpId === turnoOpSelecionadaId
       )
     )
+    const opResumo =
+      mapearOpsTurnoParaDashboard(planejamento).find((item) => item.id === turnoOpSelecionadaId) ??
+      null
 
-    return { op, secoes }
+    return { op, opResumo, secoes }
   }, [planejamento, turnoOpSelecionadaId])
 
   const turnoAberto = planejamento?.origem === 'aberto'
@@ -212,6 +257,7 @@ export function MonitorPlanejamentoTurnoV2({
         <DashboardVisaoGeralTab resumoMetaMensal={resumoMetaMensal} />
       ) : abaAtiva === 'visao_operacional' && planejamento ? (
         <DashboardVisaoOperacionalTab
+          planejamento={planejamento}
           turnoAberto={turnoAberto}
           metaGrupo={metaGrupo}
           mediaTpProduto={mediaTpProduto}
@@ -236,6 +282,7 @@ export function MonitorPlanejamentoTurnoV2({
       {opSelecionada && planejamento ? (
         <ModalDetalhesOpTurno
           op={opSelecionada.op}
+          opResumo={opSelecionada.opResumo}
           secoes={opSelecionada.secoes}
           iniciadoEmTurno={planejamento.turno.iniciadoEm}
           produtosCatalogo={produtosCatalogo}

@@ -9,6 +9,14 @@ import {
 } from '@/lib/utils/consolidacao-turno'
 import { calcularPercentualOperacional } from '@/lib/utils/progresso-operacional'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
+import { resolverPosicaoAtualFluxoOpLote } from '@/lib/utils/capacidade-setor'
+import { enriquecerDemandasComFluxoSequencial } from '@/lib/utils/fluxo-sequencial-turno'
+import {
+  aplicarCapacidadeOperacionalDemandas,
+  hidratarSetoresTurnoComCapacidade,
+  limitarOperacoesTurnoAoAceiteDemandas,
+  limitarSecoesTurnoAoAceiteDemandas,
+} from '@/lib/utils/hidratacao-capacidade-setor-turno'
 import type {
   PlanejamentoTurnoDashboardV2,
   PlanejamentoTurnoV2,
@@ -569,7 +577,7 @@ async function listarTurnoSetorDemandas(
   const opsPorId = new Map(opsTurno.map((op) => [op.id, op]))
 
   return demandas
-    .map((demanda) => {
+    .map((demanda, indiceOriginal) => {
       const setor = setoresPorId.get(demanda.setor_id)
       const op = opsPorId.get(demanda.turno_op_id)
 
@@ -584,6 +592,7 @@ async function listarTurnoSetorDemandas(
         turnoOpId: demanda.turno_op_id,
         setorId: demanda.setor_id,
         setorCodigo: setor.codigo,
+        setorNome: setor.nome,
         produtoId: demanda.produto_id,
         numeroOp: op.numeroOp,
         produtoReferencia: op.produtoReferencia,
@@ -598,22 +607,74 @@ async function listarTurnoSetorDemandas(
         iniciadoEm: demanda.iniciado_em,
         encerradoEm: demanda.encerrado_em,
         turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+        indiceOriginal,
       }
     })
-    .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
+    .filter(
+      (
+        demanda
+      ): demanda is TurnoSetorDemandaV2 & {
+        indiceOriginal: number
+      } => Boolean(demanda)
+    )
     .sort((primeiraDemanda, segundaDemanda) => {
       const comparacaoSetor = compararSetoresPorOrdem(primeiraDemanda, segundaDemanda)
       if (comparacaoSetor !== 0) {
         return comparacaoSetor
       }
 
-      const comparacaoOp = primeiraDemanda.numeroOp.localeCompare(segundaDemanda.numeroOp)
-      if (comparacaoOp !== 0) {
-        return comparacaoOp
-      }
-
-      return primeiraDemanda.produtoNome.localeCompare(segundaDemanda.produtoNome)
+      return primeiraDemanda.indiceOriginal - segundaDemanda.indiceOriginal
     })
+    .map(({ indiceOriginal: _indiceOriginal, ...demanda }) => demanda)
+}
+
+function enriquecerDemandasSetorComFila(
+  demandas: TurnoSetorDemandaV2[]
+): TurnoSetorDemandaV2[] {
+  return enriquecerDemandasComFluxoSequencial(demandas)
+}
+
+function enriquecerOpsComPosicaoFluxo(
+  ops: TurnoOpV2[],
+  demandas: TurnoSetorDemandaV2[]
+): TurnoOpV2[] {
+  const demandasPorOp = new Map<string, TurnoSetorDemandaV2[]>()
+
+  for (const demanda of demandas) {
+    const demandasOp = demandasPorOp.get(demanda.turnoOpId)
+
+    if (demandasOp) {
+      demandasOp.push(demanda)
+      continue
+    }
+
+    demandasPorOp.set(demanda.turnoOpId, [demanda])
+  }
+
+  return ops.map((op) => {
+    const demandasOp = demandasPorOp.get(op.id) ?? []
+    const posicaoFluxo = resolverPosicaoAtualFluxoOpLote(
+      demandasOp.map((demanda) => ({
+        setorId: demanda.setorId,
+        setorCodigo: demanda.setorCodigo,
+        setorNome: demanda.setorNome,
+        quantidadePlanejada: demanda.quantidadePlanejada,
+        quantidadeConcluida: demanda.quantidadeConcluida,
+        posicaoFila: demanda.posicaoFila,
+        statusFila: demanda.statusFila,
+      }))
+    )
+
+    return {
+      ...op,
+      setorFluxoAtualId: posicaoFluxo.setorFluxoAtualId,
+      setorFluxoAtualCodigo: posicaoFluxo.setorFluxoAtualCodigo,
+      setorFluxoAtualNome: posicaoFluxo.setorFluxoAtualNome,
+      ordemFluxoAtual: posicaoFluxo.ordemFluxoAtual,
+      statusFilaAtual: posicaoFluxo.statusFilaAtual,
+      quantidadePendenteAtual: posicaoFluxo.quantidadePendenteAtual,
+    }
+  })
 }
 
 export async function buscarPlanejamentoTurnoPorIdClient(
@@ -652,10 +713,34 @@ export async function buscarPlanejamentoTurnoPorIdClient(
   ])
 
   const demandasSetorBrutas = await listarTurnoSetorDemandas(turno.id, ops)
-  const demandasSetor = consolidarDemandasPorOperacoes(demandasSetorBrutas, operacoesSecao)
-  const secoesSetorOpConsolidadas = consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecao)
-  const setoresAtivosConsolidados = consolidarSetoresPorDemandas(setoresAtivos, demandasSetor)
-  const opsConsolidadas = consolidarOpsPorDemandas(ops, demandasSetor)
+  const demandasSetorFluxo = enriquecerDemandasSetorComFila(
+    consolidarDemandasPorOperacoes(demandasSetorBrutas, operacoesSecao)
+  )
+  const demandasSetor = aplicarCapacidadeOperacionalDemandas({
+    turno: mapearTurno(turno),
+    demandasSetor: demandasSetorFluxo,
+    operacoesSecao,
+    ops,
+  })
+  const operacoesSecaoLimitadas = limitarOperacoesTurnoAoAceiteDemandas({
+    operacoesSecao,
+    demandasSetor,
+  })
+  const secoesSetorOpConsolidadas = limitarSecoesTurnoAoAceiteDemandas({
+    secoesSetorOp: consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecaoLimitadas),
+    demandasSetor,
+  })
+  const setoresAtivosConsolidados = hidratarSetoresTurnoComCapacidade({
+    turno: mapearTurno(turno),
+    setoresAtivos: consolidarSetoresPorDemandas(setoresAtivos, demandasSetor),
+    demandasSetor,
+    operacoesSecao: operacoesSecaoLimitadas,
+    ops,
+  })
+  const opsConsolidadas = enriquecerOpsComPosicaoFluxo(
+    consolidarOpsPorDemandas(ops, demandasSetor),
+    demandasSetor
+  )
 
   return {
     turno: mapearTurno(turno),
@@ -665,7 +750,7 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     setoresAtivos: setoresAtivosConsolidados,
     demandasSetor,
     secoesSetorOp: secoesSetorOpConsolidadas,
-    operacoesSecao,
+    operacoesSecao: operacoesSecaoLimitadas,
     eficienciaOperacional,
   }
 }

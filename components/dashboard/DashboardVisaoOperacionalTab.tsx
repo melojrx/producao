@@ -3,9 +3,14 @@
 import { Boxes, ClipboardList, PackageCheck, Target } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { GraficoMetaGrupoTurnoV2 } from '@/components/dashboard/GraficoMetaGrupoTurnoV2'
+import { KanbanOperacionalTurno } from '@/components/dashboard/KanbanOperacionalTurno'
 import { ResumoOpTurnoCard } from '@/components/dashboard/ResumoOpTurnoCard'
 import { ResumoSetorTurnoCard } from '@/components/dashboard/ResumoSetorTurnoCard'
-import type { ComparativoMetaGrupoHoraItem, TurnoOpV2 } from '@/types'
+import type {
+  ComparativoMetaGrupoHoraItem,
+  PlanejamentoTurnoDashboardV2,
+  TurnoOpV2,
+} from '@/types'
 import type {
   TurnoOpResumoDashboardItem,
   TurnoSetorDashboardItem,
@@ -13,6 +18,9 @@ import type {
 
 interface ResumoVisaoOperacionalDashboard {
   opsEmAndamento: number
+  quantidadeBacklogTotal: number
+  quantidadeAceitaTurno: number
+  quantidadeExcedenteTurno: number
   totalPlanejado: number
   totalRealizado: number
   progressoOperacionalTurnoPct: number
@@ -32,6 +40,7 @@ interface ResumoVisaoOperacionalDashboard {
 }
 
 interface DashboardVisaoOperacionalTabProps {
+  planejamento: PlanejamentoTurnoDashboardV2
   turnoAberto: boolean
   metaGrupo: number
   mediaTpProduto: number
@@ -44,6 +53,7 @@ interface DashboardVisaoOperacionalTabProps {
 }
 
 export function DashboardVisaoOperacionalTab({
+  planejamento,
   turnoAberto,
   metaGrupo,
   mediaTpProduto,
@@ -56,7 +66,7 @@ export function DashboardVisaoOperacionalTab({
 }: DashboardVisaoOperacionalTabProps) {
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <CardKPI
           titulo="Capacidade Produtiva"
           valor={metaGrupo}
@@ -71,23 +81,30 @@ export function DashboardVisaoOperacionalTab({
           destaque="blue"
         />
         <CardKPI
-          titulo="Planejado"
-          valor={resumo.totalPlanejado}
-          descricao="Soma planejada das OPs do turno, sem supercontar o mesmo produto por setor."
+          titulo="Backlog total"
+          valor={resumo.quantidadeBacklogTotal}
+          descricao="Fila real ainda pendente nos setores do turno, já sem inflar setores futuros que ainda nao receberam transferencia."
           icone={ClipboardList}
           destaque="slate"
         />
         <CardKPI
+          titulo="Aceito no turno"
+          valor={resumo.quantidadeAceitaTurno}
+          descricao="Parcela do backlog que a capacidade diaria realmente absorveu neste turno e ficou liberada para trabalho."
+          icone={PackageCheck}
+          destaque="blue"
+        />
+        <CardKPI
           titulo="Peças completas"
           valor={resumo.totalRealizado}
-          descricao="Quantidade concluída do turno, preservando a leitura de peças completas separada do progresso operacional."
-          icone={PackageCheck}
+          descricao="Quantidade concluida do turno na leitura administrativa de produtos completos, separada do backlog setorial."
+          icone={Boxes}
           destaque="emerald"
         />
         <CardKPI
-          titulo="Progresso do turno"
-          valor={resumo.progressoOperacionalTurnoPct}
-          descricao="Avanço operacional ponderado por T.P. das operações, sem depender apenas das peças completas."
+          titulo="Excedente"
+          valor={resumo.quantidadeExcedenteTurno}
+          descricao="Saldo que nao coube na capacidade do dia e precisa seguir como backlog real para os proximos turnos."
           icone={Boxes}
           destaque="amber"
         />
@@ -169,6 +186,12 @@ export function DashboardVisaoOperacionalTab({
         estaCarregando={estaCarregandoGrafico}
         desabilitado={!turnoAberto}
         motivoDesabilitado="O gráfico horário de capacidade é dinâmico e volta a ser recalculado quando um novo turno for aberto."
+      />
+
+      <KanbanOperacionalTurno
+        planejamento={planejamento}
+        onSelecionarOp={onSelecionarOp}
+        onSelecionarSetor={onSelecionarSetor}
       />
 
       <section className="grid gap-6 xl:grid-cols-2">
