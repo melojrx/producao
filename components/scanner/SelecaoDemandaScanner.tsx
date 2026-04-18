@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, Boxes, PackageSearch } from 'lucide-react'
+import { ArrowRight, Boxes, GitBranch, Link2, PackageSearch } from 'lucide-react'
 import type {
   OperadorScaneado,
   TurnoSetorDemandaScaneada,
@@ -110,6 +110,37 @@ export function SelecaoDemandaScanner({
               <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-cyan-200/80">
                 Progresso operacional {demanda.progressoOperacionalPct.toFixed(0)}%
               </p>
+
+              {demanda.etapaFluxoChave === 'frente' || demanda.etapaFluxoChave === 'costa' ? (
+                <div className="mt-3 rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2 text-xs text-fuchsia-100">
+                  <div className="flex items-start gap-2">
+                    <GitBranch size={14} className="mt-0.5 shrink-0" />
+                    <p>
+                      Bifurcação oficial ativa: esta OP segue simultaneamente em Frente e Costa
+                      após Preparação.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {(demanda.quantidadeSincronizadaMontagem ?? 0) > 0 ||
+              (demanda.quantidadeBloqueadaSincronizacao ?? 0) > 0 ? (
+                <div className="mt-3 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+                  <div className="flex items-start gap-2">
+                    <Link2 size={14} className="mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p>
+                        Montagem sincronizada:{' '}
+                        <strong>{demanda.quantidadeSincronizadaMontagem ?? 0}</strong>
+                      </p>
+                      <p>
+                        Ainda bloqueada pela trilha irmã:{' '}
+                        <strong>{demanda.quantidadeBloqueadaSincronizacao ?? 0}</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
                 {demandaDisponivel ? 'Selecionar OP/produto' : 'Demanda sem saldo'}

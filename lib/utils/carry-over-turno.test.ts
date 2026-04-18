@@ -188,3 +188,106 @@ test('mantém o parcelamento setorial íntegro quando o carry-over se repete em 
     ]
   )
 })
+
+test('limita o carry-over de Montagem à interseção real entre Frente e Costa', () => {
+  const snapshots = normalizarDemandasCarryOverEntreTurnos({
+    quantidadePlanejadaDestino: 100,
+    demandasOrigem: [
+      {
+        id: 'prep-paralelo',
+        turnoOpId: 'turno-op-paralelo',
+        setorId: 'setor-preparacao',
+        setorCodigo: 10,
+        setorNome: 'Preparação',
+        quantidadePlanejada: 100,
+        quantidadeRealizada: 100,
+        status: 'concluida',
+        iniciadoEm: '2026-04-17T08:00:00.000Z',
+        encerradoEm: '2026-04-17T09:00:00.000Z',
+      },
+      {
+        id: 'frente-paralela',
+        turnoOpId: 'turno-op-paralelo',
+        setorId: 'setor-frente',
+        setorCodigo: 20,
+        setorNome: 'Frente',
+        quantidadePlanejada: 100,
+        quantidadeRealizada: 20,
+        status: 'em_andamento',
+        iniciadoEm: '2026-04-17T09:00:00.000Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'costa-paralela',
+        turnoOpId: 'turno-op-paralelo',
+        setorId: 'setor-costa',
+        setorCodigo: 30,
+        setorNome: 'Costa',
+        quantidadePlanejada: 100,
+        quantidadeRealizada: 70,
+        status: 'em_andamento',
+        iniciadoEm: '2026-04-17T09:00:00.000Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'montagem-paralela',
+        turnoOpId: 'turno-op-paralelo',
+        setorId: 'setor-montagem',
+        setorCodigo: 40,
+        setorNome: 'Montagem',
+        quantidadePlanejada: 100,
+        quantidadeRealizada: 30,
+        status: 'em_andamento',
+        iniciadoEm: '2026-04-17T10:00:00.000Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'final-paralelo',
+        turnoOpId: 'turno-op-paralelo',
+        setorId: 'setor-final',
+        setorCodigo: 50,
+        setorNome: 'Final',
+        quantidadePlanejada: 100,
+        quantidadeRealizada: 0,
+        status: 'planejada',
+        iniciadoEm: null,
+        encerradoEm: null,
+      },
+    ],
+  })
+
+  assert.deepEqual(
+    snapshots.map((snapshot) => ({
+      setorId: snapshot.setorId,
+      quantidadeRealizadaDestino: snapshot.quantidadeRealizadaDestino,
+      quantidadeLiberadaOrigem: snapshot.quantidadeLiberadaOrigem,
+    })),
+    [
+      {
+        setorId: 'setor-preparacao',
+        quantidadeRealizadaDestino: 100,
+        quantidadeLiberadaOrigem: 100,
+      },
+      {
+        setorId: 'setor-frente',
+        quantidadeRealizadaDestino: 20,
+        quantidadeLiberadaOrigem: 100,
+      },
+      {
+        setorId: 'setor-costa',
+        quantidadeRealizadaDestino: 70,
+        quantidadeLiberadaOrigem: 100,
+      },
+      {
+        setorId: 'setor-montagem',
+        quantidadeRealizadaDestino: 20,
+        quantidadeLiberadaOrigem: 20,
+      },
+      {
+        setorId: 'setor-final',
+        quantidadeRealizadaDestino: 0,
+        quantidadeLiberadaOrigem: 30,
+      },
+    ]
+  )
+})

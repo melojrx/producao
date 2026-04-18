@@ -4,6 +4,8 @@ import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Filter,
+  GitBranch,
+  Link2,
   Minus,
   Package,
   Plus,
@@ -16,6 +18,7 @@ import {
 } from '@/lib/actions/producao'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
+  EtapaFluxoChaveV2,
   PlanejamentoTurnoV2,
   TurnoOperadorV2,
   TurnoSetorOperacaoStatusV2,
@@ -34,10 +37,13 @@ interface SecaoComContexto extends TurnoSetorOpV2 {
   numeroOp: string
   produtoNome: string
   produtoReferencia: string
+  etapaFluxoChave: EtapaFluxoChaveV2 | undefined
   quantidadeBacklogTotal: number
   quantidadeAceitaTurno: number
   quantidadeExcedenteTurno: number
   quantidadeDisponivelApontamento: number
+  quantidadeSincronizadaMontagem: number
+  quantidadeBloqueadaSincronizacao: number
 }
 
 interface LancamentoDraft {
@@ -118,6 +124,7 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
         numeroOp: op.numeroOp,
         produtoNome: op.produtoNome,
         produtoReferencia: op.produtoReferencia,
+        etapaFluxoChave: demanda?.etapaFluxoChave,
         quantidadeBacklogTotal:
           demanda?.quantidadeBacklogSetor ??
           Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
@@ -126,6 +133,8 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
         quantidadeDisponivelApontamento:
           demanda?.quantidadeDisponivelApontamento ??
           Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0),
+        quantidadeSincronizadaMontagem: demanda?.quantidadeSincronizadaMontagem ?? 0,
+        quantidadeBloqueadaSincronizacao: demanda?.quantidadeBloqueadaSincronizacao ?? 0,
       }
     })
     .filter((secao): secao is SecaoComContexto => Boolean(secao))
@@ -763,6 +772,39 @@ export function PainelApontamentosSupervisor({
                   {' · '}
                   Progresso operacional: <span className="font-semibold">{secaoSelecionada.progressoOperacionalPct.toFixed(0)}%</span>
                 </div>
+
+                {secaoSelecionada.etapaFluxoChave === 'frente' ||
+                secaoSelecionada.etapaFluxoChave === 'costa' ? (
+                  <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm text-fuchsia-900">
+                    <div className="flex items-start gap-2">
+                      <GitBranch size={16} className="mt-0.5 shrink-0" />
+                      <p>
+                        Esta seção participa da bifurcação oficial da OP. O mesmo produto pode
+                        seguir simultaneamente em <strong>Frente</strong> e <strong>Costa</strong>{' '}
+                        sem colapsar as duas trilhas em uma só.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {secaoSelecionada.quantidadeSincronizadaMontagem > 0 ||
+                secaoSelecionada.quantidadeBloqueadaSincronizacao > 0 ? (
+                  <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                    <div className="flex items-start gap-2">
+                      <Link2 size={16} className="mt-0.5 shrink-0" />
+                      <div className="grid gap-1 md:grid-cols-2 md:gap-4">
+                        <p>
+                          Montagem já sincronizada:{' '}
+                          <strong>{secaoSelecionada.quantidadeSincronizadaMontagem}</strong>
+                        </p>
+                        <p>
+                          Ainda bloqueada pela trilha irmã:{' '}
+                          <strong>{secaoSelecionada.quantidadeBloqueadaSincronizacao}</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-4">

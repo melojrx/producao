@@ -1,12 +1,14 @@
 'use client'
 
-import { AlertTriangle, ArrowRight, Factory, Timer, Users } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Factory, GitBranch, Link2, Timer, Users } from 'lucide-react'
 import {
   construirColunasKanbanOperacional,
+  resumirFluxoParaleloDemandaKanban,
   type KanbanOperacionalColuna,
 } from '@/lib/utils/kanban-operacional-turno'
 import type {
   DiagnosticoCapacidadeSetorV2,
+  EtapaFluxoChaveV2,
   PlanejamentoTurnoDashboardV2,
   TurnoSetorFilaStatusV2,
 } from '@/types'
@@ -27,6 +29,35 @@ function formatarQuantidade(valor?: number | null): string {
 
 function formatarMinutos(valor?: number | null): string {
   return `${formatarQuantidade(valor)} min`
+}
+
+function formatarEtapaFluxo(etapa: EtapaFluxoChaveV2): string {
+  switch (etapa) {
+    case 'preparacao':
+      return 'Preparacao'
+    case 'frente':
+      return 'Frente'
+    case 'costa':
+      return 'Costa'
+    case 'montagem':
+      return 'Montagem'
+    case 'final':
+      return 'Final'
+    default:
+      return etapa
+  }
+}
+
+function formatarListaCurta(itens: string[]): string {
+  if (itens.length <= 1) {
+    return itens[0] ?? ''
+  }
+
+  if (itens.length === 2) {
+    return `${itens[0]} e ${itens[1]}`
+  }
+
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`
 }
 
 function formatarStatusFila(status: TurnoSetorFilaStatusV2): string {
@@ -95,6 +126,7 @@ export function KanbanOperacionalTurno({
   onSelecionarSetor,
 }: KanbanOperacionalTurnoProps) {
   const colunas: KanbanOperacionalColuna[] = construirColunasKanbanOperacional(planejamento)
+  const opsPorId = new Map(planejamento.ops.map((op) => [op.id, op]))
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -110,7 +142,8 @@ export function KanbanOperacionalTurno({
             </h2>
             <p className="text-sm text-slate-600">
               Cada coluna representa o setor fisico atual da OP ou do saldo efetivamente liberado.
-              O quadro evita duplicacao ficticia e evidencia fila, capacidade e gargalos.
+              O quadro evita duplicacao ficticia e evidencia fila, capacidade e gargalos. Na
+              bifurcacao oficial, a mesma OP pode aparecer simultaneamente em Frente e Costa.
             </p>
           </div>
         </div>
@@ -263,85 +296,161 @@ export function KanbanOperacionalTurno({
                       Nenhum lote liberado ou em producao neste setor agora.
                     </div>
                   ) : (
-                    coluna.demandasEmQuadro.map((demanda) => (
-                      <button
-                        key={demanda.id}
-                        type="button"
-                        onClick={() => onSelecionarOp(demanda.turnoOpId)}
-                        className="w-full rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                              OP {demanda.numeroOp}
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-slate-900">
-                              {demanda.produtoReferencia} · {demanda.produtoNome}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <span
-                              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${corStatusFila(
-                                demanda.statusFila ?? 'sem_fila'
-                              )}`}
-                            >
-                              {formatarStatusFila(demanda.statusFila ?? 'sem_fila')}
-                            </span>
-                            {demanda.posicaoFila ? (
-                              <span className="text-xs font-semibold text-slate-500">
-                                Fila #{demanda.posicaoFila}
+                    coluna.demandasEmQuadro.map((demanda) => {
+                      const op = opsPorId.get(demanda.turnoOpId)
+                      const resumoParalelo = resumirFluxoParaleloDemandaKanban(op, demanda)
+                      const etapasAtivasTexto = resumoParalelo.posicoesFluxoAtivas.map((posicao) =>
+                        formatarEtapaFluxo(posicao.etapa)
+                      )
+                      const setoresSimultaneosTexto = resumoParalelo.posicoesSimultaneas.map(
+                        (posicao) => posicao.setorNome
+                      )
+                      const exibirBlocoParalelo =
+                        resumoParalelo.fluxoParaleloAtivo &&
+                        (resumoParalelo.etapaAtual === 'frente' ||
+                          resumoParalelo.etapaAtual === 'costa')
+                      const exibirSincronizacaoMontagem =
+                        resumoParalelo.quantidadeSincronizadaMontagem > 0 ||
+                        resumoParalelo.quantidadeBloqueadaSincronizacao > 0
+
+                      return (
+                        <button
+                          key={demanda.id}
+                          type="button"
+                          onClick={() => onSelecionarOp(demanda.turnoOpId)}
+                          className="w-full rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                OP {demanda.numeroOp}
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-slate-900">
+                                {demanda.produtoReferencia} · {demanda.produtoNome}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <span
+                                className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${corStatusFila(
+                                  demanda.statusFila ?? 'sem_fila'
+                                )}`}
+                              >
+                                {formatarStatusFila(demanda.statusFila ?? 'sem_fila')}
                               </span>
-                            ) : null}
+                              {demanda.posicaoFila ? (
+                                <span className="text-xs font-semibold text-slate-500">
+                                  Fila #{demanda.posicaoFila}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                          <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Backlog
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-slate-900">
-                              {formatarQuantidade(demanda.quantidadeBacklogSetor)}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl bg-blue-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-                              Aceito
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-blue-900">
-                              {formatarQuantidade(demanda.quantidadeAceitaTurno)}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl bg-emerald-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-                              Concluido
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-emerald-900">
-                              {formatarQuantidade(demanda.quantidadeConcluida)}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl bg-amber-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                              Excedente
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-amber-900">
-                              {formatarQuantidade(demanda.quantidadeExcedenteTurno)}
-                            </p>
-                          </div>
-                        </div>
+                          {etapasAtivasTexto.length > 1 ? (
+                            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                              <p className="font-semibold uppercase tracking-wide text-slate-500">
+                                Etapas ativas agora
+                              </p>
+                              <p className="mt-1">{formatarListaCurta(etapasAtivasTexto)}</p>
+                            </div>
+                          ) : null}
 
-                        <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
-                          <span>
-                            Disponivel agora:{' '}
-                            {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
-                          </span>
-                          <span className="inline-flex items-center gap-1 font-semibold text-blue-700">
-                            Abrir OP
-                            <ArrowRight size={14} />
-                          </span>
-                        </div>
-                      </button>
-                    ))
+                          {exibirBlocoParalelo ? (
+                            <div className="mt-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
+                              <div className="flex items-start gap-2">
+                                <GitBranch size={15} className="mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="font-semibold uppercase tracking-wide">
+                                    Bifurcacao oficial ativa
+                                  </p>
+                                  <p className="mt-1">
+                                    Esta OP tambem esta ativa em{' '}
+                                    {formatarListaCurta(setoresSimultaneosTexto)}.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {exibirSincronizacaoMontagem ? (
+                            <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                              <div className="flex items-start gap-2">
+                                <Link2 size={15} className="mt-0.5 shrink-0" />
+                                <div className="grid gap-1 sm:grid-cols-2 sm:gap-3">
+                                  <div>
+                                    <p className="font-semibold uppercase tracking-wide">
+                                      Montagem sincronizada
+                                    </p>
+                                    <p className="mt-1">
+                                      {formatarQuantidade(
+                                        resumoParalelo.quantidadeSincronizadaMontagem
+                                      )}{' '}
+                                      peca(s)
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold uppercase tracking-wide">
+                                      Ainda bloqueada
+                                    </p>
+                                    <p className="mt-1">
+                                      {formatarQuantidade(
+                                        resumoParalelo.quantidadeBloqueadaSincronizacao
+                                      )}{' '}
+                                      peca(s)
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                            <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                Backlog
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-slate-900">
+                                {formatarQuantidade(demanda.quantidadeBacklogSetor)}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-blue-50 px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                                Aceito
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-blue-900">
+                                {formatarQuantidade(demanda.quantidadeAceitaTurno)}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-emerald-50 px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                                Concluido
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-emerald-900">
+                                {formatarQuantidade(demanda.quantidadeConcluida)}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-amber-50 px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                                Excedente
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-amber-900">
+                                {formatarQuantidade(demanda.quantidadeExcedenteTurno)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
+                            <span>
+                              Disponivel agora:{' '}
+                              {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
+                            </span>
+                            <span className="inline-flex items-center gap-1 font-semibold text-blue-700">
+                              Abrir OP
+                              <ArrowRight size={14} />
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })
                   )}
                 </div>
 

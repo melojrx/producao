@@ -3020,3 +3020,193 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Risco:** Alto
   **Evidência:** o carry-over entre turnos passou a usar um utilitário puro para normalizar o progresso setorial sobre o saldo remanescente da OP, preservando a continuidade do setor pendente sem reabrir artificialmente setores já concluídos dentro do lote remanescente. A Sprint 30 agora cobre explicitamente cenários de saturação diária repetida com carry-over recorrente por meio de testes automatizados do parcelamento entre turnos.
   Implementado em `lib/utils/carry-over-turno.ts`, `lib/utils/carry-over-turno.test.ts` e `lib/actions/turnos.ts`. A action de abertura do turno passou a reutilizar `calcularQuantidadePlanejadaRemanescenteCarryOver()` e `normalizarDemandasCarryOverEntreTurnos()` ao selecionar pendências e reidratar o progresso do turno anterior, eliminando a lógica ad hoc do carry-over. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/carry-over-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+## SPRINT 31 — Fluxo paralelo com sincronização parcial em Montagem
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 30 concluída e confirmação explícita do usuário para abrir a evolução do domínio em `2026-04-17`.
+**Objetivo:** substituir a leitura estritamente linear `Preparação -> Frente -> Costa -> Montagem -> Final` por um fluxo oficial com bifurcação paralela `Frente + Costa` e sincronização parcial por quantidade em `Montagem`, sem perder capacidade, fila, carry-over e simplicidade operacional.
+
+**Decisões de produto homologadas para esta sprint:**
+- `Preparação` continua sendo a etapa inicial obrigatória
+- ao concluir `Preparação`, a OP deve liberar simultaneamente `Frente` e `Costa`
+- `Frente` e `Costa` passam a funcionar como trilhas paralelas independentes da mesma OP
+- `Montagem` passa a depender simultaneamente de `Frente` e `Costa`
+- a liberação de `Montagem` é parcial por quantidade, e não apenas após fechamento total das duas trilhas
+- a quantidade liberada para `Montagem` deve ser limitada à interseção real já concluída entre `Frente` e `Costa`
+- a mesma OP pode aparecer simultaneamente em `Frente` e `Costa` no kanban, porque essa simultaneidade passa a ser oficial no domínio
+- fora da bifurcação oficial, o sistema continua proibindo duplicação fictícia da mesma OP em múltiplos setores
+- capacidade setorial, fila FIFO, backlog aceito e carry-over continuam válidos, mas agora precisam operar também em um fluxo com dependências múltiplas
+
+- [x] **HU 31.1 — Como produto, quero formalizar a proposta técnica do fluxo paralelo com sincronização parcial, para que a próxima implementação altere o domínio com clareza e sem regressão conceitual.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - formalizar no `docs/PRD.md` que `Frente` e `Costa` passam a ser etapas paralelas oficiais após `Preparação`
+  - formalizar que `Montagem` depende simultaneamente das duas trilhas e libera apenas a quantidade sincronizada
+  - formalizar o impacto no kanban, no carry-over, no scanner/apontamentos e nos contratos tipados
+  - abrir a nova sprint em `docs/TASKS.md` e `docs/BACKLOG.md` com proposta objetiva de implementação
+  - registrar a ordem segura de entrega sem ainda codar a evolução
+
+  Regras:
+  - a proposta não pode recriar o sistema nem romper o modelo atual de capacidade em minutos
+  - a proposta deve preservar o que já existe de backlog setorial, aceite no turno, fila e carry-over
+  - a simultaneidade permitida deve ser explícita e restrita à bifurcação oficial do fluxo
+  - a sincronização de `Montagem` deve ser parcial por quantidade usando a interseção real entre `Frente` e `Costa`
+
+  Proposta técnica objetiva:
+  - Premissa central do domínio:
+    o fluxo deixa de ser linear simples e passa a ser um grafo dirigido com `fork/join` controlado, sem abandonar capacidade em minutos, fila FIFO, backlog setorial e carry-over.
+    A bifurcação oficial é:
+
+    ```text
+    Preparação
+         ↓
+      Frente
+         ↘
+          Montagem → Final
+         ↗
+       Costa
+    ```
+
+    `Frente` e `Costa` passam a ser trilhas paralelas oficiais da mesma OP.
+    `Montagem` passa a ser a etapa oficial de sincronização parcial entre as duas trilhas.
+  - Regra fechada do fork em `Preparação`:
+    o avanço de `Preparação` não transfere uma parte para `Frente` e outra para `Costa`.
+    Ele cria dois tetos independentes sobre a mesma quantidade preparada.
+    A regra operacional obrigatória passa a ser:
+
+    ```text
+    quantidade_liberada_frente = quantidade_concluida_preparacao
+    quantidade_disponivel_frente =
+      MAX(quantidade_liberada_frente - quantidade_realizada_frente, 0)
+
+    quantidade_liberada_costa = quantidade_concluida_preparacao
+    quantidade_disponivel_costa =
+      MAX(quantidade_liberada_costa - quantidade_realizada_costa, 0)
+    ```
+
+    Isso significa que `Preparação` não pode ser “consumida duas vezes”.
+    `Frente` e `Costa` recebem o mesmo teto liberado por `Preparação`, mas cada uma mantém progresso próprio.
+  - Regra fechada do join em `Montagem`:
+    `Montagem` deixa de depender de uma predecessora única e passa a depender simultaneamente de `Frente` e `Costa`.
+    A liberação é sempre parcial por interseção quantitativa:
+
+    ```text
+    quantidade_liberada_montagem =
+      MIN(quantidade_concluida_frente, quantidade_concluida_costa)
+
+    quantidade_disponivel_montagem =
+      MAX(quantidade_liberada_montagem - quantidade_realizada_montagem, 0)
+    ```
+
+    Se `Frente = 40` e `Costa = 25`, `Montagem` pode receber no máximo `25`.
+    Depois de `Montagem`, o fluxo volta a ser estritamente sequencial até `Final`.
+  - Impacto no kanban:
+    a dashboard deixa de assumir “um card por OP em uma única coluna” como regra universal.
+    A mesma OP passa a poder existir simultaneamente nas colunas `Frente` e `Costa`, e somente nessa bifurcação oficial.
+    Fora dessa bifurcação, continua proibida a duplicação fictícia da OP em múltiplas colunas.
+    `Montagem` deve mostrar apenas o saldo sincronizado entre as duas trilhas.
+    A leitura visual precisa distinguir:
+    - backlog próprio de `Frente`
+    - backlog próprio de `Costa`
+    - quantidade já sincronizada para `Montagem`
+    - quantidade ainda bloqueada em `Montagem` por falta de conclusão da outra trilha
+  - Impacto no carry-over:
+    o carry-over deixa de reabrir a OP em um único “setor pendente mais avançado” quando a OP estiver na bifurcação paralela.
+    O novo turno deve conseguir reabrir separadamente:
+    - a pendência de `Frente`
+    - a pendência de `Costa`
+    - a parcela já sincronizada e pendente em `Montagem`
+    - a parcela ainda bloqueada em `Montagem` por falta de conclusão na trilha irmã
+    `Montagem` nunca pode renascer acima de `MIN(concluído em Frente, concluído em Costa)`.
+  - Impacto no scanner/apontamento:
+    o scanner e o apontamento do supervisor deixam de inferir disponibilidade downstream apenas do setor imediatamente anterior.
+    `Montagem` passa a validar disponibilidade contra duas fontes:
+    - concluído em `Frente`
+    - concluído em `Costa`
+    A UI continua simples, mas o backend precisa bloquear qualquer apontamento em `Montagem` acima da interseção real já concluída nas duas trilhas.
+  - Impacto nas estruturas tipadas atuais:
+    o domínio tipado precisa sair da leitura implícita de “fluxo linear com setor anterior único”.
+    Os contratos passam a precisar refletir explicitamente:
+    - etapa com predecessora única
+    - etapa com múltiplas sucessoras paralelas
+    - etapa com múltiplas predecessoras e sincronização parcial
+    `TurnoSetorDemandaV2`, `TurnoOpV2` e os utilitários de fluxo/capacidade precisam expor semântica suficiente para representar:
+    - mais de uma etapa ativa na mesma OP sem parecer duplicação indevida
+    - uma quantidade sincronizada para `Montagem`
+    - uma quantidade bloqueada por falta de sincronização entre as trilhas
+  - Ordem segura de entrega:
+    1. introduzir contratos tipados e funções puras para dependências paralelas e sincronização parcial
+    2. adaptar queries de fluxo, planejamento e scanner para calcular `Montagem` por interseção entre `Frente` e `Costa`
+    3. adaptar dashboard e kanban para permitir a mesma OP nas duas colunas paralelas
+    4. adaptar carry-over entre turnos para reabrir trilhas paralelas sem colapsá-las em um único setor
+    5. homologar cenários com OP nova, parcial em `Frente`, parcial em `Costa`, sincronização parcial em `Montagem` e carry-over recorrente
+
+  **Evidência:** o produto passa a ter uma proposta técnica formal para evoluir o fluxo oficial de costura para um modelo com bifurcação paralela `Frente + Costa` e sincronização parcial em `Montagem`, descrita em `PRD`, `TASKS` e `BACKLOG`.
+  Formalizado em `2026-04-17` com atualização das seções `5.5`, `9.3.6` e `9.3.7` do `docs/PRD.md`, abertura oficial da `Sprint 31` no `docs/TASKS.md` e registro do entregável correspondente no `docs/BACKLOG.md`.
+
+- [x] **HU 31.2 — Como sistema, quero introduzir contratos tipados para dependências paralelas e sincronização parcial, para que o backend deixe de assumir predecessora única em todas as etapas.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - introduzir contratos tipados explícitos para grafo de dependência do fluxo, distinguindo:
+    - predecessora única
+    - múltiplas sucessoras paralelas
+    - múltiplas predecessoras com sincronização parcial
+  - criar funções puras para:
+    - calcular liberação paralela de `Frente` e `Costa` a partir de `Preparação`
+    - calcular a interseção quantitativa que libera `Montagem`
+    - calcular a quantidade ainda bloqueada em `Montagem` por falta de conclusão na trilha irmã
+  - revisar `TurnoSetorDemandaV2`, `TurnoOpV2` e contratos associados para suportar mais de uma etapa ativa na mesma OP
+  - manter um resumo compatível com a UI atual, mas sem esconder a existência de múltiplas posições ativas na bifurcação
+  - validar os novos contratos com testes utilitários e `npx tsc --noEmit`
+
+  Regras:
+  - esta HU não implementa ainda a nova leitura completa de dashboard/scanner/carry-over; ela fecha o contrato e as funções puras do domínio
+  - a bifurcação paralela permitida fica restrita a `Frente + Costa`; o sistema não deve abrir simultaneidade genérica para qualquer setor
+  - a regra de fork deve duplicar teto de liberação, não transferir ou consumir quantidade de `Preparação` duas vezes
+  - a regra de join deve usar obrigatoriamente `MIN(concluído em Frente, concluído em Costa)` como teto de `Montagem`
+  - os contratos novos não podem quebrar o vocabulário atual de capacidade em minutos, backlog setorial, aceite no turno e carry-over
+  - se for necessário manter compatibilidade, preferir adicionar campos/contratos novos em vez de reescrever silenciosamente o significado dos atuais
+
+  Critério técnico obrigatório:
+  - o domínio precisa passar a conseguir responder explicitamente, para uma mesma OP:
+    - quais etapas estão ativas agora
+    - qual quantidade está liberada em cada trilha paralela
+    - qual quantidade já está sincronizada para `Montagem`
+    - qual quantidade permanece bloqueada em `Montagem` por falta de conclusão da outra trilha
+
+  Saída esperada desta HU:
+  - um contrato tipado central para dependências de fluxo
+  - um contrato tipado para posições ativas da OP no fluxo
+  - um contrato tipado para sincronização parcial de `Montagem`
+  - funções puras reutilizáveis por queries, scanner, apontamentos e carry-over
+
+  **Evidência:** o código passa a expor contratos tipados e funções puras para fork em `Preparação`, paralelismo em `Frente + Costa` e join parcial em `Montagem`, deixando a `HU 31.3` pronta para adaptar queries e disponibilidade operacional sem ambiguidade de domínio.
+  Implementado em `types/index.ts`, `lib/utils/fluxo-paralelo-turno.ts` e `lib/utils/fluxo-paralelo-turno.test.ts`. O domínio agora expõe `EtapaFluxoChaveV2`, `EtapaDependenciaFluxoV2`, `PosicaoFluxoAtivaOpV2`, `SnapshotSincronizacaoParcialMontagemV2` e os campos opcionais de compatibilidade em `TurnoOpV2`/`TurnoSetorDemandaV2`, além das funções puras `listarDependenciasFluxoCosturaParalela()`, `calcularLiberacaoParalelaAposPreparacao()`, `calcularSincronizacaoParcialMontagem()` e `resolverPosicoesFluxoAtivasCosturaParalela()`. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/capacidade-setor.test.ts lib/utils/fluxo-sequencial-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 31.3 — Como sistema, quero recalcular o fluxo operacional e a disponibilidade de `Montagem` pela interseção entre `Frente` e `Costa`, para liberar somente a quantidade realmente sincronizada.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  **Evidência:** as queries de turno, scanner e disponibilidade operacional deixam de enriquecer `Montagem` por predecessora única e passam a usar o contrato paralelo oficial com fork em `Preparação`, sincronização parcial por `MIN(Frente, Costa)` e resumo compatível da OP com múltiplas posições ativas. Implementado em `lib/utils/fluxo-paralelo-turno.ts`, `lib/utils/fluxo-paralelo-turno.test.ts`, `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/scanner.ts` e `lib/queries/fluxo-sequencial-turno-base.ts`. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/capacidade-setor.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 31.4 — Como supervisor, quero ver a mesma OP simultaneamente em `Frente` e `Costa` no kanban, para refletir corretamente a bifurcação paralela do fluxo real.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  **Evidência:** o kanban operacional passou a consumir `posicoesFluxoAtivas` da OP para explicitar a bifurcação oficial no próprio card, mostrando quando a mesma OP está simultaneamente em `Frente` e `Costa`, quais etapas permanecem ativas e qual quantidade já foi sincronizada ou ainda está bloqueada em `Montagem`. Implementado em `components/dashboard/KanbanOperacionalTurno.tsx` e `lib/utils/kanban-operacional-turno.ts`, com cobertura adicional em `lib/utils/kanban-operacional-turno.test.ts`. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/kanban-operacional-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 31.5 — Como sistema, quero que carry-over, scanner e apontamentos respeitem a bifurcação paralela e a sincronização parcial, para que a continuidade entre turnos não colapse duas trilhas em uma só.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  **Evidência:** o carry-over deixou de reidratar o progresso do turno anterior com a semântica linear antiga e passou a usar o enriquecimento paralelo oficial, preservando `Frente` e `Costa` como trilhas independentes e limitando `Montagem` à interseção real entre elas ao abrir o turno seguinte. O scanner e `/admin/apontamentos` também passaram a explicitar a bifurcação oficial e a sincronização parcial no contexto da demanda/seção, sem voltar a colapsar as duas trilhas em uma leitura única. Implementado em `lib/utils/carry-over-turno.ts`, `lib/utils/carry-over-turno.test.ts`, `components/scanner/SelecaoDemandaScanner.tsx` e `components/apontamentos/PainelApontamentosSupervisor.tsx`. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/carry-over-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/kanban-operacional-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 31.6 — Como produto, quero homologar o fluxo paralelo com sincronização parcial em `Montagem`, para confiar que o sistema representa corretamente a costura real sem romper o modelo de capacidade atual.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  **Evidência:** a Sprint 31 foi homologada tecnicamente com o fluxo paralelo ativo em toda a cadeia relevante: domínio e queries calculando `Montagem` pela interseção real entre `Frente` e `Costa`, kanban exibindo simultaneidade oficial, carry-over preservando as duas trilhas sem colapso e scanner/apontamentos refletindo a sincronização parcial no contexto operacional. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/carry-over-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/capacidade-setor.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts`, `npx tsc --noEmit` e `npm run build`, todos sem erros.

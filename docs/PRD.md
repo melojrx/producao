@@ -422,8 +422,10 @@ Durante a execução, a dashboard acompanha em tempo real:
 Kanban operacional obrigatório na `Visão Operacional`:
 - a dashboard deve exibir um componente em estilo kanban com uma coluna por setor, seguindo a ordem oficial do fluxo fabril
 - as colunas devem respeitar a sequência obrigatória `Preparação -> Frente -> Costa -> Montagem -> Final`
+- `Frente` e `Costa` são colunas paralelas e independentes, abertas a partir de `Preparação`
 - cada card deve representar a OP ou o lote exatamente no setor em que ele se encontra naquele momento
-- uma mesma OP não pode aparecer simultaneamente em duas colunas, exceto quando houver fracionamento real por quantidade; nesse caso, cada lote deve aparecer como card independente
+- uma mesma OP pode aparecer simultaneamente nas colunas `Frente` e `Costa` quando o fluxo daquela OP estiver na bifurcação paralela oficial do produto
+- fora dessa bifurcação oficial, uma mesma OP não pode aparecer simultaneamente em duas colunas, exceto quando houver fracionamento real por quantidade; nesse caso, cada lote deve aparecer como card independente
 - o card deve deixar claro se a OP/lote está `em fila`, `liberada`, `em produção`, `parcial` ou `concluída no setor`
 - a coluna do setor deve exibir posição FIFO, capacidade consumida, capacidade restante em minutos e alerta visual de gargalo
 - toda atualização do kanban deve ser em tempo real, sem refresh manual
@@ -1444,26 +1446,50 @@ Impacto funcional da consistência:
 - o status de uma demanda no scanner deve permanecer coerente com o andamento real das operações daquela demanda
 - relatórios V2 e saldos operacionais não podem exibir `0%` de progresso operacional quando já houver produção consolidada nas operações da mesma demanda
 
-#### 9.3.6 Modelo sequencial de capacidade e fila por setor
+#### 9.3.6 Modelo híbrido de capacidade, bifurcação paralela e sincronização por setor
 
-O domínio operacional oficial passa a ser sequencial por capacidade, fila e transferência real de lotes.
+O domínio operacional oficial passa a combinar:
+
+- etapas estritamente sequenciais
+- etapas paralelas independentes
+- etapas de sincronização parcial por quantidade
+- capacidade setorial em minutos
+- fila real e transferência real de saldos entre setores
 
 Fluxo obrigatório:
 
 1. `Preparação`
-2. `Frente`
-3. `Costa`
-4. `Montagem`
-5. `Final`
+2. bifurcação paralela para `Frente` e `Costa`
+3. sincronização parcial em `Montagem`
+4. `Final`
 
 Regras obrigatórias:
 
-- a produção não ocorre simultaneamente em todos os setores da OP
-- uma OP só pode existir em um setor por vez
-- a única exceção é o fracionamento real por quantidade, originado pelo apontamento real
+- `Preparação` continua sendo a etapa inicial obrigatória
+- ao concluir `Preparação`, o sistema deve liberar simultaneamente `Frente` e `Costa`
+- `Frente` e `Costa` passam a funcionar como trilhas paralelas independentes da mesma OP
+- cada trilha paralela deve manter status, fila, capacidade, quantidade realizada e carry-over próprios
+- uma mesma OP pode existir simultaneamente em `Frente` e `Costa`, porque essa simultaneidade passa a ser uma regra oficial do fluxo e não uma exceção
+- a produção não ocorre simultaneamente em todos os setores da OP; a simultaneidade permitida precisa estar explicitamente modelada na estrutura oficial de dependências
+- `Montagem` deixa de depender de um único setor anterior e passa a depender de duas entradas obrigatórias: `Frente` e `Costa`
+- a liberação de `Montagem` deve ser parcial por quantidade, e não apenas por fechamento total das duas trilhas
+- a quantidade liberada para `Montagem` deve ser calculada por:
+
+```text
+quantidade_liberada_montagem =
+  MIN(quantidade_concluida_frente, quantidade_concluida_costa)
+
+quantidade_disponivel_montagem =
+  MAX(quantidade_liberada_montagem - quantidade_realizada_montagem, 0)
+```
+
+- `Montagem` não pode apontar acima da interseção real já concluída entre `Frente` e `Costa`
+- se `Frente = 40` e `Costa = 25`, `Montagem` pode receber no máximo `25`
+- após `Montagem`, o fluxo volta a ser estritamente sequencial até `Final`
+- a única exceção adicional à leitura linear continua sendo o fracionamento real por quantidade, originado pelo apontamento real
 - quando houver fracionamento, cada lote vira uma unidade operacional independente, sem duplicar quantidade
 - a soma dos lotes de uma OP nunca pode ultrapassar a quantidade total planejada ou remanescente
-- a movimentação entre setores deve sempre reduzir a quantidade do setor de origem e adicionar a mesma quantidade ao próximo setor
+- a movimentação entre setores deve sempre reduzir a quantidade do setor de origem e adicionar a mesma quantidade ao próximo setor ou setor dependente
 - cada setor opera como fila FIFO
 - entrar na fila não significa iniciar produção automaticamente
 - um setor pode processar mais de uma OP ou lote ao mesmo tempo, desde que a soma da carga em minutos respeite sua capacidade produtiva disponível no turno
@@ -1481,13 +1507,23 @@ capacidade_restante_setor_min =
 
 capacidade_pecas_setor =
   FLOOR(capacidade_minutos_setor / tp_total_setor_produto)
+
+quantidade_liberada_montagem =
+  MIN(quantidade_concluida_frente, quantidade_concluida_costa)
+
+quantidade_disponivel_montagem =
+  MAX(quantidade_liberada_montagem - quantidade_realizada_montagem, 0)
 ```
 
 Contrato mínimo sugerido para a implementação:
 
 - `turno_setores` deve passar a refletir `ordem_fluxo`, `operadores_alocados`, `capacidade_minutos_total`, `capacidade_minutos_consumida` e `capacidade_minutos_restante`
-- `turno_setor_demandas` deve conseguir refletir `posicao_fila`, `status_fila`, `quantidade_backlog_setor`, `quantidade_aceita_turno`, `quantidade_nao_aceita_turno`, `quantidade_em_producao_setor`, `quantidade_concluida_setor` e `quantidade_transferida_proximo_setor`
-- `turno_ops` deve conseguir refletir `setor_fluxo_atual_id`, `quantidade_finalizada` e a continuidade entre turnos sem perder rastreabilidade do saldo
+- `turno_setor_demandas` deve conseguir refletir `posicao_fila`, `status_fila`, `quantidade_backlog_setor`, `quantidade_aceita_turno`, `quantidade_nao_aceita_turno`, `quantidade_em_producao_setor`, `quantidade_concluida_setor`, `quantidade_transferida_proximo_setor` e a origem de dependência que liberou aquele saldo
+- `turno_ops` deve conseguir refletir mais de uma etapa ativa ao mesmo tempo quando a OP estiver na bifurcação oficial `Frente + Costa`, além de `quantidade_finalizada` e da continuidade entre turnos
+- o contrato tipado do backend precisa deixar explícito quando uma etapa possui:
+  - predecessora única
+  - múltiplas sucessoras paralelas
+  - múltiplas predecessoras com sincronização parcial por quantidade
 - o contrato do backend deve tratar minutos como base da capacidade real do setor; leitura em peças é apenas derivação contextual
 
 #### 9.3.7 Regra de carry-over entre turnos
@@ -1504,11 +1540,18 @@ Regra alvo:
 - o histórico do turno anterior permanece fechado e íntegro
 - o novo turno recebe apenas o saldo faltante, nunca o total original já parcialmente produzido
 - o carry-over deve reabrir cada OP exatamente no setor pendente em que ela ficou, sem reintroduzir carga nos setores já concluídos
+- quando a OP estiver na bifurcação paralela `Frente + Costa`, o carry-over deve reabrir separadamente cada trilha pendente
+- `Montagem` não pode reabrir acima da interseção realmente concluída entre `Frente` e `Costa`
 - se uma OP estiver fracionada no encerramento do turno, cada lote pendente deve manter sua posição de fila e seu setor corrente na continuidade do novo turno
 - a prévia do novo turno deve usar o estado real do carry-over como fonte de verdade para a carga pendente por setor
 - o carry-over do setor passa a ser calculado pela soma de:
   - saldo que o setor ainda não conseguiu aceitar no turno anterior por falta de capacidade
   - saldo que o setor aceitou no turno anterior, mas não concluiu
+- para etapas de sincronização parcial, o carry-over precisa distinguir:
+  - saldo pendente em `Frente`
+  - saldo pendente em `Costa`
+  - saldo já sincronizado e liberado para `Montagem`
+  - saldo ainda bloqueado em `Montagem` por falta de conclusão na outra trilha
 - se o setor anterior concluiu mais peças do que o próximo setor conseguiu aceitar no turno, esse excedente deve abrir como backlog do próximo setor no turno seguinte, sem reabrir o setor anterior
 - o parcelamento da OP entre turnos pode se repetir quantas vezes forem necessárias até o backlog setorial zerar
 
