@@ -9,8 +9,10 @@ import {
 } from '@/lib/utils/consolidacao-turno'
 import { calcularPercentualOperacional } from '@/lib/utils/progresso-operacional'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
-import { resolverPosicaoAtualFluxoOpLote } from '@/lib/utils/capacidade-setor'
-import { enriquecerDemandasComFluxoSequencial } from '@/lib/utils/fluxo-sequencial-turno'
+import {
+  enriquecerDemandasComFluxoParalelo,
+  resolverResumoFluxoOpParalelo,
+} from '@/lib/utils/fluxo-paralelo-turno'
 import {
   aplicarCapacidadeOperacionalDemandas,
   hidratarSetoresTurnoComCapacidade,
@@ -631,7 +633,7 @@ async function listarTurnoSetorDemandas(
 function enriquecerDemandasSetorComFila(
   demandas: TurnoSetorDemandaV2[]
 ): TurnoSetorDemandaV2[] {
-  return enriquecerDemandasComFluxoSequencial(demandas)
+  return enriquecerDemandasComFluxoParalelo(demandas)
 }
 
 function enriquecerOpsComPosicaoFluxo(
@@ -653,8 +655,9 @@ function enriquecerOpsComPosicaoFluxo(
 
   return ops.map((op) => {
     const demandasOp = demandasPorOp.get(op.id) ?? []
-    const posicaoFluxo = resolverPosicaoAtualFluxoOpLote(
+    const posicaoFluxo = resolverResumoFluxoOpParalelo(
       demandasOp.map((demanda) => ({
+        etapaFluxoChave: demanda.etapaFluxoChave,
         setorId: demanda.setorId,
         setorCodigo: demanda.setorCodigo,
         setorNome: demanda.setorNome,
@@ -673,6 +676,10 @@ function enriquecerOpsComPosicaoFluxo(
       ordemFluxoAtual: posicaoFluxo.ordemFluxoAtual,
       statusFilaAtual: posicaoFluxo.statusFilaAtual,
       quantidadePendenteAtual: posicaoFluxo.quantidadePendenteAtual,
+      posicoesFluxoAtivas: posicaoFluxo.posicoesFluxoAtivas,
+      quantidadeSincronizadaMontagem: posicaoFluxo.quantidadeSincronizadaMontagem,
+      quantidadeBloqueadaSincronizacao:
+        posicaoFluxo.quantidadeBloqueadaSincronizacao,
     }
   })
 }

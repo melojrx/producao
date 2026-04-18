@@ -8,7 +8,7 @@ import {
   consolidarDemandasPorOperacoes,
   consolidarSetorScaneadoPorDemandas,
 } from '@/lib/utils/consolidacao-turno'
-import { enriquecerDemandasComFluxoSequencial } from '@/lib/utils/fluxo-sequencial-turno'
+import { enriquecerDemandasComFluxoParalelo } from '@/lib/utils/fluxo-paralelo-turno'
 import { aplicarCapacidadeOperacionalDemandas } from '@/lib/utils/hidratacao-capacidade-setor-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
@@ -642,7 +642,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
               }
             })
             .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
-          const demandasEnriquecidas = enriquecerDemandasComFluxoSequencial(
+          const demandasEnriquecidas = enriquecerDemandasComFluxoParalelo(
             consolidarDemandasPorOperacoes(demandasPlanejamentoBase, operacoesTurno)
           )
           const demandasComCapacidade = aplicarCapacidadeOperacionalDemandas({
@@ -676,9 +676,14 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
               quantidadeLiberadaSetor: diagnostico.quantidadeLiberadaSetor,
               quantidadeDisponivelApontamento: diagnostico.quantidadeDisponivelApontamento,
               quantidadeBloqueadaAnterior: diagnostico.quantidadeBloqueadaAnterior,
+              quantidadeSincronizadaMontagem:
+                diagnostico.quantidadeSincronizadaMontagem,
+              quantidadeBloqueadaSincronizacao:
+                diagnostico.quantidadeBloqueadaSincronizacao,
               setorAnteriorId: diagnostico.setorAnteriorId,
               setorAnteriorCodigo: diagnostico.setorAnteriorCodigo,
               setorAnteriorNome: diagnostico.setorAnteriorNome,
+              etapaFluxoChave: diagnostico.etapaFluxoChave,
             }
           })
         }
@@ -722,7 +727,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
           } => Boolean(demanda)
         )
       const diagnosticosPorDemandaId = new Map(
-        enriquecerDemandasComFluxoSequencial(demandasFluxoBase).map((demanda) => [
+        enriquecerDemandasComFluxoParalelo(demandasFluxoBase).map((demanda) => [
           demanda.id,
           demanda,
         ] as const)
@@ -746,9 +751,14 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
           quantidadeLiberadaSetor: diagnostico.quantidadeLiberadaSetor,
           quantidadeDisponivelApontamento: diagnostico.quantidadeDisponivelApontamento,
           quantidadeBloqueadaAnterior: diagnostico.quantidadeBloqueadaAnterior,
+          quantidadeSincronizadaMontagem:
+            diagnostico.quantidadeSincronizadaMontagem,
+          quantidadeBloqueadaSincronizacao:
+            diagnostico.quantidadeBloqueadaSincronizacao,
           setorAnteriorId: diagnostico.setorAnteriorId,
           setorAnteriorCodigo: diagnostico.setorAnteriorCodigo,
           setorAnteriorNome: diagnostico.setorAnteriorNome,
+          etapaFluxoChave: diagnostico.etapaFluxoChave,
         }
       })
     }

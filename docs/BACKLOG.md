@@ -383,6 +383,18 @@
 - Homologar cenários com saturação diária repetida e carry-over setorial recorrente
 - Homologação concluída em `2026-04-17` com utilitário puro de carry-over setorial recorrente, testes de saturação repetida entre turnos e `npx tsc --noEmit` sem erros
 
+## SPRINT 31 — Fluxo paralelo com sincronização parcial em Montagem
+**Objetivo:** evoluir o domínio do chão de fábrica de um fluxo estritamente linear para um fluxo oficial com bifurcação paralela `Frente + Costa` e sincronização parcial por quantidade em `Montagem`, preservando capacidade setorial, fila, scanner, carry-over e simplicidade operacional.
+**Entregável:** fluxo oficial `Preparação -> (Frente || Costa) -> Montagem -> Final` ativo na base tipada, nas queries, no kanban, no carry-over, no scanner e nos apontamentos, com `Montagem` liberada apenas pela interseção real já concluída entre `Frente` e `Costa`.
+**Status:** ✅ Concluída
+
+- Formalizar no PRD o novo fluxo oficial com bifurcação paralela e sincronização parcial
+- Introduzir contratos tipados para dependências paralelas e múltiplas predecessoras
+- Recalcular `Montagem` pela interseção entre `Frente` e `Costa`
+- Permitir a mesma OP simultaneamente nas colunas `Frente` e `Costa` do kanban
+- Adaptar carry-over, scanner e apontamentos ao novo modelo de dependência
+- Homologar cenários com parcial em `Frente`, parcial em `Costa`, liberação parcial de `Montagem` e continuidade entre turnos
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

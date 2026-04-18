@@ -5,6 +5,7 @@ import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 const moduloKanbanOperacionalUrl = new URL('./kanban-operacional-turno.ts', import.meta.url)
 const {
   construirColunasKanbanOperacional,
+  resumirFluxoParaleloDemandaKanban,
 }: typeof import('./kanban-operacional-turno') = await import(moduloKanbanOperacionalUrl.href)
 
 function criarPlanejamentoTeste(): PlanejamentoTurnoDashboardV2 {
@@ -311,4 +312,86 @@ test('monta o kanban com OP nova, carry-over parcial, setor concluido, fracionam
   assert.equal(montagem?.demandasAtivas.length, 1)
   assert.equal(montagem?.demandasEmQuadro.length, 0)
   assert.equal(montagem?.aguardandoLiberacao, 1)
+})
+
+test('resume o fluxo paralelo do card do kanban destacando Frente e Costa simultaneas', () => {
+  const resumo = resumirFluxoParaleloDemandaKanban(
+    {
+      posicoesFluxoAtivas: [
+        {
+          etapa: 'frente',
+          setorId: 'setor-frente',
+          setorCodigo: 20,
+          setorNome: 'Frente',
+          tipoDependenciaEntrada: 'sequencial',
+          tipoDependenciaSaida: 'sequencial',
+          quantidadePlanejada: 100,
+          quantidadeConcluida: 40,
+          quantidadeLiberada: 40,
+          quantidadeDisponivel: 30,
+          quantidadePendente: 60,
+          quantidadeBloqueadaSincronizacao: 0,
+          posicaoFila: 1,
+          statusFila: 'parcial',
+        },
+        {
+          etapa: 'costa',
+          setorId: 'setor-costa',
+          setorCodigo: 30,
+          setorNome: 'Costa',
+          tipoDependenciaEntrada: 'sequencial',
+          tipoDependenciaSaida: 'sequencial',
+          quantidadePlanejada: 100,
+          quantidadeConcluida: 25,
+          quantidadeLiberada: 40,
+          quantidadeDisponivel: 15,
+          quantidadePendente: 75,
+          quantidadeBloqueadaSincronizacao: 0,
+          posicaoFila: 1,
+          statusFila: 'parcial',
+        },
+        {
+          etapa: 'montagem',
+          setorId: 'setor-montagem',
+          setorCodigo: 40,
+          setorNome: 'Montagem',
+          tipoDependenciaEntrada: 'join_parcial',
+          tipoDependenciaSaida: 'sequencial',
+          quantidadePlanejada: 100,
+          quantidadeConcluida: 0,
+          quantidadeLiberada: 25,
+          quantidadeDisponivel: 25,
+          quantidadePendente: 100,
+          quantidadeBloqueadaSincronizacao: 75,
+          posicaoFila: 1,
+          statusFila: 'em_fila',
+        },
+      ],
+      quantidadeSincronizadaMontagem: 25,
+      quantidadeBloqueadaSincronizacao: 75,
+    },
+    {
+      etapaFluxoChave: 'frente',
+      setorNome: 'Frente',
+      quantidadeSincronizadaMontagem: 25,
+      quantidadeBloqueadaSincronizacao: 75,
+    }
+  )
+
+  assert.deepEqual(
+    {
+      etapaAtual: resumo.etapaAtual,
+      fluxoParaleloAtivo: resumo.fluxoParaleloAtivo,
+      posicoesSimultaneas: resumo.posicoesSimultaneas.map((posicao) => posicao.etapa),
+      quantidadeSincronizadaMontagem: resumo.quantidadeSincronizadaMontagem,
+      quantidadeBloqueadaSincronizacao: resumo.quantidadeBloqueadaSincronizacao,
+    },
+    {
+      etapaAtual: 'frente',
+      fluxoParaleloAtivo: true,
+      posicoesSimultaneas: ['costa'],
+      quantidadeSincronizadaMontagem: 25,
+      quantidadeBloqueadaSincronizacao: 75,
+    }
+  )
 })

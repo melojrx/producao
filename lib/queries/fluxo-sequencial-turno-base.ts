@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { enriquecerDemandasComFluxoSequencial } from '@/lib/utils/fluxo-sequencial-turno'
+import { enriquecerDemandasComFluxoParalelo } from '@/lib/utils/fluxo-paralelo-turno'
 import { aplicarCapacidadeOperacionalDemandas } from '@/lib/utils/hidratacao-capacidade-setor-turno'
 import type {
+  EtapaFluxoChaveV2,
   TurnoOpV2,
   TurnoSetorDemandaStatusV2,
   TurnoSetorDemandaV2,
@@ -65,6 +66,7 @@ export interface DisponibilidadeSequencialOperacaoTurnoV2 {
   turnoOpId: string
   turnoSetorDemandaId: string | null
   numeroOp: string
+  etapaFluxoChave?: EtapaFluxoChaveV2
   setorId: string
   setorCodigo: number
   setorNome: string
@@ -75,6 +77,8 @@ export interface DisponibilidadeSequencialOperacaoTurnoV2 {
   quantidadeRealizadaDemanda: number
   quantidadeLiberadaSetor: number
   quantidadeDisponivelApontamento: number
+  quantidadeSincronizadaMontagem: number
+  quantidadeBloqueadaSincronizacao: number
   quantidadeDisponivelOperacao: number
 }
 
@@ -270,7 +274,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
   const demandasBase = (demandasRelacionadas ?? [])
     .map(mapearDemandaTurno)
     .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
-  const demandasEnriquecidas = enriquecerDemandasComFluxoSequencial(demandasBase)
+  const demandasEnriquecidas = enriquecerDemandasComFluxoParalelo(demandasBase)
   const turnosPorId = new Map((turnosRelacionados ?? []).map((turno) => [turno.id, turno]))
   const demandasPorTurno = new Map<string, TurnoSetorDemandaV2[]>()
 
@@ -341,6 +345,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         turnoOpId: operacao.turno_op_id,
         turnoSetorDemandaId,
         numeroOp: demanda.numeroOp,
+        etapaFluxoChave: demanda.etapaFluxoChave,
         setorId: demanda.setorId,
         setorCodigo: demanda.setorCodigo,
         setorNome: demanda.setorNome,
@@ -351,6 +356,9 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         quantidadeRealizadaDemanda: demanda.quantidadeRealizada,
         quantidadeLiberadaSetor: demanda.quantidadeLiberadaSetor ?? 0,
         quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento ?? 0,
+        quantidadeSincronizadaMontagem: demanda.quantidadeSincronizadaMontagem ?? 0,
+        quantidadeBloqueadaSincronizacao:
+          demanda.quantidadeBloqueadaSincronizacao ?? 0,
         quantidadeDisponivelOperacao,
       }
 

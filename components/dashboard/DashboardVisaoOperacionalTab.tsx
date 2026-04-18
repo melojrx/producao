@@ -4,8 +4,6 @@ import { Boxes, ClipboardList, PackageCheck, Target } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { GraficoMetaGrupoTurnoV2 } from '@/components/dashboard/GraficoMetaGrupoTurnoV2'
 import { KanbanOperacionalTurno } from '@/components/dashboard/KanbanOperacionalTurno'
-import { ResumoOpTurnoCard } from '@/components/dashboard/ResumoOpTurnoCard'
-import { ResumoSetorTurnoCard } from '@/components/dashboard/ResumoSetorTurnoCard'
 import type {
   ComparativoMetaGrupoHoraItem,
   PlanejamentoTurnoDashboardV2,
@@ -181,68 +179,18 @@ export function DashboardVisaoOperacionalTab({
         </section>
       ) : null}
 
-      <GraficoMetaGrupoTurnoV2
-        dados={comparativoPorHora}
-        estaCarregando={estaCarregandoGrafico}
-        desabilitado={!turnoAberto}
-        motivoDesabilitado="O gráfico horário de capacidade é dinâmico e volta a ser recalculado quando um novo turno for aberto."
-      />
-
       <KanbanOperacionalTurno
         planejamento={planejamento}
         onSelecionarOp={onSelecionarOp}
         onSelecionarSetor={onSelecionarSetor}
       />
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">Progresso por OP</h2>
-            <p className="text-sm text-slate-600">
-              Cards de OPs abertas com progresso operacional e uma linha do tempo dos setores
-              percorridos até a finalização do produto.
-            </p>
-          </div>
-
-          <div className="mt-5 grid gap-4">
-            {resumo.opsAbertasLista.length === 0 ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Nenhuma OP aberta no turno carregado.
-              </div>
-            ) : (
-              resumo.opsAbertasLista.map((op) => (
-                <ResumoOpTurnoCard key={op.id} op={op} onClick={onSelecionarOp} />
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">Progresso por setor</h2>
-            <p className="text-sm text-slate-600">
-              Cards consolidados por setor do turno. Clique para abrir as OPs e seus progressos
-              individuais dentro da estrutura física selecionada.
-            </p>
-          </div>
-
-          <div className="mt-5 grid gap-4">
-            {resumo.setoresCardsLista.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                Ainda não há setores ativos neste turno.
-              </div>
-            ) : (
-              resumo.setoresCardsLista.map((setor) => (
-                <ResumoSetorTurnoCard
-                  key={setor.id}
-                  setor={setor}
-                  onClick={onSelecionarSetor}
-                />
-              ))
-            )}
-          </div>
-        </section>
-      </section>
+      <GraficoMetaGrupoTurnoV2
+        dados={comparativoPorHora}
+        estaCarregando={estaCarregandoGrafico}
+        desabilitado={!turnoAberto}
+        motivoDesabilitado="O gráfico horário de capacidade é dinâmico e volta a ser recalculado quando um novo turno for aberto."
+      />
 
     </>
   )

@@ -55,6 +55,20 @@ export type DiagnosticoCapacidadeSetorV2 =
   | 'dentro_capacidade'
   | 'no_limite'
   | 'acima_capacidade'
+export type EtapaFluxoChaveV2 =
+  | 'preparacao'
+  | 'frente'
+  | 'costa'
+  | 'montagem'
+  | 'final'
+export type TipoDependenciaEntradaFluxoV2 =
+  | 'sem_predecessora'
+  | 'sequencial'
+  | 'join_parcial'
+export type TipoDependenciaSaidaFluxoV2 =
+  | 'sem_sucessora'
+  | 'sequencial'
+  | 'fork_paralelo'
 
 export interface FormActionState {
   erro?: string
@@ -148,7 +162,17 @@ export interface SnapshotParcelamentoDemandaTurnoV2 {
   quantidadeExcedenteTurno: number
 }
 
+export interface EtapaDependenciaFluxoV2 {
+  etapa: EtapaFluxoChaveV2
+  predecessoras: EtapaFluxoChaveV2[]
+  sucessoras: EtapaFluxoChaveV2[]
+  tipoDependenciaEntrada: TipoDependenciaEntradaFluxoV2
+  tipoDependenciaSaida: TipoDependenciaSaidaFluxoV2
+  permiteSimultaneidade: boolean
+}
+
 export interface EtapaFluxoSetorV2 {
+  etapaFluxoChave?: EtapaFluxoChaveV2
   setorId: string
   setorCodigo: number | null
   setorNome: string
@@ -166,6 +190,50 @@ export interface PosicaoFluxoOpLoteV2 {
   statusFilaAtual: TurnoSetorFilaStatusV2
   quantidadePendenteAtual: number
   quantidadeFinalizada: number
+}
+
+export interface LiberacaoEtapaFluxoV2 {
+  quantidadeLiberada: number
+  quantidadeDisponivel: number
+  quantidadePendente: number
+}
+
+export interface SnapshotSincronizacaoParcialMontagemV2 {
+  quantidadeConcluidaFrente: number
+  quantidadeConcluidaCosta: number
+  quantidadeRealizadaMontagem: number
+  quantidadeSincronizadaMontagem: number
+  quantidadeDisponivelMontagem: number
+  quantidadeBloqueadaSincronizacao: number
+}
+
+export interface PosicaoFluxoAtivaOpV2 {
+  etapa: EtapaFluxoChaveV2
+  setorId: string | null
+  setorCodigo: number | null
+  setorNome: string
+  tipoDependenciaEntrada: TipoDependenciaEntradaFluxoV2
+  tipoDependenciaSaida: TipoDependenciaSaidaFluxoV2
+  quantidadePlanejada: number
+  quantidadeConcluida: number
+  quantidadeLiberada: number
+  quantidadeDisponivel: number
+  quantidadePendente: number
+  quantidadeBloqueadaSincronizacao: number
+  posicaoFila?: number | null
+  statusFila?: TurnoSetorFilaStatusV2 | null
+}
+
+export interface EstadoEtapaFluxoOpV2 {
+  etapa: EtapaFluxoChaveV2
+  setorId: string | null
+  setorCodigo: number | null
+  setorNome: string
+  quantidadePlanejada: number
+  quantidadeConcluida: number
+  quantidadeRealizada: number
+  posicaoFila?: number | null
+  statusFila?: TurnoSetorFilaStatusV2 | null
 }
 
 export interface TurnoSetorOpScaneado {
@@ -212,6 +280,7 @@ export interface TurnoSetorDemandaScaneada {
   turnoSetorId: string
   turnoId: string
   turnoOpId: string
+  etapaFluxoChave?: EtapaFluxoChaveV2
   setorId: string
   numeroOp: string
   produtoId: string
@@ -232,6 +301,8 @@ export interface TurnoSetorDemandaScaneada {
   quantidadeLiberadaSetor?: number
   quantidadeDisponivelApontamento?: number
   quantidadeBloqueadaAnterior?: number
+  quantidadeSincronizadaMontagem?: number
+  quantidadeBloqueadaSincronizacao?: number
   setorAnteriorId?: string | null
   setorAnteriorCodigo?: number | null
   setorAnteriorNome?: string | null
@@ -645,6 +716,9 @@ export interface TurnoOpV2 {
   ordemFluxoAtual?: number | null
   statusFilaAtual?: TurnoSetorFilaStatusV2
   quantidadePendenteAtual?: number
+  posicoesFluxoAtivas?: PosicaoFluxoAtivaOpV2[]
+  quantidadeSincronizadaMontagem?: number
+  quantidadeBloqueadaSincronizacao?: number
   status: TurnoOpStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null
@@ -678,6 +752,7 @@ export interface TurnoSetorDemandaV2 {
   turnoSetorId: string
   turnoId: string
   turnoOpId: string
+  etapaFluxoChave?: EtapaFluxoChaveV2
   setorId: string
   setorCodigo: number
   setorNome: string
@@ -700,6 +775,8 @@ export interface TurnoSetorDemandaV2 {
   quantidadeLiberadaSetor?: number
   quantidadeDisponivelApontamento?: number
   quantidadeBloqueadaAnterior?: number
+  quantidadeSincronizadaMontagem?: number
+  quantidadeBloqueadaSincronizacao?: number
   setorAnteriorId?: string | null
   setorAnteriorCodigo?: number | null
   setorAnteriorNome?: string | null

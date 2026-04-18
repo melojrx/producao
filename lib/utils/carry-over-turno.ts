@@ -1,7 +1,7 @@
 import {
-  enriquecerDemandasComFluxoSequencial,
-  type DemandaFluxoSequencialBase,
-} from './fluxo-sequencial-turno.ts'
+  enriquecerDemandasComFluxoParalelo,
+} from './fluxo-paralelo-turno.ts'
+import type { DemandaFluxoSequencialBase } from './fluxo-sequencial-turno.ts'
 
 type DemandaCarryOverOrigem = Pick<
   DemandaFluxoSequencialBase,
@@ -78,7 +78,7 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
 }): SnapshotCarryOverSetorialV2[] {
   const quantidadePlanejadaDestino = normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino)
 
-  return enriquecerDemandasComFluxoSequencial(input.demandasOrigem)
+  return enriquecerDemandasComFluxoParalelo(input.demandasOrigem)
     .sort(compararDemandasCarryOver)
     .map((demanda) => {
       const quantidadeRealizadaOrigem = normalizarInteiroNaoNegativo(demanda.quantidadeRealizada)
