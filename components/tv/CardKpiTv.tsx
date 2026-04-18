@@ -39,21 +39,21 @@ export function CardKpiTv({ label, valor, sublabel, icone: Icone, cor, tema }: C
 
   return (
     <div
-      className={`rounded-2xl border ${estilos.borda} ${tokens.card} ${tokens.cardBorda} p-5 flex flex-col justify-between gap-4`}
+      className={`rounded-2xl border ${estilos.borda} ${tokens.card} ${tokens.cardBorda} p-4 flex flex-col justify-between gap-3`}
     >
       <div className="flex items-center justify-between gap-3">
         <p className={`text-xs font-semibold uppercase tracking-widest ${estilos.label}`}>
           {label}
         </p>
-        <Icone size={18} className={estilos.icone} />
+        <Icone size={16} className={estilos.icone} />
       </div>
 
       <div>
-        <p className={`text-4xl font-bold tracking-tight xl:text-5xl ${tokens.textoPrimario}`}>
+        <p className={`text-3xl font-bold tracking-tight xl:text-4xl ${tokens.textoPrimario}`}>
           {valor}
         </p>
         {sublabel ? (
-          <p className={`mt-1.5 text-sm ${tokens.textoSecundario}`}>{sublabel}</p>
+          <p className={`mt-1 text-sm ${tokens.textoSecundario}`}>{sublabel}</p>
         ) : null}
       </div>
     </div>

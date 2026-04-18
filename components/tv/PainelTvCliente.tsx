@@ -87,6 +87,14 @@ function construirLinhasDia(
   }))
 }
 
+function resolverLabelGaugeDiario(dataDia: string | null, hojeStr: string | null): string {
+  if (!dataDia) return 'HOJE'
+  if (dataDia === hojeStr) return 'HOJE'
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', timeZone: FUSO }).format(
+    new Date(`${dataDia}T12:00:00`)
+  )
+}
+
 function classeStatusDot(status: 'ativo' | 'conectando' | 'erro'): string {
   if (status === 'ativo') return 'bg-emerald-500'
   if (status === 'conectando') return 'bg-amber-400'
@@ -221,6 +229,22 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
   const alcancadoMes = resumoMetaMensal.alcancadoMes
   const atingimentoPct = resumoMetaMensal.atingimentoPct
   const saldoMes = resumoMetaMensal.saldoMes
+  const metaDiariaMedia = resumoMetaMensal.metaDiariaMedia
+
+  const hojeStr = agora
+    ? new Intl.DateTimeFormat('sv-SE', { timeZone: FUSO }).format(agora)
+    : null
+
+  // Último dia com produção registrada — pode ser hoje ou o dia anterior mais recente
+  const ultimoDiaComProducao = useMemo(
+    () => resumoMetaMensal.evolucaoDiaria.findLast((e) => e.realizadoDia > 0) ?? null,
+    [resumoMetaMensal.evolucaoDiaria]
+  )
+  const realizadoDiaRef = ultimoDiaComProducao?.realizadoDia ?? 0
+  const atingimentoDiarioPct =
+    metaDiariaMedia > 0 ? Math.min((realizadoDiaRef / metaDiariaMedia) * 100, 100) : 0
+  const labelGaugeDiario = resolverLabelGaugeDiario(ultimoDiaComProducao?.data ?? null, hojeStr)
+
   const statusDot = classeStatusDot(statusConexao)
 
   return (
@@ -266,19 +290,19 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
         </div>
       </header>
 
-      {/* KPIs + Gauge */}
-      <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* KPIs + Gauges */}
+      <section className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <CardKpiTv
           label="Meta Mensal"
           valor={metaPecas > 0 ? formatarNumero(metaPecas) : '—'}
-          sublabel={`${resumoMetaMensal.diasProdutivos} dias produtivos`}
+          sublabel={metaDiariaMedia > 0 ? `Meta dia: ${formatarNumero(metaDiariaMedia)} peças` : `${resumoMetaMensal.diasProdutivos} dias produtivos`}
           icone={Target}
           cor="indigo"
           tema={tema}
         />
 
         <CardKpiTv
-          label="Alcançado"
+          label="Alcançado no Mês"
           valor={metaPecas > 0 ? formatarNumero(alcancadoMes) : '—'}
           sublabel={metaPecas > 0 ? `Saldo: ${formatarNumero(saldoMes)} peças` : 'Sem meta cadastrada'}
           icone={CheckCircle2}
@@ -286,18 +310,35 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
           tema={tema}
         />
 
-        <div className={`flex items-center justify-center rounded-2xl border ${t.gaugeContainer} p-4`}>
+        <div className={`flex flex-col items-center justify-center rounded-2xl border ${t.gaugeContainer} p-3`}>
+          <p className={`mb-1 text-xs font-semibold uppercase tracking-widest ${t.textoSecundario}`}>Mês</p>
           {metaPecas > 0 ? (
             <GaugeMeta
               atingimentoPct={atingimentoPct}
               metaPecas={metaPecas}
               alcancadoMes={alcancadoMes}
               tema={tema}
+              label="ATINGIMENTO"
             />
           ) : (
-            <p className={`text-sm ${t.textoSecundario}`}>
-              Sem meta cadastrada para esta competência.
-            </p>
+            <p className={`text-sm ${t.textoSecundario}`}>Sem meta.</p>
+          )}
+        </div>
+
+        <div className={`flex flex-col items-center justify-center rounded-2xl border ${t.gaugeContainer} p-3`}>
+          <p className={`mb-1 text-xs font-semibold uppercase tracking-widest ${t.textoSecundario}`}>
+            {labelGaugeDiario}
+          </p>
+          {metaDiariaMedia > 0 ? (
+            <GaugeMeta
+              atingimentoPct={atingimentoDiarioPct}
+              metaPecas={metaDiariaMedia}
+              alcancadoMes={realizadoDiaRef}
+              tema={tema}
+              label="META DIA"
+            />
+          ) : (
+            <p className={`text-sm ${t.textoSecundario}`}>Sem meta.</p>
           )}
         </div>
       </section>

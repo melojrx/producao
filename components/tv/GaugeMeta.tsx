@@ -7,6 +7,8 @@ interface GaugeMetaProps {
   readonly metaPecas: number
   readonly alcancadoMes: number
   readonly tema: TemaTV
+  readonly label?: string
+  readonly sublabel?: string
 }
 
 // Coordenadas fixas do gauge
@@ -46,7 +48,7 @@ function formatarNumero(valor: number): string {
   return new Intl.NumberFormat('pt-BR').format(valor)
 }
 
-export function GaugeMeta({ atingimentoPct, metaPecas, alcancadoMes, tema }: GaugeMetaProps) {
+export function GaugeMeta({ atingimentoPct, metaPecas, alcancadoMes, tema, label = 'ATINGIMENTO', sublabel }: GaugeMetaProps) {
   const tokens = TOKENS[tema]
   const pct = Math.min(Math.max(atingimentoPct, 0), 100)
   const cor = corProgresso(pct)
@@ -57,10 +59,13 @@ export function GaugeMeta({ atingimentoPct, metaPecas, alcancadoMes, tema }: Gau
 
   return (
     <div className="flex w-full flex-col items-center">
+      {/* viewBox: top da trilha = CY - RAIO - ESPESSURA/2 = 100 - 78 - 8 = 14
+           bottom da trilha = CY + ESPESSURA/2 = 100 + 8 = 108
+           Adicionamos 4px de padding → top=10, height=102 */}
       <svg
-        viewBox="0 0 200 115"
+        viewBox="0 10 200 102"
         aria-label={`Meta atingida: ${atingimentoPct.toFixed(1)}%`}
-        className="w-full max-w-[260px]"
+        className="w-full max-w-[240px]"
       >
         {/* Trilha de fundo */}
         <path
@@ -97,7 +102,7 @@ export function GaugeMeta({ atingimentoPct, metaPecas, alcancadoMes, tema }: Gau
           {pct.toFixed(1)}%
         </text>
 
-        {/* Label ATINGIMENTO */}
+        {/* Label dinâmico */}
         <text
           x={CX}
           y={CY + 12}
@@ -109,40 +114,20 @@ export function GaugeMeta({ atingimentoPct, metaPecas, alcancadoMes, tema }: Gau
           fontFamily="inherit"
           letterSpacing="1.5"
         >
-          ATINGIMENTO
-        </text>
-
-        {/* Label extremo esquerdo (0) */}
-        <text
-          x={ponto(ANGULO_INICIO).x - 2}
-          y={ponto(ANGULO_INICIO).y + 14}
-          textAnchor="middle"
-          fontSize="8"
-          fill="#334155"
-          fontFamily="inherit"
-        >
-          0
-        </text>
-
-        {/* Label extremo direito (meta) */}
-        <text
-          x={ponto(ANGULO_FIM).x + 2}
-          y={ponto(ANGULO_FIM).y + 14}
-          textAnchor="middle"
-          fontSize="8"
-          fill="#334155"
-          fontFamily="inherit"
-        >
-          {formatarNumero(metaPecas)}
+          {label}
         </text>
       </svg>
 
-      <p className="mt-1 text-center text-xs text-slate-600">
+      <div className="mt-1 flex w-full items-center justify-between px-1 text-xs text-slate-500">
+        <span>0</span>
         <span className="font-semibold" style={{ color: cor }}>
           {formatarNumero(alcancadoMes)}
-        </span>{' '}
-        de {formatarNumero(metaPecas)} peças
-      </p>
+        </span>
+        <span>{formatarNumero(metaPecas)}</span>
+      </div>
+      {sublabel && (
+        <p className="mt-0.5 text-center text-xs text-slate-500">{sublabel}</p>
+      )}
     </div>
   )
 }
