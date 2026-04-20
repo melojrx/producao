@@ -1,6 +1,7 @@
 'use client'
 
-import { ArrowRight, ListChecks } from 'lucide-react'
+import { AlertTriangle, ArrowRight, ListChecks } from 'lucide-react'
+import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import type {
   OperadorScaneado,
   TurnoSetorDemandaScaneada,
@@ -43,6 +44,18 @@ export function SelecaoOperacaoScanner({
   onTrocarOperador,
   setor,
 }: SelecaoOperacaoScannerProps) {
+  const backlogVivo = demandaSelecionada.quantidadeBacklogSetor ?? demandaSelecionada.saldoRestante
+  const planoDoDia = demandaSelecionada.quantidadeAceitaTurno ?? demandaSelecionada.saldoRestante
+  const disponivelAgora =
+    demandaSelecionada.quantidadeDisponivelApontamento ??
+    demandaSelecionada.quantidadeAceitaTurno ??
+    demandaSelecionada.saldoRestante
+  const resumoPlano = resumirPlanoDiarioTurno({
+    quantidadeAceitaTurno: demandaSelecionada.quantidadeAceitaTurno,
+    quantidadeConcluida: demandaSelecionada.quantidadeConcluida,
+    quantidadeDisponivelApontamento: demandaSelecionada.quantidadeDisponivelApontamento,
+  })
+
   return (
     <section className="rounded-[28px] border border-white/10 bg-slate-950/60 p-5 shadow-[0_20px_48px_rgba(2,6,23,0.45)] backdrop-blur-xl">
       <div className="flex items-center gap-2 text-sm text-cyan-300">
@@ -57,8 +70,45 @@ export function SelecaoOperacaoScanner({
         {demandaSelecionada.numeroOp} · {setor.setorNome} · Operador {operador.nome}
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-        {operacoes.length} operação(ões) planejada(s) nesta OP/produto
+        {operacoes.length} operação(ões) elegíveis para execução agora
       </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+        <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Backlog vivo</p>
+          <p className="mt-1 font-semibold text-white">{backlogVivo}</p>
+        </div>
+        <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            Plano do dia
+          </p>
+          <p className="mt-1 font-semibold text-white">{planoDoDia}</p>
+        </div>
+        <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            Disponível agora
+          </p>
+          <p className="mt-1 font-semibold text-white">{disponivelAgora}</p>
+        </div>
+        <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            Peças completas
+          </p>
+          <p className="mt-1 font-semibold text-white">{demandaSelecionada.quantidadeConcluida}</p>
+        </div>
+      </div>
+
+      {resumoPlano.excedePlanoAtual ? (
+        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-50">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <p>
+              A disponibilidade imediata desta demanda já ultrapassa o saldo visual do plano do
+              dia. O fluxo continua liberado para apontamento.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-5 space-y-3">
         {operacoes.map((operacao) => {
@@ -104,13 +154,15 @@ export function SelecaoOperacaoScanner({
                   <p className="mt-1 font-semibold text-white">{operacao.quantidadeRealizada}</p>
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saldo</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    Disponível agora
+                  </p>
                   <p className="mt-1 font-semibold text-white">{saldoOperacao}</p>
                 </div>
               </div>
 
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
-                {operacaoDisponivel ? 'Selecionar operação' : 'Operação sem saldo'}
+                {operacaoDisponivel ? 'Selecionar operação' : 'Operação sem disponibilidade'}
                 <ArrowRight size={16} />
               </div>
             </button>

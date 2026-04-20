@@ -6,6 +6,7 @@ import {
   resumirFluxoParaleloDemandaKanban,
   type KanbanOperacionalColuna,
 } from '@/lib/utils/kanban-operacional-turno'
+import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import type {
   DiagnosticoCapacidadeSetorV2,
   EtapaFluxoChaveV2,
@@ -142,8 +143,9 @@ export function KanbanOperacionalTurno({
             </h2>
             <p className="text-sm text-slate-600">
               Cada coluna representa o setor fisico atual da OP ou do saldo efetivamente liberado.
-              O quadro evita duplicacao ficticia e evidencia fila, capacidade e gargalos. Na
-              bifurcacao oficial, a mesma OP pode aparecer simultaneamente em Frente e Costa.
+              O quadro evita duplicacao ficticia e separa backlog vivo, plano do dia,
+              disponibilidade imediata e gargalos reais. Na bifurcacao oficial, a mesma OP pode
+              aparecer simultaneamente em Frente e Costa.
             </p>
           </div>
         </div>
@@ -182,7 +184,14 @@ export function KanbanOperacionalTurno({
         <div className="grid min-w-[84rem] grid-cols-1 gap-4 xl:grid-cols-5">
           {colunas.map((coluna) => {
             const capacidadeTotal = normalizarNumero(coluna.setor.capacidadeMinutosTotal)
+            const capacidadeConsumida = normalizarNumero(coluna.setor.capacidadeMinutosConsumida)
+            const capacidadeReservada = normalizarNumero(coluna.setor.capacidadeMinutosReservada)
             const capacidadeRestante = normalizarNumero(coluna.setor.capacidadeMinutosRestante)
+            const demandasLiberadasEmFila = coluna.demandasAtivas.filter(
+              (demanda) =>
+                !coluna.demandasEmQuadro.some((demandaEmQuadro) => demandaEmQuadro.id === demanda.id) &&
+                normalizarNumero(demanda.quantidadeLiberadaSetor) > 0
+            )
             const larguraCapacidade =
               capacidadeTotal > 0
                 ? Math.min((coluna.capacidadeComprometida / capacidadeTotal) * 100, 100)
@@ -234,7 +243,7 @@ export function KanbanOperacionalTurno({
 
                   <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
                     <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase tracking-wide text-slate-500">
-                      <span>Capacidade do setor</span>
+                      <span>Carga do plano do dia</span>
                       <span>{formatarMinutos(capacidadeTotal)}</span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
@@ -253,23 +262,32 @@ export function KanbanOperacionalTurno({
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-2">
                           <Timer size={14} />
-                          Comprometida
+                          Consumida
                         </span>
                         <span className="font-semibold text-slate-900">
-                          {formatarMinutos(coluna.capacidadeComprometida)}
+                          {formatarMinutos(capacidadeConsumida)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="inline-flex items-center gap-2">
+                          <Timer size={14} />
+                          Reservada
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {formatarMinutos(capacidadeReservada)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center gap-2">
                           <Users size={14} />
-                          Restante
+                          Saldo
                         </span>
                         <span className="font-semibold text-slate-900">
                           {formatarMinutos(capacidadeRestante)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span>Operadores alocados</span>
+                        <span>Sugeridos pela capacidade</span>
                         <span className="font-semibold text-slate-900">
                           {formatarQuantidade(coluna.setor.operadoresAlocados)}
                         </span>
@@ -282,8 +300,9 @@ export function KanbanOperacionalTurno({
                       <div className="flex items-start gap-2">
                         <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                         <p>
-                          {coluna.aguardandoLiberacao} item(ns) aguardando liberacao do setor
-                          anterior para entrar no quadro deste ponto do fluxo.
+                          {coluna.aguardandoLiberacao} item(ns) aguardando liberação do fluxo
+                          anterior ou da prioridade operacional deste setor para entrar em execução
+                          agora.
                         </p>
                       </div>
                     </div>
@@ -312,6 +331,11 @@ export function KanbanOperacionalTurno({
                       const exibirSincronizacaoMontagem =
                         resumoParalelo.quantidadeSincronizadaMontagem > 0 ||
                         resumoParalelo.quantidadeBloqueadaSincronizacao > 0
+                      const resumoPlano = resumirPlanoDiarioTurno({
+                        quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
+                        quantidadeConcluida: demanda.quantidadeConcluida,
+                        quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
+                      })
 
                       return (
                         <button
@@ -403,10 +427,10 @@ export function KanbanOperacionalTurno({
                             </div>
                           ) : null}
 
-                          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                             <div className="rounded-2xl bg-slate-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                Backlog
+                                Backlog vivo
                               </p>
                               <p className="mt-1 text-lg font-semibold text-slate-900">
                                 {formatarQuantidade(demanda.quantidadeBacklogSetor)}
@@ -414,10 +438,18 @@ export function KanbanOperacionalTurno({
                             </div>
                             <div className="rounded-2xl bg-blue-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-                                Aceito
+                                Plano do dia
                               </p>
                               <p className="mt-1 text-lg font-semibold text-blue-900">
                                 {formatarQuantidade(demanda.quantidadeAceitaTurno)}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-cyan-50 px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
+                                Disponível agora
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-cyan-900">
+                                {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
                               </p>
                             </div>
                             <div className="rounded-2xl bg-emerald-50 px-3 py-2">
@@ -438,10 +470,22 @@ export function KanbanOperacionalTurno({
                             </div>
                           </div>
 
+                          {resumoPlano.excedePlanoAtual ? (
+                            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+                                <p>
+                                  A disponibilidade imediata já ultrapassa o saldo visual do plano
+                                  do dia desta demanda.
+                                </p>
+                              </div>
+                            </div>
+                          ) : null}
+
                           <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
                             <span>
-                              Disponivel agora:{' '}
-                              {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
+                              Prioridade operacional e fila FIFO já refletidas na disponibilidade
+                              imediata.
                             </span>
                             <span className="inline-flex items-center gap-1 font-semibold text-blue-700">
                               Abrir OP
@@ -452,6 +496,93 @@ export function KanbanOperacionalTurno({
                       )
                     })
                   )}
+
+                  {demandasLiberadasEmFila.length > 0 ? (
+                    <div className="rounded-3xl border border-dashed border-slate-300 bg-white/80 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                            Já entrou no setor
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            OPs que já receberam liberação do fluxo anterior, mas ainda aguardam
+                            prioridade operacional neste setor.
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
+                          {demandasLiberadasEmFila.length} na fila
+                        </span>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {demandasLiberadasEmFila.map((demanda) => (
+                          <button
+                            key={demanda.id}
+                            type="button"
+                            onClick={() => onSelecionarOp(demanda.turnoOpId)}
+                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                                  OP {demanda.numeroOp}
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                  {demanda.produtoReferencia} · {demanda.produtoNome}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {demanda.setorAnteriorNome
+                                    ? `Entrada liberada por ${demanda.setorAnteriorNome}`
+                                    : 'Entrada já liberada para este setor'}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <span
+                                  className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${corStatusFila(
+                                    demanda.statusFila ?? 'sem_fila'
+                                  )}`}
+                                >
+                                  {formatarStatusFila(demanda.statusFila ?? 'sem_fila')}
+                                </span>
+                                {demanda.posicaoFila ? (
+                                  <span className="text-xs font-semibold text-slate-500">
+                                    Fila #{demanda.posicaoFila}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                              <div className="rounded-xl bg-white px-3 py-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                  Liberada ao setor
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                  {formatarQuantidade(demanda.quantidadeLiberadaSetor)}
+                                </p>
+                              </div>
+                              <div className="rounded-xl bg-blue-50 px-3 py-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                                  Plano do dia
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-blue-900">
+                                  {formatarQuantidade(demanda.quantidadeAceitaTurno)}
+                                </p>
+                              </div>
+                              <div className="rounded-xl bg-slate-100 px-3 py-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                  Backlog vivo
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                  {formatarQuantidade(demanda.quantidadeBacklogSetor)}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <button

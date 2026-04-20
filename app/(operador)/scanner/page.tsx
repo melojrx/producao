@@ -335,11 +335,13 @@ export default function ScannerPage() {
           <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 backdrop-blur-md">
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <Boxes size={16} className="text-fuchsia-300" />
-              Saldo
+              Disponível agora
             </div>
             <p className="mt-3 text-sm font-medium text-white">
               {demandaAtual
-                ? String(demandaAtual.saldoRestante)
+                ? String(
+                    demandaAtual.quantidadeDisponivelApontamento ?? demandaAtual.saldoRestante
+                  )
                 : setorAtual
                   ? String(setorAtual.saldoRestante)
                   : 'Aguardando leitura'}
@@ -358,6 +360,28 @@ export default function ScannerPage() {
             <p className="mt-2 text-slate-300">
               Turno aberto em {formatarTurnoResumido(setorAtual.turnoIniciadoEm)}
             </p>
+            {demandaAtual ? (
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="uppercase tracking-[0.18em] text-slate-400">Backlog vivo</p>
+                  <p className="mt-1 font-semibold text-white">
+                    {demandaAtual.quantidadeBacklogSetor ?? demandaAtual.saldoRestante}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="uppercase tracking-[0.18em] text-slate-400">Absorvido no dia</p>
+                  <p className="mt-1 font-semibold text-white">
+                    {demandaAtual.quantidadeAceitaTurno ?? demandaAtual.saldoRestante}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="uppercase tracking-[0.18em] text-slate-400">Disponível agora</p>
+                  <p className="mt-1 font-semibold text-white">
+                    {demandaAtual.quantidadeDisponivelApontamento ?? demandaAtual.saldoRestante}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
 

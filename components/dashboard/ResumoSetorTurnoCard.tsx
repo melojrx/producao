@@ -1,6 +1,8 @@
 'use client'
 
+import { AlertTriangle } from 'lucide-react'
 import type { TurnoSetorDashboardItem } from '@/lib/utils/turno-setores'
+import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 
 interface ResumoSetorTurnoCardProps {
   setor: TurnoSetorDashboardItem
@@ -28,6 +30,16 @@ function formatarQuantidade(valor: number): string {
 }
 
 export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardProps) {
+  const disponibilidadeAgora = setor.demandas.reduce(
+    (soma, demanda) => soma + demanda.quantidadeDisponivelApontamento,
+    0
+  )
+  const resumoPlano = resumirPlanoDiarioTurno({
+    quantidadeAceitaTurno: setor.quantidadeAceitaTurno,
+    quantidadeConcluida: setor.quantidadeConcluida,
+    quantidadeDisponivelApontamento: disponibilidadeAgora,
+  })
+
   return (
     <button
       type="button"
@@ -49,7 +61,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
       <div className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-slate-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Backlog
+            Backlog vivo
           </p>
           <p className="mt-1 font-semibold text-slate-900">
             {formatarQuantidade(setor.quantidadeBacklogTotal)}
@@ -57,7 +69,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
         </div>
         <div className="rounded-xl bg-blue-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-            Aceito
+            Plano do dia
           </p>
           <p className="mt-1 font-semibold text-blue-900">
             {formatarQuantidade(setor.quantidadeAceitaTurno)}
@@ -80,6 +92,27 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
           </p>
         </div>
       </div>
+
+      <div className="mt-3 rounded-xl bg-cyan-50 px-3 py-2 text-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
+          Disponível agora
+        </p>
+        <p className="mt-1 font-semibold text-cyan-900">
+          {formatarQuantidade(disponibilidadeAgora)}
+        </p>
+      </div>
+
+      {resumoPlano.excedePlanoAtual ? (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <p>
+              A execução atual já ultrapassa o saldo visual do plano do dia. O setor segue
+              operando, mas o turno passou do teto diário planejado.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
         <div

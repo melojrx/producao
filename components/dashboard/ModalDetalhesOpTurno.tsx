@@ -5,6 +5,7 @@ import {
   Activity,
   CheckCircle2,
   ClipboardList,
+  ExternalLink,
   Layers3,
   Package,
   X,
@@ -84,9 +85,16 @@ export function ModalDetalhesOpTurno({
   aoFechar,
 }: ModalDetalhesOpTurnoProps) {
   const [secaoSelecionadaId, setSecaoSelecionadaId] = useState<string | null>(null)
+  const hrefApontamentos = `/admin/apontamentos?aba=operacao_turno&turnoOpId=${encodeURIComponent(
+    op.id
+  )}`
   const secoesConcluidas = secoes.filter((secao) => secao.status === 'concluida').length
   const secoesPendentes = secoes.length - secoesConcluidas
   const progresso = op.progressoOperacionalPct
+  const quantidadeDisponivelAgora = secoes.reduce(
+    (soma, secao) => soma + secao.quantidadeDisponivelApontamento,
+    0
+  )
   const secaoSelecionada = useMemo(
     () => secoes.find((secao) => secao.id === secaoSelecionadaId) ?? null,
     [secaoSelecionadaId, secoes]
@@ -122,6 +130,17 @@ export function ModalDetalhesOpTurno({
               <p className="mt-1 text-sm text-slate-600">
                 {op.produtoNome} ({op.produtoReferencia})
               </p>
+              <div className="mt-3">
+                <a
+                  href={hrefApontamentos}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  Ir para apontamentos
+                  <ExternalLink size={14} />
+                </a>
+              </div>
             </div>
           </div>
 
@@ -180,7 +199,7 @@ export function ModalDetalhesOpTurno({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Backlog
+                    Backlog vivo
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-slate-900">
                     {opResumo?.quantidadeBacklogTotal ?? 0}
@@ -196,7 +215,7 @@ export function ModalDetalhesOpTurno({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                    Aceito no turno
+                    Plano do dia
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-blue-900">
                     {opResumo?.quantidadeAceitaTurno ?? 0}
@@ -204,6 +223,22 @@ export function ModalDetalhesOpTurno({
                 </div>
                 <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
                   <Package size={18} />
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">
+                    Disponível agora
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold text-cyan-900">
+                    {quantidadeDisponivelAgora}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-cyan-100 p-3 text-cyan-700">
+                  <Activity size={18} />
                 </div>
               </div>
             </article>
@@ -320,7 +355,7 @@ export function ModalDetalhesOpTurno({
                     <div className="mt-4 grid gap-3 sm:grid-cols-4">
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                          Backlog
+                          Backlog vivo
                         </p>
                         <p className="mt-2 text-xl font-semibold text-slate-900">
                           {secao.quantidadeBacklogTotal}
@@ -328,11 +363,20 @@ export function ModalDetalhesOpTurno({
                       </div>
 
                       <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
-                          Aceito
-                        </p>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                          Plano do dia
+                          </p>
                         <p className="mt-2 text-xl font-semibold text-blue-900">
                           {secao.quantidadeAceitaTurno}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-700">
+                          Disponível agora
+                        </p>
+                        <p className="mt-2 text-xl font-semibold text-cyan-900">
+                          {secao.quantidadeDisponivelApontamento}
                         </p>
                       </div>
 

@@ -90,8 +90,16 @@ export function calcularResumoCapacidadeSetor(
   const operadoresAlocados = Math.floor(normalizarNumeroPositivo(input.operadoresAlocados))
   const minutosTurno = normalizarNumeroPositivo(input.minutosTurno)
   const cargaPendenteMinutos = normalizarNumeroPositivo(input.cargaPendenteMinutos)
+  const cargaConsumidaMinutos = normalizarNumeroPositivo(input.cargaConsumidaMinutos ?? 0)
+  const cargaReservadaMinutos = normalizarNumeroPositivo(input.cargaReservadaMinutos ?? 0)
   const capacidadeMinutosTotal = calcularCapacidadeSetorEmMinutos(operadoresAlocados, minutosTurno)
-  const capacidadeMinutosRestante = Math.max(capacidadeMinutosTotal - cargaPendenteMinutos, 0)
+  const capacidadeMinutosComprometida = arredondarNumero(
+    cargaConsumidaMinutos + cargaReservadaMinutos
+  )
+  const capacidadeMinutosRestante = Math.max(
+    capacidadeMinutosTotal - capacidadeMinutosComprometida,
+    0
+  )
   const eficienciaRequeridaPct =
     capacidadeMinutosTotal > 0
       ? arredondarNumero((cargaPendenteMinutos / capacidadeMinutosTotal) * 100)
@@ -101,6 +109,8 @@ export function calcularResumoCapacidadeSetor(
     operadoresAlocados,
     minutosTurno,
     cargaPendenteMinutos,
+    cargaConsumidaMinutos,
+    cargaReservadaMinutos,
     capacidadeMinutosTotal,
     capacidadeMinutosRestante,
     capacidadePecas: calcularCapacidadeSetorEmPecas(capacidadeMinutosTotal, input.tpTotalSetorProduto),

@@ -301,14 +301,18 @@ test('hidrata capacidade setorial usando demandas pendentes e fallback legacy de
   assert.deepEqual(
     {
       operadoresAlocados: preparacao?.operadoresAlocados,
+      capacidadeMinutosConsumida: preparacao?.capacidadeMinutosConsumida,
+      capacidadeMinutosReservada: preparacao?.capacidadeMinutosReservada,
       capacidadeMinutosTotal: preparacao?.capacidadeMinutosTotal,
       capacidadeMinutosRestante: preparacao?.capacidadeMinutosRestante,
       diagnosticoCapacidade: preparacao?.diagnosticoCapacidade,
     },
     {
       operadoresAlocados: 2,
+      capacidadeMinutosConsumida: 80,
+      capacidadeMinutosReservada: 120,
       capacidadeMinutosTotal: 200,
-      capacidadeMinutosRestante: 80,
+      capacidadeMinutosRestante: 0,
       diagnosticoCapacidade: 'dentro_capacidade',
     }
   )
@@ -316,14 +320,18 @@ test('hidrata capacidade setorial usando demandas pendentes e fallback legacy de
   assert.deepEqual(
     {
       operadoresAlocados: montagem?.operadoresAlocados,
+      capacidadeMinutosConsumida: montagem?.capacidadeMinutosConsumida,
+      capacidadeMinutosReservada: montagem?.capacidadeMinutosReservada,
       capacidadeMinutosTotal: montagem?.capacidadeMinutosTotal,
       capacidadeMinutosRestante: montagem?.capacidadeMinutosRestante,
       diagnosticoCapacidade: montagem?.diagnosticoCapacidade,
     },
     {
       operadoresAlocados: 1,
+      capacidadeMinutosConsumida: 10,
+      capacidadeMinutosReservada: 90,
       capacidadeMinutosTotal: 100,
-      capacidadeMinutosRestante: 10,
+      capacidadeMinutosRestante: 0,
       diagnosticoCapacidade: 'dentro_capacidade',
     }
   )
@@ -331,12 +339,16 @@ test('hidrata capacidade setorial usando demandas pendentes e fallback legacy de
   assert.deepEqual(
     {
       operadoresAlocados: finalizacao?.operadoresAlocados,
+      capacidadeMinutosConsumida: finalizacao?.capacidadeMinutosConsumida,
+      capacidadeMinutosReservada: finalizacao?.capacidadeMinutosReservada,
       capacidadeMinutosTotal: finalizacao?.capacidadeMinutosTotal,
       capacidadeMinutosRestante: finalizacao?.capacidadeMinutosRestante,
       diagnosticoCapacidade: finalizacao?.diagnosticoCapacidade,
     },
     {
       operadoresAlocados: 0,
+      capacidadeMinutosConsumida: 0,
+      capacidadeMinutosReservada: 0,
       capacidadeMinutosTotal: 0,
       capacidadeMinutosRestante: 0,
       diagnosticoCapacidade: 'sem_carga',
@@ -344,7 +356,7 @@ test('hidrata capacidade setorial usando demandas pendentes e fallback legacy de
   )
 })
 
-test('limita aceite do turno pela capacidade do setor e reduz a quantidade exposta em secao e operacoes', () => {
+test('limita o plano do dia pelo teto global do turno e preserva a disponibilidade imediata', () => {
   const turnoLimitado: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'> = {
     operadoresDisponiveis: 1,
     minutosTurno: 100,
@@ -368,12 +380,16 @@ test('limita aceite do turno pela capacidade do setor e reduz a quantidade expos
     {
       quantidadeAceitaTurno: demandaLimitada?.quantidadeAceitaTurno,
       quantidadeExcedenteTurno: demandaLimitada?.quantidadeExcedenteTurno,
+      quantidadeEntradaAcumuladaSetor: demandaLimitada?.quantidadeEntradaAcumuladaSetor,
+      quantidadeAceitaAcumuladaSetor: demandaLimitada?.quantidadeAceitaAcumuladaSetor,
       quantidadeDisponivelApontamento: demandaLimitada?.quantidadeDisponivelApontamento,
     },
     {
-      quantidadeAceitaTurno: 50,
-      quantidadeExcedenteTurno: 10,
-      quantidadeDisponivelApontamento: 50,
+      quantidadeAceitaTurno: 33,
+      quantidadeExcedenteTurno: 27,
+      quantidadeEntradaAcumuladaSetor: 100,
+      quantidadeAceitaAcumuladaSetor: 73,
+      quantidadeDisponivelApontamento: 60,
     }
   )
 
@@ -386,7 +402,257 @@ test('limita aceite do turno pela capacidade do setor e reduz a quantidade expos
     demandasSetor: demandasLimitadas,
   })
 
-  assert.equal(operacoesLimitadas[0]?.quantidadePlanejada, 90)
-  assert.equal(operacoesLimitadas[1]?.quantidadePlanejada, 90)
-  assert.equal(secoesLimitadas[0]?.quantidadePlanejada, 90)
+  assert.equal(operacoesLimitadas[0]?.quantidadePlanejada, 73)
+  assert.equal(operacoesLimitadas[1]?.quantidadePlanejada, 73)
+  assert.equal(secoesLimitadas[0]?.quantidadePlanejada, 73)
+})
+
+test('redistribui o plano residual do dia para a próxima demanda do setor quando houver fila ativa', () => {
+  const turnoLimitado: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'> = {
+    operadoresDisponiveis: 1,
+    minutosTurno: 100,
+  }
+  const demandaJaProduzida: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    quantidadePlanejada: 100,
+    quantidadeRealizada: 50,
+    quantidadeConcluida: 50,
+    quantidadeBacklogSetor: 50,
+    quantidadePendenteSetor: 50,
+    quantidadeDisponivelApontamento: 50,
+  }
+  const demandaNovaFila: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    id: 'demanda-1b',
+    turnoSetorOpLegacyId: 'secao-1b',
+    numeroOp: '17822',
+    quantidadePlanejada: 50,
+    quantidadeRealizada: 0,
+    quantidadeConcluida: 0,
+    quantidadeBacklogSetor: 50,
+    quantidadePendenteSetor: 50,
+    quantidadeDisponivelApontamento: 50,
+    posicaoFila: 2,
+  }
+
+  const operacoesPreparacaoBase = criarOperacoesSecaoBase().filter(
+    (operacao) => operacao.setorId === 'setor-1'
+  )
+  const operacoesPreparacao = [
+    ...operacoesPreparacaoBase,
+    ...operacoesPreparacaoBase.map((operacao) => ({
+      ...operacao,
+      id: `${operacao.id}-nova`,
+      turnoSetorOpId: 'secao-1b',
+      turnoSetorDemandaId: 'demanda-1b',
+      produtoOperacaoId: `${operacao.produtoOperacaoId}-nova`,
+    })),
+  ]
+  const demandasLimitadas = aplicarCapacidadeOperacionalDemandas({
+    turno: turnoLimitado,
+    demandasSetor: [demandaJaProduzida, demandaNovaFila],
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+  })
+
+  assert.deepEqual(
+    demandasLimitadas.map((demanda) => ({
+      id: demanda.id,
+      quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
+      quantidadeExcedenteTurno: demanda.quantidadeExcedenteTurno,
+      quantidadeAceitaAcumuladaSetor: demanda.quantidadeAceitaAcumuladaSetor,
+    })),
+    [
+      {
+        id: 'demanda-1',
+        quantidadeAceitaTurno: 0,
+        quantidadeExcedenteTurno: 50,
+        quantidadeAceitaAcumuladaSetor: 50,
+      },
+      {
+        id: 'demanda-1b',
+        quantidadeAceitaTurno: 33,
+        quantidadeExcedenteTurno: 17,
+        quantidadeAceitaAcumuladaSetor: 33,
+      },
+    ]
+  )
+})
+
+test('mantem apenas a demanda prioritaria do setor liberada para execucao imediata', () => {
+  const turnoCapaz: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'> = {
+    operadoresDisponiveis: 2,
+    minutosTurno: 100,
+  }
+  const demandaPrioritaria: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    quantidadeRealizada: 0,
+    quantidadeConcluida: 0,
+    quantidadeBacklogSetor: 40,
+    quantidadePendenteSetor: 40,
+    quantidadeDisponivelApontamento: 40,
+    quantidadeAceitaTurno: 40,
+    posicaoFila: 1,
+    statusFila: 'liberada',
+  }
+  const demandaSeguinte: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    id: 'demanda-2',
+    turnoSetorOpLegacyId: 'secao-2',
+    numeroOp: '17822',
+    quantidadeRealizada: 0,
+    quantidadeConcluida: 0,
+    quantidadeBacklogSetor: 30,
+    quantidadePendenteSetor: 30,
+    quantidadeDisponivelApontamento: 30,
+    quantidadeAceitaTurno: 30,
+    posicaoFila: 2,
+    statusFila: 'em_fila',
+  }
+
+  const operacoesPreparacaoBase = criarOperacoesSecaoBase().filter(
+    (operacao) => operacao.setorId === 'setor-1'
+  )
+  const operacoesPreparacao = [
+    ...operacoesPreparacaoBase,
+    ...operacoesPreparacaoBase.map((operacao) => ({
+      ...operacao,
+      id: `${operacao.id}-fila`,
+      turnoSetorOpId: 'secao-2',
+      turnoSetorDemandaId: 'demanda-2',
+      produtoOperacaoId: `${operacao.produtoOperacaoId}-fila`,
+      quantidadePlanejada: 30,
+      quantidadeRealizada: 0,
+      status: 'aberta' as const,
+    })),
+  ]
+
+  const resultado = aplicarCapacidadeOperacionalDemandas({
+    turno: turnoCapaz,
+    demandasSetor: [demandaPrioritaria, demandaSeguinte],
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+  })
+
+  assert.deepEqual(
+    resultado.map((demanda) => ({
+      id: demanda.id,
+      quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
+      quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
+    })),
+    [
+      {
+        id: 'demanda-1',
+        quantidadeAceitaTurno: 40,
+        quantidadeDisponivelApontamento: 40,
+      },
+      {
+        id: 'demanda-2',
+        quantidadeAceitaTurno: 26,
+        quantidadeDisponivelApontamento: 0,
+      },
+    ]
+  )
+})
+
+test('nao desconta da capacidade do novo turno a producao herdada do carry-over sem apontamento atual', () => {
+  const turnoLimitado: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'> = {
+    operadoresDisponiveis: 1,
+    minutosTurno: 100,
+  }
+  const demandaHerdada: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    quantidadePlanejada: 100,
+    quantidadeRealizada: 50,
+    quantidadeConcluida: 50,
+    quantidadeBacklogSetor: 50,
+    quantidadeAceitaTurno: 50,
+    quantidadeExcedenteTurno: 0,
+    quantidadePendenteSetor: 50,
+    quantidadeDisponivelApontamento: 50,
+  }
+  const operacoesHerdadas = criarOperacoesSecaoBase()
+    .filter((operacao) => operacao.setorId === 'setor-1')
+    .map((operacao) => ({
+      ...operacao,
+      quantidadeRealizada: 50,
+    }))
+  const quantidadeRealizadaAtualPorOperacaoId = new Map<string, number>()
+
+  const demandasLimitadas = aplicarCapacidadeOperacionalDemandas({
+    turno: turnoLimitado,
+    demandasSetor: [demandaHerdada],
+    operacoesSecao: operacoesHerdadas,
+    ops: [criarOpBase()],
+    quantidadeRealizadaAtualPorOperacaoId,
+  })
+
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 33)
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaAcumuladaSetor, 33)
+
+  const setoresHidratados = hidratarSetoresTurnoComCapacidade({
+    turno: turnoLimitado,
+    setoresAtivos: [criarSetoresBase()[0]],
+    demandasSetor: demandasLimitadas,
+    operacoesSecao: operacoesHerdadas,
+    ops: [criarOpBase()],
+    quantidadeRealizadaAtualPorOperacaoId,
+  })
+
+  assert.equal(setoresHidratados[0]?.operadoresAlocados, 1)
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosConsumida, 0)
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosReservada, 66)
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosRestante, 34)
+})
+
+test('limita o plano setorial ao teto global do turno sem travar a disponibilidade imediata', () => {
+  const turnoComTetoGlobal: Pick<
+    TurnoV2,
+    'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'
+  > = {
+    operadoresDisponiveis: 20,
+    minutosTurno: 510,
+    capacidadeGlobalTurnoPecas: 30,
+  }
+  const demandaPreparacao: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    quantidadePlanejada: 100,
+    quantidadeRealizada: 0,
+    quantidadeConcluida: 0,
+    quantidadeBacklogSetor: 100,
+    quantidadeAceitaTurno: 100,
+    quantidadeExcedenteTurno: 0,
+    quantidadePendenteSetor: 100,
+    quantidadeDisponivelApontamento: 100,
+  }
+  const operacoesPreparacao = criarOperacoesSecaoBase()
+    .filter((operacao) => operacao.setorId === 'setor-1')
+    .map((operacao) => ({
+      ...operacao,
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      status: 'aberta' as const,
+    }))
+
+  const demandasLimitadas = aplicarCapacidadeOperacionalDemandas({
+    turno: turnoComTetoGlobal,
+    demandasSetor: [demandaPreparacao],
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+  })
+
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 30)
+  assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 70)
+  assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 100)
+
+  const setoresHidratados = hidratarSetoresTurnoComCapacidade({
+    turno: turnoComTetoGlobal,
+    setoresAtivos: [criarSetoresBase()[0]],
+    demandasSetor: demandasLimitadas,
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+  })
+
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosConsumida, 0)
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosReservada, 60)
 })

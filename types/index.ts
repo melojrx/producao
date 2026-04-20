@@ -137,6 +137,8 @@ export interface CalculoCapacidadeSetorInput {
   operadoresAlocados: number
   minutosTurno: number
   cargaPendenteMinutos: number
+  cargaConsumidaMinutos?: number | null
+  cargaReservadaMinutos?: number | null
   tpTotalSetorProduto?: number | null
 }
 
@@ -144,6 +146,8 @@ export interface ResumoCapacidadeSetorV2 {
   operadoresAlocados: number
   minutosTurno: number
   cargaPendenteMinutos: number
+  cargaConsumidaMinutos: number
+  cargaReservadaMinutos: number
   capacidadeMinutosTotal: number
   capacidadeMinutosRestante: number
   capacidadePecas: number | null
@@ -690,6 +694,8 @@ export interface TurnoV2 {
   status: TurnoStatusV2
   operadoresDisponiveis: number
   minutosTurno: number
+  mediaTpProdutoCapacidade?: number
+  capacidadeGlobalTurnoPecas?: number
   observacao: string | null
 }
 
@@ -739,6 +745,8 @@ export interface TurnoSetorV2 {
   qrCodeToken: string
   operadoresAlocados?: number
   capacidadeMinutosTotal?: number
+  capacidadeMinutosConsumida?: number
+  capacidadeMinutosReservada?: number
   capacidadeMinutosRestante?: number
   eficienciaRequeridaPct?: number | null
   diagnosticoCapacidade?: DiagnosticoCapacidadeSetorV2
@@ -773,6 +781,8 @@ export interface TurnoSetorDemandaV2 {
   quantidadeExcedenteTurno?: number
   quantidadePendenteSetor?: number
   quantidadeLiberadaSetor?: number
+  quantidadeEntradaAcumuladaSetor?: number
+  quantidadeAceitaAcumuladaSetor?: number
   quantidadeDisponivelApontamento?: number
   quantidadeBloqueadaAnterior?: number
   quantidadeSincronizadaMontagem?: number

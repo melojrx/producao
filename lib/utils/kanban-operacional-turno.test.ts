@@ -314,6 +314,49 @@ test('monta o kanban com OP nova, carry-over parcial, setor concluido, fracionam
   assert.equal(montagem?.aguardandoLiberacao, 1)
 })
 
+test('mantem fora do quadro a demanda aceita no dia que ainda nao virou prioridade de execucao', () => {
+  const planejamento = criarPlanejamentoTeste()
+  const demandasBase = planejamento.demandasSetor ?? []
+
+  planejamento.demandasSetor = [
+    {
+      ...demandasBase[0],
+      setorId: 'setor-preparacao',
+      turnoSetorId: 'turno-setor-preparacao',
+      posicaoFila: 1,
+      statusFila: 'liberada',
+      quantidadeAceitaTurno: 40,
+      quantidadeDisponivelApontamento: 40,
+      quantidadeRealizada: 0,
+      quantidadeConcluida: 0,
+    },
+    {
+      ...demandasBase[2],
+      id: 'demanda-op-fila-preparacao',
+      turnoOpId: 'turno-op-fila-preparacao',
+      setorId: 'setor-preparacao',
+      turnoSetorId: 'turno-setor-preparacao',
+      numeroOp: 'OP-101',
+      produtoNome: 'Fila do dia',
+      produtoReferencia: 'REF-101',
+      posicaoFila: 2,
+      statusFila: 'em_fila',
+      quantidadeAceitaTurno: 30,
+      quantidadeDisponivelApontamento: 0,
+      quantidadeRealizada: 0,
+      quantidadeConcluida: 0,
+    },
+  ]
+
+  const colunas = construirColunasKanbanOperacional(planejamento)
+  const preparacao = colunas.find((coluna) => coluna.setor.setorId === 'setor-preparacao')
+
+  assert.equal(preparacao?.demandasAtivas.length, 2)
+  assert.equal(preparacao?.demandasEmQuadro.length, 1)
+  assert.equal(preparacao?.demandasEmQuadro[0]?.numeroOp, 'OP-100')
+  assert.equal(preparacao?.aguardandoLiberacao, 1)
+})
+
 test('resume o fluxo paralelo do card do kanban destacando Frente e Costa simultaneas', () => {
   const resumo = resumirFluxoParaleloDemandaKanban(
     {

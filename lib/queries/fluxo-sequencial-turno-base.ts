@@ -301,6 +301,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         turno: {
           operadoresDisponiveis: turno.operadores_disponiveis,
           minutosTurno: turno.minutos_turno,
+          capacidadeGlobalTurnoPecas: Number.MAX_SAFE_INTEGER,
         },
         demandasSetor: demandasTurno,
         operacoesSecao: operacoesRelacionadas.filter((operacao) => operacao.turnoId === turnoId),
@@ -332,7 +333,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
       const quantidadeDisponivelOperacao = Math.max(
         Math.min(
           operacao.quantidade_planejada,
-          demanda.quantidadeRealizada + (demanda.quantidadeAceitaTurno ?? 0)
+          demanda.quantidadeRealizada + (demanda.quantidadeDisponivelApontamento ?? 0)
         ) -
           operacao.quantidade_realizada,
         0

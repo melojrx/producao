@@ -1,6 +1,7 @@
 import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
 import { createClient } from '@/lib/supabase/client'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
+import { listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient } from '@/lib/queries/turno-capacidade-atual-base'
 import {
   consolidarDemandasPorOperacoes,
   consolidarOpsPorDemandas,
@@ -16,9 +17,8 @@ import {
 import {
   aplicarCapacidadeOperacionalDemandas,
   hidratarSetoresTurnoComCapacidade,
-  limitarOperacoesTurnoAoAceiteDemandas,
-  limitarSecoesTurnoAoAceiteDemandas,
 } from '@/lib/utils/hidratacao-capacidade-setor-turno'
+import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import type {
   PlanejamentoTurnoDashboardV2,
   PlanejamentoTurnoV2,
@@ -718,31 +718,35 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     listarTurnoSetores(turno.id),
     listarResumoEficienciaOperacionalTurnoComClient(supabase, turno.id),
   ])
+  const turnoMapeadoBase = mapearTurno(turno)
+  const resumoCapacidadeGlobal = calcularMetaGrupoTurnoV2(turnoMapeadoBase, ops)
+  const turnoMapeado = {
+    ...turnoMapeadoBase,
+    mediaTpProdutoCapacidade: resumoCapacidadeGlobal.mediaTpProduto,
+    capacidadeGlobalTurnoPecas: resumoCapacidadeGlobal.capacidadeGlobalTurnoPecas,
+  }
+  const quantidadeRealizadaAtualPorOperacaoId =
+    await listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient(supabase, operacoesSecao)
 
   const demandasSetorBrutas = await listarTurnoSetorDemandas(turno.id, ops)
   const demandasSetorFluxo = enriquecerDemandasSetorComFila(
     consolidarDemandasPorOperacoes(demandasSetorBrutas, operacoesSecao)
   )
   const demandasSetor = aplicarCapacidadeOperacionalDemandas({
-    turno: mapearTurno(turno),
+    turno: turnoMapeado,
     demandasSetor: demandasSetorFluxo,
     operacoesSecao,
     ops,
+    quantidadeRealizadaAtualPorOperacaoId,
   })
-  const operacoesSecaoLimitadas = limitarOperacoesTurnoAoAceiteDemandas({
-    operacoesSecao,
-    demandasSetor,
-  })
-  const secoesSetorOpConsolidadas = limitarSecoesTurnoAoAceiteDemandas({
-    secoesSetorOp: consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecaoLimitadas),
-    demandasSetor,
-  })
+  const secoesSetorOpConsolidadas = consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecao)
   const setoresAtivosConsolidados = hidratarSetoresTurnoComCapacidade({
-    turno: mapearTurno(turno),
+    turno: turnoMapeado,
     setoresAtivos: consolidarSetoresPorDemandas(setoresAtivos, demandasSetor),
     demandasSetor,
-    operacoesSecao: operacoesSecaoLimitadas,
+    operacoesSecao,
     ops,
+    quantidadeRealizadaAtualPorOperacaoId,
   })
   const opsConsolidadas = enriquecerOpsComPosicaoFluxo(
     consolidarOpsPorDemandas(ops, demandasSetor),
@@ -750,14 +754,14 @@ export async function buscarPlanejamentoTurnoPorIdClient(
   )
 
   return {
-    turno: mapearTurno(turno),
+    turno: turnoMapeado,
     operadores,
     operadoresAtividadeSetor,
     ops: opsConsolidadas,
     setoresAtivos: setoresAtivosConsolidados,
     demandasSetor,
     secoesSetorOp: secoesSetorOpConsolidadas,
-    operacoesSecao: operacoesSecaoLimitadas,
+    operacoesSecao,
     eficienciaOperacional,
   }
 }

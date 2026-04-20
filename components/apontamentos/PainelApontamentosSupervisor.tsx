@@ -16,6 +16,7 @@ import {
   registrarApontamentosSupervisor,
   type RegistrarApontamentosSupervisorActionState,
 } from '@/lib/actions/producao'
+import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
   EtapaFluxoChaveV2,
@@ -31,6 +32,7 @@ interface PainelApontamentosSupervisorProps {
   planejamento: PlanejamentoTurnoV2
   operacoesTurno: TurnoSetorOperacaoApontamentoV2[]
   origemOperadores?: 'turno' | 'fallback_ativos'
+  filtroTurnoOpInicial?: string
 }
 
 interface SecaoComContexto extends TurnoSetorOpV2 {
@@ -205,6 +207,7 @@ export function PainelApontamentosSupervisor({
   planejamento,
   operacoesTurno,
   origemOperadores = 'turno',
+  filtroTurnoOpInicial = '',
 }: PainelApontamentosSupervisorProps) {
   const router = useRouter()
   const [estado, executar, pendente] = useActionState(
@@ -218,7 +221,7 @@ export function PainelApontamentosSupervisor({
   } | null>(null)
   const [erroLocal, setErroLocal] = useState<string | null>(null)
   const [mensagemFluxo, setMensagemFluxo] = useState<string | null>(null)
-  const [filtroOp, setFiltroOp] = useState('')
+  const [filtroOp, setFiltroOp] = useState(filtroTurnoOpInicial)
   const [filtroSetor, setFiltroSetor] = useState('')
   const [filtroProduto, setFiltroProduto] = useState('')
   const secoes = useMemo(() => montarSecoesComContexto(planejamento), [planejamento])
@@ -332,6 +335,28 @@ export function PainelApontamentosSupervisor({
 
     return operadoresDaSecaoBase.length > 0 ? operadoresDaSecaoBase : planejamento.operadores
   }, [planejamento.operadores, secaoSelecionada])
+  const operadoresAlocadosFormaisSecao = useMemo(() => {
+    if (!secaoSelecionada) {
+      return 0
+    }
+
+    return new Set(
+      planejamento.operadores
+        .filter((operador) => operador.setorId === secaoSelecionada.setorId)
+        .map((operador) => operador.operadorId)
+    ).size
+  }, [planejamento.operadores, secaoSelecionada])
+  const operadoresComAtividadeSecao = useMemo(() => {
+    if (!secaoSelecionada) {
+      return 0
+    }
+
+    return new Set(
+      (planejamento.operadoresAtividadeSetor ?? [])
+        .filter((atividade) => atividade.turnoSetorOpId === secaoSelecionada.id)
+        .map((atividade) => atividade.operadorId)
+    ).size
+  }, [planejamento.operadoresAtividadeSetor, secaoSelecionada])
   const operacoesDaSecaoPorId = useMemo(
     () => new Map(operacoesDaSecao.map((operacao) => [operacao.id, operacao])),
     [operacoesDaSecao]
@@ -607,6 +632,18 @@ export function PainelApontamentosSupervisor({
   const saldoSecaoSelecionada = secaoSelecionada
     ? saldoRestanteSecao(secaoSelecionada)
     : 0
+  const quantidadeLoteAtual = lancamentos.reduce((soma, lancamento) => {
+    const quantidade = Number.parseInt(lancamento.quantidade, 10)
+    return Number.isInteger(quantidade) && quantidade > 0 ? soma + quantidade : soma
+  }, 0)
+  const resumoPlanoSecao = secaoSelecionada
+    ? resumirPlanoDiarioTurno({
+        quantidadeAceitaTurno: secaoSelecionada.quantidadeAceitaTurno,
+        quantidadeConcluida: secaoSelecionada.quantidadeConcluida,
+        quantidadeDisponivelApontamento: saldoSecaoSelecionada,
+        quantidadeSelecionada: quantidadeLoteAtual,
+      })
+    : null
 
   return (
     <section className="space-y-6">
@@ -715,8 +752,9 @@ export function PainelApontamentosSupervisor({
                     >
                       {secoesFiltradas.map((secao) => (
                         <option key={secao.id} value={secao.id}>
-                          {secao.numeroOp} · {secao.setorNome} · aceito{' '}
-                          {secao.quantidadeAceitaTurno} · disponível {saldoRestanteSecao(secao)}
+                          {secao.numeroOp} · {secao.setorNome} · plano do dia{' '}
+                          {secao.quantidadeAceitaTurno} · disponível agora{' '}
+                          {saldoRestanteSecao(secao)}
                         </option>
                       ))}
                     </select>
@@ -732,10 +770,10 @@ export function PainelApontamentosSupervisor({
                   </div>
                 )}
 
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-5">
                   <article className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Backlog total
+                      Backlog vivo
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">
                       {secaoSelecionada.quantidadeBacklogTotal}
@@ -743,10 +781,18 @@ export function PainelApontamentosSupervisor({
                   </article>
                   <article className="rounded-2xl bg-blue-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                      Aceito no turno
+                      Plano do dia
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-blue-900">
                       {secaoSelecionada.quantidadeAceitaTurno}
+                    </p>
+                  </article>
+                  <article className="rounded-2xl bg-cyan-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">
+                      Disponível agora
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-cyan-900">
+                      {saldoSecaoSelecionada}
                     </p>
                   </article>
                   <article className="rounded-2xl bg-emerald-50 p-4">
@@ -768,10 +814,21 @@ export function PainelApontamentosSupervisor({
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  Disponível para apontamento agora: <span className="font-semibold">{saldoSecaoSelecionada}</span>
-                  {' · '}
-                  Progresso operacional: <span className="font-semibold">{secaoSelecionada.progressoOperacionalPct.toFixed(0)}%</span>
+                  Disponível para apontamento agora:{' '}
+                  <span className="font-semibold">{saldoSecaoSelecionada}</span>
+                  {' · '}Progresso operacional:{' '}
+                  <span className="font-semibold">
+                    {secaoSelecionada.progressoOperacionalPct.toFixed(0)}%
+                  </span>
                 </div>
+
+                {resumoPlanoSecao?.excedePlanoAtual || resumoPlanoSecao?.excedePlanoComQuantidade ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Este lançamento ultrapassa o saldo visual do plano do dia deste setor. O
+                    apontamento continua permitido, mas a leitura diária já excedeu o teto
+                    planejado.
+                  </div>
+                ) : null}
 
                 {secaoSelecionada.etapaFluxoChave === 'frente' ||
                 secaoSelecionada.etapaFluxoChave === 'costa' ? (
@@ -889,7 +946,13 @@ export function PainelApontamentosSupervisor({
                         {operadoresDaSecao.length} operador(es) elegível(is)
                       </span>
                       <span className="inline-flex items-center gap-2 font-medium">
-                        Aceito {secaoSelecionada.quantidadeAceitaTurno} · disponível{' '}
+                        Alocação formal {operadoresAlocadosFormaisSecao}
+                      </span>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        Atividade real {operadoresComAtividadeSecao}
+                      </span>
+                      <span className="inline-flex items-center gap-2 font-medium">
+                        Plano do dia {secaoSelecionada.quantidadeAceitaTurno} · disponível agora{' '}
                         {saldoSecaoSelecionada}
                       </span>
                     </div>
@@ -1003,9 +1066,10 @@ export function PainelApontamentosSupervisor({
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
                     <p className="text-sm text-slate-500">
-                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · backlog{' '}
-                      {secaoSelecionada.quantidadeBacklogTotal} · aceito{' '}
-                      {secaoSelecionada.quantidadeAceitaTurno} · disponível {saldoSecaoSelecionada}.
+                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · backlog vivo{' '}
+                      {secaoSelecionada.quantidadeBacklogTotal} · plano do dia{' '}
+                      {secaoSelecionada.quantidadeAceitaTurno} · disponível agora{' '}
+                      {saldoSecaoSelecionada}.
                     </p>
 
                     <button

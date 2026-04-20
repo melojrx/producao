@@ -22,6 +22,7 @@ type OperacaoTurnoConsolidavel = Pick<
 export interface MetaGrupoTurnoResumoV2 {
   mediaTpProduto: number
   metaGrupo: number
+  capacidadeGlobalTurnoPecas: number
 }
 
 export function calcularMediaTpProdutoTurno(
@@ -44,14 +45,16 @@ export function calcularMetaGrupoTurnoV2(
   ops: TurnoOpComTpProduto[]
 ): MetaGrupoTurnoResumoV2 {
   const mediaTpProduto = calcularMediaTpProdutoTurno(ops)
+  const capacidadeGlobalTurnoPecas = calcularMetaGrupo(
+    turno.operadoresDisponiveis,
+    turno.minutosTurno,
+    mediaTpProduto
+  )
 
   return {
     mediaTpProduto,
-    metaGrupo: calcularMetaGrupo(
-      turno.operadoresDisponiveis,
-      turno.minutosTurno,
-      mediaTpProduto
-    ),
+    metaGrupo: capacidadeGlobalTurnoPecas,
+    capacidadeGlobalTurnoPecas,
   }
 }
 

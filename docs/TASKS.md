@@ -1955,6 +1955,11 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 - antes de retomar implementação, a estratégia documental e o escopo da sprint precisam ser realinhados explicitamente
 - enquanto esta sprint permanecer em `realinhamento documental`, nenhuma HU visual reaberta deve voltar a ser implementada no frontend sem nova confirmação explícita do usuário
 
+**Observação de prioridade em `2026-04-20`:**
+- a Sprint 23 sai da prioridade ativa do projeto até segunda ordem
+- o status e o checklist atual permanecem preservados exatamente como estão
+- nenhuma HU da Sprint 23 deve voltar para a fila de execução sem reativação explícita do usuário
+
 **Decisões de produto já homologadas para esta sprint:**
 - `docs/DESIGN_PROPOSAL.md` passa a ser o norte visual oficial do admin e da dashboard.
 - a proposta deve orientar semântica, tipografia, tokens, hierarquia visual e consistência entre superfícies, mas não precisa ser seguida literalmente como sequência de arquivos/fases.
@@ -2164,7 +2169,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** O admin homologado passa a exibir consistência visual entre dashboard, CRUDs, relatórios, apontamentos e QR Codes, com `npx tsc --noEmit` passando e com exceções remanescentes formalmente documentadas.
 
 ## SPRINT 24 — Meta mensal global da fábrica
-**Status:** 🔄 Em execução
+**Status:** ✅ Concluída
 **Pré-requisito:** realinhamento documental concluído e confirmação explícita do usuário para abertura oficial da sprint.
 **Objetivo:** introduzir a meta mensal global da fábrica como leitura gerencial principal da dashboard, com acompanhamento acumulado diário e semanal por calendário do mês, sem depender da existência de turno ativo.
 
@@ -3210,3 +3215,149 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Risco:** Alto
 
   **Evidência:** a Sprint 31 foi homologada tecnicamente com o fluxo paralelo ativo em toda a cadeia relevante: domínio e queries calculando `Montagem` pela interseção real entre `Frente` e `Costa`, kanban exibindo simultaneidade oficial, carry-over preservando as duas trilhas sem colapso e scanner/apontamentos refletindo a sincronização parcial no contexto operacional. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/carry-over-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/capacidade-setor.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts`, `npx tsc --noEmit` e `npm run build`, todos sem erros.
+
+## SPRINT 32 — Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila
+**Status:** 🔄 Reaberta documentalmente em `2026-04-20` para a HU 32.7
+**Pré-requisito:** Sprint 31 concluída e confirmação explícita do usuário em `2026-04-20` para formalizar a evolução do modelo operacional.
+**Objetivo:** evoluir o fluxo oficial para representar cada setor como uma fila contínua alimentada ao longo do dia, limitada pela capacidade diária cumulativa e operada com prioridade de conclusão da OP atual antes de fracionamento desnecessário.
+
+**Decisões de produto homologadas para esta sprint:**
+- cada setor deve funcionar como uma fila contínua em movimento, e não como um lote congelado na abertura do turno
+- a disponibilidade do setor precisa crescer durante o dia conforme o setor anterior conclui novas peças
+- a capacidade diária do setor continua obrigatória, mas o seu consumo passa a ser cumulativo no próprio dia
+- o setor pode receber novas peças do fluxo a qualquer momento, porém o aceite acumulado do dia não pode ultrapassar a capacidade diária daquele setor
+- a fila continua obrigatoriamente FIFO por ordem cronológica de chegada
+- o sistema deve distinguir `chegou ao setor`, `disponível agora`, `aceito no turno`, `concluído no setor` e `excedente`
+- o setor não deve espalhar desnecessariamente sua capacidade em várias OPs ao mesmo tempo; se for possível concluir a OP atual no turno, essa conclusão deve ter prioridade
+- a leitura de operadores na UI deve distinguir sugestão de capacidade, atividade real e alocação formal, sem chamar de `alocados` dados que sejam apenas inferência operacional
+- a evolução deve ser implementada com mudanças aditivas, reutilizando contratos e utilitários homologados nas Sprints 29, 30 e 31
+- reabertura pontual homologada em `2026-04-20` para ajustar a leitura da prévia de abertura do turno ao foco de capacidade produtiva disponível no momento
+- reabertura documental complementar homologada em `2026-04-20` para corrigir a semântica entre `capacidade produtiva global do turno` e `aceite operacional setorial`, sem reintroduzir travas transacionais no scanner ou nos apontamentos
+
+- [x] **HU 32.1 — Como produto, quero formalizar no PRD a regra de fluxo contínuo com capacidade diária cumulativa e prioridade de conclusão, para abrir a evolução da Sprint 32 com escopo claro e sem ambiguidade.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - formalizar no `docs/PRD.md` a leitura oficial de setor como fila contínua alimentada ao longo do dia
+  - formalizar a diferença entre `chegou ao setor`, `disponível agora`, `aceito no turno`, `concluído` e `excedente`
+  - formalizar no `docs/PRD.md` que a capacidade diária do setor é cumulativa e não pode ser reiniciada a cada recomputação
+  - formalizar a prioridade de conclusão da OP atual antes de abrir nova OP no mesmo setor, salvo bloqueio operacional real
+  - abrir a `Sprint 32` em `docs/TASKS.md` e registrar o novo ciclo em `docs/BACKLOG.md`
+
+  Regras:
+  - a proposta não pode romper o modelo homologado de bifurcação `Frente + Costa` e sincronização parcial de `Montagem`
+  - a proposta deve preservar backlog setorial, fila FIFO, aceite no turno e carry-over já homologados
+  - a evolução deve separar claramente semântica de capacidade sugerida e alocação real de operadores
+  - o texto precisa priorizar clareza, simplicidade operacional e manutenibilidade, evitando complexidade de domínio sem benefício prático
+
+  **Evidência:** o PRD passa a refletir oficialmente o setor como fila contínua alimentada ao longo do dia, com capacidade diária cumulativa, aceite limitado pelo restante do dia, prioridade de conclusão da OP atual e semântica explícita para backlog, disponível, aceite, concluído e excedente. Formalizado em `2026-04-20` com atualização das seções `5.2.1`, `5.5`, `9.3.6` e `9.3.7` do `docs/PRD.md`, abertura oficial da `Sprint 32` no `docs/TASKS.md` e registro do entregável correspondente no `docs/BACKLOG.md`.
+
+- [x] **HU 32.2 — Como sistema, quero recalcular a capacidade setorial do dia de forma cumulativa, para que novas entradas do fluxo respeitem apenas o saldo ainda absorvível no turno.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - introduzir no domínio uma leitura explícita de `capacidadeDiariaSetor`, `capacidadeRestanteDia`, `quantidadeAceitaAcumulada` e `entradaAcumuladaDoSetor`
+  - adaptar os utilitários de fluxo/capacidade para que a recomputação do turno não reabra artificialmente a capacidade cheia do setor
+  - manter compatibilidade com os contratos atuais de backlog, aceite, concluído e excedente
+  - validar o comportamento em `Montagem` preservando a regra `MIN(Frente, Costa)`
+
+  Regras:
+  - a capacidade diária continua sendo o teto operacional do setor naquele turno
+  - o aceite acumulado do dia não pode ultrapassar a capacidade diária do setor, mesmo que novas peças cheguem durante o dia
+  - a implementação deve ser aditiva e preferir funções puras e contratos explícitos em vez de reescrever silenciosamente o significado dos campos atuais
+
+  **Evidência:** a hidratação de capacidade do turno passou a descontar a carga já realizada no setor antes de aceitar novo backlog no mesmo dia, preservando FIFO e impedindo que a recomputação reabra artificialmente a capacidade cheia do setor. O domínio também passou a expor `cargaConsumidaMinutos`, `cargaReservadaMinutos`, `quantidadeEntradaAcumuladaSetor` e `quantidadeAceitaAcumuladaSetor` como leitura aditiva da HU 32.2. Implementado em `types/index.ts`, `lib/utils/capacidade-setor.ts`, `lib/utils/hidratacao-capacidade-setor-turno.ts`, `lib/utils/capacidade-setor.test.ts` e `lib/utils/hidratacao-capacidade-setor-turno.test.ts`. Validação concluída em `2026-04-20` com `node --test --experimental-strip-types lib/utils/capacidade-setor.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 32.3 — Como sistema, quero disciplinar a fila operacional por setor com prioridade de conclusão, para evitar fracionamento desnecessário entre múltiplas OPs quando ainda faz sentido terminar a atual.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - formalizar no domínio o critério de prioridade da OP/lote atual por setor
+  - impedir rateio desnecessário da capacidade diária entre múltiplas OPs quando a OP da frente pode ser concluída no turno
+  - permitir abertura da próxima OP apenas quando a atual estiver concluída ou bloqueada por falta real de alimentação
+  - preservar a fila FIFO cronológica como regra base do setor
+
+  Regras:
+  - concluir a OP atual é a política padrão do setor
+  - abrir nova OP antes da conclusão da atual deve depender de justificativa operacional real e nunca de mera distribuição matemática de capacidade
+  - a solução não deve introduzir um motor genérico complexo de agendamento; o comportamento precisa continuar didático e rastreável
+
+  **Evidência:** o aceite do dia continua sendo calculado por FIFO e capacidade, mas a liberação operacional imediata do setor passou a respeitar uma disciplina separada de prioridade: apenas a demanda prioritária do setor fica com `quantidadeDisponivelApontamento > 0`, enquanto as demais permanecem aceitas no dia, porém fora de execução imediata até a atual concluir ou bloquear. O kanban também deixou de tratar simples aceite/reserva como presença em quadro, exibindo apenas demanda com produção real, execução em curso ou disponibilidade imediata. Implementado em `lib/utils/hidratacao-capacidade-setor-turno.ts`, `lib/utils/kanban-operacional-turno.ts`, `lib/utils/hidratacao-capacidade-setor-turno.test.ts` e `lib/utils/kanban-operacional-turno.test.ts`. Validação concluída em `2026-04-20` com `node --test --experimental-strip-types lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/kanban-operacional-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 32.4 — Como supervisor, quero que dashboard, kanban e apontamentos distingam backlog vivo, aceite do dia e atividade real, para agir sobre a operação sem interpretar inferências como verdade de chão.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - ajustar a leitura visual para separar `backlog total`, `disponível agora`, `aceito no turno`, `concluído` e `excedente`
+  - explicitar na UI quando o número de operadores for sugestão de capacidade, atividade real ou alocação formal
+  - refletir no kanban a prioridade de conclusão da OP atual quando isso for o comportamento do setor
+  - alinhar scanner e `/admin/apontamentos` ao mesmo vocabulário operacional do turno
+
+  Regras:
+  - a UI não pode chamar de `operadores alocados` um número que seja apenas sugestão operacional
+  - a leitura visual precisa permanecer simples para o supervisor, mesmo com o aumento de fidelidade do domínio
+  - o mesmo vocabulário deve ser compartilhado entre dashboard, scanner e apontamentos
+
+  **Evidência:** dashboard, kanban, modais operacionais, `/admin/apontamentos` e scanner passaram a distinguir explicitamente `backlog vivo`, `absorvido no dia`, `disponível agora`, `alocação formal` e `atividade real`, sem tratar sugestão operacional como alocação nominal. Implementado em `components/dashboard/DashboardVisaoOperacionalTab.tsx`, `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, `components/dashboard/KanbanOperacionalTurno.tsx`, `components/dashboard/ModalDetalhesOpTurno.tsx`, `components/dashboard/ModalDetalhesSecaoTurno.tsx`, `components/apontamentos/PainelApontamentosSupervisor.tsx`, `components/scanner/SelecaoDemandaScanner.tsx`, `components/scanner/SelecaoOperacaoScanner.tsx`, `components/scanner/ConfirmacaoRegistro.tsx`, `app/(operador)/scanner/page.tsx` e `hooks/useScanner.ts`. Validação concluída em `2026-04-20` com `npx tsc --noEmit`, sem erros.
+
+- [x] **HU 32.5 — Como produto, quero homologar o fluxo contínuo com capacidade cumulativa e prioridade de conclusão em cenários reais de turno aberto, para confiar que o sistema representa o chão de fábrica sem distorcer a fila do dia.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - validar cenários em que o setor recebe nova alimentação durante o turno sem perder o teto de capacidade diária
+  - validar cenários em que `Final` deve priorizar concluir uma OP antes de abrir outra
+  - validar cenários de excedente setorial carregado corretamente para o turno seguinte
+  - homologar o comportamento sobre o turno aberto atual e consolidar testes automatizados do novo contrato
+
+  Regras:
+  - a homologação precisa cobrir setores sequenciais e a bifurcação oficial `Frente + Costa`
+  - o turno aberto atual deve ser usado como evidência de aderência ao fluxo real sempre que os dados permitirem
+  - nenhuma validação pode relaxar a capacidade diária, a fila FIFO ou a sincronização parcial de `Montagem`
+
+  **Evidência:** a Sprint 32 foi homologada tecnicamente com cenários executáveis cobrindo capacidade cumulativa no mesmo dia, prioridade de conclusão em `Final`, carry-over do excedente setorial e preservação da bifurcação oficial `Frente + Costa -> Montagem` sem relaxar FIFO nem sincronização parcial. A suíte final ficou consolidada em `lib/utils/fluxo-continuo-turno.test.ts`, complementando `lib/utils/capacidade-setor.test.ts`, `lib/utils/hidratacao-capacidade-setor-turno.test.ts`, `lib/utils/fluxo-paralelo-turno.test.ts`, `lib/utils/carry-over-turno.test.ts` e `lib/utils/kanban-operacional-turno.test.ts`. Nesta sessão não havia consulta confiável ao turno aberto real via Supabase disponível no sandbox, então a aderência foi fechada por cenários determinísticos equivalentes ao fluxo aberto do dia. Validação concluída em `2026-04-20` com `node --test --experimental-strip-types lib/utils/fluxo-continuo-turno.test.ts lib/utils/capacidade-setor.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/carry-over-turno.test.ts lib/utils/kanban-operacional-turno.test.ts`, `npx tsc --noEmit` e `npm run build`, todos sem erros.
+
+- [x] **HU 32.6 — Como supervisor, quero que o preview de abertura do turno priorize a capacidade produtiva disponível naquele momento, para decidir a abertura com base no que a fábrica consegue absorver agora com os recursos informados.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - reorientar o resumo da prévia no modal de abertura do turno para destacar a capacidade produtiva disponível em peças completas com base em `operadoresDisponiveis × minutosTurno`
+  - incluir um card explícito de `capacidade produtiva do turno`
+  - remover do resumo principal o card agregado de `Desconformidade`
+  - preservar no cálculo a carga realmente selecionada, considerando carry-over setorial, produção já concluída em turnos anteriores e novas OPs adicionadas no turno atual
+  - manter a carga selecionada visível apenas como referência operacional complementar ao que pode ser absorvido agora
+
+  Regras:
+  - a UI deve responder diretamente aos inputs atuais do modal, sem depender de persistência prévia do turno
+  - a leitura principal precisa ajudar a decisão de abertura, e não enfatizar déficit agregado como mensagem central
+  - a capacidade produtiva principal deve usar a mesma semântica da dashboard, em `peças completas`, e não minutos brutos
+  - o cálculo deve continuar usando a mesma base homologada de carga pendente real por setor, sem reiniciar setores já concluídos nem ignorar carry-over parcelado
+
+  **Evidência:** o preview de `ModalNovoTurnoV2` passou a priorizar a capacidade produtiva disponível do turno atual em `peças completas`, reutilizando a mesma semântica gerencial da dashboard (`metaGrupo` pela média simples dos `tpProdutoMin` do mix selecionado), além de exibir a carga total selecionada e o quanto dessa seleção pode ser absorvido agora entre carry-over e novas OPs. O card agregado de `Desconformidade` saiu do resumo principal, substituído pelo card `Capacidade produtiva do turno`, enquanto a leitura em minutos ficou apenas como apoio técnico de dimensionamento setorial. O comportamento foi formalizado no `docs/PRD.md` e implementado em `components/dashboard/ModalNovoTurnoV2.tsx`. Validação concluída em `2026-04-20` com `npx tsc --noEmit`, sem erros.
+
+- [x] **HU 32.7 — Como produto, quero que o aceite operacional setorial derive explicitamente do teto global do turno, para que a dashboard não volte a sugerir que um setor absorve mais unidades do que a capacidade produtiva diária da fábrica.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - promover `lib/utils/meta-grupo-turno.ts` a fonte canônica da `capacidadeGlobalTurnoPecas`, deixando explícito no contrato do turno que esta é a capacidade diária máxima em unidades completas
+  - adaptar `lib/utils/hidratacao-capacidade-setor-turno.ts` para receber o teto global em peças e derivar dele o plano operacional setorial do dia, em vez de recalcular um teto autônomo por setor
+  - rebaixar `lib/utils/dimensionamento-pessoas-setor.ts` para papel estritamente auxiliar de sugestão de equipe e leitura de carga, sem permitir que ele defina sozinho `quantidadeAceitaTurno`
+  - propagar o novo contrato em `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/fluxo-sequencial-turno-base.ts` e `lib/queries/scanner.ts`, evitando reabertura de capacidade local divergente em qualquer recomputação
+  - alinhar `ModalNovoTurnoV2`, dashboard, kanban, scanner e `/admin/apontamentos` para explicitar que a capacidade global do turno é o teto mestre e que a leitura setorial é derivada desse teto, não uma segunda capacidade independente
+  - emitir alerta visual explícito quando a distribuição/seleção operacional tentar expor no setor mais unidades do que o plano derivado permite naquele dia
+
+  Regras:
+  - a capacidade global do turno em peças completas é o teto mestre do dia e deve nascer de `operadoresDisponiveis × minutosTurno` combinado com a regra gerencial vigente de `Meta do Grupo`
+  - nenhum setor pode ter `quantidadeAceitaTurno` acima do teto global do turno, mesmo que a leitura local em minutos e T.P. setorial pareça comportar mais
+  - a soma do aceite operacional setorial do dia não pode reintroduzir, por inferência local, uma leitura que contradiga a capacidade global do turno
+  - a leitura setorial pode continuar exibindo carga em minutos, carga reservada, carga consumida e saldo do plano do dia, desde que tudo seja derivado do teto global canônico
+  - scanner e apontamentos **não** devem ser bloqueados por essa regra; qualquer desconformidade deve gerar efeito visual e alerta operacional, não trava transacional
+  - a solução deve priorizar clareza de contrato, reuso dos utilitários homologados e menor complexidade adicional possível
+
+  **Evidência:** `meta-grupo-turno.ts` passou a expor `capacidadeGlobalTurnoPecas` como contrato canônico do turno, `hidratacao-capacidade-setor-turno.ts` deixou de recalcular teto autônomo por setor e passou a derivar `quantidadeAceitaTurno` do teto global com `quantidadeDisponivelApontamento` preservada para execução, e `turnos.ts`, `turnos-client.ts`, `fluxo-sequencial-turno-base.ts` e `scanner.ts` propagam o mesmo contrato sem reabrir capacidade local divergente. A UI do dashboard, kanban, scanner e `/admin/apontamentos` foi alinhada para exibir `Plano do dia` em vez de uma falsa capacidade setorial autônoma, com alerta visual não bloqueante quando a execução ultrapassa o saldo visual do plano. Cobertura atualizada em `lib/utils/hidratacao-capacidade-setor-turno.test.ts` e validação concluída em `2026-04-20` com `node --experimental-loader /tmp/alias-loader.mjs --test --experimental-strip-types lib/utils/hidratacao-capacidade-setor-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.

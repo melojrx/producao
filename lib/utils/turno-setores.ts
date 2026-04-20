@@ -276,6 +276,16 @@ function agruparDemandasPorSetor(
   return mapa
 }
 
+function obterMaiorQuantidadeDemandas(
+  demandas: TurnoSetorDemandaDashboardItem[],
+  selecionarQuantidade: (demanda: TurnoSetorDemandaDashboardItem) => number
+): number {
+  return demandas.reduce((maiorQuantidade, demanda) => {
+    const quantidadeAtual = selecionarQuantidade(demanda)
+    return quantidadeAtual > maiorQuantidade ? quantidadeAtual : maiorQuantidade
+  }, 0)
+}
+
 function resumirNomeProduto(nome: string): string {
   const nomeNormalizado = nome.trim()
 
@@ -492,17 +502,17 @@ export function mapearOpsTurnoParaDashboard(
         produtoNomeResumido: resumirNomeProduto(op.produtoNome),
         quantidadePlanejada: op.quantidadePlanejada,
         quantidadeConcluida: op.quantidadeConcluida,
-        quantidadeBacklogTotal: (demandasPorOp.get(op.id) ?? []).reduce(
-          (soma, demanda) => soma + demanda.quantidadeBacklogSetor,
-          0
+        quantidadeBacklogTotal: obterMaiorQuantidadeDemandas(
+          demandasPorOp.get(op.id) ?? [],
+          (demanda) => demanda.quantidadeBacklogSetor
         ),
-        quantidadeAceitaTurno: (demandasPorOp.get(op.id) ?? []).reduce(
-          (soma, demanda) => soma + demanda.quantidadeAceitaTurno,
-          0
+        quantidadeAceitaTurno: obterMaiorQuantidadeDemandas(
+          demandasPorOp.get(op.id) ?? [],
+          (demanda) => demanda.quantidadeAceitaTurno
         ),
-        quantidadeExcedenteTurno: (demandasPorOp.get(op.id) ?? []).reduce(
-          (soma, demanda) => soma + demanda.quantidadeExcedenteTurno,
-          0
+        quantidadeExcedenteTurno: obterMaiorQuantidadeDemandas(
+          demandasPorOp.get(op.id) ?? [],
+          (demanda) => demanda.quantidadeExcedenteTurno
         ),
         progressoOperacionalPct: op.progressoOperacionalPct,
         status: op.status,

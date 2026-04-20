@@ -55,7 +55,7 @@ export function ResumoOpTurnoCard({ op, onClick }: ResumoOpTurnoCardProps) {
       <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-slate-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Backlog
+            Backlog vivo
           </p>
           <p className="mt-1 font-semibold text-slate-900">
             {formatarQuantidade(op.quantidadeBacklogTotal)}
@@ -63,7 +63,7 @@ export function ResumoOpTurnoCard({ op, onClick }: ResumoOpTurnoCardProps) {
         </div>
         <div className="rounded-xl bg-blue-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-            Aceito
+            Plano do dia
           </p>
           <p className="mt-1 font-semibold text-blue-900">
             {formatarQuantidade(op.quantidadeAceitaTurno)}

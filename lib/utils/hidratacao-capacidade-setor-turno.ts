@@ -1,4 +1,5 @@
 import { calcularDimensionamentoPessoasPorSetor } from './dimensionamento-pessoas-setor.ts'
+import { calcularMetaGrupoTurnoV2 } from './meta-grupo-turno.ts'
 import type {
   TurnoOpV2,
   TurnoSetorDemandaV2,
@@ -45,6 +46,33 @@ function calcularTpTotalSetorProduto(
   )
 
   return arredondarNumero(tpTotal)
+}
+
+function calcularQuantidadeConcluidaDemanda(demanda: TurnoSetorDemandaV2): number {
+  return normalizarNumeroPositivo(demanda.quantidadeConcluida ?? demanda.quantidadeRealizada)
+}
+
+function calcularQuantidadeConcluidaDemandaNoTurnoAtual(
+  demanda: TurnoSetorDemandaV2,
+  operacoesSecao: TurnoSetorOperacaoApontamentoV2[],
+  quantidadeRealizadaAtualPorOperacaoId?: ReadonlyMap<string, number>
+): number {
+  if (!quantidadeRealizadaAtualPorOperacaoId) {
+    return calcularQuantidadeConcluidaDemanda(demanda)
+  }
+
+  const operacoesDaDemanda = mapearOperacoesPorDemanda(demanda, operacoesSecao)
+
+  if (operacoesDaDemanda.length === 0) {
+    return 0
+  }
+
+  return Math.min(
+    normalizarNumeroPositivo(demanda.quantidadePlanejada),
+    ...operacoesDaDemanda.map((operacao) =>
+      normalizarNumeroPositivo(quantidadeRealizadaAtualPorOperacaoId.get(operacao.id) ?? 0)
+    )
+  )
 }
 
 function mapearDemandasPorOp(
@@ -122,6 +150,10 @@ function mapearDemandasAtivasPorSetor(
   return demandasPorSetor
 }
 
+function demandaTemTrabalhoEmCurso(demanda: TurnoSetorDemandaV2): boolean {
+  return demanda.statusFila === 'em_producao' || demanda.statusFila === 'parcial'
+}
+
 function calcularBacklogDemanda(demanda: TurnoSetorDemandaV2): number {
   return (
     demanda.quantidadeBacklogSetor ??
@@ -131,15 +163,42 @@ function calcularBacklogDemanda(demanda: TurnoSetorDemandaV2): number {
 }
 
 function calcularElegivelFluxoDemanda(demanda: TurnoSetorDemandaV2): number {
-  if (typeof demanda.quantidadeAceitaTurno === 'number') {
-    return demanda.quantidadeAceitaTurno
-  }
-
   if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
     return demanda.quantidadeDisponivelApontamento
   }
 
+  if (typeof demanda.quantidadeAceitaTurno === 'number') {
+    return demanda.quantidadeAceitaTurno
+  }
+
   return calcularBacklogDemanda(demanda)
+}
+
+function calcularDisponibilidadeExecucaoDemanda(demanda: TurnoSetorDemandaV2): number {
+  if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
+    return demanda.quantidadeDisponivelApontamento
+  }
+
+  if (typeof demanda.quantidadeLiberadaSetor === 'number') {
+    return demanda.quantidadeLiberadaSetor
+  }
+
+  if (typeof demanda.quantidadeAceitaTurno === 'number') {
+    return demanda.quantidadeAceitaTurno
+  }
+
+  return calcularBacklogDemanda(demanda)
+}
+
+function calcularCapacidadeGlobalTurnoPecas(input: {
+  turno: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'>
+  ops: TurnoOpV2[]
+}): number {
+  if (typeof input.turno.capacidadeGlobalTurnoPecas === 'number') {
+    return Math.max(Math.floor(input.turno.capacidadeGlobalTurnoPecas), 0)
+  }
+
+  return calcularMetaGrupoTurnoV2(input.turno, input.ops).capacidadeGlobalTurnoPecas
 }
 
 function criarMapaTpTotalPorDemanda(
@@ -152,28 +211,20 @@ function criarMapaTpTotalPorDemanda(
 }
 
 export function aplicarCapacidadeOperacionalDemandas(input: {
-  turno: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'>
+  turno: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'>
   demandasSetor: TurnoSetorDemandaV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
   ops: TurnoOpV2[]
+  quantidadeRealizadaAtualPorOperacaoId?: ReadonlyMap<string, number>
 }): TurnoSetorDemandaV2[] {
   if (input.demandasSetor.length === 0) {
     return []
   }
 
-  const dimensionamento = calcularDimensionamentoPessoasPorSetor({
-    operadoresDisponiveis: input.turno.operadoresDisponiveis,
-    minutosTurno: input.turno.minutosTurno,
-    ops: mapearOpsParaDimensionamento(
-      input.ops,
-      input.demandasSetor,
-      input.operacoesSecao,
-      calcularElegivelFluxoDemanda
-    ),
+  const capacidadeGlobalTurnoPecas = calcularCapacidadeGlobalTurnoPecas({
+    turno: input.turno,
+    ops: input.ops,
   })
-  const capacidadeRestantePorSetor = new Map(
-    dimensionamento.setores.map((setor) => [setor.setorId, setor.capacidadeMinutos] as const)
-  )
   const tpTotalPorDemanda = criarMapaTpTotalPorDemanda(input.demandasSetor, input.operacoesSecao)
   const demandasPorSetor = mapearDemandasAtivasPorSetor(input.demandasSetor)
   const snapshotsPorDemandaId = new Map<
@@ -182,40 +233,79 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       quantidadeAceitaTurno: number
       quantidadeExcedenteTurno: number
       quantidadeDisponivelApontamento: number
+      quantidadeEntradaAcumuladaSetor: number
+      quantidadeAceitaAcumuladaSetor: number
     }
   >()
 
   for (const [setorId, demandasSetor] of demandasPorSetor.entries()) {
-    let capacidadeRestanteMin = capacidadeRestantePorSetor.get(setorId) ?? 0
+    let planoRestanteSetorPecas = capacidadeGlobalTurnoPecas
 
     for (const demanda of demandasSetor) {
       const tpTotalSetorProduto = tpTotalPorDemanda.get(demanda.id) ?? 0
       const backlog = calcularBacklogDemanda(demanda)
       const elegivelFluxo = calcularElegivelFluxoDemanda(demanda)
+      const disponibilidadeExecucao = calcularDisponibilidadeExecucaoDemanda(demanda)
+      const quantidadeConcluidaDemanda = calcularQuantidadeConcluidaDemandaNoTurnoAtual(
+        demanda,
+        input.operacoesSecao,
+        input.quantidadeRealizadaAtualPorOperacaoId
+      )
+      const quantidadeEntradaAcumuladaSetor =
+        demanda.quantidadeEntradaAcumuladaSetor ??
+        demanda.quantidadeLiberadaSetor ??
+        elegivelFluxo + quantidadeConcluidaDemanda
 
-      if (tpTotalSetorProduto <= 0 || elegivelFluxo <= 0 || capacidadeRestanteMin <= 0) {
+      if (tpTotalSetorProduto <= 0 || elegivelFluxo <= 0 || planoRestanteSetorPecas <= 0) {
         snapshotsPorDemandaId.set(demanda.id, {
           quantidadeAceitaTurno: 0,
           quantidadeExcedenteTurno: backlog,
           quantidadeDisponivelApontamento: 0,
+          quantidadeEntradaAcumuladaSetor,
+          quantidadeAceitaAcumuladaSetor: quantidadeConcluidaDemanda,
         })
         continue
       }
 
-      const quantidadeAceitaTurno = Math.min(
-        elegivelFluxo,
-        Math.floor(capacidadeRestanteMin / tpTotalSetorProduto)
-      )
+      const quantidadeAceitaTurno = Math.min(elegivelFluxo, planoRestanteSetorPecas)
 
-      capacidadeRestanteMin = arredondarNumero(
-        Math.max(capacidadeRestanteMin - quantidadeAceitaTurno * tpTotalSetorProduto, 0)
-      )
+      planoRestanteSetorPecas = Math.max(planoRestanteSetorPecas - quantidadeAceitaTurno, 0)
 
       snapshotsPorDemandaId.set(demanda.id, {
         quantidadeAceitaTurno,
         quantidadeExcedenteTurno: Math.max(backlog - quantidadeAceitaTurno, 0),
-        quantidadeDisponivelApontamento: quantidadeAceitaTurno,
+        quantidadeDisponivelApontamento: 0,
+        quantidadeEntradaAcumuladaSetor,
+        quantidadeAceitaAcumuladaSetor: quantidadeConcluidaDemanda + quantidadeAceitaTurno,
       })
+    }
+
+    const demandaComTrabalhoEmCurso =
+      demandasSetor.find((demanda) => {
+        const snapshot = snapshotsPorDemandaId.get(demanda.id)
+        return (
+          Boolean(snapshot) &&
+          normalizarNumeroPositivo(snapshot?.quantidadeAceitaTurno ?? 0) > 0 &&
+          demandaTemTrabalhoEmCurso(demanda)
+        )
+      }) ?? null
+    const demandaPrioritaria =
+      demandaComTrabalhoEmCurso ??
+      demandasSetor.find((demanda) => {
+        const snapshot = snapshotsPorDemandaId.get(demanda.id)
+        return normalizarNumeroPositivo(snapshot?.quantidadeAceitaTurno ?? 0) > 0
+      }) ??
+      null
+
+    if (demandaPrioritaria) {
+      const snapshotPrioritario = snapshotsPorDemandaId.get(demandaPrioritaria.id)
+
+      if (snapshotPrioritario) {
+        snapshotsPorDemandaId.set(demandaPrioritaria.id, {
+          ...snapshotPrioritario,
+          quantidadeDisponivelApontamento: calcularDisponibilidadeExecucaoDemanda(demandaPrioritaria),
+        })
+      }
     }
   }
 
@@ -227,6 +317,11 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
         ...demanda,
         quantidadeAceitaTurno: 0,
         quantidadeExcedenteTurno: calcularBacklogDemanda(demanda),
+        quantidadeEntradaAcumuladaSetor:
+          demanda.quantidadeEntradaAcumuladaSetor ??
+          demanda.quantidadeLiberadaSetor ??
+          calcularElegivelFluxoDemanda(demanda) + calcularQuantidadeConcluidaDemanda(demanda),
+        quantidadeAceitaAcumuladaSetor: calcularQuantidadeConcluidaDemanda(demanda),
         quantidadeDisponivelApontamento: 0,
       }
     }
@@ -235,6 +330,8 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       ...demanda,
       quantidadeAceitaTurno: snapshot.quantidadeAceitaTurno,
       quantidadeExcedenteTurno: snapshot.quantidadeExcedenteTurno,
+      quantidadeEntradaAcumuladaSetor: snapshot.quantidadeEntradaAcumuladaSetor,
+      quantidadeAceitaAcumuladaSetor: snapshot.quantidadeAceitaAcumuladaSetor,
       quantidadeDisponivelApontamento: snapshot.quantidadeDisponivelApontamento,
     }
   })
@@ -312,11 +409,15 @@ export function limitarSecoesTurnoAoAceiteDemandas(input: {
 }
 
 export function hidratarSetoresTurnoComCapacidade(input: {
-  turno: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'>
+  turno: Pick<
+    TurnoV2,
+    'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'
+  >
   setoresAtivos: TurnoSetorV2[]
   demandasSetor: TurnoSetorDemandaV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
   ops: TurnoOpV2[]
+  quantidadeRealizadaAtualPorOperacaoId?: ReadonlyMap<string, number>
 }): TurnoSetorV2[] {
   if (input.setoresAtivos.length === 0) {
     return []
@@ -336,6 +437,42 @@ export function hidratarSetoresTurnoComCapacidade(input: {
   const setoresDimensionadosPorId = new Map(
     dimensionamento.setores.map((setor) => [setor.setorId, setor] as const)
   )
+  const tpTotalPorDemanda = criarMapaTpTotalPorDemanda(input.demandasSetor, input.operacoesSecao)
+  const cargasPorSetor = new Map<
+    string,
+    {
+      cargaConsumidaMinutos: number
+      cargaReservadaMinutos: number
+    }
+  >()
+
+  for (const demanda of input.demandasSetor) {
+    const tpTotalSetorProduto = tpTotalPorDemanda.get(demanda.id) ?? 0
+    const quantidadeConcluidaNoTurnoAtual = calcularQuantidadeConcluidaDemandaNoTurnoAtual(
+      demanda,
+      input.operacoesSecao,
+      input.quantidadeRealizadaAtualPorOperacaoId
+    )
+    const cargaConsumidaMinutos = arredondarNumero(
+      quantidadeConcluidaNoTurnoAtual * tpTotalSetorProduto
+    )
+    const cargaReservadaMinutos = arredondarNumero(
+      normalizarNumeroPositivo(demanda.quantidadeAceitaTurno ?? 0) * tpTotalSetorProduto
+    )
+    const cargaAtual = cargasPorSetor.get(demanda.setorId) ?? {
+      cargaConsumidaMinutos: 0,
+      cargaReservadaMinutos: 0,
+    }
+
+    cargasPorSetor.set(demanda.setorId, {
+      cargaConsumidaMinutos: arredondarNumero(
+        cargaAtual.cargaConsumidaMinutos + cargaConsumidaMinutos
+      ),
+      cargaReservadaMinutos: arredondarNumero(
+        cargaAtual.cargaReservadaMinutos + cargaReservadaMinutos
+      ),
+    })
+  }
 
   return input.setoresAtivos.map((setor) => {
     const setorDimensionado = setoresDimensionadosPorId.get(setor.setorId)
@@ -345,17 +482,33 @@ export function hidratarSetoresTurnoComCapacidade(input: {
         ...setor,
         operadoresAlocados: 0,
         capacidadeMinutosTotal: 0,
+        capacidadeMinutosConsumida: 0,
+        capacidadeMinutosReservada: 0,
         capacidadeMinutosRestante: 0,
         eficienciaRequeridaPct: null,
         diagnosticoCapacidade: 'sem_carga',
       }
     }
 
+    const cargaSetor = cargasPorSetor.get(setor.setorId) ?? {
+      cargaConsumidaMinutos: 0,
+      cargaReservadaMinutos: 0,
+    }
+    const capacidadeMinutosRestante = arredondarNumero(
+      Math.max(
+        setorDimensionado.capacidadeMinutos -
+          (cargaSetor.cargaConsumidaMinutos + cargaSetor.cargaReservadaMinutos),
+        0
+      )
+    )
+
     return {
       ...setor,
       operadoresAlocados: setorDimensionado.operadoresSugeridos,
       capacidadeMinutosTotal: setorDimensionado.capacidadeMinutos,
-      capacidadeMinutosRestante: setorDimensionado.capacidadeMinutosRestante,
+      capacidadeMinutosConsumida: cargaSetor.cargaConsumidaMinutos,
+      capacidadeMinutosReservada: cargaSetor.cargaReservadaMinutos,
+      capacidadeMinutosRestante,
       eficienciaRequeridaPct: setorDimensionado.eficienciaRequeridaPct,
       diagnosticoCapacidade: setorDimensionado.diagnosticoCapacidade,
     }

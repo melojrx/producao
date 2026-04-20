@@ -17,9 +17,14 @@ import type {
 } from '@/types'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
+type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno'
 
 function valorString(param: string | string[] | undefined): string {
   return typeof param === 'string' ? param : ''
+}
+
+function normalizarAbaInicial(valor: string): ApontamentosTabId {
+  return valor === 'operacao_turno' ? 'operacao_turno' : 'gestao_mensal'
 }
 
 function mapearOperadoresFallback(
@@ -44,6 +49,8 @@ export default async function AdminApontamentosPage(props: {
   searchParams: SearchParams
 }) {
   const resolvedSearchParams = await props.searchParams
+  const turnoOpIdSelecionado = valorString(resolvedSearchParams.turnoOpId)
+  const abaInicial = normalizarAbaInicial(valorString(resolvedSearchParams.aba))
   const competenciaSelecionada =
     normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
     obterCompetenciaMesAtual()
@@ -62,6 +69,7 @@ export default async function AdminApontamentosPage(props: {
     return (
       <main className="w-full">
         <ApontamentosTabs
+          abaInicial={abaInicial}
           gestaoMensal={
             <PainelMetaMensalApontamentos
               competencia={contextoMetaMensal.competencia}
@@ -103,6 +111,7 @@ export default async function AdminApontamentosPage(props: {
   return (
     <main className="w-full">
       <ApontamentosTabs
+        abaInicial={abaInicial}
         gestaoMensal={
           <PainelMetaMensalApontamentos
             competencia={contextoMetaMensal.competencia}
@@ -116,6 +125,7 @@ export default async function AdminApontamentosPage(props: {
               planejamento={planejamentoComOperadores}
               operacoesTurno={operacoesTurno}
               origemOperadores={precisaFallbackOperadores ? 'fallback_ativos' : 'turno'}
+              filtroTurnoOpInicial={turnoOpIdSelecionado}
             />
           </section>
         }

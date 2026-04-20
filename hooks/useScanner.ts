@@ -132,12 +132,12 @@ function calcularSaldoAceitoDemanda(
     | 'quantidadeRealizada'
   >
 ): number {
-  if (typeof demanda.quantidadeAceitaTurno === 'number') {
-    return demanda.quantidadeAceitaTurno
+  if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
+    return demanda.quantidadeDisponivelApontamento
   }
 
-  if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
-    return demanda.quantidadeRealizada + demanda.quantidadeDisponivelApontamento
+  if (typeof demanda.quantidadeAceitaTurno === 'number') {
+    return demanda.quantidadeAceitaTurno
   }
 
   if (typeof demanda.quantidadeLiberadaSetor === 'number') {
@@ -433,7 +433,7 @@ export function useScanner(options: UseScannerOptions = {}) {
       }
 
       if (setor.saldoRestante <= 0) {
-        const mensagem = 'Este setor não possui saldo restante para lançamento.'
+        const mensagem = 'Este setor não possui disponibilidade imediata para lançamento.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
@@ -637,8 +637,12 @@ export function useScanner(options: UseScannerOptions = {}) {
         estado.demandaSelecionada.quantidadePlanejada,
         quantidadeRealizadaDemanda
       )
+      const quantidadeAceitaTurnoPlanejada =
+        typeof estado.demandaSelecionada.quantidadeAceitaTurno === 'number'
+          ? estado.demandaSelecionada.quantidadeAceitaTurno
+          : Math.max(quantidadeExpostaDemanda - estado.demandaSelecionada.quantidadeRealizada, 0)
       const quantidadeDisponivelApontamento = Math.max(
-        quantidadeExpostaDemanda - quantidadeRealizadaDemanda,
+        calcularSaldoDisponivelSequencialDemanda(estado.demandaSelecionada) - quantidade,
         0
       )
       const demandaAtualizada: TurnoSetorDemandaScaneada = {
@@ -646,9 +650,9 @@ export function useScanner(options: UseScannerOptions = {}) {
         quantidadeRealizada: quantidadeRealizadaDemanda,
         saldoRestante: saldoRestanteDemanda,
         quantidadeBacklogSetor,
-        quantidadeAceitaTurno: quantidadeDisponivelApontamento,
+        quantidadeAceitaTurno: quantidadeAceitaTurnoPlanejada,
         quantidadeExcedenteTurno: Math.max(
-          quantidadeBacklogSetor - quantidadeDisponivelApontamento,
+          quantidadeBacklogSetor - quantidadeAceitaTurnoPlanejada,
           0
         ),
         quantidadeDisponivelApontamento,

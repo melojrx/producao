@@ -17,6 +17,8 @@ export interface KanbanOperacionalSetorResumo
     | 'setorNome'
     | 'operadoresAlocados'
     | 'capacidadeMinutosTotal'
+    | 'capacidadeMinutosConsumida'
+    | 'capacidadeMinutosReservada'
     | 'capacidadeMinutosRestante'
     | 'diagnosticoCapacidade'
   > {}
@@ -119,10 +121,7 @@ export function demandaKanbanTemPresencaRealNoSetor(demanda: TurnoSetorDemandaV2
 
   return (
     normalizarNumero(demanda.quantidadeRealizada) > 0 ||
-    normalizarNumero(demanda.quantidadeAceitaTurno) > 0 ||
-    normalizarNumero(demanda.quantidadeLiberadaSetor) > 0 ||
     normalizarNumero(demanda.quantidadeDisponivelApontamento) > 0 ||
-    demanda.status === 'em_andamento' ||
     demanda.statusFila === 'em_producao' ||
     demanda.statusFila === 'parcial'
   )
@@ -159,6 +158,8 @@ export function construirColunasKanbanOperacional(
       setorNome: setor.setorNome,
       operadoresAlocados: setor.operadoresAlocados,
       capacidadeMinutosTotal: setor.capacidadeMinutosTotal,
+      capacidadeMinutosConsumida: setor.capacidadeMinutosConsumida,
+      capacidadeMinutosReservada: setor.capacidadeMinutosReservada,
       capacidadeMinutosRestante: setor.capacidadeMinutosRestante,
       diagnosticoCapacidade: setor.diagnosticoCapacidade,
     })
@@ -172,6 +173,8 @@ export function construirColunasKanbanOperacional(
         setorNome: demanda.setorNome,
         operadoresAlocados: undefined,
         capacidadeMinutosTotal: undefined,
+        capacidadeMinutosConsumida: undefined,
+        capacidadeMinutosReservada: undefined,
         capacidadeMinutosRestante: undefined,
         diagnosticoCapacidade: undefined,
       })

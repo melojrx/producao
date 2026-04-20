@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  AlertTriangle,
   ClipboardCheck,
   Factory,
   ListChecks,
@@ -9,6 +10,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import type {
   ProdutoListItem,
   TurnoOperadorAtividadeSetorV2,
@@ -70,6 +72,11 @@ export function ModalDetalhesSecaoTurno({
   )
   const operadoresSemSetor = operadoresTurno.filter((operador) => !operador.setorId)
   const progresso = secao.progressoOperacionalPct
+  const resumoPlano = resumirPlanoDiarioTurno({
+    quantidadeAceitaTurno: secao.quantidadeAceitaTurno,
+    quantidadeConcluida: secao.quantidadeConcluida,
+    quantidadeDisponivelApontamento: secao.quantidadeDisponivelApontamento,
+  })
 
   return (
     <div
@@ -113,10 +120,10 @@ export function ModalDetalhesSecaoTurno({
         </div>
 
         <div className="flex flex-col gap-6 p-6">
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Backlog total
+                Backlog vivo
               </p>
               <p className="mt-2 text-3xl font-semibold text-slate-900">
                 {secao.quantidadeBacklogTotal}
@@ -125,10 +132,19 @@ export function ModalDetalhesSecaoTurno({
 
             <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                Aceito no turno
+                Plano do dia
               </p>
               <p className="mt-2 text-3xl font-semibold text-blue-900">
                 {secao.quantidadeAceitaTurno}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">
+                Disponível agora
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-cyan-900">
+                {secao.quantidadeDisponivelApontamento}
               </p>
             </article>
 
@@ -162,6 +178,18 @@ export function ModalDetalhesSecaoTurno({
               </p>
             </article>
           </section>
+
+          {resumoPlano.excedePlanoAtual ? (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <p>
+                  Esta seção já opera acima do saldo visual do plano do dia. O lançamento continua
+                  permitido, mas a leitura diária precisa ser acompanhada.
+                </p>
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex flex-wrap items-center gap-3">
@@ -261,11 +289,39 @@ export function ModalDetalhesSecaoTurno({
               <div className="space-y-2">
                 <h3 className="text-base font-semibold text-slate-900">Operadores</h3>
                 <p className="text-sm text-slate-600">
-                  Alocações do planejamento e operadores que já registraram produção neste setor.
+                  Esta área separa alocação formal do turno, atividade real já registrada e apoio
+                  eventual de operadores sem setor nominal.
                 </p>
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    Alocação formal
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">
+                    {operadoresDoSetor.length}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
+                    Atividade real
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-emerald-900">
+                    {new Set(operadoresComAtividade.map((atividade) => atividade.operadorId)).size}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                    Apoio sem setor
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-blue-900">
+                    {operadoresSemSetor.length}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
                 {operadoresComAtividade.length > 0 ? (
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

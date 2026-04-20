@@ -122,12 +122,16 @@ export function MonitorPlanejamentoTurnoV2({
         opsEmAndamento: 0,
         quantidadeBacklogTotal: 0,
         quantidadeAceitaTurno: 0,
+        quantidadeDisponivelAgora: 0,
         quantidadeExcedenteTurno: 0,
         totalPlanejado: 0,
         totalRealizado: 0,
         progressoOperacionalTurnoPct: 0,
         operadoresDisponiveis: 0,
-        operadoresAlocados: 0,
+        operadoresAlocadosFormais: 0,
+        operadoresComAtividade: 0,
+        operadoresSugeridosCapacidade: 0,
+        operadoresEnvolvidos: 0,
         totalOps: 0,
         opsConcluidas: 0,
         progressoOpsPct: 0,
@@ -145,10 +149,23 @@ export function MonitorPlanejamentoTurnoV2({
     }
 
     const setoresAtivos = mapearSetoresTurnoParaDashboard(planejamento)
+    const setoresAtivosPlanejamento = planejamento.setoresAtivos ?? []
     const opsResumoLista = mapearOpsTurnoParaDashboard(planejamento)
     const setoresPendentesLista = setoresAtivos.filter((setor) => setor.status !== 'concluida')
     const setoresConcluidosLista = setoresAtivos.filter((setor) => setor.status === 'concluida')
     const opsAbertasLista = opsResumoLista.filter((op) => op.status !== 'concluida')
+    const operadoresComAtividade = new Set(
+      (planejamento.operadoresAtividadeSetor ?? []).map((atividade) => atividade.operadorId)
+    ).size
+    const operadoresAlocadosFormais = new Set(
+      planejamento.operadores
+        .filter((operador) => operador.setorId)
+        .map((operador) => operador.operadorId)
+    ).size
+    const operadoresSugeridosCapacidade = setoresAtivosPlanejamento.reduce(
+      (soma, setor) => soma + (setor.operadoresAlocados ?? 0),
+      0
+    )
 
     return {
       opsEmAndamento: planejamento.ops.filter((op) => op.status === 'em_andamento').length,
@@ -156,8 +173,14 @@ export function MonitorPlanejamentoTurnoV2({
         (soma, op) => soma + op.quantidadeBacklogTotal,
         0
       ),
-      quantidadeAceitaTurno: opsResumoLista.reduce(
-        (soma, op) => soma + op.quantidadeAceitaTurno,
+      quantidadeAceitaTurno: planejamento.turno.capacidadeGlobalTurnoPecas ?? 0,
+      quantidadeDisponivelAgora: setoresAtivos.reduce(
+        (soma, setor) =>
+          soma +
+          setor.demandas.reduce(
+            (somaDemandas, demanda) => somaDemandas + demanda.quantidadeDisponivelApontamento,
+            0
+          ),
         0
       ),
       quantidadeExcedenteTurno: opsResumoLista.reduce(
@@ -176,7 +199,10 @@ export function MonitorPlanejamentoTurnoV2({
             )
           : 0,
       operadoresDisponiveis: planejamento.turno.operadoresDisponiveis,
-      operadoresAlocados: contarOperadoresEnvolvidosNoTurno(planejamento),
+      operadoresAlocadosFormais,
+      operadoresComAtividade,
+      operadoresSugeridosCapacidade,
+      operadoresEnvolvidos: contarOperadoresEnvolvidosNoTurno(planejamento),
       totalOps: planejamento.ops.length,
       opsConcluidas: planejamento.ops.filter((op) => op.status === 'concluida').length,
       progressoOpsPct:

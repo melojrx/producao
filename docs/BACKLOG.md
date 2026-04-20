@@ -33,15 +33,19 @@
 | 21 | Relatório operacional de QR Codes do turno | ✅ Concluída | 2 |
 | 22 | Duplicação assistida de produtos | ✅ Concluída | 1 |
 | 23 | Consolidação visual profissional do admin | 🔄 Em realinhamento documental | 3 |
-| 24 | Meta mensal global da fábrica | 🔄 Em execução | 2 |
+| 24 | Meta mensal global da fábrica | ✅ Concluída | 2 |
 | 25 | Apontamentos operacionais sem preview e orientados por pendência | ✅ Concluída | 2 |
 | 26 | Operações com máquina específica e código manual | ✅ Concluída | 2 |
 | 27 | Paginação e ordenação profissional do CRUD de operações | ✅ Concluída | 1 |
 | 28 | Paginação e ordenação profissional de relatórios | ✅ Concluída | 1 |
+| 29 | Capacidade setorial sequencial, fila real e kanban operacional | ✅ Concluída | 2 |
+| 30 | Capacidade como trava real e parcelamento setorial entre turnos | ✅ Concluída | 2 |
+| 31 | Fluxo paralelo com sincronização parcial em Montagem | ✅ Concluída | 2 |
+| 32 | Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila | ✅ Concluída | 3 |
 
-**Total estimado: 58 dias úteis**
+**Total estimado: 67 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário. A Sprint 24 abriu a frente de meta mensal global da fábrica na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 fica aberta para levar esse domínio ao modelo de fila contínua por setor, com capacidade diária cumulativa, prioridade de conclusão e leitura operacional mais fiel ao chão de fábrica. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -338,7 +342,7 @@
 ## SPRINT 24 — Meta mensal global da fábrica
 **Objetivo:** introduzir a meta mensal gerencial da fábrica na dashboard e em `/admin/apontamentos`, sem depender de turno ativo.
 **Entregável:** cadastro, edição e leitura da meta mensal por competência, com KPIs e evolução diária/semanal na `Visão Geral`.
-**Status:** 🔄 Em execução
+**Status:** ✅ Concluída
 
 - Persistir uma meta mensal única por competência
 - Permitir cadastro e edição em `/admin/apontamentos`
@@ -395,6 +399,24 @@
 - Adaptar carry-over, scanner e apontamentos ao novo modelo de dependência
 - Homologar cenários com parcial em `Frente`, parcial em `Costa`, liberação parcial de `Montagem` e continuidade entre turnos
 
+## SPRINT 32 — Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila
+**Objetivo:** evoluir o domínio homologado nas Sprints 29 a 31 para um modelo em que cada setor funciona como fila contínua alimentada ao longo do dia, limitada pela capacidade diária cumulativa e orientada por prioridade de conclusão da OP atual.
+**Entregável:** turno, scanner, apontamentos e dashboard operando com backlog vivo por setor, aceite acumulado do dia sem reinício artificial de capacidade, fila FIFO cronológica e leitura explícita entre `chegou`, `disponível agora`, `aceito`, `concluído` e `excedente`, com o preview de abertura priorizando a capacidade produtiva disponível do turno.
+**Status:** 🔄 Reaberta documentalmente em `2026-04-20`
+
+- Formalizar no PRD o setor como fila contínua alimentada pelo setor anterior ao longo do dia
+- Tornar cumulativa a capacidade diária do setor, sem reabrir artificialmente o teto a cada recomputação
+- Preservar a regra paralela oficial `Frente + Costa -> Montagem`
+- Priorizar a conclusão da OP/lote atual antes de espalhar esforço em múltiplas OPs simultâneas no mesmo setor
+- Separar na UI sugestão de capacidade, atividade real e alocação formal de operadores
+- Reorientar o preview de abertura do turno para mostrar primeiro a capacidade produtiva disponível com os recursos informados no momento
+- Reancorar o aceite operacional setorial ao teto global do turno, preservando scanner e apontamentos sem trava transacional e com alerta visual de desconformidade
+- Homologar o comportamento sobre cenários reais de turno aberto e carry-over setorial
+
+**Fechamento em `2026-04-20`:** a sprint foi reaberta pontualmente para a `HU 32.6`, ajustando o preview de abertura do turno para priorizar a capacidade produtiva disponível naquele momento com base em `operadoresDisponiveis × minutosTurno`, sem recolocar no resumo principal o card agregado de desconformidade. O fechamento final permaneceu com o domínio e a UI alinhados ao modelo de fila contínua, capacidade diária cumulativa, prioridade de conclusão e vocabulário operacional explícito. A homologação final ficou consolidada por testes determinísticos em `lib/utils/fluxo-continuo-turno.test.ts`, pela suíte complementar de capacidade, hidratação, fluxo paralelo, carry-over e kanban, além de `npx tsc --noEmit` e `npm run build`, todos sem erros.
+
+**Reabertura documental em `2026-04-20`:** a análise do turno aberto `8042d118-870e-4414-a8da-a9d764eb4b72` expôs uma ambiguidade entre `capacidade produtiva global do turno` e `aceite operacional setorial`. A sprint foi reaberta para a `HU 32.7`, que passa a exigir `capacidadeGlobalTurnoPecas` como teto canônico do dia, com aceite setorial sempre derivado desse teto e sem reintroduzir travas transacionais em scanner ou apontamentos. O objetivo da reabertura é corrigir a semântica do domínio e da UI com o menor acréscimo de complexidade possível.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -403,7 +425,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

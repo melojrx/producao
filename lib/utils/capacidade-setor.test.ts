@@ -24,11 +24,37 @@ test('calcula resumo de capacidade do setor com diagnóstico acima da capacidade
     operadoresAlocados: 2,
     minutosTurno: 510,
     cargaPendenteMinutos: 1200,
+    cargaConsumidaMinutos: 0,
+    cargaReservadaMinutos: 0,
     capacidadeMinutosTotal: 1020,
-    capacidadeMinutosRestante: 0,
+    capacidadeMinutosRestante: 1020,
     capacidadePecas: 204,
     eficienciaRequeridaPct: 117.647,
     diagnosticoCapacidade: 'acima_capacidade',
+  })
+})
+
+test('desconta carga consumida e reservada ao calcular a capacidade restante do dia', () => {
+  const resumo = calcularResumoCapacidadeSetor({
+    operadoresAlocados: 2,
+    minutosTurno: 100,
+    cargaPendenteMinutos: 80,
+    cargaConsumidaMinutos: 120,
+    cargaReservadaMinutos: 60,
+    tpTotalSetorProduto: 2,
+  })
+
+  assert.deepEqual(resumo, {
+    operadoresAlocados: 2,
+    minutosTurno: 100,
+    cargaPendenteMinutos: 80,
+    cargaConsumidaMinutos: 120,
+    cargaReservadaMinutos: 60,
+    capacidadeMinutosTotal: 200,
+    capacidadeMinutosRestante: 20,
+    capacidadePecas: 100,
+    eficienciaRequeridaPct: 40,
+    diagnosticoCapacidade: 'dentro_capacidade',
   })
 })
 

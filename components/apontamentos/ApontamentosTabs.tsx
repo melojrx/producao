@@ -9,13 +9,15 @@ type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno'
 interface ApontamentosTabsProps {
   gestaoMensal: ReactNode
   operacaoTurno: ReactNode
+  abaInicial?: ApontamentosTabId
 }
 
 export function ApontamentosTabs({
   gestaoMensal,
   operacaoTurno,
+  abaInicial = 'gestao_mensal',
 }: ApontamentosTabsProps) {
-  const [abaAtiva, setAbaAtiva] = useState<ApontamentosTabId>('gestao_mensal')
+  const [abaAtiva, setAbaAtiva] = useState<ApontamentosTabId>(abaInicial)
 
   const abas: Array<{
     id: ApontamentosTabId

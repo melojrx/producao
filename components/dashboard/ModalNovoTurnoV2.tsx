@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AlertTriangle, CalendarClock, PackagePlus, Plus, Trash2, Users, X } from 'lucide-react'
 import { abrirTurnoFormulario } from '@/lib/actions/turnos'
 import { calcularDimensionamentoPessoasPorSetor } from '@/lib/utils/dimensionamento-pessoas-setor'
+import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import { ABRIR_TURNO_FORM_FIELDS } from '@/lib/utils/turno-formulario'
 import type {
   AbrirTurnoV2ActionState,
@@ -328,13 +329,39 @@ export function ModalNovoTurnoV2({
   })
   const totalSetoresDimensionados = resumoDimensionamento.setores.length
   const totalOpsDimensionadas = opsParaDimensionamento.length
-  const existeDeficitDimensionamento = resumoDimensionamento.deficitOperadores > 0
   const setoresDesconformes = resumoDimensionamento.setores.filter(
     (setor) => setor.diagnosticoCapacidade === 'acima_capacidade'
   )
-  const existeDesconformidadeCapacidade =
-    resumoDimensionamento.diagnosticoCapacidade === 'acima_capacidade' ||
-    setoresDesconformes.length > 0
+  const cargaTotalSelecionadaMinutos = resumoDimensionamento.setores.reduce(
+    (soma, setor) => soma + setor.cargaMinutos,
+    0
+  )
+  const capacidadeProdutivaTurnoMinutos = operadoresDisponiveisNumero * minutosTurnoNumero
+  const capacidadeAbsorvidaNaPreviaMinutos = Math.min(
+    capacidadeProdutivaTurnoMinutos,
+    cargaTotalSelecionadaMinutos
+  )
+  const tpProdutosSelecionados = opsParaDimensionamento
+    .map((op) => produtosPorId.get(op.produtoId)?.tp_produto_min ?? 0)
+    .filter((tpProdutoMin) => Number.isFinite(tpProdutoMin) && tpProdutoMin > 0)
+  const resumoCapacidadeProdutiva = calcularMetaGrupoTurnoV2(
+    {
+      operadoresDisponiveis: operadoresDisponiveisNumero,
+      minutosTurno: minutosTurnoNumero,
+    },
+    tpProdutosSelecionados.map((tpProdutoMin) => ({
+      tpProdutoMin,
+    }))
+  )
+  const capacidadeProdutivaTurnoPecas = resumoCapacidadeProdutiva.metaGrupo
+  const capacidadeAbsorvidaNaPreviaPecas = Math.min(
+    capacidadeProdutivaTurnoPecas,
+    quantidadeTotalPlanejada
+  )
+  const coberturaCapacidadeAtualPecasPct =
+    quantidadeTotalPlanejada > 0
+      ? Math.min((capacidadeProdutivaTurnoPecas / quantidadeTotalPlanejada) * 100, 100)
+      : 0
 
   const existeTurnoAberto = planejamentoAtual?.origem === 'aberto'
   const titulo = 'Novo Turno'
@@ -736,13 +763,12 @@ export function ModalNovoTurnoV2({
                   Distribuição sugerida da equipe
                 </h3>
                 <p className="text-sm text-slate-600">
-                  Sugestão operacional calculada em tempo real para distribuir os operadores
-                  disponíveis entre os setores ativos do turno. O ideal para cumprir 100% da carga
-                  permanece visível apenas como apoio.
+                  A prévia prioriza a leitura da capacidade produtiva disponível do turno com os
+                  operadores e minutos informados agora, em peças completas do produto. A carga
+                  total selecionada permanece visível como referência operacional.
                 </p>
               </div>
-
-          </div>
+            </div>
 
             {avisosPrevia.length > 0 ? (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -757,25 +783,37 @@ export function ModalNovoTurnoV2({
               </div>
             ) : null}
 
-            {existeDesconformidadeCapacidade ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            {minutosTurnoNumero > 0 && totalOpsDimensionadas > 0 ? (
+              <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                 <div className="flex items-start gap-2">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <Users size={16} className="mt-0.5 shrink-0" />
                   <div className="space-y-1">
                     <p className="font-semibold">
-                      A demanda selecionada está desconforme com a capacidade produtiva do turno.
+                      Capacidade produtiva disponível para este turno.
                     </p>
                     <p>
-                      A prévia exige{' '}
-                      {formatarCargaMinutos(
-                        resumoDimensionamento.setores.reduce((soma, setor) => soma + setor.cargaMinutos, 0)
-                      )}{' '}
-                      para apenas {formatarCargaMinutos(resumoDimensionamento.capacidadeTotalMinutos)} de
-                      capacidade distribuída.
+                      Com {formatarNumero(operadoresDisponiveisNumero)} operador(es),{' '}
+                      {formatarNumero(minutosTurnoNumero)} min e T.P médio de{' '}
+                      {formatarNumero(resumoCapacidadeProdutiva.mediaTpProduto)} min, a fábrica
+                      dispõe de <strong>{formatarNumero(capacidadeProdutivaTurnoPecas)} peças</strong>{' '}
+                      de capacidade produtiva neste turno.
+                    </p>
+                    <p>
+                      A seleção atual soma {formatarNumero(quantidadeTotalPlanejada)} peças entre
+                      carry-over e novas OPs, e permite absorver{' '}
+                      {formatarNumero(capacidadeAbsorvidaNaPreviaPecas)} peças agora, cobrindo{' '}
+                      {formatarPercentual(coberturaCapacidadeAtualPecasPct)} do recorte selecionado.
+                    </p>
+                    <p>
+                      Como apoio de dimensionamento, esse mesmo recorte representa{' '}
+                      {formatarCargaMinutos(cargaTotalSelecionadaMinutos)} de carga setorial
+                      pendente, com absorção imediata de{' '}
+                      {formatarCargaMinutos(capacidadeAbsorvidaNaPreviaMinutos)} dentro da
+                      capacidade em minutos do turno.
                     </p>
                     {setoresDesconformes.length > 0 ? (
                       <p>
-                        Setores críticos:{' '}
+                        Setores com maior pressão de carga:{' '}
                         {setoresDesconformes
                           .map(
                             (setor) =>
@@ -828,64 +866,31 @@ export function ModalNovoTurnoV2({
                       {resumoDimensionamento.totalOperadoresSugeridos}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Ideal de {resumoDimensionamento.totalOperadoresNecessarios} para cumprir toda
-                      a carga
+                      Distribuição automática da prévia. Ideal de{' '}
+                      {resumoDimensionamento.totalOperadoresNecessarios} para cumprir toda a carga.
                     </p>
                   </div>
 
                   <div
-                    className={`rounded-2xl border px-4 py-4 ${
-                      existeDesconformidadeCapacidade
-                        ? 'border-red-200 bg-red-50'
-                        : existeDeficitDimensionamento
-                          ? 'border-amber-200 bg-amber-50'
-                        : 'border-emerald-200 bg-emerald-50'
-                    }`}
+                    className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4"
                   >
                     <p
-                      className={`text-xs font-medium uppercase tracking-wide ${
-                        existeDesconformidadeCapacidade
-                          ? 'text-red-700'
-                          : existeDeficitDimensionamento
-                            ? 'text-amber-700'
-                            : 'text-emerald-700'
-                      }`}
+                      className="text-xs font-medium uppercase tracking-wide text-blue-700"
                     >
-                      {existeDesconformidadeCapacidade
-                        ? 'Desconformidade'
-                        : existeDeficitDimensionamento
-                          ? 'Eficiência requerida'
-                          : 'Cobertura'}
+                      Capacidade produtiva do turno
                     </p>
                     <p
-                      className={`mt-2 text-3xl font-semibold ${
-                        existeDesconformidadeCapacidade
-                          ? 'text-red-900'
-                          : existeDeficitDimensionamento
-                            ? 'text-amber-900'
-                            : 'text-emerald-900'
-                      }`}
+                      className="mt-2 text-3xl font-semibold text-blue-900"
                     >
-                      {existeDesconformidadeCapacidade
-                        ? formatarPercentual(resumoDimensionamento.eficienciaRequeridaPct ?? 0)
-                        : existeDeficitDimensionamento
-                        ? formatarPercentual(resumoDimensionamento.eficienciaRequeridaPct ?? 0)
-                        : `${resumoDimensionamento.coberturaGeralPct.toFixed(0)}%`}
+                      {formatarNumero(capacidadeProdutivaTurnoPecas)}
                     </p>
                     <p
-                      className={`mt-1 text-xs ${
-                        existeDesconformidadeCapacidade
-                          ? 'text-red-700'
-                          : existeDeficitDimensionamento
-                            ? 'text-amber-700'
-                            : 'text-emerald-700'
-                      }`}
+                      className="mt-1 text-xs text-blue-700"
                     >
-                      {existeDesconformidadeCapacidade
-                        ? 'A demanda do turno ultrapassa a capacidade produtiva distribuída'
-                        : existeDeficitDimensionamento
-                        ? 'Percentual médio necessário da equipe atual para cumprir a demanda'
-                        : 'Carga do turno plenamente coberta'}
+                      {formatarNumero(operadoresDisponiveisNumero)} operador(es) ×{' '}
+                      {formatarNumero(minutosTurnoNumero)} min. Cobertura atual de{' '}
+                      {formatarPercentual(coberturaCapacidadeAtualPecasPct)} sobre{' '}
+                      {formatarNumero(quantidadeTotalPlanejada)} peças selecionadas.
                     </p>
                   </div>
                 </div>

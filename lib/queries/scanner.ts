@@ -10,6 +10,7 @@ import {
 } from '@/lib/utils/consolidacao-turno'
 import { enriquecerDemandasComFluxoParalelo } from '@/lib/utils/fluxo-paralelo-turno'
 import { aplicarCapacidadeOperacionalDemandas } from '@/lib/utils/hidratacao-capacidade-setor-turno'
+import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurnoBloco,
@@ -649,6 +650,13 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
             turno: {
               operadoresDisponiveis: turnoResumoAtual.operadores_disponiveis,
               minutosTurno: turnoResumoAtual.minutos_turno,
+              capacidadeGlobalTurnoPecas: calcularMetaGrupoTurnoV2(
+                {
+                  operadoresDisponiveis: turnoResumoAtual.operadores_disponiveis,
+                  minutosTurno: turnoResumoAtual.minutos_turno,
+                },
+                opsPlanejamento
+              ).capacidadeGlobalTurnoPecas,
             },
             demandasSetor: demandasEnriquecidas,
             operacoesSecao: operacoesTurno,

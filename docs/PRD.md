@@ -209,11 +209,29 @@ Regras obrigatórias:
 - se houver produção parcial em um setor, a prévia deve considerar apenas o saldo realmente pendente naquele setor e a continuidade liberada para os setores seguintes
 - o arredondamento deve ser sempre para cima com `CEIL`, porque fração de pessoa representa necessidade adicional de capacidade
 - o cálculo deve ser exibido como sugestão operacional e não como restrição rígida nesta primeira etapa
+- a sugestão de pessoas por setor não representa, por si só, alocação nominal fixa do chão de fábrica
+- quando não existir alocação formal persistida para o turno, a UI deve tratar essa leitura como `operadores sugeridos` e não como `operadores alocados`
+- quando houver atividade real capturada no setor, a leitura operacional deve distinguir pelo menos:
+  - `operadores sugeridos pela capacidade`
+  - `operadores com atividade real no setor`
+  - `operadores formalmente alocados`, se esse vínculo existir no turno
 - a soma das pessoas sugeridas por setor pode ultrapassar `operadoresDisponiveis`; quando isso acontecer, a UI deve sinalizar déficit de capacidade sem impedir a abertura do turno
 - quando `eficiencia_requerida_setor > 100%`, ou quando a carga pendente exigir mais minutos do que a capacidade disponível do setor, a UI deve exibir um alerta taxativo de desconformidade entre demanda e capacidade
 - a leitura de desconformidade deve existir tanto no nível do setor quanto no resumo geral do turno em abertura
 - a persistência do dimensionamento por setor no banco fica fora do escopo inicial
 - nesta primeira etapa, a abertura e gravação do turno continuam exatamente com o contrato atual
+
+Leitura operacional obrigatória da prévia de abertura:
+
+- antes de abrir o turno, a UI deve priorizar a leitura da `capacidade produtiva disponível do turno` com base em `operadoresDisponiveis × minutosTurno`
+- essa capacidade produtiva principal deve ser exibida em `peças completas / unidades de produto`, usando a mesma regra gerencial da dashboard para o mix selecionado no turno
+- essa leitura deve considerar a carga realmente selecionada naquele momento, incluindo:
+  - carry-over setorial vindo de turnos anteriores
+  - o que já foi concluído em turnos anteriores e, por isso, não volta para a carga pendente
+  - novas OPs adicionadas do zero no turno atual
+- o resumo principal da prévia deve mostrar quanto a fábrica consegue absorver agora com os recursos disponíveis, usando a carga total selecionada apenas como referência operacional complementar
+- minutos de carga setorial podem permanecer visíveis apenas como apoio técnico de dimensionamento, nunca como leitura principal de capacidade produtiva do turno
+- percentuais agregados de desconformidade não devem ser a leitura principal do supervisor antes da abertura; o foco deve ser a capacidade produtiva disponível do turno e o quanto da seleção atual ela consegue absorver
 
 Evolução obrigatória homologada após a Sprint 29:
 
@@ -413,6 +431,7 @@ Durante a execução, a dashboard acompanha em tempo real:
 - andamento por OP
 - andamento por setor
 - andamento por operação dentro da seção quando necessário
+- diferença entre backlog total do setor, quantidade disponível agora, quantidade aceita no turno, quantidade concluída e saldo excedente
 - progresso operacional ponderado por T.P. e quantidade concluída, sem misturar as duas métricas no mesmo KPI
 - eficiência por hora por operador/operação e eficiência do dia por operador, em blocos próprios e sem misturar esses indicadores com o progresso operacional da OP
 - pendências e seções encerradas
@@ -428,6 +447,9 @@ Kanban operacional obrigatório na `Visão Operacional`:
 - fora dessa bifurcação oficial, uma mesma OP não pode aparecer simultaneamente em duas colunas, exceto quando houver fracionamento real por quantidade; nesse caso, cada lote deve aparecer como card independente
 - o card deve deixar claro se a OP/lote está `em fila`, `liberada`, `em produção`, `parcial` ou `concluída no setor`
 - a coluna do setor deve exibir posição FIFO, capacidade consumida, capacidade restante em minutos e alerta visual de gargalo
+- a coluna do setor deve distinguir o que `já chegou ao setor` do que `já pode ser trabalhado no turno` segundo a capacidade acumulada do dia
+- quando não houver alocação formal persistida no turno, a dashboard não pode chamar de `operadores alocados` uma leitura que seja apenas sugestão de capacidade
+- se existir capacidade para concluir a OP/lote atual no turno, a dashboard deve refletir prioridade de conclusão antes de espalhar esforço em múltiplas OPs simultâneas no mesmo setor
 - toda atualização do kanban deve ser em tempo real, sem refresh manual
 
 Com edição de turno aberto, a dashboard também precisa:
@@ -575,10 +597,15 @@ Regra obrigatória da capacidade setorial operacional:
   - quantidade aceita no turno
   - quantidade concluída no turno
   - saldo excedente para turnos futuros
+- a capacidade produtiva global do turno em `peças completas / unidades de produto` é o teto canônico do dia e deve nascer de `operadoresDisponiveis × minutosTurno` pela mesma regra gerencial de `Meta do Grupo`
+- a leitura setorial do turno deve ser sempre derivada desse teto global canônico; o sistema não pode reintroduzir uma segunda capacidade autônoma por setor que contradiga a capacidade global do dia
+- nenhum setor pode ter `quantidadeAceitaTurno` acima do teto global do turno, mesmo quando a leitura local em minutos e T.P. setorial sugerir uma absorção maior
 - o sistema não pode usar a capacidade setorial apenas como alerta enquanto continuar liberando ao setor mais peças do que ele consegue aceitar no turno
 - quando houver diferença entre backlog total e quantidade aceita no turno, o setor deve sinalizar parcelamento obrigatório da produção
 - setor inicial do roteiro pode nascer com backlog total da OP, mas só com a quantidade aceita do turno liberada para processamento
 - setores seguintes não podem nascer com a quantidade total da OP se ainda não receberam transferência real do setor anterior
+- a carga em minutos por setor pode continuar sendo exibida como leitura operacional de planejamento, reserva, consumo e saldo do plano do dia, desde que isso não seja apresentado como uma segunda capacidade produtiva independente
+- scanner e apontamentos não devem ser bloqueados por desconformidade de capacidade derivada; nesses fluxos a regra deve gerar alerta visual e leitura operacional explícita, sem trava transacional adicional
 
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`
@@ -1526,6 +1553,61 @@ Contrato mínimo sugerido para a implementação:
   - múltiplas predecessoras com sincronização parcial por quantidade
 - o contrato do backend deve tratar minutos como base da capacidade real do setor; leitura em peças é apenas derivação contextual
 
+Evolução obrigatória homologada após a Sprint 31:
+
+- cada setor deve ser tratado como uma fila contínua em movimento, alimentada ao longo do dia pela conclusão real do setor anterior
+- a fotografia da abertura do turno não pode congelar a disponibilidade do setor para o resto do dia
+- o backlog do setor precisa considerar simultaneamente:
+  - saldo que já estava pendente no início do turno
+  - novas peças liberadas pelo setor anterior durante o próprio turno
+  - quantidade já concluída no setor
+- a capacidade diária do setor continua obrigatória, mas precisa ser cumulativa dentro do dia e não pode ser reiniciada a cada recomputação
+- o setor pode receber novas peças do fluxo ao longo do turno, mas o aceite acumulado do dia não pode ultrapassar a capacidade diária
+- dentro de cada setor, a fila segue obrigatoriamente ordem cronológica de chegada
+- o setor não deve fracionar desnecessariamente sua capacidade entre várias OPs ao mesmo tempo
+- se houver capacidade para concluir a OP ou o lote atual dentro do turno, o comportamento esperado é priorizar essa conclusão antes de abrir nova OP no mesmo setor
+- uma nova OP só deve ser aberta antes da conclusão da atual quando houver justificativa operacional real, como:
+  - bloqueio por falta de alimentação do setor anterior
+  - risco concreto de o setor ficar ocioso
+- o sistema deve distinguir semanticamente:
+  - `chegou ao setor`
+  - `disponível agora`
+  - `aceito no turno`
+  - `concluído no setor`
+  - `excedente para o próximo turno`
+- a leitura de operadores também precisa separar:
+  - sugestão de capacidade
+  - atividade real capturada no setor
+  - alocação formal persistida, quando existir
+
+Fórmulas obrigatórias da evolução:
+
+```text
+backlog_atual_setor =
+  backlog_inicial_setor +
+  entrada_acumulada_do_setor_anterior -
+  quantidade_concluida_setor_no_dia
+
+capacidade_diaria_setor_pecas =
+  FLOOR(capacidade_minutos_setor / tp_total_setor_produto)
+
+capacidade_restante_dia_setor_pecas =
+  MAX(capacidade_diaria_setor_pecas - quantidade_aceita_acumulada_setor_no_dia, 0)
+
+quantidade_aceita_nova_setor =
+  MIN(backlog_atual_setor, capacidade_restante_dia_setor_pecas)
+```
+
+Regras fechadas da evolução:
+
+- `quantidade_aceita_acumulada_setor_no_dia` é cumulativa e não pode ser recalculada como se o setor voltasse a ter capacidade cheia a cada nova entrada do fluxo
+- o setor seguinte pode receber novas peças durante o dia, mas só incorpora como aceite do turno o que ainda couber na capacidade restante do dia
+- a regra paralela da Sprint 31 permanece íntegra:
+  - `Frente` e `Costa` continuam recebendo teto a partir de `Preparação`
+  - `Montagem` continua limitada a `MIN(concluído em Frente, concluído em Costa)`
+- quando o setor tiver backlog maior do que sua capacidade diária, o excedente deve permanecer explicitamente identificado para o próximo turno
+- essa evolução deve ser implementada de forma aditiva, reaproveitando contratos e utilitários já homologados sempre que possível, para preservar simplicidade, manutenibilidade e clareza operacional
+
 #### 9.3.7 Regra de carry-over entre turnos
 
 O turno continua podendo ser encerrado manualmente, mas a produção não concluída precisa atravessar a troca de turno.
@@ -1554,6 +1636,12 @@ Regra alvo:
   - saldo ainda bloqueado em `Montagem` por falta de conclusão na outra trilha
 - se o setor anterior concluiu mais peças do que o próximo setor conseguiu aceitar no turno, esse excedente deve abrir como backlog do próximo setor no turno seguinte, sem reabrir o setor anterior
 - o parcelamento da OP entre turnos pode se repetir quantas vezes forem necessárias até o backlog setorial zerar
+- o carry-over precisa preservar a ordem cronológica da fila setorial, para que o novo turno não reordene artificialmente o que já havia chegado antes ao setor
+- se uma OP já tinha sido aceita parcialmente no turno anterior, o saldo não concluído dessa aceitação continua priorizado no turno seguinte antes da abertura de novas OPs posteriores da mesma fila
+- a continuidade entre turnos não pode apagar a distinção entre:
+  - backlog já presente no setor
+  - saldo novo que chegou do setor anterior no fim do turno
+  - excedente gerado por limite de capacidade diária
 
 Contrato mínimo sugerido:
 
