@@ -655,6 +655,7 @@ export async function criarProduto(
     const supabase = createAdminClient()
     const referencia = obterTexto(formData, 'referencia')
     const nome = obterTexto(formData, 'nome')
+    const descricao = obterTextoOpcional(formData, 'descricao')
     const imagemUrlLegada = obterTextoOpcional(formData, 'imagem_url')
     const roteiro = lerRoteiroDoForm(formData)
 
@@ -681,6 +682,7 @@ export async function criarProduto(
       .insert({
         referencia,
         nome,
+        descricao,
         imagem_url: imagemUrlLegada,
         imagem_frente_url: imagemUrlLegada,
         imagem_costa_url: null,
@@ -750,6 +752,7 @@ export async function editarProduto(
     const supabase = createAdminClient()
     const referencia = obterTexto(formData, 'referencia')
     const nome = obterTexto(formData, 'nome')
+    const descricao = obterTextoOpcional(formData, 'descricao')
     const ativo = formData.get('ativo') === 'true'
     const roteiro = lerRoteiroDoForm(formData)
 
@@ -800,6 +803,7 @@ export async function editarProduto(
       .update({
         referencia,
         nome,
+        descricao,
         ativo,
         tp_produto_min: tpProdutoMin,
         ...mutacaoImagens.valores,

@@ -665,7 +665,11 @@ export interface ProdutoImagens {
   imagem_costa_url: string | null
 }
 
-export interface ProdutoListItem extends Tables<'produtos'>, ProdutoImagens {
+export interface ProdutoCadastroDados {
+  descricao: string | null
+}
+
+export interface ProdutoListItem extends Tables<'produtos'>, ProdutoCadastroDados, ProdutoImagens {
   roteiro: ProdutoRoteiroItem[]
   setoresEnvolvidos: string[]
 }

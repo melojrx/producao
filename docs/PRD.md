@@ -1080,6 +1080,7 @@ Regras obrigatórias:
 
 - referência
 - nome
+- descrição
 - situação
 - T.P Produto calculado automaticamente
 
@@ -1089,10 +1090,17 @@ Contrato da UX:
 - a ordem dos setores no roteiro é sempre a ordem oficial do fluxo fabril, derivada de `setor.codigo`
 - o usuário não pode reordenar setores manualmente no cadastro do produto
 - dentro de um mesmo setor, a ordem das operações segue exatamente a ordem em que o usuário as selecionou
-- o usuário primeiro informa `referência` e `nome`
+- o usuário primeiro informa `referência`, `nome` e `descrição`
+- a `descrição` do produto deve ficar no bloco principal do cadastro, antes da área de imagens
+- a ordem visual obrigatória do formulário passa a ser:
+  - `referência`
+  - `nome`
+  - `descrição`
+  - `imagens`
+  - `roteiro / operações`
 - abaixo desses campos, o modal exibe o `T.P Produto` como informação de apoio visual, menos evidente que os campos principais, sendo atualizado automaticamente conforme as operações são selecionadas
 - o CRUD deve permitir `duplicar produto` a partir de um cadastro existente, reaproveitando o mesmo modal de produto em modo de criação pré-carregado
-- ao duplicar, o sistema deve carregar `nome`, `roteiro` e `setores` do produto de origem, mas continuar tratando o salvamento como um novo produto
+- ao duplicar, o sistema deve carregar `nome`, `descrição`, `roteiro` e `setores` do produto de origem, mas continuar tratando o salvamento como um novo produto
 - em seguida, o usuário busca e adiciona os setores que farão parte do produto, respeitando o limite de setores existentes no sistema
 - ao selecionar um setor, o modal passa a exibir apenas as operações disponíveis naquele setor para escolha
 - finalizada a seleção das operações de um setor, o usuário segue para o próximo setor até concluir o roteiro completo do produto
@@ -1100,6 +1108,8 @@ Contrato da UX:
 
 Regras:
 - o `T.P Produto` continua sendo a soma dos `tempo_padrao_min` das operações selecionadas
+- a `descrição` do produto é um campo administrativo de apoio visual/comercial e não interfere em `roteiro`, `T.P Produto`, capacidade, scanner ou dashboard operacional
+- a `descrição` deve aceitar texto livre opcional, sem se tornar campo obrigatório para o funcionamento operacional do produto
 - a UI deve ser enxuta, orientada ao momento do cadastro e sem poluição visual com informações secundárias
 - se necessário para manter a UX clara e intuitiva, o modal pode aumentar de largura ou reorganizar o layout
 - a ampliação visual do modal não pode transformar a tela em um configurador denso; o foco deve permanecer apenas nas decisões necessárias para montar o produto

@@ -3586,6 +3586,102 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
 **Fechamento em `2026-04-23`:** a Sprint 33 encerra com o domínio de produto evoluído para duas vistas administráveis (`Frente` e `Costa`), bucket público configurado no Supabase, upload/troca/remoção individual no backend, modal administrativo com previews grandes e detalhe do produto com galeria visual e ampliação, sem regressão de tipos nem de build de produção.
 
+## SPRINT 34 — Descrição do produto e reorganização do cadastro
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 33 concluída.
+**Objetivo:** incluir `descrição` no contrato do produto e reorganizar o modal para priorizar identificação textual e imagens antes do roteiro.
+
+- [x] **HU 34.1 — Como produto, quero formalizar no PRD o campo `descrição` e a nova ordem do formulário de produto, para que backend e UI implementem a mudança com o mesmo contrato.**
+  **Prioridade:** P1
+  **Risco:** Baixo
+
+  Tarefas:
+  - registrar no PRD que o produto passa a ter campo `descrição`
+  - registrar que a `descrição` é administrativa e não altera o domínio operacional
+  - formalizar a ordem obrigatória do formulário como `referência`, `nome`, `descrição`, `imagens`, `roteiro`
+  - registrar que a duplicação assistida deve reaproveitar também a `descrição`
+
+  Regras:
+  - `descrição` não altera `roteiro`, `T.P Produto`, scanner nem fluxo operacional
+  - a nova ordem do formulário deve preservar a área de imagens antes do roteiro
+  - a mudança deve permanecer compatível com o contrato tipado e com a UX já homologada na Sprint 33
+
+  **Evidência:** `docs/PRD.md` passa a registrar o campo `descrição` do produto e a nova ordem obrigatória do formulário de cadastro/edição.
+
+  `docs/PRD.md` foi atualizado em `2026-04-23` para incluir `descrição` no contrato do produto, explicitar que o campo é administrativo e formalizar a nova ordem do modal como `referência`, `nome`, `descrição`, `imagens`, `roteiro`, incluindo a expectativa de reaproveitar a `descrição` também na duplicação assistida.
+
+- [x] **HU 34.2 — Como sistema, quero evoluir schema e types para suportar `descricao` no produto, para que o CRUD passe a persistir o novo campo com segurança.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar migration aditiva para `produtos.descricao`
+  - regenerar `types/supabase.ts`
+  - propagar `descricao` em `types/index.ts` e nas queries do produto
+
+  Regras:
+  - a mudança deve ser aditiva
+  - `descricao` não pode quebrar contrato atual do CRUD
+  - os tipos precisam permanecer em `strict`
+
+  **Evidência:** schema, types e queries passam a expor `descricao` no produto sem regressão em `npx tsc --noEmit`.
+
+  Migration `scripts/sprint34_produtos_descricao.sql` aplicada no projeto Supabase via Management API em `2026-04-23`, com validação read-only em `information_schema.columns` confirmando a coluna `descricao` em `public.produtos`; `types/supabase.ts`, `types/index.ts`, `lib/queries/produtos.ts`, `scripts/sprint1_schema.sql` e `scripts/migrate.mjs` foram sincronizados com o novo contrato aditivo e `npx tsc --noEmit` concluiu sem erros.
+
+- [x] **HU 34.3 — Como admin, quero que o backend do CRUD de produto salve e atualize `descrição`, para que o novo campo faça parte do cadastro de forma consistente.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - adaptar `lib/actions/produtos.ts` para criar, editar e duplicar com `descricao`
+  - preservar compatibilidade com produtos sem descrição
+  - revalidar listagem e detalhe após mutações
+
+  Regras:
+  - `descricao` não bloqueia cadastro quando vazia
+  - edição de `descricao` não pode ser tratada como alteração estrutural de roteiro
+
+  **Evidência:** `criarProduto` e `editarProduto` passam a persistir `descricao` sem regressão em imagens, roteiro e `npx tsc --noEmit`.
+
+  `lib/actions/produtos.ts` foi atualizado em `2026-04-23` para ler `descricao` do `FormData` com contrato opcional (`null` quando vazia) e persisti-la tanto em `criarProduto()` quanto em `editarProduto()`, preservando o pipeline já homologado de imagens, cálculo de `tp_produto_min`, proteção contra alteração estrutural indevida do roteiro e a compatibilidade da duplicação assistida por reutilizar a mesma action de criação. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 34.4 — Como admin, quero ver `descrição` no modal de produto e a nova ordem visual do formulário, para cadastrar o produto em um fluxo mais natural.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - inserir o campo `descrição` no bloco principal do modal
+  - reorganizar a ordem para `referência`, `nome`, `descrição`, `imagens`, `roteiro`
+  - manter consistência entre criação, edição e duplicação
+
+  Regras:
+  - a nova ordem não pode degradar a UX homologada da Sprint 33
+  - a área de imagens deve continuar antes do roteiro
+  - a solução deve permanecer mobile-first
+
+  **Evidência:** o modal de produto passa a exibir `descrição` no bloco principal e respeita a nova ordem do formulário sem regressão visual.
+
+  `components/ui/ModalProduto.tsx` foi atualizado em `2026-04-23` para incluir um `textarea` de `descricao` no bloco principal do cadastro, imediatamente após `referencia` e `nome`, preservando a sequência obrigatória `referencia`, `nome`, `descricao`, `imagens`, `roteiro`; o campo reaproveita a `descricao` existente na edição e também na duplicação assistida, mantendo as imagens antes do roteiro e a composição mobile-first do modal. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 34.5 — Como produto, quero homologar `descrição` e a nova ordem do cadastro de produto ponta a ponta, para confiar na mudança sem regressão no CRUD atual.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar criação, edição e duplicação com e sem `descrição`
+  - validar a ordem visual do modal
+  - validar que imagens e roteiro continuam funcionando
+  - consolidar a evidência documental da sprint
+
+  Regras:
+  - a homologação deve preservar as entregas da Sprint 33
+  - `descricao` não pode alterar comportamento operacional do produto
+  - a sprint só fecha com `npx tsc --noEmit` e evidência operacional registrada
+
+  **Evidência:** campo `descrição` e nova ordem do formulário validados no CRUD do produto, sem regressão em imagens, roteiro e detalhe.
+
+  Homologação técnica consolidada em `2026-04-23`: `lib/actions/produtos.ts` passou a persistir `descricao` na criação e edição com contrato opcional; `components/ui/ModalProduto.tsx` passou a exibir `descricao` no fluxo de criação, edição e duplicação, reutilizando a descrição do produto-base apenas na duplicação e preservando a regra de iniciar imagens vazias nesse modo; o formulário ficou estruturado na ordem `referencia`, `nome`, `descricao`, `imagens`, `roteiro`; e a cadeia já homologada de imagens e roteiro permaneceu intacta porque o backend de upload/remoção, o `roteiro` serializado em `FormData`, `listarProdutos()` e `buscarProdutoComRoteiro()` continuaram no mesmo contrato tipado. Validação executável concluída com `npx tsc --noEmit` e `npm run build -- --webpack` sem erros, incluindo compilação das rotas `/admin/produtos` e `/admin/produtos/[id]`.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -3594,7 +3690,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

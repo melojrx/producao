@@ -13,6 +13,7 @@ function normalizarContratoImagens(produto: ProdutoRow): ProdutoRow {
 
   return {
     ...produto,
+    descricao: produto.descricao ?? null,
     imagem_frente_url: produto.imagem_frente_url ?? imagemLegada,
     imagem_costa_url: produto.imagem_costa_url ?? null,
   }

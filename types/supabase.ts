@@ -836,6 +836,7 @@ export type Database = {
         Row: {
           ativo: boolean | null
           created_at: string | null
+          descricao: string | null
           id: string
           imagem_costa_url: string | null
           imagem_frente_url: string | null
@@ -848,6 +849,7 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           created_at?: string | null
+          descricao?: string | null
           id?: string
           imagem_costa_url?: string | null
           imagem_frente_url?: string | null
@@ -860,6 +862,7 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           created_at?: string | null
+          descricao?: string | null
           id?: string
           imagem_costa_url?: string | null
           imagem_frente_url?: string | null

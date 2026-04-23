@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   referencia VARCHAR(20) UNIQUE NOT NULL,
   nome VARCHAR(200) NOT NULL,
+  descricao TEXT,
   imagem_url TEXT,
   ativo BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),

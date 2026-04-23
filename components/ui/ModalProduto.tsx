@@ -141,6 +141,10 @@ function obterNomeInicial(produtoBase?: ProdutoListItem): string {
   return `${produtoBase.nome} (Copia)`
 }
 
+function obterDescricaoInicial(produtoBase?: ProdutoListItem): string {
+  return produtoBase?.descricao ?? ''
+}
+
 function obterImagemInicial(produto: ProdutoListItem | undefined, tipo: ProdutoImagemTipo): string | null {
   if (!produto) {
     return null
@@ -503,6 +507,20 @@ export function ModalProduto({
             ) : (
               <input type="hidden" name="ativo" value="true" />
             )}
+
+            <div className="flex flex-col gap-2 md:col-span-12">
+              <label htmlFor="descricao" className="text-sm font-medium text-gray-700">
+                Descricao
+              </label>
+              <textarea
+                id="descricao"
+                name="descricao"
+                rows={4}
+                defaultValue={produto ? produto.descricao ?? '' : obterDescricaoInicial(produtoBase)}
+                placeholder="Contexto administrativo do produto, observacoes de modelagem ou detalhes uteis para o cadastro."
+                className="min-h-28 rounded-lg border border-gray-300 px-3 py-2 text-sm leading-6 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 shadow-sm">
