@@ -25,8 +25,10 @@ export interface TurnoSetorDemandaDashboardItem {
   cargaRealizadaTp: number
   quantidadeBacklogSetor: number
   quantidadeAceitaTurno: number
+  quantidadeAceitaAcumuladaSetor: number
   quantidadeExcedenteTurno: number
   quantidadeDisponivelApontamento: number
+  saldoManualPermitido: number
   status: TurnoSetorDemandaStatusV2
 }
 
@@ -100,11 +102,16 @@ function obterQuantidadeBacklog(demanda: {
 }
 
 function obterQuantidadeAceitaTurno(demanda: {
+  quantidadeAceitaAcumuladaSetor?: number
   quantidadeAceitaTurno?: number
   quantidadeDisponivelApontamento?: number
   quantidadeLiberadaSetor?: number
   quantidadePlanejada: number
 }): number {
+  if (typeof demanda.quantidadeAceitaAcumuladaSetor === 'number') {
+    return normalizarNumero(demanda.quantidadeAceitaAcumuladaSetor)
+  }
+
   if (typeof demanda.quantidadeAceitaTurno === 'number') {
     return normalizarNumero(demanda.quantidadeAceitaTurno)
   }
@@ -206,11 +213,13 @@ function mapearDemandasLegadas(
         cargaRealizadaTp: secao.cargaRealizadaTp,
         quantidadeBacklogSetor: Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
         quantidadeAceitaTurno: secao.quantidadePlanejada,
+        quantidadeAceitaAcumuladaSetor: secao.quantidadePlanejada,
         quantidadeExcedenteTurno: 0,
         quantidadeDisponivelApontamento: Math.max(
           secao.quantidadePlanejada - secao.quantidadeRealizada,
           0
         ),
+        saldoManualPermitido: Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
         status: secao.status,
       }
     })
@@ -253,8 +262,10 @@ function mapearDemandasPlanejamentoParaDashboard(
       cargaRealizadaTp: demanda.cargaRealizadaTp,
       quantidadeBacklogSetor: obterQuantidadeBacklog(demanda),
       quantidadeAceitaTurno: obterQuantidadeAceitaTurno(demanda),
+      quantidadeAceitaAcumuladaSetor: normalizarNumero(demanda.quantidadeAceitaAcumuladaSetor),
       quantidadeExcedenteTurno: obterQuantidadeExcedenteTurno(demanda),
       quantidadeDisponivelApontamento: normalizarNumero(demanda.quantidadeDisponivelApontamento),
+      saldoManualPermitido: normalizarNumero(demanda.saldoManualPermitido),
       status: demanda.status,
     }))
   }

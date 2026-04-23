@@ -3217,7 +3217,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** a Sprint 31 foi homologada tecnicamente com o fluxo paralelo ativo em toda a cadeia relevante: domínio e queries calculando `Montagem` pela interseção real entre `Frente` e `Costa`, kanban exibindo simultaneidade oficial, carry-over preservando as duas trilhas sem colapso e scanner/apontamentos refletindo a sincronização parcial no contexto operacional. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/carry-over-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/capacidade-setor.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts`, `npx tsc --noEmit` e `npm run build`, todos sem erros.
 
 ## SPRINT 32 — Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila
-**Status:** 🔄 Reaberta documentalmente em `2026-04-20` para a HU 32.7
+**Status:** 🔄 Reaberta documentalmente em `2026-04-22` para a `HU 32.9`
 **Pré-requisito:** Sprint 31 concluída e confirmação explícita do usuário em `2026-04-20` para formalizar a evolução do modelo operacional.
 **Objetivo:** evoluir o fluxo oficial para representar cada setor como uma fila contínua alimentada ao longo do dia, limitada pela capacidade diária cumulativa e operada com prioridade de conclusão da OP atual antes de fracionamento desnecessário.
 
@@ -3233,6 +3233,8 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 - a evolução deve ser implementada com mudanças aditivas, reutilizando contratos e utilitários homologados nas Sprints 29, 30 e 31
 - reabertura pontual homologada em `2026-04-20` para ajustar a leitura da prévia de abertura do turno ao foco de capacidade produtiva disponível no momento
 - reabertura documental complementar homologada em `2026-04-20` para corrigir a semântica entre `capacidade produtiva global do turno` e `aceite operacional setorial`, sem reintroduzir travas transacionais no scanner ou nos apontamentos
+- reabertura documental complementar homologada em `2026-04-22` para corrigir a classificação do excedente setorial, fazendo o saldo acima do limite diário remanescente deixar de vazar para `disponível agora` e passar a compor explicitamente o próximo turno
+- reabertura documental complementar homologada em `2026-04-22` para distinguir prioridade automática da fila e exceção supervisória controlada, permitindo apontamento manual em OPs posteriores somente dentro do saldo já aceito no dia
 
 - [x] **HU 32.1 — Como produto, quero formalizar no PRD a regra de fluxo contínuo com capacidade diária cumulativa e prioridade de conclusão, para abrir a evolução da Sprint 32 com escopo claro e sem ambiguidade.**
   **Prioridade:** P0
@@ -3361,3 +3363,99 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - a solução deve priorizar clareza de contrato, reuso dos utilitários homologados e menor complexidade adicional possível
 
   **Evidência:** `meta-grupo-turno.ts` passou a expor `capacidadeGlobalTurnoPecas` como contrato canônico do turno, `hidratacao-capacidade-setor-turno.ts` deixou de recalcular teto autônomo por setor e passou a derivar `quantidadeAceitaTurno` do teto global com `quantidadeDisponivelApontamento` preservada para execução, e `turnos.ts`, `turnos-client.ts`, `fluxo-sequencial-turno-base.ts` e `scanner.ts` propagam o mesmo contrato sem reabrir capacidade local divergente. A UI do dashboard, kanban, scanner e `/admin/apontamentos` foi alinhada para exibir `Plano do dia` em vez de uma falsa capacidade setorial autônoma, com alerta visual não bloqueante quando a execução ultrapassa o saldo visual do plano. Cobertura atualizada em `lib/utils/hidratacao-capacidade-setor-turno.test.ts` e validação concluída em `2026-04-20` com `node --experimental-loader /tmp/alias-loader.mjs --test --experimental-strip-types lib/utils/hidratacao-capacidade-setor-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 32.8 — Como supervisor, quero que o excedente acima do limite diário remanescente seja classificado imediatamente como saldo do próximo turno, para que o sistema deixe de apresentar como executável hoje o que já não pertence mais à capacidade do dia.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - formalizar no `docs/PRD.md` que, quando novas peças chegarem ao setor, apenas a parcela que ainda couber no limite diário remanescente entra em `quantidadeAceitaTurno`
+  - formalizar no `docs/PRD.md` que a parcela que não couber mais no dia deve ir imediatamente para `quantidadeExcedenteTurno`, sem permanecer semanticamente em `disponível agora`
+  - ajustar `lib/utils/hidratacao-capacidade-setor-turno.ts` para que `quantidadeDisponivelApontamento` nasça somente da parcela aceita para hoje
+  - propagar o novo contrato em `lib/queries/turnos.ts`, `lib/queries/turnos-client.ts`, `lib/queries/scanner.ts` e `lib/queries/fluxo-sequencial-turno-base.ts`, preservando a leitura entre `chegou ao setor`, `aceito no turno`, `disponível agora` e `excedente`
+  - alinhar dashboard, kanban, scanner e `/admin/apontamentos` para que o excedente deixe de aparecer como disponibilidade implícita do turno atual
+  - explicitar na UI que `quantidadeExcedenteTurno` é também uma medida gerencial do setor, útil para ajuste de capacidade, prioridade e distribuição de operadores nos próximos turnos
+  - validar carry-over para que o excedente identificado no dia componha corretamente o saldo operacional do turno seguinte
+
+  Regras:
+  - esta HU não muda o fato físico de que novas peças podem chegar ao setor durante o turno; ela muda a classificação sistêmica do que ainda pertence ao dia atual
+  - o sistema deve separar explicitamente:
+    - o que já chegou fisicamente ao setor
+    - o que ainda cabe no dia atual
+    - o que já virou compromisso do próximo turno
+  - `quantidadeDisponivelApontamento` não pode exceder a parcela aceita para hoje
+  - `quantidadeExcedenteTurno` deve nascer no momento em que o limite diário remanescente for ultrapassado, sem depender de encerramento manual do turno para existir semanticamente
+  - a solução deve preservar a bifurcação oficial `Frente + Costa -> Montagem`, a fila FIFO, a prioridade de conclusão e o carry-over setorial já homologados
+  - o excedente é uma medida gerencial obrigatória por setor e não pode ser tratado apenas como resíduo técnico de cálculo
+
+  Critério técnico obrigatório:
+  - ao recomputar a hidratação do turno, a soma entre `quantidadeAceitaTurno` e `quantidadeExcedenteTurno` deve continuar reconciliando o backlog vivo do setor
+  - a parcela excedente não pode continuar aparecendo em `quantidadeDisponivelApontamento`, `quantidadePlanejada` exibida da seção/operação, scanner ou apontamentos como se ainda pertencesse ao dia atual
+  - o carry-over do turno seguinte deve reconhecer como backlog explícito tanto:
+    - o saldo aceito e não concluído
+    - quanto o saldo excedente que já não cabia no dia anterior
+
+  **Evidência:** `hidratacao-capacidade-setor-turno.ts` passou a limitar `quantidadeDisponivelApontamento` à parcela efetivamente aceita no dia, impedindo que o excedente vaze semanticamente para execução imediata. `turnos.ts`, `turnos-client.ts`, `scanner.ts` e `fluxo-sequencial-turno-base.ts` passaram a propagar a mesma semântica operacional, enquanto operações e seções exibidas no scanner/dashboard usam o aceite real do dia em vez de expor como executável a parcela já classificada como excedente. `SelecaoDemandaScanner.tsx` também deixou de tratar backlog puro como disponibilidade clicável. Validação concluída em `2026-04-22` com `node --experimental-loader /tmp/alias-loader.mjs --test --experimental-strip-types lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+- [x] **HU 32.9 — Como supervisor, quero poder apontar manualmente em OPs posteriores da fila dentro do saldo já aceito no dia, para usar a capacidade setorial remanescente sem romper o teto do setor.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - formalizar no `docs/PRD.md` a diferença entre prioridade automática da fila e exceção supervisória controlada
+  - introduzir no domínio o conceito funcional de `saldoManualPermitido` por OP/setor, preservando os contratos já homologados de `quantidadeAceitaAcumuladaSetor`, `quantidadeAceitaTurno` e `quantidadeDisponivelApontamento`
+  - adaptar `components/apontamentos/PainelApontamentosSupervisor.tsx` para listar e acionar OPs não prioritárias quando ainda houver saldo manual permitido
+  - adaptar o backend de `lib/actions/producao.ts` para validar o fluxo supervisor por `saldoManualPermitido`, e não apenas por `quantidadeDisponivelApontamento`
+  - preservar `components/scanner/*` e o fluxo operacional padrão do scanner sob a disciplina automática atual da fila
+  - avaliar se kanban/dashboard devem expor um indicador secundário de `saldo manual supervisor`, sem confundir esse número com `Disponível agora`
+  - cobrir a regra com testes determinísticos de domínio, dashboard/apontamentos e validação transacional do backend
+
+  Regras:
+  - `Plano do dia` do setor continua sendo o teto fixo de capacidade aceita no turno
+  - `Disponível agora` continua mostrando apenas a liberação automática prioritária do setor
+  - a prioridade automática continua favorecendo a OP da frente da fila
+  - o supervisor pode lançar manualmente em OPs posteriores da fila apenas usando a parcela já aceita no dia para aquele setor
+  - a soma do que já foi concluído no setor com o novo lançamento manual não pode ultrapassar o `Plano do dia` do setor
+  - o lançamento manual em OP posterior não depende de `quantidadeDisponivelApontamento > 0`; depende da existência de saldo aceito no dia para aquela OP dentro do teto setorial
+  - o scanner operacional padrão não herda essa exceção
+  - a fila FIFO continua como política padrão do sistema, sem virar proibição absoluta para o fluxo supervisório
+
+  Semântica obrigatória:
+  - `quantidadeAceitaAcumuladaSetor`
+    - significa quanto daquela OP efetivamente coube no plano do dia do setor
+  - `quantidadeAceitaTurno`
+    - significa o saldo remanescente da parcela aceita que ainda não foi concluído
+  - `quantidadeDisponivelApontamento`
+    - significa apenas a liberação automática imediata pela prioridade da fila
+  - `saldoManualPermitido`
+    - significa quanto o supervisor ainda pode apontar naquela OP, mesmo fora da prioridade automática, sem romper o teto diário do setor
+
+  Regra operacional exata:
+  - `saldoAceitoDaOp = MAX(quantidadeAceitaAcumuladaSetor - quantidadeConcluidaNoSetor, 0)`
+  - `saldoSetorialDoDia = MAX(planoDoDiaSetor - quantidadeConcluidaTotalSetor, 0)`
+  - `saldoManualPermitido = MIN(saldoAceitoDaOp, saldoSetorialDoDia)`
+  - se `saldoManualPermitido > 0`, o supervisor pode apontar nessa OP mesmo que ela esteja na fila `#2`, `#3` ou posterior
+
+  **Evidência:** `docs/PRD.md` consolidou a seção `9.3.6.1 Flexibilização supervisória controlada dentro do plano do dia`; `lib/utils/apontamento-supervisor.ts` passou a centralizar `saldoManualPermitido`, exceção manual e validação do lote do supervisor; `lib/utils/hidratacao-capacidade-setor-turno.ts` e `lib/queries/fluxo-sequencial-turno-base.ts` agora propagam `saldoManualPermitido` e `quantidadeManualPermitidaOperacao` sem alterar o scanner automático; `components/apontamentos/PainelApontamentosSupervisor.tsx` passou a listar contextos fora da prioridade automática quando ainda há saldo manual; e o dashboard expõe o indicador secundário em `components/dashboard/ModalDetalhesSetorTurno.tsx` e `components/dashboard/KanbanOperacionalTurno.tsx`. Validação concluída em `2026-04-22` com `node --experimental-loader /tmp/alias-loader.mjs --test --experimental-strip-types lib/utils/turno-setores.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts lib/utils/apontamento-supervisor.test.ts` e `npx tsc --noEmit`, ambos sem erros.
+
+  Exemplo obrigatório de aceitação:
+  - setor `Finalização`
+  - `Plano do dia = 601`
+  - OP `#1 = 588`
+  - OP `#2 = 13`
+  - OP `#3 = 0`
+  - `concluído no setor = 0`
+  - resultado esperado:
+    - a liberação automática continua em `588` para a OP `#1`
+    - o supervisor pode lançar manualmente até `13` na OP `#2`
+    - o supervisor não pode lançar nada na OP `#3`
+    - o total do setor permanece limitado a `601`
+
+  Guardrails obrigatórios:
+  - o supervisor nunca pode lançar acima do saldo aceito daquela OP
+  - o supervisor nunca pode fazer o setor ultrapassar o `Plano do dia`
+  - a exceção supervisória não pode reclassificar como capacidade do dia o que já virou `quantidadeExcedenteTurno`
+  - toda exceção manual precisa permanecer auditável
+  - a solução deve preservar a bifurcação oficial `Frente + Costa -> Montagem`, a fila FIFO, a prioridade de conclusão e o carry-over setorial já homologados
+
+  **Evidência esperada:** o PRD passa a registrar a exceção supervisória controlada como segunda camada operacional do setor, `PainelApontamentosSupervisor` passa a expor OPs não prioritárias com `saldoManualPermitido > 0`, o backend valida a soma setorial sem usar apenas `quantidadeDisponivelApontamento`, e scanner/kanban continuam distinguindo prioridade automática de exceção manual. A validação deve cobrir cenários de `Finalização` com `588 + 13`, setores paralelos e casos sem saldo residual, com `npx tsc --noEmit` e suíte automatizada sem erros.

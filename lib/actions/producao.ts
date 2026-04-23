@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { listarDisponibilidadeSequencialOperacoesComClient } from '@/lib/queries/fluxo-sequencial-turno-base'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
+import { validarLancamentosSupervisorContraContextos } from '@/lib/utils/apontamento-supervisor'
 
 export interface RegistrarProducaoInput {
   operadorId: string
@@ -178,46 +179,12 @@ async function validarDisponibilidadeSequencialLoteSupervisor(
   lancamentos: LancamentoSupervisorPayload[]
 ): Promise<ValidacaoSequencialOperacaoResultado> {
   const supabase = createAdminClient()
-  const totaisPorOperacao = new Map<string, number>()
-
-  for (const lancamento of lancamentos) {
-    const totalAtual = totaisPorOperacao.get(lancamento.turnoSetorOperacaoId) ?? 0
-    totaisPorOperacao.set(lancamento.turnoSetorOperacaoId, totalAtual + lancamento.quantidade)
-  }
-
   const disponibilidades = await listarDisponibilidadeSequencialOperacoesComClient(
     supabase,
-    [...totaisPorOperacao.keys()]
-  )
-  const disponibilidadePorOperacaoId = new Map(
-    disponibilidades.map((disponibilidade) => [disponibilidade.turnoSetorOperacaoId, disponibilidade])
+    lancamentos.map((lancamento) => lancamento.turnoSetorOperacaoId)
   )
 
-  for (const [turnoSetorOperacaoId, quantidadeTotal] of totaisPorOperacao.entries()) {
-    const contexto = disponibilidadePorOperacaoId.get(turnoSetorOperacaoId)
-
-    if (!contexto) {
-      return {
-        erro: 'Uma das operações selecionadas não foi encontrada no fluxo sequencial do turno.',
-      }
-    }
-
-    if (quantidadeTotal <= contexto.quantidadeDisponivelOperacao) {
-      continue
-    }
-
-    if (contexto.quantidadeDisponivelOperacao === 0 && contexto.setorAnteriorNome) {
-      return {
-        erro: `A operação ${contexto.numeroOp} em ${contexto.setorNome} ainda não recebeu peças liberadas de ${contexto.setorAnteriorNome}.`,
-      }
-    }
-
-    return {
-      erro: `A operação ${contexto.numeroOp} em ${contexto.setorNome} aceita no máximo ${contexto.quantidadeDisponivelOperacao} peça(s) liberadas neste lote.`,
-    }
-  }
-
-  return {}
+  return validarLancamentosSupervisorContraContextos(lancamentos, disponibilidades)
 }
 
 async function resolverUsuarioSistemaAutenticadoOpcional(): Promise<string | null> {

@@ -16,6 +16,10 @@ import {
   registrarApontamentosSupervisor,
   type RegistrarApontamentosSupervisorActionState,
 } from '@/lib/actions/producao'
+import {
+  supervisorDependeDeExcecaoManual,
+  supervisorPodeAcionarContexto,
+} from '@/lib/utils/apontamento-supervisor'
 import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
@@ -41,9 +45,11 @@ interface SecaoComContexto extends TurnoSetorOpV2 {
   produtoReferencia: string
   etapaFluxoChave: EtapaFluxoChaveV2 | undefined
   quantidadeBacklogTotal: number
+  quantidadePlanoDoDia: number
   quantidadeAceitaTurno: number
   quantidadeExcedenteTurno: number
   quantidadeDisponivelApontamento: number
+  saldoManualPermitido: number
   quantidadeSincronizadaMontagem: number
   quantidadeBloqueadaSincronizacao: number
 }
@@ -79,8 +85,16 @@ function statusPermiteApontamento(
   return status !== 'concluida' && status !== 'encerrada_manualmente'
 }
 
-function secaoEstaAcionavel(secao: TurnoSetorOpV2): boolean {
-  return statusPermiteApontamento(secao.status) && saldoRestanteSecao(secao) > 0
+function saldoManualSecao(secao: Pick<SecaoComContexto, 'saldoManualPermitido'>): number {
+  return Math.max(secao.saldoManualPermitido, 0)
+}
+
+function secaoEstaAcionavel(secao: SecaoComContexto): boolean {
+  return supervisorPodeAcionarContexto({
+    status: secao.status,
+    quantidadeDisponivelApontamento: saldoRestanteSecao(secao),
+    saldoManualPermitido: saldoManualSecao(secao),
+  })
 }
 
 function operacaoEstaAcionavel(operacao: TurnoSetorOperacaoApontamentoV2): boolean {
@@ -130,11 +144,16 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
         quantidadeBacklogTotal:
           demanda?.quantidadeBacklogSetor ??
           Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
+        quantidadePlanoDoDia:
+          demanda?.quantidadeAceitaAcumuladaSetor ??
+          demanda?.quantidadeAceitaTurno ??
+          secao.quantidadePlanejada,
         quantidadeAceitaTurno: demanda?.quantidadeAceitaTurno ?? secao.quantidadePlanejada,
         quantidadeExcedenteTurno: demanda?.quantidadeExcedenteTurno ?? 0,
         quantidadeDisponivelApontamento:
           demanda?.quantidadeDisponivelApontamento ??
           Math.max(secao.quantidadePlanejada - secao.quantidadeRealizada, 0),
+        saldoManualPermitido: demanda?.saldoManualPermitido ?? 0,
         quantidadeSincronizadaMontagem: demanda?.quantidadeSincronizadaMontagem ?? 0,
         quantidadeBloqueadaSincronizacao: demanda?.quantidadeBloqueadaSincronizacao ?? 0,
       }
@@ -632,13 +651,22 @@ export function PainelApontamentosSupervisor({
   const saldoSecaoSelecionada = secaoSelecionada
     ? saldoRestanteSecao(secaoSelecionada)
     : 0
+  const saldoManualSecaoSelecionada = secaoSelecionada
+    ? saldoManualSecao(secaoSelecionada)
+    : 0
+  const secaoSelecionadaDependeDeExcecaoManual = secaoSelecionada
+    ? supervisorDependeDeExcecaoManual({
+        quantidadeDisponivelApontamento: saldoSecaoSelecionada,
+        saldoManualPermitido: saldoManualSecaoSelecionada,
+      })
+    : false
   const quantidadeLoteAtual = lancamentos.reduce((soma, lancamento) => {
     const quantidade = Number.parseInt(lancamento.quantidade, 10)
     return Number.isInteger(quantidade) && quantidade > 0 ? soma + quantidade : soma
   }, 0)
   const resumoPlanoSecao = secaoSelecionada
     ? resumirPlanoDiarioTurno({
-        quantidadeAceitaTurno: secaoSelecionada.quantidadeAceitaTurno,
+        quantidadeAceitaTurno: secaoSelecionada.quantidadePlanoDoDia,
         quantidadeConcluida: secaoSelecionada.quantidadeConcluida,
         quantidadeDisponivelApontamento: saldoSecaoSelecionada,
         quantidadeSelecionada: quantidadeLoteAtual,
@@ -753,8 +781,8 @@ export function PainelApontamentosSupervisor({
                       {secoesFiltradas.map((secao) => (
                         <option key={secao.id} value={secao.id}>
                           {secao.numeroOp} · {secao.setorNome} · plano do dia{' '}
-                          {secao.quantidadeAceitaTurno} · disponível agora{' '}
-                          {saldoRestanteSecao(secao)}
+                          {secao.quantidadePlanoDoDia} · disponível agora{' '}
+                          {saldoRestanteSecao(secao)} · manual supervisor {saldoManualSecao(secao)}
                         </option>
                       ))}
                     </select>
@@ -770,7 +798,7 @@ export function PainelApontamentosSupervisor({
                   </div>
                 )}
 
-                <div className="grid gap-3 md:grid-cols-5">
+                <div className="grid gap-3 md:grid-cols-6">
                   <article className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Backlog vivo
@@ -784,7 +812,7 @@ export function PainelApontamentosSupervisor({
                       Plano do dia
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-blue-900">
-                      {secaoSelecionada.quantidadeAceitaTurno}
+                      {secaoSelecionada.quantidadePlanoDoDia}
                     </p>
                   </article>
                   <article className="rounded-2xl bg-cyan-50 p-4">
@@ -793,6 +821,14 @@ export function PainelApontamentosSupervisor({
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-cyan-900">
                       {saldoSecaoSelecionada}
+                    </p>
+                  </article>
+                  <article className="rounded-2xl bg-indigo-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-indigo-700">
+                      Manual supervisor
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-indigo-900">
+                      {saldoManualSecaoSelecionada}
                     </p>
                   </article>
                   <article className="rounded-2xl bg-emerald-50 p-4">
@@ -816,11 +852,22 @@ export function PainelApontamentosSupervisor({
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   Disponível para apontamento agora:{' '}
                   <span className="font-semibold">{saldoSecaoSelecionada}</span>
+                  {' · '}Saldo manual do supervisor:{' '}
+                  <span className="font-semibold">{saldoManualSecaoSelecionada}</span>
                   {' · '}Progresso operacional:{' '}
                   <span className="font-semibold">
                     {secaoSelecionada.progressoOperacionalPct.toFixed(0)}%
                   </span>
                 </div>
+
+                {secaoSelecionadaDependeDeExcecaoManual ? (
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                    Esta OP não está na frente automática da fila neste setor. O fluxo padrão
+                    continua priorizando a peça da frente, mas o supervisor pode lançar
+                    manualmente até <strong>{saldoManualSecaoSelecionada}</strong> peça(s) dentro
+                    do saldo já aceito no dia.
+                  </div>
+                ) : null}
 
                 {resumoPlanoSecao?.excedePlanoAtual || resumoPlanoSecao?.excedePlanoComQuantidade ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -952,8 +999,8 @@ export function PainelApontamentosSupervisor({
                         Atividade real {operadoresComAtividadeSecao}
                       </span>
                       <span className="inline-flex items-center gap-2 font-medium">
-                        Plano do dia {secaoSelecionada.quantidadeAceitaTurno} · disponível agora{' '}
-                        {saldoSecaoSelecionada}
+                        Plano do dia {secaoSelecionada.quantidadePlanoDoDia} · disponível agora{' '}
+                        {saldoSecaoSelecionada} · manual supervisor {saldoManualSecaoSelecionada}
                       </span>
                     </div>
                   </div>
@@ -1068,8 +1115,8 @@ export function PainelApontamentosSupervisor({
                     <p className="text-sm text-slate-500">
                       {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · backlog vivo{' '}
                       {secaoSelecionada.quantidadeBacklogTotal} · plano do dia{' '}
-                      {secaoSelecionada.quantidadeAceitaTurno} · disponível agora{' '}
-                      {saldoSecaoSelecionada}.
+                      {secaoSelecionada.quantidadePlanoDoDia} · disponível agora{' '}
+                      {saldoSecaoSelecionada} · manual supervisor {saldoManualSecaoSelecionada}.
                     </p>
 
                     <button

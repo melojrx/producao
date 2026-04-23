@@ -1575,6 +1575,19 @@ Evolução obrigatória homologada após a Sprint 31:
   - `aceito no turno`
   - `concluído no setor`
   - `excedente para o próximo turno`
+- quando novas peças chegarem ao setor durante o turno, a classificação operacional obrigatória passa a ser:
+  - a parcela que ainda couber no limite diário remanescente entra em `aceito no turno`
+  - a parcela que não couber mais no dia vai imediatamente para `excedente para o próximo turno`
+  - `disponível agora` só pode nascer da parcela efetivamente aceita para hoje
+  - o excedente não pode continuar aparecendo implicitamente como disponibilidade executável do turno atual
+- esta regra não significa bloquear a existência física da peça no setor; ela apenas separa com rigor:
+  - o que já chegou fisicamente ao setor
+  - o que ainda pertence à capacidade operacional do dia
+  - o que já virou compromisso explícito do próximo turno
+- `quantidadeExcedenteTurno` passa a ser leitura gerencial obrigatória por setor, porque permite ao supervisor:
+  - enxergar onde a fábrica está acumulando pressão de capacidade
+  - ajustar distribuição de operadores e prioridade de conclusão nos turnos seguintes
+  - acompanhar a formação recorrente de backlog setorial como dado real de planejamento
 - a leitura de operadores também precisa separar:
   - sugestão de capacidade
   - atividade real capturada no setor
@@ -1596,17 +1609,123 @@ capacidade_restante_dia_setor_pecas =
 
 quantidade_aceita_nova_setor =
   MIN(backlog_atual_setor, capacidade_restante_dia_setor_pecas)
+
+quantidade_excedente_nova_setor =
+  MAX(backlog_atual_setor - quantidade_aceita_nova_setor, 0)
 ```
 
 Regras fechadas da evolução:
 
 - `quantidade_aceita_acumulada_setor_no_dia` é cumulativa e não pode ser recalculada como se o setor voltasse a ter capacidade cheia a cada nova entrada do fluxo
 - o setor seguinte pode receber novas peças durante o dia, mas só incorpora como aceite do turno o que ainda couber na capacidade restante do dia
+- a parcela que ultrapassar a capacidade remanescente do dia deve nascer imediatamente como `quantidadeExcedenteTurno`, sem permanecer semanticamente misturada ao `aceito no turno`
+- `quantidadeDisponivelApontamento` não pode ser maior do que a parcela aceita para hoje; ela deve representar apenas o que ainda é executável no turno atual
+- o excedente do setor precisa ser tratado desde já como saldo explícito do próximo turno, e não como disponibilidade implícita do turno atual aguardando apenas nova recomputação
 - a regra paralela da Sprint 31 permanece íntegra:
   - `Frente` e `Costa` continuam recebendo teto a partir de `Preparação`
   - `Montagem` continua limitada a `MIN(concluído em Frente, concluído em Costa)`
-- quando o setor tiver backlog maior do que sua capacidade diária, o excedente deve permanecer explicitamente identificado para o próximo turno
+- quando o setor tiver backlog maior do que sua capacidade diária, o excedente deve permanecer explicitamente identificado para o próximo turno e também destacado como medida gerencial de pressão de capacidade
 - essa evolução deve ser implementada de forma aditiva, reaproveitando contratos e utilitários já homologados sempre que possível, para preservar simplicidade, manutenibilidade e clareza operacional
+
+#### 9.3.6.1 Flexibilização supervisória controlada dentro do plano do dia
+
+Além da prioridade automática da fila, o domínio precisa admitir uma camada supervisória de exceção operacional controlada.
+
+Objetivo:
+
+- preservar a disciplina automática de fila e prioridade de conclusão como comportamento padrão do sistema
+- permitir ao supervisor consumir manualmente saldo já aceito no dia em OPs posteriores da fila, sem romper o teto diário do setor
+- impedir que essa flexibilidade seja confundida com reabertura de capacidade, quebra de FIFO ou liberação automática irrestrita
+
+Regras fechadas desta flexibilização:
+
+- o `Plano do dia` do setor continua sendo o teto fixo de capacidade aceita no turno
+- `Disponível agora` continua representando apenas a liberação automática prioritária do setor
+- a prioridade automática continua favorecendo a OP da frente da fila
+- o supervisor pode lançar manualmente em OPs posteriores da fila, desde que consuma somente a parcela já aceita no dia para aquele setor
+- a soma entre o que já foi concluído no setor e o novo lançamento manual não pode ultrapassar o `Plano do dia` do setor
+- o lançamento manual em OP posterior não depende de `quantidadeDisponivelApontamento > 0`; depende da existência de saldo aceito no dia para aquela OP dentro do teto setorial
+- o scanner operacional padrão permanece disciplinado pela prioridade automática e não herda essa exceção
+- o apontamento manual do supervisor passa a ser a superfície explícita de exceção operacional controlada
+
+Semântica canônica dos campos:
+
+- `quantidadeAceitaAcumuladaSetor`
+  - significa quanto daquela OP efetivamente coube no plano do dia do setor
+- `quantidadeAceitaTurno`
+  - significa o saldo remanescente da parcela aceita que ainda não foi concluído no setor
+- `quantidadeDisponivelApontamento`
+  - significa apenas a liberação automática imediata pela prioridade da fila
+- `saldoManualPermitido`
+  - significa quanto o supervisor ainda pode apontar naquela OP, mesmo fora da prioridade automática, sem romper o teto diário do setor
+
+Regra operacional exata:
+
+```text
+saldoAceitoDaOp =
+  MAX(quantidadeAceitaAcumuladaSetor - quantidadeConcluidaNoSetor, 0)
+
+saldoSetorialDoDia =
+  MAX(planoDoDiaSetor - quantidadeConcluidaTotalSetor, 0)
+
+saldoManualPermitido =
+  MIN(saldoAceitoDaOp, saldoSetorialDoDia)
+```
+
+Consequência direta:
+
+- se `saldoManualPermitido > 0`, o supervisor pode apontar nessa OP mesmo que ela esteja na fila `#2`, `#3` ou posterior
+- se `saldoManualPermitido = 0`, a OP continua fora da exceção supervisória naquele momento
+
+Exemplo de referência em `Finalização`:
+
+- `Plano do dia = 601`
+- OP `#1 = 588`
+- OP `#2 = 13`
+- OP `#3 = 0`
+- `concluído no setor = 0`
+
+Resultado esperado:
+
+- a liberação automática pode continuar em `588` para a OP `#1`
+- o supervisor também pode lançar manualmente até `13` na OP `#2`
+- o supervisor não pode lançar nada na OP `#3`
+- o total do setor permanece limitado a `601`
+
+Depois que a OP `#1` ou a OP `#2` consumirem esse saldo:
+
+- o residual setorial do dia diminui
+- a OP `#3` só entra na exceção supervisória se ainda existir saldo aceito nela e saldo global do setor
+
+Comportamento por superfície:
+
+- Kanban:
+  - continua mostrando prioridade automática em `Disponível agora`
+  - pode expor, de forma secundária, um indicador de `saldo manual supervisor`
+- Scanner:
+  - mantém a disciplina operacional padrão baseada em prioridade automática
+- Apontamento do supervisor:
+  - passa a listar também OPs não prioritárias com `saldoManualPermitido > 0`
+  - bloqueia apenas quando o lote ultrapassar esse saldo
+- Backend:
+  - valida por setor e por OP
+  - não usa apenas `quantidadeDisponivelApontamento` para o fluxo supervisor
+  - usa `saldoManualPermitido` como contrato de exceção administrativa
+
+Guardrails obrigatórios:
+
+- o supervisor nunca pode lançar acima do saldo aceito daquela OP
+- o supervisor nunca pode fazer o setor ultrapassar o `Plano do dia`
+- a prioridade automática da fila continua sendo a política padrão do sistema
+- a exceção supervisória não pode reclassificar como capacidade do dia o que já virou `quantidadeExcedenteTurno`
+- toda exceção manual precisa permanecer rastreável para auditoria operacional e análise gerencial
+
+Diretriz de produto:
+
+- a fábrica opera com duas camadas complementares:
+  - uma camada automática e disciplinada, que prioriza a fila e evita fracionamento desnecessário
+  - uma camada supervisória, que permite decisões táticas de chão de fábrica sem romper a capacidade real do dia
+- a exceção manual não existe para furar o teto do dia; ela existe para consumir com inteligência o teto que já foi aceito no setor
 
 #### 9.3.7 Regra de carry-over entre turnos
 

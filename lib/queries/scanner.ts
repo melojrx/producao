@@ -9,7 +9,10 @@ import {
   consolidarSetorScaneadoPorDemandas,
 } from '@/lib/utils/consolidacao-turno'
 import { enriquecerDemandasComFluxoParalelo } from '@/lib/utils/fluxo-paralelo-turno'
-import { aplicarCapacidadeOperacionalDemandas } from '@/lib/utils/hidratacao-capacidade-setor-turno'
+import {
+  aplicarCapacidadeOperacionalDemandas,
+  limitarOperacoesTurnoAoAceiteDemandas,
+} from '@/lib/utils/hidratacao-capacidade-setor-turno'
 import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
@@ -787,7 +790,10 @@ export async function buscarOperacoesScaneadasPorSecao(
 }
 
 export async function buscarOperacoesScaneadasPorDemanda(
-  turnoSetorDemanda: Pick<TurnoSetorDemandaScaneada, 'id' | 'turnoSetorOpLegacyId'>
+  turnoSetorDemanda: Pick<
+    TurnoSetorDemandaScaneada,
+    'id' | 'turnoSetorOpLegacyId' | 'quantidadeAceitaTurno'
+  >
 ): Promise<TurnoSetorOperacaoApontamentoV2[]> {
   const supabase = createClient()
   const operacoesPorDemanda = await listarTurnoSetorOperacoesPorDemandaComClient(
@@ -795,12 +801,22 @@ export async function buscarOperacoesScaneadasPorDemanda(
     turnoSetorDemanda.id
   )
 
-  if (operacoesPorDemanda.length > 0 || !turnoSetorDemanda.turnoSetorOpLegacyId) {
-    return operacoesPorDemanda
-  }
+  const operacoesBase =
+    operacoesPorDemanda.length > 0 || !turnoSetorDemanda.turnoSetorOpLegacyId
+      ? operacoesPorDemanda
+      : await listarTurnoSetorOperacoesPorSecaoComClient(
+          supabase,
+          turnoSetorDemanda.turnoSetorOpLegacyId
+        )
 
-  return listarTurnoSetorOperacoesPorSecaoComClient(
-    supabase,
-    turnoSetorDemanda.turnoSetorOpLegacyId
-  )
+  return limitarOperacoesTurnoAoAceiteDemandas({
+    operacoesSecao: operacoesBase,
+    demandasSetor: [
+      {
+        id: turnoSetorDemanda.id,
+        turnoSetorOpLegacyId: turnoSetorDemanda.turnoSetorOpLegacyId,
+        quantidadeAceitaTurno: turnoSetorDemanda.quantidadeAceitaTurno,
+      },
+    ],
+  })
 }

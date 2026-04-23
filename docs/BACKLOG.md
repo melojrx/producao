@@ -402,7 +402,7 @@
 ## SPRINT 32 — Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila
 **Objetivo:** evoluir o domínio homologado nas Sprints 29 a 31 para um modelo em que cada setor funciona como fila contínua alimentada ao longo do dia, limitada pela capacidade diária cumulativa e orientada por prioridade de conclusão da OP atual.
 **Entregável:** turno, scanner, apontamentos e dashboard operando com backlog vivo por setor, aceite acumulado do dia sem reinício artificial de capacidade, fila FIFO cronológica e leitura explícita entre `chegou`, `disponível agora`, `aceito`, `concluído` e `excedente`, com o preview de abertura priorizando a capacidade produtiva disponível do turno.
-**Status:** 🔄 Reaberta documentalmente em `2026-04-20`
+**Status:** 🔄 Reaberta documentalmente em `2026-04-22` para a `HU 32.9`
 
 - Formalizar no PRD o setor como fila contínua alimentada pelo setor anterior ao longo do dia
 - Tornar cumulativa a capacidade diária do setor, sem reabrir artificialmente o teto a cada recomputação
@@ -416,6 +416,12 @@
 **Fechamento em `2026-04-20`:** a sprint foi reaberta pontualmente para a `HU 32.6`, ajustando o preview de abertura do turno para priorizar a capacidade produtiva disponível naquele momento com base em `operadoresDisponiveis × minutosTurno`, sem recolocar no resumo principal o card agregado de desconformidade. O fechamento final permaneceu com o domínio e a UI alinhados ao modelo de fila contínua, capacidade diária cumulativa, prioridade de conclusão e vocabulário operacional explícito. A homologação final ficou consolidada por testes determinísticos em `lib/utils/fluxo-continuo-turno.test.ts`, pela suíte complementar de capacidade, hidratação, fluxo paralelo, carry-over e kanban, além de `npx tsc --noEmit` e `npm run build`, todos sem erros.
 
 **Reabertura documental em `2026-04-20`:** a análise do turno aberto `8042d118-870e-4414-a8da-a9d764eb4b72` expôs uma ambiguidade entre `capacidade produtiva global do turno` e `aceite operacional setorial`. A sprint foi reaberta para a `HU 32.7`, que passa a exigir `capacidadeGlobalTurnoPecas` como teto canônico do dia, com aceite setorial sempre derivado desse teto e sem reintroduzir travas transacionais em scanner ou apontamentos. O objetivo da reabertura é corrigir a semântica do domínio e da UI com o menor acréscimo de complexidade possível.
+
+**Reabertura documental em `2026-04-22`:** a homologação funcional da leitura setorial expôs um segundo desvio semântico: o saldo acima do limite diário remanescente continuava podendo vazar para `disponível agora`, mesmo já estando fora da capacidade do dia. A sprint foi reaberta para a `HU 32.8`, que passa a exigir classificação imediata desse saldo em `quantidadeExcedenteTurno`, com composição explícita do próximo turno e uso gerencial do excedente por setor para ajuste de capacidade, prioridade e distribuição operacional nos turnos seguintes.
+
+**Fechamento em `2026-04-22`:** a `HU 32.8` consolidou a semântica final da sprint, fazendo o saldo acima do limite diário remanescente nascer imediatamente como `quantidadeExcedenteTurno`, sem continuar aparecendo como disponibilidade executável do turno atual. O domínio, as queries operacionais e a UI de scanner/dashboard passaram a refletir a separação entre o que chegou ao setor, o que ainda cabe no dia e o que já virou compromisso explícito do próximo turno, preservando FIFO, prioridade de conclusão e carry-over setorial.
+
+**Reabertura documental em `2026-04-22`:** a análise operacional de `Finalização` expôs um terceiro ajuste semântico: a prioridade automática da fila está correta como política padrão, mas o fluxo do supervisor precisa de uma exceção controlada para consumir manualmente saldo já aceito no dia em OPs posteriores da fila, desde que o setor não ultrapasse seu `Plano do dia`. A sprint foi reaberta para a `HU 32.9`, que passa a separar explicitamente `liberação automática prioritária` de `saldoManualPermitido`, preservando FIFO, teto diário, scanner disciplinado e rastreabilidade da exceção administrativa.
 
 ---
 

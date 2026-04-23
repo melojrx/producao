@@ -152,6 +152,13 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                   key={demanda.id}
                   className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                 >
+                  {(() => {
+                    const saldoManualSupervisor = demanda.saldoManualPermitido ?? 0
+                    const dependeDeExcecaoManual =
+                      demanda.quantidadeDisponivelApontamento <= 0 && saldoManualSupervisor > 0
+
+                    return (
+                      <>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
@@ -191,7 +198,9 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                         Plano do dia
                       </p>
                       <p className="mt-1 text-sm font-semibold text-blue-900">
-                        {formatarQuantidade(demanda.quantidadeAceitaTurno)}
+                        {formatarQuantidade(
+                          demanda.quantidadeAceitaAcumuladaSetor ?? demanda.quantidadeAceitaTurno
+                        )}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -217,10 +226,22 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                       Disponível agora {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
                     </span>
                     <span>
+                      Manual supervisor {formatarQuantidade(saldoManualSupervisor)}
+                    </span>
+                    <span>
                       Carga T.P. {demanda.cargaRealizadaTp.toFixed(2)} /{' '}
                       {demanda.cargaPlanejadaTp.toFixed(2)}
                     </span>
                   </div>
+                  {dependeDeExcecaoManual ? (
+                    <div className="mt-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
+                      Fora da prioridade automática agora, mas ainda com saldo manual do supervisor
+                      dentro do plano do dia.
+                    </div>
+                  ) : null}
+                      </>
+                    )
+                  })()}
                 </article>
               ))}
             </div>

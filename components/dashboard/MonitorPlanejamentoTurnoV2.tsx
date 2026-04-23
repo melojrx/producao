@@ -76,7 +76,10 @@ function mapearSecoesComContexto(
         produtoReferencia: op.produtoReferencia,
         quantidadeBacklogTotal:
           demanda?.quantidadeBacklogSetor ?? Math.max(secao.quantidadePlanejada - secao.quantidadeConcluida, 0),
-        quantidadeAceitaTurno: demanda?.quantidadeAceitaTurno ?? secao.quantidadePlanejada,
+        quantidadeAceitaTurno:
+          demanda?.quantidadeAceitaAcumuladaSetor ??
+          demanda?.quantidadeAceitaTurno ??
+          secao.quantidadePlanejada,
         quantidadeExcedenteTurno: demanda?.quantidadeExcedenteTurno ?? 0,
         quantidadeDisponivelApontamento:
           demanda?.quantidadeDisponivelApontamento ??

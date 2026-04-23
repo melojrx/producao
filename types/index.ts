@@ -784,6 +784,7 @@ export interface TurnoSetorDemandaV2 {
   quantidadeEntradaAcumuladaSetor?: number
   quantidadeAceitaAcumuladaSetor?: number
   quantidadeDisponivelApontamento?: number
+  saldoManualPermitido?: number
   quantidadeBloqueadaAnterior?: number
   quantidadeSincronizadaMontagem?: number
   quantidadeBloqueadaSincronizacao?: number

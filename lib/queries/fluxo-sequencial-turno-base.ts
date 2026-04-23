@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { enriquecerDemandasComFluxoParalelo } from '@/lib/utils/fluxo-paralelo-turno'
 import { aplicarCapacidadeOperacionalDemandas } from '@/lib/utils/hidratacao-capacidade-setor-turno'
+import { calcularQuantidadeManualPermitidaOperacao } from '@/lib/utils/apontamento-supervisor'
 import type {
   EtapaFluxoChaveV2,
   TurnoOpV2,
@@ -27,12 +28,14 @@ type TurnoSetorOperacaoRow = Pick<
 >
 
 type TurnoRow = Pick<Tables<'turnos'>, 'id' | 'operadores_disponiveis' | 'minutos_turno'>
+type ProdutoResumoRow = Pick<Tables<'produtos'>, 'id' | 'tp_produto_min'>
 
 type TurnoSetorDemandaFluxoRow = Pick<
   Tables<'turno_setor_demandas'>,
   | 'id'
   | 'turno_id'
   | 'turno_op_id'
+  | 'produto_id'
   | 'setor_id'
   | 'turno_setor_op_legacy_id'
   | 'quantidade_planejada'
@@ -76,10 +79,14 @@ export interface DisponibilidadeSequencialOperacaoTurnoV2 {
   quantidadePlanejadaDemanda: number
   quantidadeRealizadaDemanda: number
   quantidadeLiberadaSetor: number
+  quantidadeAceitaTurno: number
+  quantidadeAceitaAcumuladaSetor: number
   quantidadeDisponivelApontamento: number
+  saldoManualPermitido: number
   quantidadeSincronizadaMontagem: number
   quantidadeBloqueadaSincronizacao: number
   quantidadeDisponivelOperacao: number
+  quantidadeManualPermitidaOperacao: number
 }
 
 function extrairRegistroUnico<T>(valor: T | T[] | null): T | null {
@@ -139,7 +146,7 @@ function mapearDemandaTurno(
     setorId: demanda.setor_id,
     setorCodigo: setor.codigo,
     setorNome: setor.nome,
-    produtoId: '',
+    produtoId: demanda.produto_id,
     numeroOp: turnoOp.numero_op,
     produtoReferencia: '',
     produtoNome: '',
@@ -156,8 +163,14 @@ function mapearDemandaTurno(
   }
 }
 
-function mapearOpsBase(demandas: TurnoSetorDemandaV2[]): TurnoOpV2[] {
+function mapearOpsBase(
+  demandas: TurnoSetorDemandaV2[],
+  produtos: ProdutoResumoRow[]
+): TurnoOpV2[] {
   const opsPorId = new Map<string, TurnoOpV2>()
+  const tpProdutoPorId = new Map(
+    produtos.map((produto) => [produto.id, produto.tp_produto_min ?? 0] as const)
+  )
 
   for (const demanda of demandas) {
     if (opsPorId.has(demanda.turnoOpId)) {
@@ -171,7 +184,7 @@ function mapearOpsBase(demandas: TurnoSetorDemandaV2[]): TurnoOpV2[] {
       produtoId: demanda.produtoId,
       produtoReferencia: demanda.produtoReferencia,
       produtoNome: demanda.produtoNome,
-      tpProdutoMin: 0,
+      tpProdutoMin: tpProdutoPorId.get(demanda.produtoId) ?? 0,
       quantidadePlanejada: demanda.quantidadePlanejada,
       quantidadeRealizada: 0,
       quantidadeConcluida: 0,
@@ -240,6 +253,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         id,
         turno_id,
         turno_op_id,
+        produto_id,
         setor_id,
         turno_setor_op_legacy_id,
         quantidade_planejada,
@@ -275,6 +289,20 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
     .map(mapearDemandaTurno)
     .filter((demanda): demanda is TurnoSetorDemandaV2 => Boolean(demanda))
   const demandasEnriquecidas = enriquecerDemandasComFluxoParalelo(demandasBase)
+  const produtoIds = Array.from(
+    new Set(demandasEnriquecidas.map((demanda) => demanda.produtoId).filter(Boolean))
+  )
+  const { data: produtosRelacionados, error: produtosError } = produtoIds.length
+    ? await supabase
+        .from('produtos')
+        .select('id, tp_produto_min')
+        .in('id', produtoIds)
+        .returns<ProdutoResumoRow[]>()
+    : { data: [], error: null }
+
+  if (produtosError) {
+    throw new Error(`Erro ao carregar os produtos relacionados das operações: ${produtosError.message}`)
+  }
   const turnosPorId = new Map((turnosRelacionados ?? []).map((turno) => [turno.id, turno]))
   const demandasPorTurno = new Map<string, TurnoSetorDemandaV2[]>()
 
@@ -285,7 +313,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
   }
 
   const operacoesRelacionadas = operacoes.map(mapearOperacaoApontamento)
-  const opsBase = mapearOpsBase(demandasEnriquecidas)
+  const opsBase = mapearOpsBase(demandasEnriquecidas, produtosRelacionados ?? [])
   const demandasCapacidade: TurnoSetorDemandaV2[] = []
 
   for (const [turnoId, demandasTurno] of demandasPorTurno.entries()) {
@@ -301,7 +329,6 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         turno: {
           operadoresDisponiveis: turno.operadores_disponiveis,
           minutosTurno: turno.minutos_turno,
-          capacidadeGlobalTurnoPecas: Number.MAX_SAFE_INTEGER,
         },
         demandasSetor: demandasTurno,
         operacoesSecao: operacoesRelacionadas.filter((operacao) => operacao.turnoId === turnoId),
@@ -338,6 +365,13 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
           operacao.quantidade_realizada,
         0
       )
+      const saldoManualPermitido = demanda.saldoManualPermitido ?? 0
+      const quantidadeManualPermitidaOperacao = calcularQuantidadeManualPermitidaOperacao({
+        quantidadePlanejadaOperacao: operacao.quantidade_planejada,
+        quantidadeRealizadaOperacao: operacao.quantidade_realizada,
+        quantidadeRealizadaDemanda: demanda.quantidadeRealizada,
+        saldoManualPermitido,
+      })
       const turnoSetorDemandaId: string | null =
         operacao.turno_setor_demanda_id ?? demanda.id
 
@@ -356,11 +390,15 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         quantidadePlanejadaDemanda: demanda.quantidadePlanejada,
         quantidadeRealizadaDemanda: demanda.quantidadeRealizada,
         quantidadeLiberadaSetor: demanda.quantidadeLiberadaSetor ?? 0,
+        quantidadeAceitaTurno: demanda.quantidadeAceitaTurno ?? 0,
+        quantidadeAceitaAcumuladaSetor: demanda.quantidadeAceitaAcumuladaSetor ?? 0,
         quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento ?? 0,
+        saldoManualPermitido,
         quantidadeSincronizadaMontagem: demanda.quantidadeSincronizadaMontagem ?? 0,
         quantidadeBloqueadaSincronizacao:
           demanda.quantidadeBloqueadaSincronizacao ?? 0,
         quantidadeDisponivelOperacao,
+        quantidadeManualPermitidaOperacao,
       }
 
       return resultado

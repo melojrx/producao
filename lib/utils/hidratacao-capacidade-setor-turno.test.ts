@@ -356,7 +356,7 @@ test('hidrata capacidade setorial usando demandas pendentes e fallback legacy de
   )
 })
 
-test('limita o plano do dia pelo teto global do turno e preserva a disponibilidade imediata', () => {
+test('mantem o plano fixo do dia separado do saldo remanescente aceito no setor', () => {
   const turnoLimitado: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno'> = {
     operadoresDisponiveis: 1,
     minutosTurno: 100,
@@ -385,11 +385,11 @@ test('limita o plano do dia pelo teto global do turno e preserva a disponibilida
       quantidadeDisponivelApontamento: demandaLimitada?.quantidadeDisponivelApontamento,
     },
     {
-      quantidadeAceitaTurno: 33,
-      quantidadeExcedenteTurno: 27,
+      quantidadeAceitaTurno: 0,
+      quantidadeExcedenteTurno: 60,
       quantidadeEntradaAcumuladaSetor: 100,
-      quantidadeAceitaAcumuladaSetor: 73,
-      quantidadeDisponivelApontamento: 60,
+      quantidadeAceitaAcumuladaSetor: 33,
+      quantidadeDisponivelApontamento: 0,
     }
   )
 
@@ -402,9 +402,55 @@ test('limita o plano do dia pelo teto global do turno e preserva a disponibilida
     demandasSetor: demandasLimitadas,
   })
 
-  assert.equal(operacoesLimitadas[0]?.quantidadePlanejada, 73)
-  assert.equal(operacoesLimitadas[1]?.quantidadePlanejada, 73)
-  assert.equal(secoesLimitadas[0]?.quantidadePlanejada, 73)
+  assert.equal(operacoesLimitadas[0]?.quantidadePlanejada, 40)
+  assert.equal(operacoesLimitadas[1]?.quantidadePlanejada, 40)
+  assert.equal(secoesLimitadas[0]?.quantidadePlanejada, 40)
+})
+
+test('desconta do disponível agora o que já foi produzido no turno atual dentro da parcela aceita', () => {
+  const turnoComTetoGlobal: Pick<
+    TurnoV2,
+    'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'
+  > = {
+    operadoresDisponiveis: 20,
+    minutosTurno: 510,
+    capacidadeGlobalTurnoPecas: 601,
+  }
+  const demandaMontagem: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[1],
+    quantidadePlanejada: 1000,
+    quantidadeRealizada: 300,
+    quantidadeConcluida: 300,
+    quantidadeBacklogSetor: 700,
+    quantidadeAceitaTurno: 700,
+    quantidadeExcedenteTurno: 0,
+    quantidadePendenteSetor: 700,
+    quantidadeDisponivelApontamento: 700,
+    statusFila: 'em_producao',
+  }
+  const operacoesMontagem = criarOperacoesSecaoBase()
+    .filter((operacao) => operacao.setorId === 'setor-2')
+    .map((operacao) => ({
+      ...operacao,
+      turnoSetorDemandaId: 'demanda-2',
+      quantidadePlanejada: 1000,
+      quantidadeRealizada: 300,
+      status: 'em_andamento' as const,
+    }))
+  const quantidadeRealizadaAtualPorOperacaoId = new Map<string, number>([['operacao-2a', 300]])
+
+  const demandasLimitadas = aplicarCapacidadeOperacionalDemandas({
+    turno: turnoComTetoGlobal,
+    demandasSetor: [demandaMontagem],
+    operacoesSecao: operacoesMontagem,
+    ops: [criarOpBase()],
+    quantidadeRealizadaAtualPorOperacaoId,
+  })
+
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 301)
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaAcumuladaSetor, 601)
+  assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 399)
+  assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 301)
 })
 
 test('redistribui o plano residual do dia para a próxima demanda do setor quando houver fila ativa', () => {
@@ -539,17 +585,20 @@ test('mantem apenas a demanda prioritaria do setor liberada para execucao imedia
       id: demanda.id,
       quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
       quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
+      saldoManualPermitido: demanda.saldoManualPermitido,
     })),
     [
       {
         id: 'demanda-1',
         quantidadeAceitaTurno: 40,
         quantidadeDisponivelApontamento: 40,
+        saldoManualPermitido: 40,
       },
       {
         id: 'demanda-2',
         quantidadeAceitaTurno: 26,
         quantidadeDisponivelApontamento: 0,
+        saldoManualPermitido: 26,
       },
     ]
   )
@@ -605,7 +654,7 @@ test('nao desconta da capacidade do novo turno a producao herdada do carry-over 
   assert.equal(setoresHidratados[0]?.capacidadeMinutosRestante, 34)
 })
 
-test('limita o plano setorial ao teto global do turno sem travar a disponibilidade imediata', () => {
+test('limita o plano setorial ao teto global do turno e preserva o saldo remanescente da parcela aceita', () => {
   const turnoComTetoGlobal: Pick<
     TurnoV2,
     'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'
@@ -642,8 +691,9 @@ test('limita o plano setorial ao teto global do turno sem travar a disponibilida
   })
 
   assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 30)
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaAcumuladaSetor, 30)
   assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 70)
-  assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 100)
+  assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 30)
 
   const setoresHidratados = hidratarSetoresTurnoComCapacidade({
     turno: turnoComTetoGlobal,

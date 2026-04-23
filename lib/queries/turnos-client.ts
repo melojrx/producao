@@ -17,6 +17,8 @@ import {
 import {
   aplicarCapacidadeOperacionalDemandas,
   hidratarSetoresTurnoComCapacidade,
+  limitarOperacoesTurnoAoAceiteDemandas,
+  limitarSecoesTurnoAoAceiteDemandas,
 } from '@/lib/utils/hidratacao-capacidade-setor-turno'
 import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import type {
@@ -739,12 +741,19 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     ops,
     quantidadeRealizadaAtualPorOperacaoId,
   })
-  const secoesSetorOpConsolidadas = consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecao)
+  const operacoesSecaoLimitadas = limitarOperacoesTurnoAoAceiteDemandas({
+    operacoesSecao,
+    demandasSetor,
+  })
+  const secoesSetorOpConsolidadas = limitarSecoesTurnoAoAceiteDemandas({
+    secoesSetorOp: consolidarSecoesPorOperacoes(secoesSetorOp, operacoesSecaoLimitadas),
+    demandasSetor,
+  })
   const setoresAtivosConsolidados = hidratarSetoresTurnoComCapacidade({
     turno: turnoMapeado,
     setoresAtivos: consolidarSetoresPorDemandas(setoresAtivos, demandasSetor),
     demandasSetor,
-    operacoesSecao,
+    operacoesSecao: operacoesSecaoLimitadas,
     ops,
     quantidadeRealizadaAtualPorOperacaoId,
   })
@@ -761,7 +770,7 @@ export async function buscarPlanejamentoTurnoPorIdClient(
     setoresAtivos: setoresAtivosConsolidados,
     demandasSetor,
     secoesSetorOp: secoesSetorOpConsolidadas,
-    operacoesSecao,
+    operacoesSecao: operacoesSecaoLimitadas,
     eficienciaOperacional,
   }
 }

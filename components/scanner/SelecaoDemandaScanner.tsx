@@ -80,11 +80,11 @@ export function SelecaoDemandaScanner({
 
       <div className="mt-5 space-y-3">
         {demandas.map((demanda) => {
+          const leituraDemanda = formatarLeituraDemanda(demanda)
           const demandaDisponivel =
-            demanda.saldoRestante > 0 &&
+            leituraDemanda.disponivelAgora > 0 &&
             demanda.status !== 'concluida' &&
             demanda.status !== 'encerrada_manualmente'
-          const leituraDemanda = formatarLeituraDemanda(demanda)
 
           return (
             <button

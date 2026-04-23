@@ -1,5 +1,6 @@
 import { calcularDimensionamentoPessoasPorSetor } from './dimensionamento-pessoas-setor.ts'
 import { calcularMetaGrupoTurnoV2 } from './meta-grupo-turno.ts'
+import { calcularSaldoManualPermitido } from './apontamento-supervisor.ts'
 import type {
   TurnoOpV2,
   TurnoSetorDemandaV2,
@@ -190,6 +191,27 @@ function calcularDisponibilidadeExecucaoDemanda(demanda: TurnoSetorDemandaV2): n
   return calcularBacklogDemanda(demanda)
 }
 
+function limitarDisponibilidadeAoAceiteTurno(
+  quantidadeDisponivelApontamento: number,
+  quantidadeAceitaTurno: number
+): number {
+  return Math.min(
+    normalizarNumeroPositivo(quantidadeDisponivelApontamento),
+    normalizarNumeroPositivo(quantidadeAceitaTurno)
+  )
+}
+
+function calcularSaldoAceitoDisponivelHoje(
+  quantidadeAceitaAcumuladaSetor: number,
+  quantidadeConcluidaDemandaNoTurnoAtual: number
+): number {
+  return Math.max(
+    normalizarNumeroPositivo(quantidadeAceitaAcumuladaSetor) -
+      normalizarNumeroPositivo(quantidadeConcluidaDemandaNoTurnoAtual),
+    0
+  )
+}
+
 function calcularCapacidadeGlobalTurnoPecas(input: {
   turno: Pick<TurnoV2, 'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'>
   ops: TurnoOpV2[]
@@ -207,6 +229,24 @@ function criarMapaTpTotalPorDemanda(
 ): Map<string, number> {
   return new Map(
     demandasSetor.map((demanda) => [demanda.id, calcularTpTotalSetorProduto(demanda, operacoesSecao)] as const)
+  )
+}
+
+function calcularQuantidadeEntradaAcumuladaSetor(input: {
+  demanda: TurnoSetorDemandaV2
+  quantidadeConcluidaDemandaNoTurnoAtual: number
+}): number {
+  if (typeof input.demanda.quantidadeEntradaAcumuladaSetor === 'number') {
+    return normalizarNumeroPositivo(input.demanda.quantidadeEntradaAcumuladaSetor)
+  }
+
+  if (typeof input.demanda.quantidadeLiberadaSetor === 'number') {
+    return normalizarNumeroPositivo(input.demanda.quantidadeLiberadaSetor)
+  }
+
+  return (
+    calcularDisponibilidadeExecucaoDemanda(input.demanda) +
+    normalizarNumeroPositivo(input.quantidadeConcluidaDemandaNoTurnoAtual)
   )
 }
 
@@ -235,6 +275,8 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       quantidadeDisponivelApontamento: number
       quantidadeEntradaAcumuladaSetor: number
       quantidadeAceitaAcumuladaSetor: number
+      quantidadeConcluidaDemandaNoTurnoAtual: number
+      saldoManualPermitido: number
     }
   >()
 
@@ -245,38 +287,55 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       const tpTotalSetorProduto = tpTotalPorDemanda.get(demanda.id) ?? 0
       const backlog = calcularBacklogDemanda(demanda)
       const elegivelFluxo = calcularElegivelFluxoDemanda(demanda)
-      const disponibilidadeExecucao = calcularDisponibilidadeExecucaoDemanda(demanda)
       const quantidadeConcluidaDemanda = calcularQuantidadeConcluidaDemandaNoTurnoAtual(
         demanda,
         input.operacoesSecao,
         input.quantidadeRealizadaAtualPorOperacaoId
       )
-      const quantidadeEntradaAcumuladaSetor =
-        demanda.quantidadeEntradaAcumuladaSetor ??
-        demanda.quantidadeLiberadaSetor ??
-        elegivelFluxo + quantidadeConcluidaDemanda
+      const quantidadeEntradaAcumuladaSetor = calcularQuantidadeEntradaAcumuladaSetor({
+        demanda,
+        quantidadeConcluidaDemandaNoTurnoAtual: quantidadeConcluidaDemanda,
+      })
 
-      if (tpTotalSetorProduto <= 0 || elegivelFluxo <= 0 || planoRestanteSetorPecas <= 0) {
+      if (
+        tpTotalSetorProduto <= 0 ||
+        quantidadeEntradaAcumuladaSetor <= 0 ||
+        planoRestanteSetorPecas <= 0
+      ) {
         snapshotsPorDemandaId.set(demanda.id, {
           quantidadeAceitaTurno: 0,
           quantidadeExcedenteTurno: backlog,
           quantidadeDisponivelApontamento: 0,
           quantidadeEntradaAcumuladaSetor,
           quantidadeAceitaAcumuladaSetor: quantidadeConcluidaDemanda,
+          quantidadeConcluidaDemandaNoTurnoAtual: quantidadeConcluidaDemanda,
+          saldoManualPermitido: 0,
         })
         continue
       }
 
-      const quantidadeAceitaTurno = Math.min(elegivelFluxo, planoRestanteSetorPecas)
+      const quantidadeAceitaAcumuladaSetor = Math.min(
+        quantidadeEntradaAcumuladaSetor,
+        planoRestanteSetorPecas
+      )
+      const quantidadeAceitaTurno = calcularSaldoAceitoDisponivelHoje(
+        quantidadeAceitaAcumuladaSetor,
+        quantidadeConcluidaDemanda
+      )
 
-      planoRestanteSetorPecas = Math.max(planoRestanteSetorPecas - quantidadeAceitaTurno, 0)
+      planoRestanteSetorPecas = Math.max(
+        planoRestanteSetorPecas - quantidadeAceitaAcumuladaSetor,
+        0
+      )
 
       snapshotsPorDemandaId.set(demanda.id, {
         quantidadeAceitaTurno,
         quantidadeExcedenteTurno: Math.max(backlog - quantidadeAceitaTurno, 0),
         quantidadeDisponivelApontamento: 0,
         quantidadeEntradaAcumuladaSetor,
-        quantidadeAceitaAcumuladaSetor: quantidadeConcluidaDemanda + quantidadeAceitaTurno,
+        quantidadeAceitaAcumuladaSetor,
+        quantidadeConcluidaDemandaNoTurnoAtual: quantidadeConcluidaDemanda,
+        saldoManualPermitido: 0,
       })
     }
 
@@ -303,9 +362,42 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       if (snapshotPrioritario) {
         snapshotsPorDemandaId.set(demandaPrioritaria.id, {
           ...snapshotPrioritario,
-          quantidadeDisponivelApontamento: calcularDisponibilidadeExecucaoDemanda(demandaPrioritaria),
+          quantidadeDisponivelApontamento: limitarDisponibilidadeAoAceiteTurno(
+            calcularDisponibilidadeExecucaoDemanda(demandaPrioritaria),
+            calcularSaldoAceitoDisponivelHoje(
+              snapshotPrioritario.quantidadeAceitaAcumuladaSetor,
+              snapshotPrioritario.quantidadeConcluidaDemandaNoTurnoAtual
+            )
+          ),
         })
       }
+    }
+
+    const planoDoDiaSetor = demandasSetor.reduce((soma, demanda) => {
+      const snapshot = snapshotsPorDemandaId.get(demanda.id)
+      return soma + normalizarNumeroPositivo(snapshot?.quantidadeAceitaAcumuladaSetor ?? 0)
+    }, 0)
+    const quantidadeConcluidaTotalSetor = demandasSetor.reduce((soma, demanda) => {
+      const snapshot = snapshotsPorDemandaId.get(demanda.id)
+      return soma + normalizarNumeroPositivo(snapshot?.quantidadeConcluidaDemandaNoTurnoAtual ?? 0)
+    }, 0)
+
+    for (const demanda of demandasSetor) {
+      const snapshot = snapshotsPorDemandaId.get(demanda.id)
+
+      if (!snapshot) {
+        continue
+      }
+
+      snapshotsPorDemandaId.set(demanda.id, {
+        ...snapshot,
+        saldoManualPermitido: calcularSaldoManualPermitido({
+          quantidadeAceitaAcumuladaSetor: snapshot.quantidadeAceitaAcumuladaSetor,
+          quantidadeConcluidaNoSetor: snapshot.quantidadeConcluidaDemandaNoTurnoAtual,
+          planoDoDiaSetor,
+          quantidadeConcluidaTotalSetor,
+        }),
+      })
     }
   }
 
@@ -323,6 +415,7 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
           calcularElegivelFluxoDemanda(demanda) + calcularQuantidadeConcluidaDemanda(demanda),
         quantidadeAceitaAcumuladaSetor: calcularQuantidadeConcluidaDemanda(demanda),
         quantidadeDisponivelApontamento: 0,
+        saldoManualPermitido: 0,
       }
     }
 
@@ -333,6 +426,7 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       quantidadeEntradaAcumuladaSetor: snapshot.quantidadeEntradaAcumuladaSetor,
       quantidadeAceitaAcumuladaSetor: snapshot.quantidadeAceitaAcumuladaSetor,
       quantidadeDisponivelApontamento: snapshot.quantidadeDisponivelApontamento,
+      saldoManualPermitido: snapshot.saldoManualPermitido,
     }
   })
 }
@@ -350,7 +444,9 @@ function calcularQuantidadePlanejadaExibicao(
 
 export function limitarOperacoesTurnoAoAceiteDemandas(input: {
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
-  demandasSetor: TurnoSetorDemandaV2[]
+  demandasSetor: Array<
+    Pick<TurnoSetorDemandaV2, 'id' | 'turnoSetorOpLegacyId' | 'quantidadeAceitaTurno'>
+  >
 }): TurnoSetorOperacaoApontamentoV2[] {
   const demandasPorId = new Map(input.demandasSetor.map((demanda) => [demanda.id, demanda]))
   const demandasPorSecaoLegacy = new Map(
@@ -382,7 +478,7 @@ export function limitarOperacoesTurnoAoAceiteDemandas(input: {
 
 export function limitarSecoesTurnoAoAceiteDemandas(input: {
   secoesSetorOp: TurnoSetorOpV2[]
-  demandasSetor: TurnoSetorDemandaV2[]
+  demandasSetor: Array<Pick<TurnoSetorDemandaV2, 'turnoSetorOpLegacyId' | 'quantidadeAceitaTurno'>>
 }): TurnoSetorOpV2[] {
   const demandasPorSecaoLegacy = new Map(
     input.demandasSetor
