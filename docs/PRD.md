@@ -1061,6 +1061,7 @@ Setores iniciais:
 
 - código manual livre
 - descrição
+- imagem de referência visual
 - máquina específica cadastrada
 - setor
 - situação
@@ -1075,6 +1076,31 @@ Regras obrigatórias:
 - na UI do CRUD de operações, a seleção de máquina deve exibir o campo `modelo` da máquina como referência principal de escolha
 - o `codigo` da operação deixa de ser gerado automaticamente e passa a ser preenchido manualmente pelo usuário
 - o `codigo` continua obrigatório e único no cadastro de operações
+
+Contrato de imagem da operação:
+- o cadastro da operação passa a suportar uma imagem única opcional de referência visual
+- o cadastro e a edição devem permitir:
+  - adicionar imagem
+  - substituir imagem
+  - remover imagem
+- a gestão da imagem deve acontecer por upload nativo do sistema, e não por URL manual como experiência principal
+- a ausência da imagem não pode bloquear o CRUD da operação, mas deve gerar estado vazio explícito no modal e no detalhe
+
+Contrato de UX da imagem:
+- o modal da operação deve ter uma área própria para preview amplo da imagem
+- a área visual deve expor ações claras de `Adicionar`, `Trocar` e `Remover`
+- a imagem deve ser tratada como apoio administrativo e visual da operação, sem competir com os campos principais do cadastro
+- a experiência visual deve continuar boa em desktop e mobile
+
+Contrato da tela de detalhe:
+- `/admin/operacoes/[id]` deve exibir a imagem principal da operação como apoio visual do cadastro
+- a tela deve manter QR Code, metas e dados técnicos legíveis sem competir com a imagem
+- quando não existir imagem, a página deve mostrar estado vazio intencional em vez de texto cru de URL
+
+Guardrails:
+- a imagem da operação é opcional e não interfere em `codigo`, `descricao`, `maquina`, `setor`, `tempo_padrao_min`, `meta_hora`, `meta_dia` ou QR Code
+- a imagem da operação não altera scanner, planejamento do turno, relatórios nem o domínio operacional já homologado
+- as ações de imagem devem respeitar o mesmo controle administrativo do CRUD de operações
 
 ### 8.6 Cadastro de Produtos (/admin/produtos)
 
@@ -1232,6 +1258,7 @@ Fluxo profissional de produção:
 - código manual livre
 - máquina específica cadastrada (`maquina_id`)
 - descrição
+- imagem de referência visual opcional
 - situação
 - tempo padrão
 - setor

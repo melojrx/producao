@@ -589,7 +589,11 @@ export interface MaquinaOption extends Tables<'maquinas'> {}
 
 export interface OperadorListItem extends Tables<'operadores'> {}
 
-export interface OperacaoListItem extends Tables<'operacoes'> {
+export interface OperacaoImagemDados {
+  imagem_url: string | null
+}
+
+export interface OperacaoListItem extends Tables<'operacoes'>, OperacaoImagemDados {
   maquinaCodigo: string | null
   maquinaModelo: string | null
   setorCodigo: number | null

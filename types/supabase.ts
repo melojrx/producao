@@ -694,6 +694,7 @@ export type Database = {
           created_at: string | null
           descricao: string
           id: string
+          imagem_url: string | null
           maquina_id: string | null
           meta_dia: number | null
           meta_hora: number | null
@@ -708,6 +709,7 @@ export type Database = {
           created_at?: string | null
           descricao: string
           id?: string
+          imagem_url?: string | null
           maquina_id?: string | null
           meta_dia?: number | null
           meta_hora?: number | null
@@ -722,6 +724,7 @@ export type Database = {
           created_at?: string | null
           descricao?: string
           id?: string
+          imagem_url?: string | null
           maquina_id?: string | null
           meta_dia?: number | null
           meta_hora?: number | null

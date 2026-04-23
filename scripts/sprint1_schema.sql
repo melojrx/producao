@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS operacoes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   codigo VARCHAR(20) UNIQUE NOT NULL,
   descricao VARCHAR(200) NOT NULL,
+  imagem_url TEXT,
   tipo_maquina_codigo VARCHAR(10) REFERENCES tipos_maquina(codigo),
   tempo_padrao_min DECIMAL(8,6) NOT NULL,
   meta_hora INTEGER,

@@ -22,11 +22,27 @@ function mapearOperacoes(
 
   return operacoes.map((operacao) => ({
     ...operacao,
+    imagem_url: operacao.imagem_url ?? null,
     maquinaCodigo: operacao.maquina_id ? maquinasPorId.get(operacao.maquina_id)?.codigo ?? null : null,
     maquinaModelo: operacao.maquina_id ? maquinasPorId.get(operacao.maquina_id)?.modelo ?? null : null,
     setorCodigo: operacao.setor_id ? setoresPorId.get(operacao.setor_id)?.codigo ?? null : null,
     setorNome: operacao.setor_id ? setoresPorId.get(operacao.setor_id)?.nome ?? null : null,
   }))
+}
+
+function mapearOperacaoComReferencias(
+  operacao: OperacaoRow,
+  maquina: MaquinaRow | null,
+  setor: SetorRow | null
+): OperacaoListItem {
+  return {
+    ...operacao,
+    imagem_url: operacao.imagem_url ?? null,
+    maquinaCodigo: maquina?.codigo ?? null,
+    maquinaModelo: maquina?.modelo ?? null,
+    setorCodigo: setor?.codigo ?? null,
+    setorNome: setor?.nome ?? null,
+  }
 }
 
 function normalizarTexto(valor: string | null | undefined): string {
@@ -203,23 +219,37 @@ export async function buscarOperacaoPorId(id: string): Promise<OperacaoListItem 
     return null
   }
 
-  const [
-    { data: maquinas, error: maquinasError },
-    { data: setores, error: setoresError },
-  ] = await Promise.all([
-    supabase.from('maquinas').select('*').order('modelo').order('codigo'),
-    supabase.from('setores').select('*').order('codigo'),
-  ])
+  let maquina: MaquinaRow | null = null
+  if (operacao.maquina_id) {
+    const { data: maquinaData, error: maquinaError } = await supabase
+      .from('maquinas')
+      .select('*')
+      .eq('id', operacao.maquina_id)
+      .maybeSingle()
 
-  if (maquinasError) {
-    throw new Error(`Erro ao listar máquinas das operações: ${maquinasError.message}`)
+    if (maquinaError) {
+      throw new Error(`Erro ao carregar máquina da operação: ${maquinaError.message}`)
+    }
+
+    maquina = maquinaData
   }
 
-  if (setoresError) {
-    throw new Error(`Erro ao listar setores das operações: ${setoresError.message}`)
+  let setor: SetorRow | null = null
+  if (operacao.setor_id) {
+    const { data: setorData, error: setorError } = await supabase
+      .from('setores')
+      .select('*')
+      .eq('id', operacao.setor_id)
+      .maybeSingle()
+
+    if (setorError) {
+      throw new Error(`Erro ao carregar setor da operação: ${setorError.message}`)
+    }
+
+    setor = setorData
   }
 
-  return mapearOperacoes([operacao], maquinas, setores)[0] ?? null
+  return mapearOperacaoComReferencias(operacao, maquina, setor)
 }
 
 export async function buscarOperacaoPorToken(token: string): Promise<OperacaoListItem | null> {
@@ -235,21 +265,35 @@ export async function buscarOperacaoPorToken(token: string): Promise<OperacaoLis
     return null
   }
 
-  const [
-    { data: maquinas, error: maquinasError },
-    { data: setores, error: setoresError },
-  ] = await Promise.all([
-    supabase.from('maquinas').select('*').order('modelo').order('codigo'),
-    supabase.from('setores').select('*').order('codigo'),
-  ])
+  let maquina: MaquinaRow | null = null
+  if (operacao.maquina_id) {
+    const { data: maquinaData, error: maquinaError } = await supabase
+      .from('maquinas')
+      .select('*')
+      .eq('id', operacao.maquina_id)
+      .maybeSingle()
 
-  if (maquinasError) {
-    throw new Error(`Erro ao listar máquinas das operações: ${maquinasError.message}`)
+    if (maquinaError) {
+      throw new Error(`Erro ao carregar máquina da operação: ${maquinaError.message}`)
+    }
+
+    maquina = maquinaData
   }
 
-  if (setoresError) {
-    throw new Error(`Erro ao listar setores das operações: ${setoresError.message}`)
+  let setor: SetorRow | null = null
+  if (operacao.setor_id) {
+    const { data: setorData, error: setorError } = await supabase
+      .from('setores')
+      .select('*')
+      .eq('id', operacao.setor_id)
+      .maybeSingle()
+
+    if (setorError) {
+      throw new Error(`Erro ao carregar setor da operação: ${setorError.message}`)
+    }
+
+    setor = setorData
   }
 
-  return mapearOperacoes([operacao], maquinas, setores)[0] ?? null
+  return mapearOperacaoComReferencias(operacao, maquina, setor)
 }

@@ -3682,6 +3682,126 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
   Homologação técnica consolidada em `2026-04-23`: `lib/actions/produtos.ts` passou a persistir `descricao` na criação e edição com contrato opcional; `components/ui/ModalProduto.tsx` passou a exibir `descricao` no fluxo de criação, edição e duplicação, reutilizando a descrição do produto-base apenas na duplicação e preservando a regra de iniciar imagens vazias nesse modo; o formulário ficou estruturado na ordem `referencia`, `nome`, `descricao`, `imagens`, `roteiro`; e a cadeia já homologada de imagens e roteiro permaneceu intacta porque o backend de upload/remoção, o `roteiro` serializado em `FormData`, `listarProdutos()` e `buscarProdutoComRoteiro()` continuaram no mesmo contrato tipado. Validação executável concluída com `npx tsc --noEmit` e `npm run build -- --webpack` sem erros, incluindo compilação das rotas `/admin/produtos` e `/admin/produtos/[id]`.
 
+## SPRINT 35 — Imagem única da operação
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 34 concluída.
+**Objetivo:** evoluir o CRUD de operações para suportar uma imagem gerenciada por operação, com upload, substituição, remoção e leitura visual administrativa no cadastro e no detalhe.
+
+- [x] **HU 35.1 — Como produto, quero formalizar no PRD o contrato de imagem única da operação, para que cadastro, detalhe e gestão administrativa usem a mesma regra sem ambiguidade.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - registrar no `docs/PRD.md` que a operação passa a ter uma imagem opcional de referência visual
+  - formalizar que a experiência principal é upload gerenciado, e não URL manual livre
+  - formalizar que o CRUD deve permitir adicionar, substituir e remover a imagem da operação
+  - formalizar que o detalhe administrativo da operação deve priorizar essa imagem como apoio visual
+
+  Regras:
+  - a imagem da operação é opcional e não bloqueia criação, edição nem ciclo de vida da operação
+  - a imagem não altera `codigo`, `descricao`, `maquina`, `setor`, `tempo_padrao_min`, `meta_hora`, `meta_dia` nem o QR da operação
+  - a imagem não altera scanner, planejamento do turno, relatórios nem o domínio operacional já homologado
+
+  **Evidência:** `docs/PRD.md` passa a registrar explicitamente o contrato funcional da imagem única da operação, com comportamento de cadastro, edição, remoção e detalhe visual.
+
+  `docs/PRD.md` foi atualizado em `2026-04-23` para incluir a imagem única da operação no contrato do CRUD de `/admin/operacoes`, formalizando que a imagem é opcional, gerenciada por upload nativo, suportando adicionar/substituir/remover, com preview no modal, bloco visual no detalhe administrativo e guardrails explícitos de não interferência sobre QR, metas, scanner, planejamento do turno e relatórios; a entidade `operacoes` também passou a registrar essa imagem como referência visual opcional no domínio documental.
+
+- [x] **HU 35.2 — Como sistema, quero evoluir schema e contratos tipados de operação para suportar `imagem_url`, para que o CRUD deixe de depender de improviso visual no cadastro.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - criar migration aditiva no Supabase para introduzir `operacoes.imagem_url`
+  - regenerar `types/supabase.ts`
+  - propagar o novo contrato em `types/index.ts` e `lib/queries/operacoes.ts`
+  - preservar compatibilidade com o restante do CRUD já homologado
+
+  Regras:
+  - a mudança deve ser aditiva e segura para o worktree atual
+  - o schema não pode quebrar listagem, detalhe, QR Code, paginação nem ciclo de vida da operação
+  - os tipos precisam continuar em `strict` sem `any`
+
+  **Evidência:** coluna nova presente no schema, `types/supabase.ts` regenerado e queries de operação passando a expor `imagem_url` sem regressão no restante do CRUD.
+
+  `scripts/sprint35_operacoes_imagem.sql` foi criado em `2026-04-23` com migration aditiva para `public.operacoes.imagem_url`; `scripts/sprint1_schema.sql` e `scripts/migrate.mjs` foram sincronizados com o novo contrato base; `types/supabase.ts` e `types/index.ts` passaram a expor `imagem_url` de forma tipada para `operacoes`; e `lib/queries/operacoes.ts` passou a normalizar/expor o campo no contrato de leitura do CRUD. A migration foi aplicada no Supabase via Management API em `2026-04-23` e validada com consulta read-only ao `information_schema.columns`, que retornou a coluna `imagem_url` como `text` nullable. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 35.3 — Como admin, quero fazer upload, substituição e remoção da imagem da operação no backend, para que a gestão visual seja segura e consistente.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - introduzir bucket e convenção de paths para imagens de operação
+  - adaptar `lib/actions/operacoes.ts` para upload, troca e remoção da imagem
+  - validar tipo de arquivo e tamanho antes de persistir
+  - limpar arquivo anterior quando houver substituição confirmada
+  - revalidar listagem e detalhe após mutações
+
+  Regras:
+  - a remoção da imagem deve atualizar imediatamente a operação sem afetar metas nem QR
+  - o fluxo deve usar credenciais server-side já homologadas do Supabase
+  - a action deve falhar com erro claro quando o upload for inválido
+
+  **Evidência:** criação e edição de operação passam a aceitar upload de imagem única, com substituição e remoção funcionando via `lib/actions/operacoes.ts` e sem regressão em `npx tsc --noEmit`.
+
+  `lib/constants.ts` passou a expor o contrato de storage da operação (`OPERACAO_IMAGENS_BUCKET`, MIME types e limite de 5 MB); `scripts/sprint35_operacoes_storage_bucket.sql` foi criado para provisionar o bucket público `operacoes`; e `lib/actions/operacoes.ts` foi atualizado em `2026-04-23` para validar MIME/tamanho, garantir bucket server-side, gerar paths por `operacaoId/...`, fazer upload, substituição e remoção via `FormData` (`imagem_arquivo`, `remover_imagem`), limpar arquivo anterior após troca bem-sucedida e revalidar `/admin/operacoes` e `/admin/operacoes/[id]`. O bucket foi aplicado no Supabase via Management API em `2026-04-23` e validado com consulta read-only em `storage.buckets`, retornando `operacoes` como bucket público com limite de `5242880` bytes e MIME types `image/jpeg`, `image/png` e `image/webp`. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 35.4 — Como admin, quero uma UX moderna no modal de operação para visualizar e gerir a imagem durante cadastro e edição, para inspecionar melhor a referência visual sem depender de URL textual.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - refatorar `components/ui/ModalOperacao.tsx` para incluir um card visual de imagem com preview, estado vazio e ações
+  - manter a organização do modal compatível com o fluxo já homologado de código, setor, máquina, descrição e T.P
+  - preservar usabilidade mobile-first
+
+  Regras:
+  - a área de imagem não pode degradar a leitura dos campos operacionais principais
+  - a solução não deve exigir biblioteca adicional fora da stack aprovada
+  - a imagem deve permanecer claramente tratada como apoio administrativo da operação
+
+  **Evidência:** o modal de operação exibe preview grande da imagem, permite trocar/remover a vista e elimina a dependência de URL textual.
+
+  `components/ui/ModalOperacao.tsx` foi refatorado em `2026-04-23` para ampliar o modal e organizar o conteúdo em duas áreas: formulário operacional à esquerda e card visual único da imagem à direita, com preview grande, estado vazio intencional, status visual (`Sem imagem`, `Imagem atual`, `Nova imagem pronta`, `Remocao pendente`) e ações de `Enviar imagem`, `Trocar imagem` e `Remover` conectadas ao contrato de `FormData` (`imagem_arquivo`, `remover_imagem`) da `HU 35.3`; a composição permaneceu mobile-first e preservou a leitura de código, setor, máquina, descrição, T.P, metas e QR da operação. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 35.5 — Como admin, quero ver a imagem da operação com destaque na tela de detalhe, para conferir visualmente a operação cadastrada junto do QR e dos metadados.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - refatorar o detalhe administrativo da operação para priorizar a imagem como bloco principal
+  - preservar leitura rápida dos metadados técnicos e do QR já homologados
+  - prever estado vazio explícito quando a operação ainda não tiver imagem
+
+  Regras:
+  - a tela de detalhe não pode perder acesso às informações de máquina, setor, T.P, metas, status e QR
+  - a imagem deve aparecer como apoio visual administrativo, sem alterar o restante do contrato operacional
+  - o fallback sem imagem precisa ser claro e consistente com o restante da interface
+
+  **Evidência:** a página de detalhe da operação passa a destacar a imagem em bloco principal com estado vazio explícito, preservando QR e resumo técnico ao lado.
+
+  `app/admin/operacoes/[id]/page.tsx` foi refatorado em `2026-04-23` para destacar a imagem da operação em um bloco principal de referência visual, com preview amplo quando `imagem_url` existe e estado vazio explícito com `ImageOff` quando a operação ainda não tem imagem; os metadados técnicos (`descrição`, `máquina`, `setor`, `T.P`, `meta/hora`, `meta/dia` e `status`) foram reorganizados em um resumo lateral e o bloco de QR permaneceu disponível na mesma tela sem regressão funcional. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 35.6 — Como produto, quero homologar a gestão da imagem da operação ponta a ponta, para confiar no novo fluxo sem regressão no CRUD e na consulta administrativa.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - validar criação de operação sem imagem e com imagem
+  - validar substituição e remoção da imagem
+  - validar listagem, detalhe e edição após mutações de imagem
+  - consolidar a evidência documental da sprint
+
+  Regras:
+  - a homologação deve cobrir desktop e mobile
+  - QR Code, metas e dados técnicos da operação não podem sofrer regressão
+  - a sprint só fecha com `npx tsc --noEmit` e evidência operacional do CRUD sem erros
+
+  **Evidência:** gestão da imagem única da operação validada ponta a ponta no CRUD e na tela de detalhe, com `npx tsc --noEmit` sem erros e evidência documental registrada.
+
+  Homologação técnica final consolidada em `2026-04-23`: a Sprint 35 encerra com contrato documental no `PRD`, coluna `operacoes.imagem_url` aplicada no Supabase remoto, bucket público `operacoes` provisionado e validado via Management API, backend de upload/substituição/remoção ativo em `lib/actions/operacoes.ts`, modal administrativo com preview e ações de imagem em `components/ui/ModalOperacao.tsx` e tela de detalhe com bloco principal de referência visual em `app/admin/operacoes/[id]/page.tsx`. As validações executáveis fecharam sem regressão com `npx tsc --noEmit` e `npm run build -- --webpack`, incluindo compilação das rotas `/admin/operacoes` e `/admin/operacoes/[id]`.
+
+  Ajuste pós-homologação em `2026-04-23`: o `app/layout.tsx` passou a usar `suppressHydrationWarning` no `<body>` para tolerar atributos injetados por extensões de navegador durante a hidratação; e `lib/queries/operacoes.ts` deixou de listar tabelas inteiras de `maquinas` e `setores` no detalhe de uma única operação, passando a carregar apenas os vínculos referenciados por `maquina_id` e `setor_id`, eliminando a falha `fetch failed` na consulta auxiliar da tela `/admin/operacoes/[id]`. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -3690,7 +3810,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

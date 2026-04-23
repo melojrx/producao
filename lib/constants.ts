@@ -6,4 +6,7 @@ export const QR_TIPOS = ['operador', 'maquina', 'operacao', 'setor-op', 'turno-s
 export const PRODUTO_IMAGENS_BUCKET = 'produtos'
 export const PRODUTO_IMAGENS_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 export const PRODUTO_IMAGENS_MAX_BYTES = 5 * 1024 * 1024
+export const OPERACAO_IMAGENS_BUCKET = 'operacoes'
+export const OPERACAO_IMAGENS_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const OPERACAO_IMAGENS_MAX_BYTES = 5 * 1024 * 1024
 export type QRTipo = typeof QR_TIPOS[number]
