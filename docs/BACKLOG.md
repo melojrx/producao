@@ -42,10 +42,11 @@
 | 30 | Capacidade como trava real e parcelamento setorial entre turnos | ✅ Concluída | 2 |
 | 31 | Fluxo paralelo com sincronização parcial em Montagem | ✅ Concluída | 2 |
 | 32 | Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila | ✅ Concluída | 3 |
+| 33 | Gestão de imagens do produto | ✅ Concluída | 2 |
 
-**Total estimado: 67 dias úteis**
+**Total estimado: 69 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores, mantendo `imagem_url` temporariamente oculta por decisão de produto e preservando o bloco comentado para futura inclusão real da imagem. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 fica aberta para levar esse domínio ao modelo de fila contínua por setor, com capacidade diária cumulativa, prioridade de conclusão e leitura operacional mais fiel ao chão de fábrica. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto: schema e types para `Frente`/`Costa`, bucket público no Supabase, upload server-side com troca/remoção individual, modal com previews grandes e tela de detalhe com galeria visual e ampliação. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -402,7 +403,7 @@
 ## SPRINT 32 — Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila
 **Objetivo:** evoluir o domínio homologado nas Sprints 29 a 31 para um modelo em que cada setor funciona como fila contínua alimentada ao longo do dia, limitada pela capacidade diária cumulativa e orientada por prioridade de conclusão da OP atual.
 **Entregável:** turno, scanner, apontamentos e dashboard operando com backlog vivo por setor, aceite acumulado do dia sem reinício artificial de capacidade, fila FIFO cronológica e leitura explícita entre `chegou`, `disponível agora`, `aceito`, `concluído` e `excedente`, com o preview de abertura priorizando a capacidade produtiva disponível do turno.
-**Status:** 🔄 Reaberta documentalmente em `2026-04-22` para a `HU 32.9`
+**Status:** ✅ Concluída
 
 - Formalizar no PRD o setor como fila contínua alimentada pelo setor anterior ao longo do dia
 - Tornar cumulativa a capacidade diária do setor, sem reabrir artificialmente o teto a cada recomputação
@@ -423,6 +424,24 @@
 
 **Reabertura documental em `2026-04-22`:** a análise operacional de `Finalização` expôs um terceiro ajuste semântico: a prioridade automática da fila está correta como política padrão, mas o fluxo do supervisor precisa de uma exceção controlada para consumir manualmente saldo já aceito no dia em OPs posteriores da fila, desde que o setor não ultrapasse seu `Plano do dia`. A sprint foi reaberta para a `HU 32.9`, que passa a separar explicitamente `liberação automática prioritária` de `saldoManualPermitido`, preservando FIFO, teto diário, scanner disciplinado e rastreabilidade da exceção administrativa.
 
+**Fechamento em `2026-04-22`:** a `HU 32.9` consolidou a segunda camada operacional do setor para o fluxo supervisório, separando `disponível agora` de `saldoManualPermitido` sem reabrir capacidade do dia, sem quebrar FIFO e sem afrouxar a disciplina do scanner.
+
+## SPRINT 33 — Gestão de imagens do produto
+**Objetivo:** evoluir o CRUD de produtos para suportar duas imagens gerenciadas (`Frente` e `Costa`) com upload, substituição, remoção e exibição visual forte no cadastro e no detalhe do produto.
+**Entregável:** produto com galeria administrativa de `Frente` e `Costa`, upload server-side, remoção individual por vista e tela de detalhe com leitura visual moderna.
+**Status:** ✅ Concluída
+
+- Formalizar no PRD o contrato funcional de duas imagens do produto
+- Evoluir schema e types para `imagem_frente_url` e `imagem_costa_url`
+- Implementar upload, troca e remoção individual no backend do CRUD
+- Refatorar o modal de produto para previews grandes de `Frente` e `Costa`
+- Refatorar a tela de detalhe para galeria principal do produto
+- Homologar cenários sem imagem, uma imagem e duas imagens sem regressão em roteiro e `T.P Produto`
+
+**Fechamento em `2026-04-23`:** a sprint encerra com o contrato completo de imagens do produto ativo no CRUD administrativo: `imagem_frente_url` e `imagem_costa_url` no schema, bucket `produtos` provisionado no Supabase, backend com validação de MIME/tamanho e gestão individual de arquivos, modal de cadastro/edição com previews de `Frente` e `Costa`, página de detalhe com galeria visual e ampliação e homologação final por `npx tsc --noEmit` e `npm run build -- --webpack` sem erros. O `build` padrão com Turbopack continuou esbarrando em limitação de sandbox para criação de processo/porta no pipeline CSS, sem evidência de regressão funcional da sprint.
+
+**Ajuste pós-homologação em `2026-04-23`:** a entrega foi refinada para preservar a ordem original do `roteiro` ao editar apenas imagens/dados cadastrais de produtos já históricos, impedindo falso bloqueio por alteração estrutural e eliminando o warning do React sobre `encType` em formulário com Server Action. O fechamento técnico permaneceu validado por `npx tsc --noEmit` e `npm run build -- --webpack`.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -431,7 +450,7 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

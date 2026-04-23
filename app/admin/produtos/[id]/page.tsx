@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Copy, Pencil } from 'lucide-react'
 import { ProdutoLifecycleActions } from '@/components/admin/actions/ProdutoLifecycleActions'
 import { DetailField } from '@/components/admin/DetailField'
+import { GaleriaProdutoDetalhe } from '@/components/produtos/GaleriaProdutoDetalhe'
 import { buscarProdutoComRoteiro } from '@/lib/queries/produtos'
 
 interface ProdutoDetalhePageProps {
@@ -56,9 +57,14 @@ export default async function ProdutoDetalhePage({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <GaleriaProdutoDetalhe
+        produtoNome={produto.nome}
+        imagemFrenteUrl={produto.imagem_frente_url ?? produto.imagem_url ?? null}
+        imagemCostaUrl={produto.imagem_costa_url ?? null}
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DetailField label="Referência" value={produto.referencia} />
-        <DetailField label="Imagem" value={produto.imagem_url ?? 'Não informada'} />
         <DetailField label="T.P Produto" value={produto.tp_produto_min?.toFixed(2) ?? '0.00'} />
         <DetailField
           label="Setores Envolvidos"

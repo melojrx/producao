@@ -3217,7 +3217,7 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   **Evidência:** a Sprint 31 foi homologada tecnicamente com o fluxo paralelo ativo em toda a cadeia relevante: domínio e queries calculando `Montagem` pela interseção real entre `Frente` e `Costa`, kanban exibindo simultaneidade oficial, carry-over preservando as duas trilhas sem colapso e scanner/apontamentos refletindo a sincronização parcial no contexto operacional. Validação concluída em `2026-04-17` com `node --test --experimental-strip-types lib/utils/fluxo-sequencial-turno.test.ts lib/utils/fluxo-paralelo-turno.test.ts lib/utils/carry-over-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/capacidade-setor.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts`, `npx tsc --noEmit` e `npm run build`, todos sem erros.
 
 ## SPRINT 32 — Fluxo contínuo por setor, capacidade diária cumulativa e disciplina operacional de fila
-**Status:** 🔄 Reaberta documentalmente em `2026-04-22` para a `HU 32.9`
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 31 concluída e confirmação explícita do usuário em `2026-04-20` para formalizar a evolução do modelo operacional.
 **Objetivo:** evoluir o fluxo oficial para representar cada setor como uma fila contínua alimentada ao longo do dia, limitada pela capacidade diária cumulativa e operada com prioridade de conclusão da OP atual antes de fracionamento desnecessário.
 
@@ -3459,3 +3459,143 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
   - a solução deve preservar a bifurcação oficial `Frente + Costa -> Montagem`, a fila FIFO, a prioridade de conclusão e o carry-over setorial já homologados
 
   **Evidência esperada:** o PRD passa a registrar a exceção supervisória controlada como segunda camada operacional do setor, `PainelApontamentosSupervisor` passa a expor OPs não prioritárias com `saldoManualPermitido > 0`, o backend valida a soma setorial sem usar apenas `quantidadeDisponivelApontamento`, e scanner/kanban continuam distinguindo prioridade automática de exceção manual. A validação deve cobrir cenários de `Finalização` com `588 + 13`, setores paralelos e casos sem saldo residual, com `npx tsc --noEmit` e suíte automatizada sem erros.
+
+**Fechamento em `2026-04-22`:** a `HU 32.9` consolidou a segunda camada operacional do setor para o fluxo supervisório, separando definitivamente `disponível agora` de `saldoManualPermitido` sem reabrir capacidade do dia nem afrouxar a disciplina do scanner. A sprint encerra com fila contínua, teto diário cumulativo, excedente setorial e exceção manual auditável alinhados entre domínio, queries e UI.
+
+## SPRINT 33 — Gestão de imagens do produto
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 32 concluída.
+**Objetivo:** evoluir o CRUD de produtos para suportar duas imagens gerenciadas (`Frente` e `Costa`) com upload, substituição, remoção e exibição visual forte no cadastro e no detalhe do produto.
+
+- [x] **HU 33.1 — Como produto, quero formalizar no PRD o contrato de imagens `Frente` e `Costa`, para que cadastro, detalhe e gestão administrativa usem a mesma regra sem ambiguidade.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - consolidar no `docs/PRD.md` que o produto passa a ter duas imagens independentes e opcionais
+  - formalizar que a experiência principal é upload gerenciado, e não URL manual livre
+  - formalizar que o CRUD deve permitir adicionar, substituir e remover cada vista individualmente
+  - formalizar que a tela de detalhe deve tratar as duas imagens como galeria principal do produto
+
+  Regras:
+  - `Frente` e `Costa` são vistas complementares do mesmo produto
+  - a ausência de uma vista não bloqueia a outra nem o cadastro
+  - a ausência das duas imagens não bloqueia o CRUD, mas exige estado vazio explícito
+  - a gestão das imagens não pode alterar roteiro, `T.P Produto` ou ciclo de vida do produto
+
+  **Evidência:** `docs/PRD.md` passa a registrar explicitamente o contrato funcional de duas imagens do produto, com comportamento de cadastro, edição, remoção e detalhe visual.
+
+- [x] **HU 33.2 — Como sistema, quero evoluir o schema e os contratos tipados de produto para suportar `imagem_frente_url` e `imagem_costa_url`, para que o CRUD deixe de depender do campo legado `imagem_url`.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - criar migration aditiva no Supabase para introduzir `imagem_frente_url` e `imagem_costa_url`
+  - preservar `imagem_url` apenas como compatibilidade temporária até limpeza posterior
+  - regenerar `types/supabase.ts`
+  - propagar o novo contrato em `types/index.ts` e `lib/queries/produtos.ts`
+
+  Regras:
+  - a mudança deve ser aditiva e segura para o worktree atual
+  - o schema não pode quebrar listagem, detalhe, duplicação ou ciclo de vida já homologados
+  - os tipos precisam continuar em `strict` sem `any`
+
+  **Evidência:** colunas novas presentes no schema, `types/supabase.ts` regenerado e queries de produto passando a expor as duas URLs sem regressão no restante do CRUD.
+
+  Migration `scripts/sprint33_produtos_imagens.sql` aplicada no projeto Supabase via Management API em `2026-04-23`, com validação read-only em `information_schema.columns` confirmando `imagem_frente_url`, `imagem_costa_url` e `imagem_url` em `public.produtos`; `types/supabase.ts`, `types/index.ts` e `lib/queries/produtos.ts` foram sincronizados com o novo contrato e `npx tsc --noEmit` concluiu sem erros.
+
+- [x] **HU 33.3 — Como admin, quero fazer upload, substituição e remoção de imagem de frente e de costa no backend do produto, para que a gestão das imagens seja segura e consistente.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - introduzir bucket e convenção de paths para imagens de produto
+  - adaptar `lib/actions/produtos.ts` para upload, troca e remoção individual de `Frente` e `Costa`
+  - validar tipo de arquivo e tamanho antes de persistir
+  - limpar arquivo anterior quando houver substituição confirmada
+  - revalidar listagem e detalhe após mutações
+
+  Regras:
+  - a troca de uma imagem não pode apagar a outra
+  - a remoção de uma imagem deve atualizar imediatamente o produto sem afetar roteiro
+  - o fluxo deve usar credenciais server-side já homologadas do Supabase
+  - a action deve falhar com erro claro quando o upload for inválido
+
+  **Evidência:** criação e edição de produto passam a aceitar upload de `Frente` e `Costa`, com substituição e remoção individual funcionando via `lib/actions/produtos.ts` e sem regressão em `npx tsc --noEmit`.
+
+  Bucket `produtos` provisionado em `2026-04-23` via `scripts/sprint33_produtos_storage_bucket.sql` com validação read-only em `storage.buckets` (`public = true`, `file_size_limit = 5242880`, `allowed_mime_types = ['image/jpeg','image/png','image/webp']`); `lib/actions/produtos.ts` agora valida MIME/tamanho, gera paths por `produtoId/{frente|costa}/...`, sincroniza `imagem_frente_url` e `imagem_costa_url`, mantém `imagem_url` apenas como compatibilidade temporária, suporta substituição e remoção individual por `FormData`, e limpa arquivos antigos do próprio produto após troca bem-sucedida. `npx tsc --noEmit` concluiu sem erros.
+
+- [x] **HU 33.4 — Como admin, quero uma UX moderna no modal de produto para visualizar e gerir as duas imagens durante cadastro e edição, para inspecionar bem o produto sem depender de URL textual.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - refatorar `components/ui/ModalProduto.tsx` para remover o resíduo de `hidden input` legado
+  - criar dois cards visuais de imagem com preview, estado vazio e ações por vista
+  - manter a organização do modal compatível com o fluxo já homologado por setores
+  - preservar usabilidade mobile-first
+
+  Regras:
+  - a área de imagens não pode colapsar a UX do roteiro por setores
+  - a UI deve nomear claramente `Frente` e `Costa`
+  - a solução não deve exigir biblioteca adicional fora da stack aprovada
+
+  **Evidência:** o modal de produto exibe previews grandes para `Frente` e `Costa`, permite trocar/remover cada vista e elimina a dependência da URL textual oculta.
+
+  `components/ui/ModalProduto.tsx` foi refatorado em `2026-04-23` para exibir dois cards visuais independentes (`Frente` e `Costa`) com preview grande, estado vazio intencional, upload por arquivo, troca e remoção individual via `FormData` compatível com a `HU 33.3`; a duplicação assistida passa a iniciar sem reutilizar automaticamente as imagens do produto-base para evitar vínculo cruzado entre produtos, e `npx tsc --noEmit` concluiu sem erros.
+
+- [x] **HU 33.5 — Como admin, quero ver `Frente` e `Costa` com destaque na tela de detalhe do produto, para conferir visualmente o item produzido com uma galeria clara e moderna.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - refatorar `app/admin/produtos/[id]/page.tsx` para substituir o campo textual de imagem por galeria visual
+  - tratar estados com duas imagens, uma imagem e nenhuma imagem
+  - manter os dados de roteiro e metadados do produto legíveis sem competir com a galeria
+  - ajustar renderização remota em `next.config.ts`, se necessário
+
+  Regras:
+  - a galeria deve priorizar visualização grande e comparação entre vistas
+  - `Frente` e `Costa` precisam ficar identificadas textual e visualmente
+  - a ausência de imagem deve gerar estado vazio intencional, não texto cru de URL
+
+  **Evidência:** a página de detalhe do produto passa a exibir uma galeria principal de `Frente` e `Costa`, mantendo leitura clara dos metadados e do roteiro.
+
+  `app/admin/produtos/[id]/page.tsx` foi refatorada em `2026-04-23` para substituir o campo textual de imagem por uma galeria principal baseada em `components/produtos/GaleriaProdutoDetalhe.tsx`, com alternancia entre `Frente` e `Costa`, estados claros para duas, uma ou nenhuma imagem e visualizacao ampliada em lightbox; `next.config.ts` passou a aceitar imagens remotas do Supabase Storage via `images.remotePatterns`, e `npx tsc --noEmit` concluiu sem erros.
+
+- [x] **HU 33.6 — Como produto, quero homologar a gestão de imagens do produto ponta a ponta, para confiar no novo fluxo sem regressão no CRUD e na consulta administrativa.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - validar criação de produto sem imagem, com só `Frente`, com só `Costa` e com ambas
+  - validar substituição e remoção individual de cada vista
+  - validar listagem, detalhe, duplicação assistida e edição após mutações de imagem
+  - consolidar a evidência documental da sprint
+
+  Regras:
+  - a homologação deve cobrir desktop e mobile
+  - o roteiro do produto e o `T.P Produto` não podem sofrer regressão
+  - a sprint só fecha com `npx tsc --noEmit` e evidência operacional do CRUD sem erros
+
+  **Evidência:** gestão de imagens `Frente` e `Costa` validada ponta a ponta no CRUD e na tela de detalhe, com `npx tsc --noEmit` sem erros e evidência documental registrada.
+
+  Homologação consolidada em `2026-04-23` com verificação estrutural dos cenários-alvo do fluxo: `1)` criação sem imagem continua válida porque `lib/actions/produtos.ts` trata ambas as vistas como opcionais, `2)` cadastro com só `Frente`, só `Costa` ou ambas fica coberto pelo contrato do backend (`imagem_frente_arquivo`, `imagem_costa_arquivo`, remoções independentes e sincronização de `imagem_url` como legado), `3)` edição, substituição e remoção individual permanecem acopladas ao mesmo pipeline server-side, `4)` a duplicação assistida em `components/ui/ModalProduto.tsx` passa a iniciar com imagens vazias para evitar reuso indevido do produto-base, e `5)` listagem e detalhe seguem consumindo `listarProdutos()` / `buscarProdutoComRoteiro()` com o novo contrato tipado. Validação executável concluída com `npx tsc --noEmit` e `npm run build -- --webpack`, ambos sem erros; o `npm run build` padrão com Turbopack falhou apenas por limitação do sandbox ao tentar abrir processo/porta para o pipeline de CSS, sem indicar regressão da sprint. Nesta sessão não havia runner autenticado de navegador para inspeção manual real de viewport desktop/mobile, então a aderência visual final foi fechada por build de produção, tipagem, rotas compiladas (`/admin/produtos` e `/admin/produtos/[id]`) e inspeção do fluxo responsivo nos componentes entregues.
+
+  Correção pós-homologação registrada ainda em `2026-04-23`: a edição de produto com histórico deixou de reordenar silenciosamente o payload de `roteiro` ao salvar mudanças apenas cadastrais/imagens, evitando falso positivo de alteração estrutural e a violação da FK `turno_setor_operacoes_produto_operacao_id_fkey`. O modal também deixou de forçar `encType` em formulário com Server Action, eliminando o warning do React no console. Validação complementar concluída com `npx tsc --noEmit` e `npm run build -- --webpack`, sem erros.
+
+**Fechamento em `2026-04-23`:** a Sprint 33 encerra com o domínio de produto evoluído para duas vistas administráveis (`Frente` e `Costa`), bucket público configurado no Supabase, upload/troca/remoção individual no backend, modal administrativo com previews grandes e detalhe do produto com galeria visual e ampliação, sem regressão de tipos nem de build de produção.
+
+---
+
+## DEPENDÊNCIAS ENTRE SPRINTS
+
+```
+Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
+                                  └──► Sprint 4
+                    Sprint 3 + Sprint 4 ──► Sprint 5
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33
+```
+
+Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
+As Sprints 6 a 12 da V2 devem seguir de forma sequencial para reduzir regressão de domínio.

@@ -1080,7 +1080,6 @@ Regras obrigatórias:
 
 - referência
 - nome
-- URL da imagem
 - situação
 - T.P Produto calculado automaticamente
 
@@ -1091,7 +1090,6 @@ Contrato da UX:
 - o usuário não pode reordenar setores manualmente no cadastro do produto
 - dentro de um mesmo setor, a ordem das operações segue exatamente a ordem em que o usuário as selecionou
 - o usuário primeiro informa `referência` e `nome`
-- `URL da imagem` permanece temporariamente oculta no modal por decisão de produto, até a futura entrega de inclusão real da imagem
 - abaixo desses campos, o modal exibe o `T.P Produto` como informação de apoio visual, menos evidente que os campos principais, sendo atualizado automaticamente conforme as operações são selecionadas
 - o CRUD deve permitir `duplicar produto` a partir de um cadastro existente, reaproveitando o mesmo modal de produto em modo de criação pré-carregado
 - ao duplicar, o sistema deve carregar `nome`, `roteiro` e `setores` do produto de origem, mas continuar tratando o salvamento como um novo produto
@@ -1107,6 +1105,39 @@ Regras:
 - a ampliação visual do modal não pode transformar a tela em um configurador denso; o foco deve permanecer apenas nas decisões necessárias para montar o produto
 - a busca e a seleção de operações devem respeitar o vínculo estrutural existente entre `operação` e `setor`
 - a duplicação deve exigir revisão da `referência`, porque o novo cadastro não pode reutilizar a referência original
+
+Contrato de imagens do produto:
+- o cadastro do produto passa a suportar duas imagens independentes:
+  - `Frente`
+  - `Costa`
+- as duas imagens são opcionais individualmente
+- o cadastro e a edição devem permitir:
+  - adicionar imagem
+  - substituir imagem
+  - remover imagem
+- a troca de `Frente` não pode exigir reenviar `Costa`, e vice-versa
+- a gestão de imagem deve acontecer por upload nativo do sistema, e não por URL manual como experiência principal
+- a ausência de uma das imagens não pode bloquear o cadastro do produto
+- a ausência das duas imagens também não pode bloquear o CRUD, mas deve gerar estado vazio explícito
+
+Contrato de UX das imagens:
+- o modal de produto deve ter uma área própria para `Frente` e `Costa`
+- cada vista deve exibir preview amplo e legível antes do salvamento
+- cada card de imagem deve deixar visível qual lado do produto está sendo tratado
+- cada card deve expor ações claras de `Adicionar`, `Trocar` e `Remover`
+- a experiência visual deve continuar boa em desktop e mobile, sem transformar o modal em um anexo improvisado
+
+Contrato da tela de detalhe:
+- `/admin/produtos/[id]` deve exibir `Frente` e `Costa` como galeria principal do produto
+- a tela deve priorizar leitura visual grande, comparável e moderna das duas vistas
+- quando só uma imagem existir, a tela deve preservar equilíbrio visual e deixar clara a vista ausente
+- quando nenhuma imagem existir, a página deve mostrar estado vazio elegante em vez de texto cru de URL
+
+Guardrails:
+- a gestão das imagens não altera o contrato atual do roteiro do produto
+- a gestão das imagens não interfere no cálculo do `T.P Produto`
+- as ações de imagem devem respeitar o mesmo controle administrativo do CRUD de produtos
+- a UX final deve reduzir erro operacional e melhorar conferência visual do produto em produção
 
 Contrato de ciclo de vida:
 - o produto deve ter duas ações distintas de ciclo de vida: `arquivar/desativar` e `excluir permanentemente`

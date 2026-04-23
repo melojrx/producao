@@ -3,4 +3,7 @@ export const ALERTA_MAQUINA_PARADA = 15
 export const ALERTA_EFICIENCIA_BAIXA = 70
 export const ALERTA_EFICIENCIA_CRITICA = 50
 export const QR_TIPOS = ['operador', 'maquina', 'operacao', 'setor-op', 'turno-setor'] as const
+export const PRODUTO_IMAGENS_BUCKET = 'produtos'
+export const PRODUTO_IMAGENS_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const PRODUTO_IMAGENS_MAX_BYTES = 5 * 1024 * 1024
 export type QRTipo = typeof QR_TIPOS[number]

@@ -1,8 +1,9 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
-import { Plus, Search, Trash2, X } from 'lucide-react'
+import { useActionState, useEffect, useId, useRef, useState } from 'react'
+import { ImagePlus, Plus, RefreshCw, Search, Trash2, Upload, X } from 'lucide-react'
 import { criarProduto, editarProduto } from '@/lib/actions/produtos'
+import { PRODUTO_IMAGENS_MAX_BYTES } from '@/lib/constants'
 import { calcularTpProduto } from '@/lib/utils/producao'
 import type {
   FormActionState,
@@ -26,7 +27,42 @@ interface SetorRoteiroOption {
   operacoes: OperacaoListItem[]
 }
 
+type ProdutoImagemTipo = 'frente' | 'costa'
+
+interface ProdutoImagemDraft {
+  arquivo: File | null
+  objectUrl: string | null
+  previewUrl: string | null
+  removida: boolean
+  urlInicial: string | null
+}
+
+interface ProdutoImagemCardConfig {
+  tipo: ProdutoImagemTipo
+  titulo: string
+  descricao: string
+  inputName: string
+  removeFieldName: string
+}
+
 const estadoInicial: FormActionState = { erro: undefined, sucesso: false }
+const TAMANHO_MAXIMO_IMAGEM_MB = Math.floor(PRODUTO_IMAGENS_MAX_BYTES / (1024 * 1024))
+const PRODUTO_IMAGEM_CARDS: readonly ProdutoImagemCardConfig[] = [
+  {
+    tipo: 'frente',
+    titulo: 'Frente',
+    descricao: 'Vista principal para reconhecer rapidamente a peça em produção.',
+    inputName: 'imagem_frente_arquivo',
+    removeFieldName: 'remover_imagem_frente',
+  },
+  {
+    tipo: 'costa',
+    titulo: 'Costa',
+    descricao: 'Vista complementar para inspeção visual completa do produto.',
+    inputName: 'imagem_costa_arquivo',
+    removeFieldName: 'remover_imagem_costa',
+  },
+]
 
 function compararSetores(primeiro: SetorRoteiroOption, segundo: SetorRoteiroOption): number {
   if (primeiro.codigo !== segundo.codigo) {
@@ -64,6 +100,17 @@ function listarSetoresDisponiveis(
     .sort(compararSetores)
 }
 
+function ordenarSetoresSelecionados(
+  setoresDisponiveis: SetorRoteiroOption[],
+  setoresSelecionadosIds: string[]
+): SetorRoteiroOption[] {
+  const setoresPorId = new Map(setoresDisponiveis.map((setor) => [setor.id, setor]))
+
+  return setoresSelecionadosIds
+    .map((setorId) => setoresPorId.get(setorId))
+    .filter((setor): setor is SetorRoteiroOption => Boolean(setor))
+}
+
 function deduplicarSetoresIniciais(produto?: ProdutoListItem): string[] {
   if (!produto) {
     return []
@@ -94,6 +141,65 @@ function obterNomeInicial(produtoBase?: ProdutoListItem): string {
   return `${produtoBase.nome} (Copia)`
 }
 
+function obterImagemInicial(produto: ProdutoListItem | undefined, tipo: ProdutoImagemTipo): string | null {
+  if (!produto) {
+    return null
+  }
+
+  if (tipo === 'frente') {
+    return produto.imagem_frente_url ?? produto.imagem_url ?? null
+  }
+
+  return produto.imagem_costa_url ?? null
+}
+
+function criarImagemDraftInicial(
+  produto: ProdutoListItem | undefined,
+  tipo: ProdutoImagemTipo
+): ProdutoImagemDraft {
+  const urlInicial = obterImagemInicial(produto, tipo)
+
+  return {
+    arquivo: null,
+    objectUrl: null,
+    previewUrl: urlInicial,
+    removida: false,
+    urlInicial,
+  }
+}
+
+function obterStatusImagem(draft: ProdutoImagemDraft): string {
+  if (draft.arquivo) {
+    return 'Nova imagem pronta'
+  }
+
+  if (draft.previewUrl) {
+    return 'Imagem atual'
+  }
+
+  if (draft.removida) {
+    return 'Remocao pendente'
+  }
+
+  return 'Sem imagem'
+}
+
+function obterClasseStatusImagem(draft: ProdutoImagemDraft): string {
+  if (draft.arquivo) {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+
+  if (draft.previewUrl) {
+    return 'border-sky-200 bg-sky-50 text-sky-700'
+  }
+
+  if (draft.removida) {
+    return 'border-amber-200 bg-amber-50 text-amber-700'
+  }
+
+  return 'border-gray-200 bg-gray-100 text-gray-600'
+}
+
 export function ModalProduto({
   produto,
   produtoBase,
@@ -104,11 +210,20 @@ export function ModalProduto({
   const acao = produto ? editarProduto.bind(null, produto.id) : criarProduto
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
   const produtoInicial = produto ?? produtoBase
+  const prefixoIds = useId()
+  const inputFrenteRef = useRef<HTMLInputElement | null>(null)
+  const inputCostaRef = useRef<HTMLInputElement | null>(null)
   const [roteiroIds, setRoteiroIds] = useState<string[]>(
     produtoInicial ? produtoInicial.roteiro.map((item) => item.operacaoId) : []
   )
   const [buscaSetor, setBuscaSetor] = useState('')
   const [buscaOperacao, setBuscaOperacao] = useState('')
+  const [imagemFrente, setImagemFrente] = useState<ProdutoImagemDraft>(() =>
+    criarImagemDraftInicial(produto, 'frente')
+  )
+  const [imagemCosta, setImagemCosta] = useState<ProdutoImagemDraft>(() =>
+    criarImagemDraftInicial(produto, 'costa')
+  )
   const [setoresSelecionadosIds, setSetoresSelecionadosIds] = useState<string[]>(() =>
     deduplicarSetoresIniciais(produtoInicial)
   )
@@ -123,12 +238,20 @@ export function ModalProduto({
     }
   }, [aoFechar, estado.sucesso])
 
+  useEffect(() => {
+    return () => {
+      ;[imagemFrente.objectUrl, imagemCosta.objectUrl].forEach((objectUrl) => {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl)
+        }
+      })
+    }
+  }, [imagemCosta.objectUrl, imagemFrente.objectUrl])
+
   const operacoesPorId = new Map(operacoes.map((operacao) => [operacao.id, operacao]))
   const setoresDisponiveis = listarSetoresDisponiveis(setores, operacoes)
   const setoresPorId = new Map(setoresDisponiveis.map((setor) => [setor.id, setor]))
-  const setoresSelecionados = setoresDisponiveis.filter((setor) =>
-    setoresSelecionadosIds.includes(setor.id)
-  )
+  const setoresSelecionados = ordenarSetoresSelecionados(setoresDisponiveis, setoresSelecionadosIds)
   const primeiroSetorSelecionadoId = setoresSelecionados[0]?.id ?? null
 
   useEffect(() => {
@@ -145,9 +268,7 @@ export function ModalProduto({
     setBuscaOperacao('')
   }, [setorAtivoId])
 
-  const roteiroIdsOrdenados = setoresDisponiveis.flatMap((setor) =>
-    roteiroIds.filter((operacaoId) => operacoesPorId.get(operacaoId)?.setor_id === setor.id)
-  )
+  const roteiroIdsOrdenados = roteiroIds
   const operacoesSelecionadas = roteiroIdsOrdenados
     .map((operacaoId) => operacoesPorId.get(operacaoId))
     .filter((operacao): operacao is OperacaoListItem => Boolean(operacao))
@@ -194,6 +315,15 @@ export function ModalProduto({
   })
   const modoEdicao = !!produto
   const modoDuplicacao = !produto && !!produtoBase
+  const imagemLegadaInicial = produto?.imagem_url ?? ''
+  const draftsImagem = {
+    frente: imagemFrente,
+    costa: imagemCosta,
+  } satisfies Record<ProdutoImagemTipo, ProdutoImagemDraft>
+  const inputsImagem = {
+    frente: inputFrenteRef,
+    costa: inputCostaRef,
+  } satisfies Record<ProdutoImagemTipo, React.RefObject<HTMLInputElement | null>>
 
   function adicionarSetor(setorId: string) {
     setSetoresSelecionadosIds((setoresAtuais) => {
@@ -233,6 +363,57 @@ export function ModalProduto({
 
   function removerOperacao(operacaoId: string) {
     setRoteiroIds((roteiroAtual) => roteiroAtual.filter((itemId) => itemId !== operacaoId))
+  }
+
+  function atualizarDraftImagem(
+    tipo: ProdutoImagemTipo,
+    atualizar: (draftAtual: ProdutoImagemDraft) => ProdutoImagemDraft
+  ) {
+    const setter = tipo === 'frente' ? setImagemFrente : setImagemCosta
+
+    setter((draftAtual) => {
+      const proximoDraft = atualizar(draftAtual)
+
+      if (draftAtual.objectUrl && draftAtual.objectUrl !== proximoDraft.objectUrl) {
+        URL.revokeObjectURL(draftAtual.objectUrl)
+      }
+
+      return proximoDraft
+    })
+  }
+
+  function abrirSeletorImagem(tipo: ProdutoImagemTipo) {
+    inputsImagem[tipo].current?.click()
+  }
+
+  function selecionarArquivoImagem(tipo: ProdutoImagemTipo, arquivo: File | null) {
+    if (!arquivo) {
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(arquivo)
+
+    atualizarDraftImagem(tipo, (draftAtual) => ({
+      ...draftAtual,
+      arquivo,
+      objectUrl,
+      previewUrl: objectUrl,
+      removida: false,
+    }))
+  }
+
+  function limparImagem(tipo: ProdutoImagemTipo) {
+    atualizarDraftImagem(tipo, (draftAtual) => ({
+      ...draftAtual,
+      arquivo: null,
+      objectUrl: null,
+      previewUrl: null,
+      removida: Boolean(draftAtual.urlInicial),
+    }))
+
+    if (inputsImagem[tipo].current) {
+      inputsImagem[tipo].current.value = ''
+    }
   }
 
   return (
@@ -323,25 +504,126 @@ export function ModalProduto({
               <input type="hidden" name="ativo" value="true" />
             )}
           </div>
-          {/*
-            Campo mantido comentado por decisão de produto.
-            A URL da imagem permanece oculta até a futura entrega de inclusao real da imagem.
-            Quando esse fluxo for retomado, reintroduzir o bloco abaixo e substituir o hidden input.
 
-            <div className="flex flex-col gap-1 md:col-span-10">
-              <label htmlFor="imagem_url" className="text-sm font-medium text-gray-700">
-                URL da imagem
-              </label>
-              <input
-                id="imagem_url"
-                name="imagem_url"
-                type="url"
-                defaultValue={produto?.imagem_url ?? ''}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+          <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 shadow-sm">
+            <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Imagens do produto</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Envie as vistas de frente e costa com preview grande para revisão antes de salvar.
+                </p>
+              </div>
+              <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                JPG, PNG ou WEBP ate {TAMANHO_MAXIMO_IMAGEM_MB} MB
+              </p>
             </div>
-          */}
-          <input type="hidden" name="imagem_url" value={produtoInicial?.imagem_url ?? ''} />
+
+            {modoDuplicacao ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Na duplicacao, as imagens começam vazias para evitar vinculo cruzado com o produto-base.
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {PRODUTO_IMAGEM_CARDS.map((config) => {
+                const draft = draftsImagem[config.tipo]
+                const status = obterStatusImagem(draft)
+                const inputId = `${prefixoIds}-${config.inputName}`
+
+                return (
+                  <div
+                    key={config.tipo}
+                    className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.45)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-semibold text-slate-900">{config.titulo}</h4>
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${obterClasseStatusImagem(draft)}`}
+                          >
+                            {status}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-500">{config.descricao}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_42%),linear-gradient(135deg,_rgba(248,250,252,1),_rgba(226,232,240,0.7))]">
+                        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/70 to-transparent" />
+                        <div className="relative flex aspect-[4/5] items-center justify-center p-4">
+                          {draft.previewUrl ? (
+                            <img
+                              src={draft.previewUrl}
+                              alt={`Preview da imagem de ${config.titulo.toLowerCase()} do produto`}
+                              className="h-full w-full rounded-[18px] border border-slate-200 bg-white object-contain shadow-sm"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full flex-col items-center justify-center rounded-[18px] border border-dashed border-slate-300 bg-white/70 px-6 text-center">
+                              <div className="rounded-full bg-slate-900 p-3 text-white shadow-sm">
+                                <ImagePlus size={20} />
+                              </div>
+                              <p className="mt-4 text-sm font-medium text-slate-800">
+                                Nenhuma imagem de {config.titulo.toLowerCase()} carregada
+                              </p>
+                              <p className="mt-1 max-w-xs text-sm text-slate-500">
+                                Use uma foto nítida para facilitar conferência visual no cadastro e no detalhe do produto.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <input
+                          ref={inputsImagem[config.tipo]}
+                          id={inputId}
+                          name={config.inputName}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={(event) =>
+                            selecionarArquivoImagem(config.tipo, event.target.files?.[0] ?? null)
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => abrirSeletorImagem(config.tipo)}
+                          className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                        >
+                          {draft.previewUrl ? <RefreshCw size={15} /> : <Upload size={15} />}
+                          {draft.previewUrl ? 'Trocar imagem' : 'Enviar imagem'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => limparImagem(config.tipo)}
+                          disabled={!draft.previewUrl && !draft.arquivo && !draft.urlInicial}
+                          className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Trash2 size={15} />
+                          Remover
+                        </button>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                        <span>Renderização otimizada para revisão administrativa.</span>
+                        <span>Sem imagem obrigatória.</span>
+                      </div>
+
+                      <input
+                        type="hidden"
+                        name={config.removeFieldName}
+                        value={draft.removida ? 'true' : 'false'}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <input type="hidden" name="imagem_url" value={imagemLegadaInicial} />
 
           <input type="hidden" name="roteiro" value={roteiroPayload} />
 

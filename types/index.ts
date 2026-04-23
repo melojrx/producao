@@ -660,7 +660,12 @@ export interface ProdutoRoteiroItem {
   setorNome: string | null
 }
 
-export interface ProdutoListItem extends Tables<'produtos'> {
+export interface ProdutoImagens {
+  imagem_frente_url: string | null
+  imagem_costa_url: string | null
+}
+
+export interface ProdutoListItem extends Tables<'produtos'>, ProdutoImagens {
   roteiro: ProdutoRoteiroItem[]
   setoresEnvolvidos: string[]
 }

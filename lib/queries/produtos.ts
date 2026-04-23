@@ -8,6 +8,16 @@ type OperacaoRow = Tables<'operacoes'>
 type MaquinaRow = Tables<'maquinas'>
 type SetorRow = Tables<'setores'>
 
+function normalizarContratoImagens(produto: ProdutoRow): ProdutoRow {
+  const imagemLegada = produto.imagem_url ?? null
+
+  return {
+    ...produto,
+    imagem_frente_url: produto.imagem_frente_url ?? imagemLegada,
+    imagem_costa_url: produto.imagem_costa_url ?? null,
+  }
+}
+
 function mapearProdutosComRoteiro(
   produtos: ProdutoRow[],
   produtoOperacoes: ProdutoOperacaoRow[],
@@ -51,7 +61,7 @@ function mapearProdutosComRoteiro(
   })
 
   return produtos.map((produto) => ({
-    ...produto,
+    ...normalizarContratoImagens(produto),
     roteiro: (roteiroPorProduto.get(produto.id) ?? []).sort(
       (primeiro, segundo) => primeiro.sequencia - segundo.sequencia
     ),

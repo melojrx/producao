@@ -837,6 +837,8 @@ export type Database = {
           ativo: boolean | null
           created_at: string | null
           id: string
+          imagem_costa_url: string | null
+          imagem_frente_url: string | null
           imagem_url: string | null
           nome: string
           referencia: string
@@ -847,6 +849,8 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string | null
           id?: string
+          imagem_costa_url?: string | null
+          imagem_frente_url?: string | null
           imagem_url?: string | null
           nome: string
           referencia: string
@@ -857,6 +861,8 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string | null
           id?: string
+          imagem_costa_url?: string | null
+          imagem_frente_url?: string | null
           imagem_url?: string | null
           nome?: string
           referencia?: string
