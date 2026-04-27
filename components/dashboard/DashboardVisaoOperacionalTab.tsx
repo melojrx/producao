@@ -7,6 +7,7 @@ import { KanbanOperacionalTurno } from '@/components/dashboard/KanbanOperacional
 import type {
   ComparativoMetaGrupoHoraItem,
   PlanejamentoTurnoDashboardV2,
+  QualidadeResumoTurnoV2,
   TurnoOpV2,
 } from '@/types'
 import type {
@@ -50,6 +51,7 @@ interface DashboardVisaoOperacionalTabProps {
   erroMetaGrupo?: string | null
   comparativoPorHora: ComparativoMetaGrupoHoraItem[]
   estaCarregandoGrafico: boolean
+  resumoQualidade: QualidadeResumoTurnoV2 | null
   onSelecionarOp: (turnoOpId: string) => void
   onSelecionarSetor: (setorId: string) => void
 }
@@ -63,6 +65,7 @@ export function DashboardVisaoOperacionalTab({
   erroMetaGrupo,
   comparativoPorHora,
   estaCarregandoGrafico,
+  resumoQualidade,
   onSelecionarOp,
   onSelecionarSetor,
 }: DashboardVisaoOperacionalTabProps) {
@@ -118,6 +121,58 @@ export function DashboardVisaoOperacionalTab({
           destaque="amber"
         />
       </div>
+
+      {resumoQualidade && resumoQualidade.quantidadeRevisadaTotal > 0 ? (
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Peças revisadas
+            </p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">
+              {resumoQualidade.quantidadeRevisadaTotal}
+            </p>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              {resumoQualidade.opsComRevisao} OPs com revisão
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+              Peças reprovadas
+            </p>
+            <p className="mt-2 text-3xl font-semibold text-amber-900">
+              {resumoQualidade.quantidadeReprovadaTotal}
+            </p>
+            <p className="mt-1 text-xs font-medium text-amber-800">
+              {resumoQualidade.opsComReprovacao} OPs com reprovação
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-rose-700">
+              Reprovação
+            </p>
+            <p className="mt-2 text-3xl font-semibold text-rose-900">
+              {resumoQualidade.percentualReprovacao?.toFixed(1) ?? '0.0'}%
+            </p>
+            <p className="mt-1 text-xs font-medium text-rose-800">
+              Reprovadas sobre revisadas
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+              Defeitos operacionais
+            </p>
+            <p className="mt-2 text-3xl font-semibold text-violet-900">
+              {resumoQualidade.totalDefeitos}
+            </p>
+            <p className="mt-1 text-xs font-medium text-violet-800">
+              {resumoQualidade.percentualDefeitosOperacionais?.toFixed(1) ?? '0.0'}% da base revisada
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       {turnoAberto ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">

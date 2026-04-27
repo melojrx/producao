@@ -877,6 +877,146 @@ export type Database = {
         }
         Relationships: []
       }
+      qualidade_detalhes: {
+        Row: {
+          created_at: string | null
+          id: string
+          operacao_id_origem: string
+          qualidade_registro_id: string
+          quantidade_defeito: number
+          setor_id_origem: string
+          turno_setor_operacao_id_origem: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          operacao_id_origem: string
+          qualidade_registro_id: string
+          quantidade_defeito: number
+          setor_id_origem: string
+          turno_setor_operacao_id_origem: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          operacao_id_origem?: string
+          qualidade_registro_id?: string
+          quantidade_defeito?: number
+          setor_id_origem?: string
+          turno_setor_operacao_id_origem?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualidade_detalhes_operacao_id_origem_fkey"
+            columns: ["operacao_id_origem"]
+            isOneToOne: false
+            referencedRelation: "operacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_detalhes_qualidade_registro_id_fkey"
+            columns: ["qualidade_registro_id"]
+            isOneToOne: false
+            referencedRelation: "qualidade_registros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_detalhes_setor_id_origem_fkey"
+            columns: ["setor_id_origem"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_detalhes_turno_setor_operacao_id_origem_fkey"
+            columns: ["turno_setor_operacao_id_origem"]
+            isOneToOne: false
+            referencedRelation: "turno_setor_operacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qualidade_registros: {
+        Row: {
+          created_at: string | null
+          id: string
+          origem_lancamento: string
+          quantidade_aprovada: number
+          quantidade_reprovada: number
+          quantidade_revisada: number
+          revisor_usuario_id: string
+          turno_id: string
+          turno_op_id: string
+          turno_setor_operacao_id_qualidade: string
+          turno_setor_op_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          origem_lancamento: string
+          quantidade_aprovada?: number
+          quantidade_reprovada?: number
+          quantidade_revisada: number
+          revisor_usuario_id: string
+          turno_id: string
+          turno_op_id: string
+          turno_setor_operacao_id_qualidade: string
+          turno_setor_op_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          origem_lancamento?: string
+          quantidade_aprovada?: number
+          quantidade_reprovada?: number
+          quantidade_revisada?: number
+          revisor_usuario_id?: string
+          turno_id?: string
+          turno_op_id?: string
+          turno_setor_operacao_id_qualidade?: string
+          turno_setor_op_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualidade_registros_revisor_usuario_id_fkey"
+            columns: ["revisor_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_registros_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_registros_turno_op_id_fkey"
+            columns: ["turno_op_id"]
+            isOneToOne: false
+            referencedRelation: "turno_ops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_registros_turno_setor_operacao_id_qualidade_fkey"
+            columns: ["turno_setor_operacao_id_qualidade"]
+            isOneToOne: false
+            referencedRelation: "turno_setor_operacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_registros_turno_setor_op_id_fkey"
+            columns: ["turno_setor_op_id"]
+            isOneToOne: false
+            referencedRelation: "turno_setor_ops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios_sistema: {
         Row: {
           ativo: boolean | null
@@ -886,6 +1026,7 @@ export type Database = {
           id: string
           nome: string
           papel: string
+          pode_revisar_qualidade: boolean
           updated_at: string | null
         }
         Insert: {
@@ -896,6 +1037,7 @@ export type Database = {
           id?: string
           nome: string
           papel: string
+          pode_revisar_qualidade?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -906,6 +1048,7 @@ export type Database = {
           id?: string
           nome?: string
           papel?: string
+          pode_revisar_qualidade?: boolean
           updated_at?: string | null
         }
         Relationships: []
@@ -916,6 +1059,7 @@ export type Database = {
           codigo: number
           created_at: string | null
           id: string
+          modo_apontamento: string
           nome: string
           updated_at: string | null
         }
@@ -924,6 +1068,7 @@ export type Database = {
           codigo?: number
           created_at?: string | null
           id?: string
+          modo_apontamento?: string
           nome: string
           updated_at?: string | null
         }
@@ -932,6 +1077,7 @@ export type Database = {
           codigo?: number
           created_at?: string | null
           id?: string
+          modo_apontamento?: string
           nome?: string
           updated_at?: string | null
         }
@@ -1207,6 +1353,32 @@ export type Database = {
           status_turno_op: string
           status_turno_setor_op: string
           status_turno_setor_operacao: string
+          turno_setor_operacao_id: string
+        }[]
+      }
+      registrar_revisao_qualidade_turno_setor_operacao: {
+        Args: {
+          p_detalhes?: Json
+          p_origem_lancamento?: string
+          p_quantidade_aprovada: number
+          p_quantidade_reprovada: number
+          p_revisor_usuario_id: string
+          p_turno_setor_operacao_id_qualidade: string
+        }
+        Returns: {
+          qualidade_registro_id: string
+          quantidade_aprovada: number
+          quantidade_realizada_operacao: number
+          quantidade_realizada_secao: number
+          quantidade_realizada_turno_op: number
+          quantidade_reprovada: number
+          quantidade_revisada: number
+          saldo_restante_operacao: number
+          saldo_restante_secao: number
+          status_turno_op: string
+          status_turno_setor_op: string
+          status_turno_setor_operacao: string
+          total_defeitos: number
           turno_setor_operacao_id: string
         }[]
       }

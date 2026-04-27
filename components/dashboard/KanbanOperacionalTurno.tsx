@@ -319,7 +319,7 @@ export function KanbanOperacionalTurno({
                       const op = opsPorId.get(demanda.turnoOpId)
                       const resumoParalelo = resumirFluxoParaleloDemandaKanban(op, demanda)
                       const quantidadePlanoDoDia =
-                        demanda.quantidadeAceitaAcumuladaSetor ?? demanda.quantidadeAceitaTurno
+                        demanda.quantidadeAceitaAcumuladaSetor ?? 0
                       const etapasAtivasTexto = resumoParalelo.posicoesFluxoAtivas.map((posicao) =>
                         formatarEtapaFluxo(posicao.etapa)
                       )
@@ -520,7 +520,7 @@ export function KanbanOperacionalTurno({
                         {demandasLiberadasEmFila.map((demanda) => (
                           (() => {
                             const quantidadePlanoDoDia =
-                              demanda.quantidadeAceitaAcumuladaSetor ?? demanda.quantidadeAceitaTurno
+                              demanda.quantidadeAceitaAcumuladaSetor ?? 0
                             const saldoManualSupervisor = demanda.saldoManualPermitido ?? 0
 
                             return (

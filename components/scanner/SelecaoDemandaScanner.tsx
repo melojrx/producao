@@ -3,16 +3,17 @@
 import { AlertTriangle, ArrowRight, Boxes, GitBranch, Link2, PackageSearch } from 'lucide-react'
 import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import type {
-  OperadorScaneado,
   TurnoSetorDemandaScaneada,
   TurnoSetorScaneado,
 } from '@/types'
 
 interface SelecaoDemandaScannerProps {
   demandas: TurnoSetorDemandaScaneada[]
-  operador: OperadorScaneado
+  nomeResponsavel: string
+  rotuloResponsavel?: string
   onSelecionarDemanda: (demandaId: string) => void | Promise<void>
-  onTrocarOperador: () => void
+  onAcaoSecundaria: () => void
+  acaoSecundariaLabel?: string
   setor: TurnoSetorScaneado
 }
 
@@ -34,9 +35,11 @@ function statusTema(status: TurnoSetorDemandaScaneada['status']): string {
 
 export function SelecaoDemandaScanner({
   demandas,
-  operador,
+  nomeResponsavel,
+  rotuloResponsavel = 'Operador',
   onSelecionarDemanda,
-  onTrocarOperador,
+  onAcaoSecundaria,
+  acaoSecundariaLabel = 'Trocar operador',
   setor,
 }: SelecaoDemandaScannerProps) {
   function formatarLeituraDemanda(
@@ -71,8 +74,8 @@ export function SelecaoDemandaScanner({
 
       <h2 className="mt-3 text-xl font-semibold text-white">{setor.setorNome}</h2>
       <p className="mt-2 text-sm text-slate-300">
-        Operador <strong className="text-white">{operador.nome}</strong> pronto para escolher a
-        demanda dentro deste setor.
+        {rotuloResponsavel} <strong className="text-white">{nomeResponsavel}</strong> pronto para
+        escolher a demanda dentro deste setor.
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
         {demandas.length} OP/produto(s) com disponibilidade imediata neste setor
@@ -200,11 +203,11 @@ export function SelecaoDemandaScanner({
 
       <button
         type="button"
-        onClick={onTrocarOperador}
+        onClick={onAcaoSecundaria}
         className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-3xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
       >
         <Boxes size={16} />
-        Trocar operador
+        {acaoSecundariaLabel}
       </button>
     </section>
   )

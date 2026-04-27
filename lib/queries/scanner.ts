@@ -13,6 +13,7 @@ import {
   aplicarCapacidadeOperacionalDemandas,
   limitarOperacoesTurnoAoAceiteDemandas,
 } from '@/lib/utils/hidratacao-capacidade-setor-turno'
+import { inferirModoApontamentoSetor } from '@/lib/utils/qualidade'
 import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
@@ -322,6 +323,7 @@ export async function buscarTurnoSetorScaneadoPorToken(
     turnoIniciadoEm: turnoSetor.turno_iniciado_em,
     setorId: turnoSetor.setor_id,
     setorNome: turnoSetor.setor_nome,
+    modoApontamento: inferirModoApontamentoSetor(turnoSetor.setor_nome),
     quantidadePlanejada: turnoSetor.quantidade_planejada,
     quantidadeRealizada: turnoSetor.quantidade_realizada,
     quantidadeConcluida: turnoSetor.quantidade_realizada,

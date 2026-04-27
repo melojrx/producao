@@ -8,12 +8,15 @@ import {
   ExternalLink,
   Layers3,
   Package,
+  ShieldAlert,
+  Users,
   X,
 } from 'lucide-react'
 import { ModalDetalhesSecaoTurno } from '@/components/dashboard/ModalDetalhesSecaoTurno'
 import type { TurnoOpResumoDashboardItem } from '@/lib/utils/turno-setores'
 import type {
   ProdutoListItem,
+  QualidadeResumoOpV2,
   TurnoOperadorAtividadeSetorV2,
   TurnoOpStatusV2,
   TurnoOpV2,
@@ -37,6 +40,7 @@ interface ModalDetalhesOpTurnoProps {
   op: TurnoOpV2
   opResumo: TurnoOpResumoDashboardItem | null
   secoes: SecaoDetalheOp[]
+  qualidadeResumo: QualidadeResumoOpV2 | null
   iniciadoEmTurno: string
   produtosCatalogo: ProdutoListItem[]
   operadoresTurno: TurnoOperadorV2[]
@@ -73,10 +77,19 @@ function obterTemaStatus(status: TurnoOpStatusV2 | TurnoSetorOpStatusV2): string
   return 'bg-slate-100 text-slate-700'
 }
 
+function formatarPercentual(valor: number | null): string {
+  if (valor === null || Number.isNaN(valor)) {
+    return 'sem dados'
+  }
+
+  return `${valor.toFixed(1)}%`
+}
+
 export function ModalDetalhesOpTurno({
   op,
   opResumo,
   secoes,
+  qualidadeResumo,
   iniciadoEmTurno,
   produtosCatalogo,
   operadoresTurno,
@@ -312,6 +325,163 @@ export function ModalDetalhesOpTurno({
                 </div>
               </div>
             </article>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-slate-900">Qualidade da OP</h3>
+                <p className="text-sm text-slate-600">
+                  Leitura administrativa da revisão sem distorcer o andamento produtivo.
+                </p>
+              </div>
+              {qualidadeResumo ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                  <ShieldAlert size={14} />
+                  {qualidadeResumo.operacoesComDefeito.length} operação(ões) com defeito
+                </span>
+              ) : null}
+            </div>
+
+            {qualidadeResumo ? (
+              <div className="mt-5 space-y-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Peças revisadas
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">
+                      {qualidadeResumo.quantidadeRevisada}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {qualidadeResumo.quantidadeAprovada} aprovadas
+                    </p>
+                  </article>
+
+                  <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                      Peças reprovadas
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-amber-900">
+                      {qualidadeResumo.quantidadeReprovada}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-amber-800">
+                      {formatarPercentual(qualidadeResumo.percentualReprovacao)}
+                    </p>
+                  </article>
+
+                  <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                      Total de defeitos
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-violet-900">
+                      {qualidadeResumo.totalDefeitos}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-violet-800">
+                      {qualidadeResumo.operacoesProdutivasCount} operações produtivas na base
+                    </p>
+                  </article>
+
+                  <article className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-rose-700">
+                      Intensidade de defeitos
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-rose-900">
+                      {formatarPercentual(qualidadeResumo.percentualDefeitosOp)}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-rose-800">
+                      {qualidadeResumo.oportunidadesRevisadas} oportunidades revisadas
+                    </p>
+                  </article>
+                </div>
+
+                {qualidadeResumo.operacoesComDefeito.length > 0 ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-900">
+                        Operações com defeito
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Cada linha mostra a origem do defeito e os operadores envolvidos quando há
+                        rastreio nos apontamentos produtivos.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {qualidadeResumo.operacoesComDefeito.map((operacao) => (
+                        <article
+                          key={operacao.turnoSetorOperacaoIdOrigem}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {operacao.operacaoCodigoOrigem} · {operacao.operacaoDescricaoOrigem}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {operacao.setorNomeOrigem}
+                              </p>
+                            </div>
+
+                            <div className="grid min-w-[220px] gap-2 sm:grid-cols-2">
+                              <div className="rounded-xl border border-violet-200 bg-white p-3">
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-violet-700">
+                                  Defeitos
+                                </p>
+                                <p className="mt-2 text-xl font-semibold text-violet-900">
+                                  {operacao.quantidadeDefeitos}
+                                </p>
+                              </div>
+
+                              <div className="rounded-xl border border-rose-200 bg-white p-3">
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-rose-700">
+                                  Índice da operação
+                                </p>
+                                <p className="mt-2 text-xl font-semibold text-rose-900">
+                                  {formatarPercentual(operacao.percentualDefeitosOperacao)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                              <Users size={14} />
+                              Operadores envolvidos
+                            </div>
+
+                            {operacao.possuiApontamentos ? (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {operacao.operadoresEnvolvidos.map((operador) => (
+                                  <span
+                                    key={operador.operadorId}
+                                    className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                                  >
+                                    {operador.nome} ({operador.quantidadeApontada})
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-sm text-slate-600">
+                                Sem apontamentos individuais rastreados nesta operação.
+                              </p>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    Revisões registradas sem defeitos operacionais apontados até o momento.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                Nenhuma revisão de qualidade foi lançada para esta OP até o momento.
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

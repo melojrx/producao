@@ -2,19 +2,21 @@
 
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { CalendarRange, ClipboardList } from 'lucide-react'
+import { CalendarRange, ClipboardCheck, ClipboardList } from 'lucide-react'
 
-type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno'
+type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno' | 'qualidade_turno'
 
 interface ApontamentosTabsProps {
   gestaoMensal: ReactNode
   operacaoTurno: ReactNode
+  qualidadeTurno: ReactNode
   abaInicial?: ApontamentosTabId
 }
 
 export function ApontamentosTabs({
   gestaoMensal,
   operacaoTurno,
+  qualidadeTurno,
   abaInicial = 'gestao_mensal',
 }: ApontamentosTabsProps) {
   const [abaAtiva, setAbaAtiva] = useState<ApontamentosTabId>(abaInicial)
@@ -37,12 +39,18 @@ export function ApontamentosTabs({
       descricao: 'Controles do turno e lançamentos operacionais do supervisor.',
       icone: ClipboardList,
     },
+    {
+      id: 'qualidade_turno',
+      titulo: 'Qualidade',
+      descricao: 'Revisão de aprovadas, reprovadas e defeitos por operação de origem.',
+      icone: ClipboardCheck,
+    },
   ]
 
   return (
     <section className="space-y-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           {abas.map((aba) => {
             const Icone = aba.icone
             const ativa = aba.id === abaAtiva
@@ -85,7 +93,11 @@ export function ApontamentosTabs({
         </div>
       </section>
 
-      {abaAtiva === 'gestao_mensal' ? gestaoMensal : operacaoTurno}
+      {abaAtiva === 'gestao_mensal'
+        ? gestaoMensal
+        : abaAtiva === 'operacao_turno'
+          ? operacaoTurno
+          : qualidadeTurno}
     </section>
   )
 }

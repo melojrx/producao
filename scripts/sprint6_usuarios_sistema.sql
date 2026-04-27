@@ -9,10 +9,14 @@ CREATE TABLE IF NOT EXISTS usuarios_sistema (
   nome VARCHAR(150) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   papel VARCHAR(20) NOT NULL CHECK (papel IN ('admin', 'supervisor')),
+  pode_revisar_qualidade BOOLEAN NOT NULL DEFAULT FALSE,
   ativo BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE usuarios_sistema
+ADD COLUMN IF NOT EXISTS pode_revisar_qualidade BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_usuarios_sistema_auth_user_id
   ON usuarios_sistema(auth_user_id);
@@ -57,4 +61,12 @@ WHERE EXISTS (
   FROM information_schema.columns
   WHERE table_name = 'usuarios_sistema'
     AND column_name = 'auth_user_id'
+);
+
+SELECT 'usuarios_sistema.pode_revisar_qualidade ok'
+WHERE EXISTS (
+  SELECT 1
+  FROM information_schema.columns
+  WHERE table_name = 'usuarios_sistema'
+    AND column_name = 'pode_revisar_qualidade'
 );

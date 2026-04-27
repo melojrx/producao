@@ -8,6 +8,7 @@ import {
   buscarOperadorScaneadoPorToken,
   buscarTurnoSetorScaneadoPorToken,
 } from '@/lib/queries/scanner'
+import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
 import type {
   OrigemApontamentoProducaoV2,
   OperadorScaneado,
@@ -23,6 +24,11 @@ export type EstadoScanner =
       etapa: 'selecionar_demanda'
       origemApontamento: OrigemApontamentoProducaoV2
       operador: OperadorScaneado
+      setor: TurnoSetorScaneado
+      demandas: TurnoSetorDemandaScaneada[]
+    }
+  | {
+      etapa: 'selecionar_demanda_qualidade'
       setor: TurnoSetorScaneado
       demandas: TurnoSetorDemandaScaneada[]
     }
@@ -55,6 +61,22 @@ export type EstadoScanner =
       operacoes: TurnoSetorOperacaoApontamentoV2[]
       setor: TurnoSetorScaneado
     }
+  | {
+      etapa: 'informar_qualidade'
+      demandaSelecionada: TurnoSetorDemandaScaneada
+      demandas: TurnoSetorDemandaScaneada[]
+      operacaoQualidade: TurnoSetorOperacaoApontamentoV2
+      operacoesOrigem: TurnoSetorOperacaoApontamentoV2[]
+      setor: TurnoSetorScaneado
+    }
+  | {
+      etapa: 'registrar_qualidade'
+      demandaSelecionada: TurnoSetorDemandaScaneada
+      demandas: TurnoSetorDemandaScaneada[]
+      operacaoQualidade: TurnoSetorOperacaoApontamentoV2
+      operacoesOrigem: TurnoSetorOperacaoApontamentoV2[]
+      setor: TurnoSetorScaneado
+    }
 
 export interface RegistroProducaoInput {
   operadorId: string
@@ -64,6 +86,18 @@ export interface RegistroProducaoInput {
   maquinaId?: string | null
   observacao?: string | null
   usuarioSistemaId?: string | null
+}
+
+export interface RegistroQualidadeDefeitoInput {
+  turnoSetorOperacaoIdOrigem: string
+  quantidadeDefeito: number
+}
+
+export interface RegistroQualidadeInput {
+  turnoSetorOperacaoIdQualidade: string
+  quantidadeAprovada: number
+  quantidadeReprovada: number
+  defeitos: RegistroQualidadeDefeitoInput[]
 }
 
 export interface ResultadoScannerAction {
@@ -85,10 +119,17 @@ export interface ResultadoScannerAction {
 
 interface UseScannerOptions {
   onRegistrar?: (input: RegistroProducaoInput) => Promise<ResultadoScannerAction>
+  onRegistrarQualidade?: (input: RegistroQualidadeInput) => Promise<ResultadoScannerAction>
+  podeRegistrarQualidade?: boolean
 }
 
 type ScannerAction =
   | { type: 'SETOR_IDENTIFICADO'; setor: TurnoSetorScaneado }
+  | {
+      type: 'SETOR_QUALIDADE_IDENTIFICADO'
+      setor: TurnoSetorScaneado
+      demandas: TurnoSetorDemandaScaneada[]
+    }
   | {
       type: 'OPERADOR_IDENTIFICADO'
       origemApontamento: OrigemApontamentoProducaoV2
@@ -100,15 +141,30 @@ type ScannerAction =
       demandaSelecionada: TurnoSetorDemandaScaneada
       operacoes: TurnoSetorOperacaoApontamentoV2[]
     }
+  | {
+      type: 'DEMANDA_QUALIDADE_SELECIONADA'
+      demandaSelecionada: TurnoSetorDemandaScaneada
+      operacaoQualidade: TurnoSetorOperacaoApontamentoV2
+      operacoesOrigem: TurnoSetorOperacaoApontamentoV2[]
+    }
   | { type: 'SELECIONAR_OPERACAO'; operacaoId: string }
   | { type: 'INICIAR_REGISTRO' }
   | { type: 'FALHA_REGISTRO' }
+  | { type: 'INICIAR_REGISTRO_QUALIDADE' }
+  | { type: 'FALHA_REGISTRO_QUALIDADE' }
   | {
       type: 'SUCESSO_REGISTRO'
       demandaAtualizada: TurnoSetorDemandaScaneada
       demandasAtualizadas: TurnoSetorDemandaScaneada[]
       operacaoAtualizada: TurnoSetorOperacaoApontamentoV2
       operacoesAtualizadas: TurnoSetorOperacaoApontamentoV2[]
+      setorAtualizado: TurnoSetorScaneado
+    }
+  | {
+      type: 'SUCESSO_REGISTRO_QUALIDADE'
+      demandaAtualizada: TurnoSetorDemandaScaneada
+      demandasAtualizadas: TurnoSetorDemandaScaneada[]
+      operacaoQualidadeAtualizada: TurnoSetorOperacaoApontamentoV2
       setorAtualizado: TurnoSetorScaneado
     }
   | { type: 'TROCAR_OPERADOR' }
@@ -129,7 +185,6 @@ function calcularSaldoAceitoDemanda(
     | 'quantidadeDisponivelApontamento'
     | 'quantidadeLiberadaSetor'
     | 'quantidadePlanejada'
-    | 'quantidadeRealizada'
   >
 ): number {
   if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
@@ -234,6 +289,12 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         etapa: 'scan_operador',
         setor: action.setor,
       }
+    case 'SETOR_QUALIDADE_IDENTIFICADO':
+      return {
+        etapa: 'selecionar_demanda_qualidade',
+        setor: action.setor,
+        demandas: action.demandas,
+      }
     case 'OPERADOR_IDENTIFICADO':
       if (estado.etapa !== 'scan_operador') {
         return estado
@@ -258,6 +319,19 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         origemApontamento: estado.origemApontamento,
         operador: estado.operador,
         operacoes: action.operacoes,
+        setor: estado.setor,
+      }
+    case 'DEMANDA_QUALIDADE_SELECIONADA':
+      if (estado.etapa !== 'selecionar_demanda_qualidade') {
+        return estado
+      }
+
+      return {
+        etapa: 'informar_qualidade',
+        demandaSelecionada: action.demandaSelecionada,
+        demandas: estado.demandas,
+        operacaoQualidade: action.operacaoQualidade,
+        operacoesOrigem: action.operacoesOrigem,
         setor: estado.setor,
       }
     case 'SELECIONAR_OPERACAO':
@@ -312,6 +386,32 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         operacoes: estado.operacoes,
         setor: estado.setor,
       }
+    case 'INICIAR_REGISTRO_QUALIDADE':
+      if (estado.etapa !== 'informar_qualidade') {
+        return estado
+      }
+
+      return {
+        etapa: 'registrar_qualidade',
+        demandaSelecionada: estado.demandaSelecionada,
+        demandas: estado.demandas,
+        operacaoQualidade: estado.operacaoQualidade,
+        operacoesOrigem: estado.operacoesOrigem,
+        setor: estado.setor,
+      }
+    case 'FALHA_REGISTRO_QUALIDADE':
+      if (estado.etapa !== 'registrar_qualidade') {
+        return estado
+      }
+
+      return {
+        etapa: 'informar_qualidade',
+        demandaSelecionada: estado.demandaSelecionada,
+        demandas: estado.demandas,
+        operacaoQualidade: estado.operacaoQualidade,
+        operacoesOrigem: estado.operacoesOrigem,
+        setor: estado.setor,
+      }
     case 'SUCESSO_REGISTRO':
       if (estado.etapa !== 'registrar') {
         return estado
@@ -325,6 +425,19 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         operacaoSelecionada: action.operacaoAtualizada,
         operador: estado.operador,
         operacoes: action.operacoesAtualizadas,
+        setor: action.setorAtualizado,
+      }
+    case 'SUCESSO_REGISTRO_QUALIDADE':
+      if (estado.etapa !== 'registrar_qualidade') {
+        return estado
+      }
+
+      return {
+        etapa: 'informar_qualidade',
+        demandaSelecionada: action.demandaAtualizada,
+        demandas: action.demandasAtualizadas,
+        operacaoQualidade: action.operacaoQualidadeAtualizada,
+        operacoesOrigem: estado.operacoesOrigem,
         setor: action.setorAtualizado,
       }
     case 'TROCAR_OPERADOR':
@@ -343,6 +456,17 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
       return estado
     case 'TROCAR_DEMANDA':
       if (
+        estado.etapa === 'informar_qualidade' ||
+        estado.etapa === 'registrar_qualidade'
+      ) {
+        return {
+          etapa: 'selecionar_demanda_qualidade',
+          setor: estado.setor,
+          demandas: estado.demandas,
+        }
+      }
+
+      if (
         estado.etapa !== 'selecionar_operacao' &&
         estado.etapa !== 'informar_quantidade' &&
         estado.etapa !== 'registrar'
@@ -350,12 +474,12 @@ function scannerReducer(estado: EstadoScanner, action: ScannerAction): EstadoSca
         return estado
       }
 
-        return {
-          etapa: 'selecionar_demanda',
-          origemApontamento: estado.origemApontamento,
-          operador: estado.operador,
-          setor: estado.setor,
-          demandas: estado.demandas,
+      return {
+        etapa: 'selecionar_demanda',
+        origemApontamento: estado.origemApontamento,
+        operador: estado.operador,
+        setor: estado.setor,
+        demandas: estado.demandas,
       }
     case 'TROCAR_OPERACAO':
       if (estado.etapa !== 'informar_quantidade' && estado.etapa !== 'registrar') {
@@ -383,6 +507,18 @@ export function useScanner(options: UseScannerOptions = {}) {
   const [erro, setErro] = useState<string | null>(null)
   const [estaCarregando, setEstaCarregando] = useState(false)
 
+  async function carregarDemandasAtivas(turnoSetorId: string): Promise<TurnoSetorDemandaScaneada[]> {
+    const demandas = await buscarDemandasScaneadasPorTurnoSetor(turnoSetorId)
+
+    return demandas.filter(
+      (demanda) =>
+        demanda.status !== 'concluida' &&
+        demanda.status !== 'encerrada_manualmente' &&
+        demanda.saldoRestante > 0 &&
+        calcularSaldoDisponivelSequencialDemanda(demanda) > 0
+    )
+  }
+
   async function identificarOperador(
     operador: OperadorScaneado,
     origemApontamento: OrigemApontamentoProducaoV2
@@ -393,14 +529,7 @@ export function useScanner(options: UseScannerOptions = {}) {
       return { sucesso: false, erro: mensagem }
     }
 
-    const demandas = await buscarDemandasScaneadasPorTurnoSetor(estado.setor.id)
-    const demandasAtivas = demandas.filter(
-      (demanda) =>
-        demanda.status !== 'concluida' &&
-        demanda.status !== 'encerrada_manualmente' &&
-        demanda.saldoRestante > 0 &&
-        calcularSaldoDisponivelSequencialDemanda(demanda) > 0
-    )
+    const demandasAtivas = await carregarDemandasAtivas(estado.setor.id)
 
     if (demandasAtivas.length === 0) {
       const mensagem =
@@ -436,6 +565,27 @@ export function useScanner(options: UseScannerOptions = {}) {
         const mensagem = 'Este setor não possui disponibilidade imediata para lançamento.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
+      }
+
+      if (setorUsaRevisaoQualidade(setor.setorNome, setor.modoApontamento)) {
+        if (options.podeRegistrarQualidade !== true) {
+          const mensagem =
+            'Sua sessão não possui permissão de revisor para usar o setor Qualidade no scanner.'
+          setErro(mensagem)
+          return { sucesso: false, erro: mensagem }
+        }
+
+        const demandasAtivas = await carregarDemandasAtivas(setor.id)
+
+        if (demandasAtivas.length === 0) {
+          const mensagem =
+            'O setor Qualidade ainda não possui OPs/produtos liberados pelo fluxo anterior para revisão.'
+          setErro(mensagem)
+          return { sucesso: false, erro: mensagem }
+        }
+
+        dispatch({ type: 'SETOR_QUALIDADE_IDENTIFICADO', setor, demandas: demandasAtivas })
+        return { sucesso: true }
       }
 
       dispatch({ type: 'SETOR_IDENTIFICADO', setor })
@@ -496,14 +646,16 @@ export function useScanner(options: UseScannerOptions = {}) {
   }
 
   async function selecionarDemanda(demandaId: string): Promise<ResultadoScannerAction> {
-    if (estado.etapa !== 'selecionar_demanda') {
-      const mensagem = 'Escaneie o operador antes de selecionar a OP/produto.'
+    if (
+      estado.etapa !== 'selecionar_demanda' &&
+      estado.etapa !== 'selecionar_demanda_qualidade'
+    ) {
+      const mensagem = 'Selecione o contexto correto antes de escolher a OP/produto.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
 
-    const demandaSelecionada =
-      estado.demandas.find((demanda) => demanda.id === demandaId) ?? null
+    const demandaSelecionada = estado.demandas.find((demanda) => demanda.id === demandaId) ?? null
 
     if (!demandaSelecionada) {
       const mensagem = 'A demanda escolhida não foi encontrada no setor aberto.'
@@ -516,6 +668,43 @@ export function useScanner(options: UseScannerOptions = {}) {
 
     try {
       const operacoes = await buscarOperacoesScaneadasPorDemanda(demandaSelecionada)
+
+      if (estado.etapa === 'selecionar_demanda_qualidade') {
+        const operacaoQualidade =
+          operacoes.find(
+            (operacao) =>
+              operacao.turnoSetorOpId === demandaSelecionada.turnoSetorOpLegacyId ||
+              operacao.setorId === estado.setor.setorId
+          ) ?? null
+
+        const operacoesOrigem = operacoes.filter(
+          (operacao) =>
+            operacao.id !== operacaoQualidade?.id && operacao.setorId !== estado.setor.setorId
+        )
+
+        if (!operacaoQualidade) {
+          const mensagem =
+            'A OP/produto escolhida não possui a operação de revisão derivada para o setor Qualidade.'
+          setErro(mensagem)
+          return { sucesso: false, erro: mensagem }
+        }
+
+        if (operacoesOrigem.length === 0) {
+          const mensagem =
+            'A OP/produto escolhida não possui operações produtivas elegíveis para registrar defeitos de origem.'
+          setErro(mensagem)
+          return { sucesso: false, erro: mensagem }
+        }
+
+        dispatch({
+          type: 'DEMANDA_QUALIDADE_SELECIONADA',
+          demandaSelecionada,
+          operacaoQualidade,
+          operacoesOrigem,
+        })
+        return { sucesso: true }
+      }
+
       const operacoesDisponiveis = operacoes.filter(
         (operacao) =>
           operacao.status !== 'concluida' &&
@@ -716,6 +905,191 @@ export function useScanner(options: UseScannerOptions = {}) {
     }
   }
 
+  async function registrarQualidade(
+    input: {
+      quantidadeAprovada: number
+      quantidadeReprovada: number
+      defeitos: RegistroQualidadeDefeitoInput[]
+    }
+  ): Promise<ResultadoScannerAction> {
+    if (estado.etapa !== 'informar_qualidade') {
+      const mensagem = 'Selecione uma OP de qualidade antes de registrar a revisão.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    if (!Number.isInteger(input.quantidadeAprovada) || input.quantidadeAprovada < 0) {
+      const mensagem = 'A quantidade aprovada deve ser um número inteiro maior ou igual a 0.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    if (!Number.isInteger(input.quantidadeReprovada) || input.quantidadeReprovada < 0) {
+      const mensagem = 'A quantidade reprovada deve ser um número inteiro maior ou igual a 0.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    const quantidadeRevisada = input.quantidadeAprovada + input.quantidadeReprovada
+
+    if (quantidadeRevisada <= 0) {
+      const mensagem = 'Informe ao menos uma peça aprovada ou reprovada para registrar a revisão.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    const saldoOperacao = calcularSaldoRestante(
+      estado.operacaoQualidade.quantidadePlanejada,
+      estado.operacaoQualidade.quantidadeRealizada
+    )
+    const saldoSequencialOperacao = calcularSaldoDisponivelSequencialOperacao(
+      estado.demandaSelecionada,
+      estado.operacaoQualidade
+    )
+
+    if (quantidadeRevisada > saldoOperacao) {
+      const mensagem = `A quantidade revisada ultrapassa o saldo da operação de qualidade. Saldo disponível: ${saldoOperacao}.`
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    if (quantidadeRevisada > saldoSequencialOperacao) {
+      const mensagem =
+        estado.demandaSelecionada.setorAnteriorNome && saldoSequencialOperacao === 0
+          ? `A revisão ainda não recebeu peças liberadas de ${estado.demandaSelecionada.setorAnteriorNome}.`
+          : `A quantidade revisada ultrapassa o lote liberado pelo fluxo anterior. Disponível agora: ${saldoSequencialOperacao}.`
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    if (!options.onRegistrarQualidade) {
+      const mensagem = 'O backend de revisão de qualidade ainda não foi conectado ao scanner.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    dispatch({ type: 'INICIAR_REGISTRO_QUALIDADE' })
+    setEstaCarregando(true)
+    setErro(null)
+
+    try {
+      const resultado = await options.onRegistrarQualidade({
+        turnoSetorOperacaoIdQualidade: estado.operacaoQualidade.id,
+        quantidadeAprovada: input.quantidadeAprovada,
+        quantidadeReprovada: input.quantidadeReprovada,
+        defeitos: input.defeitos,
+      })
+
+      if (!resultado.sucesso) {
+        dispatch({ type: 'FALHA_REGISTRO_QUALIDADE' })
+        setErro(resultado.erro ?? 'Não foi possível registrar a revisão de qualidade.')
+        return resultado
+      }
+
+      const quantidadeRealizadaOperacao =
+        resultado.quantidadeRealizadaOperacao ?? estado.operacaoQualidade.quantidadeRealizada
+      const operacaoQualidadeAtualizada: TurnoSetorOperacaoApontamentoV2 = {
+        ...estado.operacaoQualidade,
+        quantidadeRealizada: quantidadeRealizadaOperacao,
+        status:
+          (resultado.statusTurnoSetorOperacao as
+            | TurnoSetorOperacaoApontamentoV2['status']
+            | undefined) ?? estado.operacaoQualidade.status,
+      }
+
+      const quantidadeRealizadaDemanda =
+        resultado.quantidadeRealizadaDemanda ??
+        resultado.quantidadeRealizadaSecao ??
+        estado.demandaSelecionada.quantidadeRealizada
+      const saldoRestanteDemanda =
+        resultado.saldoRestanteDemanda ??
+        resultado.saldoRestanteSecao ??
+        calcularSaldoRestante(estado.demandaSelecionada.quantidadePlanejada, quantidadeRealizadaDemanda)
+      const quantidadeExpostaDemanda = calcularQuantidadeExpostaDemanda(estado.demandaSelecionada)
+      const quantidadeBacklogSetor = calcularSaldoRestante(
+        estado.demandaSelecionada.quantidadePlanejada,
+        quantidadeRealizadaDemanda
+      )
+      const quantidadeAceitaTurnoPlanejada =
+        typeof estado.demandaSelecionada.quantidadeAceitaTurno === 'number'
+          ? estado.demandaSelecionada.quantidadeAceitaTurno
+          : Math.max(quantidadeExpostaDemanda - estado.demandaSelecionada.quantidadeRealizada, 0)
+      const quantidadeDisponivelApontamento = Math.max(
+        calcularSaldoDisponivelSequencialDemanda(estado.demandaSelecionada) - quantidadeRevisada,
+        0
+      )
+
+      const demandaAtualizada: TurnoSetorDemandaScaneada = {
+        ...estado.demandaSelecionada,
+        quantidadeRealizada: quantidadeRealizadaDemanda,
+        saldoRestante: saldoRestanteDemanda,
+        quantidadeBacklogSetor,
+        quantidadeAceitaTurno: quantidadeAceitaTurnoPlanejada,
+        quantidadeExcedenteTurno: Math.max(
+          quantidadeBacklogSetor - quantidadeAceitaTurnoPlanejada,
+          0
+        ),
+        quantidadeDisponivelApontamento,
+        status:
+          (resultado.statusTurnoSetorDemanda as TurnoSetorDemandaScaneada['status'] | undefined) ??
+          (resultado.statusTurnoSetorOp as TurnoSetorDemandaScaneada['status'] | undefined) ??
+          derivarStatusDemanda(
+            estado.demandaSelecionada.status,
+            estado.demandaSelecionada.quantidadePlanejada,
+            quantidadeRealizadaDemanda
+          ),
+      }
+
+      const demandasAtualizadas = estado.demandas.map((demanda) =>
+        demanda.id === demandaAtualizada.id ? demandaAtualizada : demanda
+      )
+
+      const quantidadeRealizadaSetor =
+        resultado.quantidadeRealizadaSetor ??
+        demandasAtualizadas.reduce((soma, demanda) => soma + demanda.quantidadeRealizada, 0)
+      const saldoRestanteSetor =
+        resultado.saldoRestanteSetor ??
+        calcularSaldoRestante(estado.setor.quantidadePlanejada, quantidadeRealizadaSetor)
+      const setorAtualizado: TurnoSetorScaneado = {
+        ...estado.setor,
+        quantidadeRealizada: quantidadeRealizadaSetor,
+        saldoRestante: saldoRestanteSetor,
+        status:
+          (resultado.statusTurnoSetor as TurnoSetorScaneado['status'] | undefined) ??
+          derivarStatusSetor(demandasAtualizadas, estado.setor.status),
+      }
+
+      dispatch({
+        type: 'SUCESSO_REGISTRO_QUALIDADE',
+        demandaAtualizada,
+        demandasAtualizadas,
+        operacaoQualidadeAtualizada,
+        setorAtualizado,
+      })
+
+      return {
+        sucesso: true,
+        quantidadeRealizadaOperacao,
+        saldoRestanteOperacao: calcularSaldoRestante(
+          estado.operacaoQualidade.quantidadePlanejada,
+          quantidadeRealizadaOperacao
+        ),
+        statusTurnoSetorOperacao: operacaoQualidadeAtualizada.status,
+        quantidadeRealizadaDemanda,
+        saldoRestanteDemanda,
+        statusTurnoSetorDemanda: demandaAtualizada.status,
+        quantidadeRealizadaSetor,
+        saldoRestanteSetor,
+        statusTurnoSetor: setorAtualizado.status,
+        quantidadeRealizadaSecao: quantidadeRealizadaDemanda,
+        saldoRestanteSecao: saldoRestanteDemanda,
+        statusTurnoSetorOp: demandaAtualizada.status,
+      }
+    } finally {
+      setEstaCarregando(false)
+    }
+  }
+
   function trocarOperador(): void {
     setErro(null)
     dispatch({ type: 'TROCAR_OPERADOR' })
@@ -746,6 +1120,7 @@ export function useScanner(options: UseScannerOptions = {}) {
     selecionarDemanda,
     selecionarOperacao,
     registrar,
+    registrarQualidade,
     trocarDemanda,
     trocarOperacao,
     trocarOperador,

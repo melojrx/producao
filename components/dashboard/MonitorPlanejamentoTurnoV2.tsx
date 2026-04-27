@@ -254,8 +254,11 @@ export function MonitorPlanejamentoTurnoV2({
     const opResumo =
       mapearOpsTurnoParaDashboard(planejamento).find((item) => item.id === turnoOpSelecionadaId) ??
       null
+    const qualidadeResumo =
+      planejamento.qualidadeResumoOps?.find((item) => item.turnoOpId === turnoOpSelecionadaId) ??
+      null
 
-    return { op, opResumo, secoes }
+    return { op, opResumo, secoes, qualidadeResumo }
   }, [planejamento, turnoOpSelecionadaId])
 
   const turnoAberto = planejamento?.origem === 'aberto'
@@ -294,6 +297,7 @@ export function MonitorPlanejamentoTurnoV2({
           erroMetaGrupo={erroMetaGrupo}
           comparativoPorHora={comparativoPorHora}
           estaCarregandoGrafico={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
+          resumoQualidade={planejamento.resumoQualidadeTurno ?? null}
           onSelecionarOp={setTurnoOpSelecionadaId}
           onSelecionarSetor={setSetorSelecionadoId}
         />
@@ -313,6 +317,7 @@ export function MonitorPlanejamentoTurnoV2({
           op={opSelecionada.op}
           opResumo={opSelecionada.opResumo}
           secoes={opSelecionada.secoes}
+          qualidadeResumo={opSelecionada.qualidadeResumo}
           iniciadoEmTurno={planejamento.turno.iniciadoEm}
           produtosCatalogo={produtosCatalogo}
           operadoresTurno={planejamento.operadores}

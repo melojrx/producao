@@ -113,6 +113,27 @@ O ponto central é este:
 - cada **operação** pertence a um **setor**
 - então o roteiro do produto informa automaticamente **quais setores precisam atuar**
 
+### 5.1.1 Setor `Qualidade` como etapa oficial do fluxo
+
+O setor `Qualidade` passa a poder existir como etapa oficial do roteiro de um produto quando a operação de revisão fizer parte do cadastro estrutural daquele produto.
+
+Regras obrigatórias:
+- `Qualidade` é um setor do fluxo, não um módulo paralelo fora da modelagem `turno + OP + setor`
+- se o roteiro do produto incluir `Qualidade`, o turno deve derivar esse setor normalmente com QR operacional, seção própria da OP e operações planejadas dentro da seção
+- `Qualidade` deve obedecer às mesmas regras estruturais dos demais setores em:
+  - capacidade produtiva
+  - regra de aceite no turno
+  - QR operacional
+  - scanner
+  - apontamentos manuais
+  - encerramento da OP
+- a diferença de `Qualidade` não é estrutural; a diferença está apenas no contrato de input do apontamento
+
+Decisão complementar de modelagem:
+- setores podem evoluir para um contrato explícito de `modo_apontamento`
+- o modo padrão continua sendo o apontamento produtivo já homologado
+- o setor `Qualidade` usa um modo especial de revisão, mas sem deixar de ser setor oficial do fluxo
+
 ### 5.2 Abertura do turno
 
 ```
@@ -147,6 +168,11 @@ Resultado:
 - o sistema pode sugerir o dimensionamento de pessoas por setor antes da confirmação do turno
 - nesta primeira etapa, o dimensionamento por setor é apenas uma prévia operacional e não altera a gravação do turno
 - após salvar um novo turno, a navegação deve levar o supervisor para o relatório operacional de QR Codes do turno recém-aberto, onde ele escolhe como imprimir os QRs antes de voltar ao monitoramento da dashboard
+
+Quando o produto possuir `Qualidade` no roteiro:
+- o setor `Qualidade` entra normalmente na derivação do turno
+- a OP só é considerada totalmente encerrada quando `Qualidade` também cumprir seu papel no fluxo
+- a capacidade e o aceite do setor `Qualidade` devem participar da mesma disciplina operacional dos demais setores
 
 ### 5.2.1 Prévia de pessoas por setor
 
@@ -362,34 +388,59 @@ Supervisor ou operador abre o scanner no celular
 [Passo 3] Scanner lista as OPs/produtos ativos naquele setor
           → supervisor escolhe qual OP/produto será apontado
           → sistema lista as operações planejadas daquela OP dentro do setor
-          → supervisor escolhe qual operação será apontada
-          → sistema mostra realizado e saldo da operação
+          → se o setor estiver em modo produtivo padrão:
+            - supervisor escolhe qual operação será apontada
+            - sistema mostra realizado e saldo da operação
+          → se o setor estiver em modo de revisão de qualidade:
+            - sistema abre o fluxo de `aprovadas`, `reprovadas` e defeitos por operação de origem
 
-[Passo 4] Supervisor informa a quantidade incremental
-          → quantidade concluída pelo operador naquela operação
-          → lançamento sempre incremental, nunca total acumulado
+[Passo 4] Supervisor informa os dados do lançamento
+          → no modo produtivo padrão:
+            - quantidade concluída pelo operador naquela operação
+            - lançamento sempre incremental, nunca total acumulado
+          → no modo `revisao_qualidade`:
+            - quantidade_aprovada
+            - quantidade_reprovada
+            - para as reprovadas, defeitos por operação produtiva de origem do roteiro
 
 [Passo 5] Sistema registra o apontamento atômico
-          → cada lançamento identifica:
+          → no modo produtivo padrão, cada lançamento identifica:
             - operador executor
             - OP/produto selecionado dentro do setor
             - operação executada
             - setor do turno
             - quantidade incremental
             - autoria do lançamento (`supervisor_manual` ou `operador_qr`)
+          → no modo `revisao_qualidade`, cada lançamento identifica:
+            - OP/produto selecionado dentro do setor `Qualidade`
+            - revisor responsável
+            - setor do turno
+            - quantidade_aprovada
+            - quantidade_reprovada
+            - quantidade_revisada
+            - defeitos distribuídos nas operações produtivas de origem
 
 [Passo 6] Sistema confronta o apontamento com o planejamento
-          → atualiza o realizado da operação dentro da seção
-          → recalcula o realizado consolidado da seção
-          → recalcula o andamento da OP
-          → recalcula o andamento do turno em tempo real
-          → bloqueia qualquer lançamento que ultrapasse a quantidade planejada
+          → no modo produtivo padrão:
+            - atualiza o realizado da operação dentro da seção
+            - recalcula o realizado consolidado da seção
+          → no modo `revisao_qualidade`:
+            - considera `quantidade_revisada = quantidade_aprovada + quantidade_reprovada`
+            - consome o saldo do setor `Qualidade` com base na quantidade revisada
+            - persiste os defeitos por operação produtiva de origem
+          → em ambos os modos:
+            - recalcula o andamento da OP
+            - recalcula o andamento do turno em tempo real
+            - bloqueia qualquer lançamento que ultrapasse a quantidade planejada da seção
 ```
 
 Regra operacional:
 - a quantidade registrada no scanner é atribuída ao `operador_id` do QR escaneado
 - se o scanner estiver em sessão autenticada de supervisor, o sistema também deve auditar `usuario_sistema_id`
 - o executor da produção e o usuário que lançou o dado não são o mesmo conceito
+- no setor `Qualidade`, o usuário lançador atua como revisor e precisa ter permissão para revisão de qualidade
+- no setor `Qualidade`, a operação de revisão do próprio setor não pode entrar como origem elegível de defeito; os defeitos devem apontar apenas para as operações produtivas do roteiro
+- no setor `Qualidade`, a soma dos defeitos por operação pode ultrapassar a quantidade de peças reprovadas, porque os defeitos representam ocorrências operacionais e não rastreio unitário por peça
 
 Saídas após cada registro:
 - nova quantidade na mesma operação
@@ -406,6 +457,9 @@ Encerramento do setor:
 Encerramento da OP:
 - automático quando todos os setores obrigatórios da OP forem concluídos
 - pode ser ajustado manualmente pelo supervisor/admin
+
+Regra complementar:
+- quando o produto possuir `Qualidade` no roteiro, esse setor faz parte dos setores obrigatórios para encerramento completo da OP
 
 Encerramento do turno:
 - manual pelo supervisor/admin
@@ -441,6 +495,7 @@ Durante a execução, a dashboard acompanha em tempo real:
 Kanban operacional obrigatório na `Visão Operacional`:
 - a dashboard deve exibir um componente em estilo kanban com uma coluna por setor, seguindo a ordem oficial do fluxo fabril
 - as colunas devem respeitar a sequência obrigatória `Preparação -> Frente -> Costa -> Montagem -> Final`
+- quando existir `Qualidade` no roteiro do produto, a leitura operacional deve permitir que esse setor apareça como etapa final oficial após `Finalização`
 - `Frente` e `Costa` são colunas paralelas e independentes, abertas a partir de `Preparação`
 - cada card deve representar a OP ou o lote exatamente no setor em que ele se encontra naquele momento
 - uma mesma OP pode aparecer simultaneamente nas colunas `Frente` e `Costa` quando o fluxo daquela OP estiver na bifurcação paralela oficial do produto
@@ -504,6 +559,7 @@ Regras:
 - a quantidade planejada das operações derivadas dentro do setor continua vinculada à OP/produto selecionado
 - o sistema acompanha o realizado por operação, por setor e por OP
 - um lançamento nunca pode fazer o realizado da operação ultrapassar o planejado
+- se o produto possuir `Qualidade` no roteiro, a quantidade planejada do setor `Qualidade` segue a mesma disciplina das demais seções do turno
 
 ### 6.5 Semântica do apontamento
 
@@ -533,6 +589,47 @@ Então:
 - não `35`
 
 Essa regra evita supercontagem e preserva a leitura correta do funil produtivo.
+
+### 6.5.1 Semântica do apontamento em `Qualidade`
+
+Quando o setor estiver em modo `revisao_qualidade`, a semântica do input muda:
+
+- **quantidade aprovada**: peças revisadas e aprovadas no setor `Qualidade`
+- **quantidade reprovada**: peças revisadas e reprovadas no setor `Qualidade`
+- **quantidade revisada**: `quantidade_aprovada + quantidade_reprovada`
+- **defeito operacional**: ocorrência atribuída a uma operação produtiva de origem do roteiro, e não à operação de revisão do próprio setor
+
+Regras obrigatórias:
+- o setor `Qualidade` consome saldo e andamento com base na `quantidade_revisada`
+- a operação de revisão do próprio setor existe para receber o fluxo de revisão, mas não pode aparecer na lista de origem elegível para defeito
+- os defeitos devem ser distribuídos em uma ou mais operações produtivas do roteiro daquela OP/produto
+- o sistema não deve exigir rastreio por peça individual
+- o sistema não deve forçar que a soma dos defeitos por operação seja igual ou inferior à quantidade de peças reprovadas
+
+Leituras gerenciais obrigatórias:
+
+```text
+quantidade_revisada = quantidade_aprovada + quantidade_reprovada
+
+percentual_reprovacao =
+  (quantidade_reprovada / quantidade_revisada) × 100
+
+operacoes_produtivas_op =
+  quantidade de operações do roteiro, excluindo as operações de revisão
+
+oportunidades_revisadas =
+  quantidade_revisada × operacoes_produtivas_op
+
+percentual_defeitos_op =
+  (total_defeitos / oportunidades_revisadas) × 100
+
+percentual_defeitos_operacao =
+  (defeitos_operacao / quantidade_revisada) × 100
+```
+
+Tratamento obrigatório:
+- se `quantidade_revisada = 0`, os indicadores de qualidade devem aparecer como `sem dados`
+- o sistema pode exibir simultaneamente a leitura de `percentual_reprovacao` e a leitura de `percentual_defeitos_op`, porque elas medem fenômenos diferentes e complementares
 
 ### 6.6 Capacidade e progresso
 
@@ -606,6 +703,23 @@ Regra obrigatória da capacidade setorial operacional:
 - setores seguintes não podem nascer com a quantidade total da OP se ainda não receberam transferência real do setor anterior
 - a carga em minutos por setor pode continuar sendo exibida como leitura operacional de planejamento, reserva, consumo e saldo do plano do dia, desde que isso não seja apresentado como uma segunda capacidade produtiva independente
 - scanner e apontamentos não devem ser bloqueados por desconformidade de capacidade derivada; nesses fluxos a regra deve gerar alerta visual e leitura operacional explícita, sem trava transacional adicional
+
+Vocabulário canônico dos cards de demanda no kanban operacional:
+- o kanban exibe exatamente 5 métricas por card de demanda; os nomes e fórmulas abaixo são os únicos válidos em todo o sistema
+
+| Card | Campo interno | Fórmula canônica |
+|---|---|---|
+| **Backlog vivo** | `quantidadeBacklogSetor` | peças da OP pendentes no setor: `max(quantidadePlanejada − quantidadeConcluida, 0)` |
+| **Plano do dia** | `quantidadeAceitaAcumuladaSetor` | porção da capacidade global do turno alocada a esta demanda; pode ser `0` para demandas que excedem o teto do dia |
+| **Disponível agora** | `quantidadeDisponivelApontamento` | `min(fluxo_FIFO_disponível, quantidadeAceitaTurno)` — limitado pela prioridade da fila e pelo saldo aceito no dia |
+| **Concluído** | `quantidadeConcluida` | peças 100% finalizadas no setor no turno corrente |
+| **Excedente** | `quantidadeExcedenteTurno` | `max(backlogVivo − quantidadeAceitaAcumuladaSetor, 0)` — backlog que ultrapassa o plano do dia e vai para turno futuro |
+
+Regras obrigatórias do vocabulário:
+- **Plano do dia é estável:** o valor de `quantidadeAceitaAcumuladaSetor` não decresce conforme a produção avança no turno; ele representa o compromisso total alocado a esta demanda a partir da capacidade global, não o saldo remanescente
+- **Excedente compara plano, não saldo:** `Excedente = Backlog vivo − Plano do dia`; a fórmula usa `quantidadeAceitaAcumuladaSetor` (plano total alocado), nunca `quantidadeAceitaTurno` (saldo restante decrescente)
+- **Disponível agora ≤ Plano do dia:** a disponibilidade imediata nunca pode ultrapassar o saldo aceito do dia (`quantidadeAceitaTurno = quantidadeAceitaAcumuladaSetor − quantidadeConcluida`)
+- **Sem fallback para saldo:** nenhuma superfície de UI pode usar `quantidadeAceitaTurno` como substituto de `quantidadeAceitaAcumuladaSetor` no card de Plano do dia; registros sem `quantidadeAceitaAcumuladaSetor` devem exibir `0`
 
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`

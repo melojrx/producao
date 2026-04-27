@@ -2,11 +2,14 @@ import { ClipboardList } from 'lucide-react'
 import { ApontamentosTabs } from '@/components/apontamentos/ApontamentosTabs'
 import { ControleTurnoSupervisor } from '@/components/apontamentos/ControleTurnoSupervisor'
 import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelApontamentosSupervisor'
+import { PainelQualidadeSupervisor } from '@/components/apontamentos/PainelQualidadeSupervisor'
 import { PainelMetaMensalApontamentos } from '@/components/apontamentos/PainelMetaMensalApontamentos'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { buscarMetaMensalCompetencia } from '@/lib/queries/metas-mensais'
 import { listarOperadores } from '@/lib/queries/operadores'
 import { listarProdutos } from '@/lib/queries/produtos'
+import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
+import { createClient } from '@/lib/supabase/server'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
 import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/utils/data'
 import type {
@@ -17,14 +20,18 @@ import type {
 } from '@/types'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
-type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno'
+type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno' | 'qualidade_turno'
 
 function valorString(param: string | string[] | undefined): string {
   return typeof param === 'string' ? param : ''
 }
 
 function normalizarAbaInicial(valor: string): ApontamentosTabId {
-  return valor === 'operacao_turno' ? 'operacao_turno' : 'gestao_mensal'
+  if (valor === 'operacao_turno' || valor === 'qualidade_turno') {
+    return valor
+  }
+
+  return 'gestao_mensal'
 }
 
 function mapearOperadoresFallback(
@@ -54,6 +61,11 @@ export default async function AdminApontamentosPage(props: {
   const competenciaSelecionada =
     normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
     obterCompetenciaMesAtual()
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const usuarioSistema = user ? await buscarUsuarioSistemaPorAuthUserId(supabase, user.id) : null
 
   const [planejamentoAtual, produtos, contextoMetaMensal] = await Promise.all([
     buscarTurnoAbertoOuUltimoEncerrado(),
@@ -93,6 +105,22 @@ export default async function AdminApontamentosPage(props: {
               </section>
             </section>
           }
+          qualidadeTurno={
+            <section className="space-y-4" aria-label="Área de qualidade nos apontamentos">
+              <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  <ClipboardList size={14} />
+                  Qualidade indisponível
+                </div>
+                <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
+                <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                  O painel de qualidade fica disponível quando existe um turno aberto com seção de
+                  revisão derivada.
+                </p>
+              </section>
+            </section>
+          }
         />
       </main>
     )
@@ -126,6 +154,17 @@ export default async function AdminApontamentosPage(props: {
               operacoesTurno={operacoesTurno}
               origemOperadores={precisaFallbackOperadores ? 'fallback_ativos' : 'turno'}
               filtroTurnoOpInicial={turnoOpIdSelecionado}
+            />
+          </section>
+        }
+        qualidadeTurno={
+          <section className="space-y-4" aria-label="Área de qualidade nos apontamentos">
+            <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
+            <PainelQualidadeSupervisor
+              planejamento={planejamentoComOperadores}
+              operacoesTurno={operacoesTurno}
+              podeRevisarQualidade={usuarioSistema?.pode_revisar_qualidade === true}
+              revisorNome={usuarioSistema?.nome ?? null}
             />
           </section>
         }

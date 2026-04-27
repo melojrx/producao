@@ -330,7 +330,7 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
 
       snapshotsPorDemandaId.set(demanda.id, {
         quantidadeAceitaTurno,
-        quantidadeExcedenteTurno: Math.max(backlog - quantidadeAceitaTurno, 0),
+        quantidadeExcedenteTurno: Math.max(backlog - quantidadeAceitaAcumuladaSetor, 0),
         quantidadeDisponivelApontamento: 0,
         quantidadeEntradaAcumuladaSetor,
         quantidadeAceitaAcumuladaSetor,

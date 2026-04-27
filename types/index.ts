@@ -8,6 +8,8 @@ export type OrigemTpBloco = 'produto' | 'manual'
 export type StatusConfiguracaoTurnoBloco = 'planejado' | 'ativo' | 'concluido'
 export type UsuarioSistemaPapel = 'admin' | 'supervisor'
 export type UsuarioSistemaStatus = 'ativo' | 'inativo' | 'pendente_ativacao'
+export type SetorModoApontamento = 'producao_padrao' | 'revisao_qualidade'
+export type OrigemLancamentoQualidade = 'scanner_qualidade' | 'manual_qualidade'
 export type TurnoStatusV2 = 'aberto' | 'encerrado'
 export type OrigemPlanejamentoTurnoV2 = 'aberto' | 'ultimo_encerrado'
 export type OrigemApontamentoProducaoV2 =
@@ -268,6 +270,7 @@ export interface TurnoSetorScaneado {
   turnoIniciadoEm: string
   setorId: string
   setorNome: string
+  modoApontamento: SetorModoApontamento
   quantidadePlanejada: number
   quantidadeRealizada: number
   quantidadeConcluida: number
@@ -568,12 +571,63 @@ export interface SetorOption extends Tables<'setores'> {}
 
 export interface SetorListItem extends Tables<'setores'> {}
 
+export interface QualidadeRegistro extends Tables<'qualidade_registros'> {}
+
+export interface QualidadeDetalhe extends Tables<'qualidade_detalhes'> {}
+
+export interface QualidadeOperadorEnvolvidoV2 {
+  operadorId: string
+  nome: string
+  matricula: string | null
+  funcao: string | null
+  quantidadeApontada: number
+}
+
+export interface QualidadeIndicadorOperacaoV2 {
+  turnoSetorOperacaoIdOrigem: string
+  operacaoIdOrigem: string
+  setorIdOrigem: string
+  setorNomeOrigem: string
+  operacaoCodigoOrigem: string
+  operacaoDescricaoOrigem: string
+  quantidadeDefeitos: number
+  percentualDefeitosOperacao: number | null
+  possuiApontamentos: boolean
+  operadoresEnvolvidos: QualidadeOperadorEnvolvidoV2[]
+}
+
+export interface QualidadeResumoOpV2 {
+  turnoOpId: string
+  quantidadeAprovada: number
+  quantidadeReprovada: number
+  quantidadeRevisada: number
+  totalDefeitos: number
+  operacoesProdutivasCount: number
+  oportunidadesRevisadas: number
+  percentualReprovacao: number | null
+  percentualDefeitosOp: number | null
+  operacoesComDefeito: QualidadeIndicadorOperacaoV2[]
+}
+
+export interface QualidadeResumoTurnoV2 {
+  quantidadeAprovadaTotal: number
+  quantidadeReprovadaTotal: number
+  quantidadeRevisadaTotal: number
+  totalDefeitos: number
+  oportunidadesRevisadasTotal: number
+  percentualReprovacao: number | null
+  percentualDefeitosOperacionais: number | null
+  opsComRevisao: number
+  opsComReprovacao: number
+}
+
 export interface UsuarioSistemaV2 {
   id: string
   auth_user_id: string
   nome: string
   email: string
   papel: UsuarioSistemaPapel
+  pode_revisar_qualidade: boolean
   ativo: boolean | null
   status: UsuarioSistemaStatus
   created_at: string | null
@@ -865,6 +919,8 @@ export interface PlanejamentoTurnoV2 {
   secoesSetorOp: TurnoSetorOpV2[]
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[]
   eficienciaOperacional?: ResumoEficienciaOperacionalTurnoV2
+  qualidadeResumoOps?: QualidadeResumoOpV2[]
+  resumoQualidadeTurno?: QualidadeResumoTurnoV2 | null
 }
 
 export interface PlanejamentoTurnoDashboardV2 extends PlanejamentoTurnoV2 {

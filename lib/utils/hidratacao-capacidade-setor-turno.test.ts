@@ -386,7 +386,7 @@ test('mantem o plano fixo do dia separado do saldo remanescente aceito no setor'
     },
     {
       quantidadeAceitaTurno: 0,
-      quantidadeExcedenteTurno: 60,
+      quantidadeExcedenteTurno: 27,
       quantidadeEntradaAcumuladaSetor: 100,
       quantidadeAceitaAcumuladaSetor: 33,
       quantidadeDisponivelApontamento: 0,
@@ -449,7 +449,7 @@ test('desconta do disponível agora o que já foi produzido no turno atual dentr
 
   assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 301)
   assert.equal(demandasLimitadas[0]?.quantidadeAceitaAcumuladaSetor, 601)
-  assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 399)
+  assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 99)
   assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 301)
 })
 

@@ -3804,13 +3804,209 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 
 ---
 
+## SPRINT 36 — Qualidade como setor especial de revisão no fluxo operacional
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 35 concluída.
+**Objetivo:** evoluir o sistema para suportar o setor `Qualidade` como etapa oficial do fluxo derivado do produto, obedecendo às mesmas regras estruturais de capacidade, aceite, QR, scanner, apontamento e encerramento dos demais setores, mas com contrato de input próprio para revisão de peças aprovadas/reprovadas e atribuição de defeitos às operações produtivas de origem.
+
+- [x] **HU 36.1 — Como produto, quero formalizar no PRD o setor `Qualidade` como setor oficial do fluxo com modo de apontamento especial, para que o comportamento de revisão seja inequívoco sem romper o modelo `turno + OP + setor`.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - registrar no `docs/PRD.md` que `Qualidade` pode ser etapa oficial do roteiro de um produto
+  - formalizar que `Qualidade` segue as mesmas regras estruturais dos demais setores no turno
+  - formalizar que o input do setor é `quantidade_aprovada + quantidade_reprovada`, com detalhamento de defeitos por operação produtiva de origem
+  - formalizar que a operação de revisão do setor não entra como origem elegível de defeito
+
+  Regras:
+  - `Qualidade` participa de capacidade produtiva, regra de aceite, QR operacional, scanner, apontamentos e encerramento da OP
+  - o setor não pode ser tratado como fluxo paralelo fora de `turno_setores`, `turno_setor_ops` e `turno_setor_operacoes`
+  - o apontamento de qualidade não pode exigir rastreio por peça individual
+
+  **Evidência:** `docs/PRD.md` passa a registrar `Qualidade` como setor oficial do fluxo com `modo_apontamento` especial de revisão.
+
+  `docs/PRD.md` foi atualizado em `2026-04-24` para formalizar `Qualidade` como etapa oficial do fluxo derivado quando presente no roteiro do produto, obedecendo às mesmas regras estruturais de capacidade, aceite, QR, scanner, apontamentos e encerramento dos demais setores; também foi formalizado que o setor usa `modo_apontamento` especial de revisão, com input de `quantidade_aprovada`, `quantidade_reprovada` e defeitos por operação produtiva de origem, consumindo saldo pela `quantidade_revisada` e excluindo a própria operação de revisão da lista elegível de origem do defeito.
+
+- [x] **HU 36.2 — Como sistema, quero evoluir schema e contratos tipados para suportar revisão de qualidade, permissão de revisor e modo de apontamento do setor, para que o fluxo seja consistente com a modelagem real do turno.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - introduzir contrato de `modo_apontamento` em `setores`
+  - introduzir permissão `pode_revisar_qualidade` em `usuarios_sistema`
+  - criar tabelas de `qualidade_registros` e `qualidade_detalhes`
+  - propagar os novos contratos em `types/supabase.ts` e `types/index.ts`
+
+  Regras:
+  - a mudança deve ser aditiva e segura para o worktree atual
+  - `Qualidade` continua sendo setor oficial do fluxo, sem bifurcação estrutural paralela
+  - os contratos precisam continuar em `strict` sem `any`
+
+  **Evidência:** schema remoto e contratos tipados passam a suportar revisão de qualidade, detalhamento por operação de origem e permissão de revisor.
+
+  `scripts/sprint36_qualidade_schema.sql` foi criado em `2026-04-24` com migration aditiva para `setores.modo_apontamento`, `usuarios_sistema.pode_revisar_qualidade` e as tabelas `qualidade_registros` / `qualidade_detalhes`; `scripts/sprint6_setores.sql` e `scripts/sprint6_usuarios_sistema.sql` foram sincronizados com os novos contratos base; `types/supabase.ts` passou a expor os novos campos e tabelas tipadas; e `types/index.ts` passou a registrar `SetorModoApontamento`, `OrigemLancamentoQualidade`, `QualidadeRegistro`, `QualidadeDetalhe` e a permissão de revisor no contrato de `UsuarioSistemaV2`. Validação técnica concluída com `npx tsc --noEmit` sem erros. A migration foi aplicada no projeto Supabase via Management API em `2026-04-23`, com validação read-only confirmando `setores.modo_apontamento` (`character varying`, `NOT NULL`), `usuarios_sistema.pode_revisar_qualidade` (`boolean`, `NOT NULL`) e a criação das tabelas `public.qualidade_registros` e `public.qualidade_detalhes`; após a primeira validação do turno real, a migration foi reaplicada de forma idempotente para migrar o setor `Qualidade` já existente para `modo_apontamento = revisao_qualidade`.
+
+- [x] **HU 36.3 — Como revisor, quero registrar aprovadas, reprovadas e defeitos por operação de origem no backend, para que a revisão consuma a fila do setor `Qualidade` sem perder o vínculo analítico com o processo produtivo.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - adaptar actions/SQL para registrar apontamento de qualidade com `quantidade_aprovada`, `quantidade_reprovada` e `quantidade_revisada`
+  - fazer a revisão consumir saldo e andamento da operação de `Qualidade` no turno
+  - persistir defeitos por operação produtiva de origem
+  - derivar operadores envolvidos a partir de `registros_producao`
+
+  Regras:
+  - `quantidade_revisada = quantidade_aprovada + quantidade_reprovada`
+  - a soma dos defeitos por operação pode ultrapassar `quantidade_reprovada`, porque representa ocorrências operacionais
+  - o apontamento de `Qualidade` não pode reabrir produção nem criar retrabalho automático nesta sprint
+
+  **Evidência:** backend registra revisões de qualidade consumindo a fila do setor e persiste defeitos por operação de origem sem regressão na cadeia do turno.
+
+  `scripts/sprint36_qualidade_apontamento.sql` foi criado em `2026-04-24` com a RPC `registrar_revisao_qualidade_turno_setor_operacao`, validando permissão de revisor, `modo_apontamento = revisao_qualidade`, saldo sequencial da operação de `Qualidade`, vínculo das operações produtivas de origem e sincronização de `turno_setor_operacoes`, `turno_setor_ops` e `turno_ops`; `lib/actions/qualidade.ts` passou a expor a server action `registrarRevisaoQualidade()` com validações de sessão, permissão e disponibilidade sequencial; `lib/queries/qualidade.ts` passou a derivar operadores envolvidos a partir de `registros_producao` para as operações de origem; e `types/supabase.ts` foi atualizado com o contrato tipado da nova RPC. Validação técnica concluída com `npx tsc --noEmit` sem erros. A RPC foi aplicada no projeto Supabase via Management API em `2026-04-23`, com validação read-only confirmando a função `public.registrar_revisao_qualidade_turno_setor_operacao(uuid, uuid, integer, integer, text, jsonb)`.
+
+- [x] **HU 36.4 — Como revisor, quero usar scanner e apontamento manual no setor `Qualidade` com uma UX própria, para registrar revisão com poucos cliques e linguagem compatível com o chão de fábrica.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - adaptar o scanner para detectar `modo_apontamento = revisao_qualidade`
+  - criar fluxo de input `aprovadas -> reprovadas -> defeitos por operação`
+  - adaptar `/admin/apontamentos` para expor aba própria de qualidade
+  - restringir o modo de revisão a usuários habilitados como revisores
+
+  Regras:
+  - o QR do setor `Qualidade` deve continuar funcionando como QR operacional padrão do turno
+  - a UI deve listar apenas as operações produtivas elegíveis como origem de defeito, excluindo a operação de revisão do próprio setor
+  - a experiência precisa permanecer simples e mobile-first
+
+  **Evidência:** scanner e apontamento manual passam a registrar qualidade com fluxo próprio de aprovadas/reprovadas e detalhamento de defeitos por operação.
+
+  O scanner foi adaptado em `app/(operador)/scanner/page.tsx` + `components/scanner/ScannerPageClient.tsx` para detectar o setor `Qualidade`, bloquear o modo quando a sessão não tiver permissão de revisor, pular a semântica de operador executor e abrir o formulário próprio de revisão em `components/scanner/ConfirmacaoQualidade.tsx`; `components/scanner/SelecaoDemandaScanner.tsx` foi generalizado para exibir operador ou revisor conforme o fluxo; `/admin/apontamentos` passou a expor uma aba dedicada de qualidade em `components/apontamentos/PainelQualidadeSupervisor.tsx`, integrada às páginas `app/admin/apontamentos/page.tsx` e `app/(admin)/apontamentos/page.tsx`; e `hooks/useScanner.ts` passou a manter ramos separados para produção padrão e revisão de qualidade, ambos consumindo o backend já entregue na HU 36.3. Validação técnica concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 36.5 — Como supervisor, quero ver indicadores de reprovação e de intensidade de defeitos operacionais da OP, para enxergar a qualidade sem distorcer a leitura do fluxo produtivo.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - expor indicadores de revisão no detalhe da OP e nas superfícies administrativas relevantes
+  - calcular `percentual_reprovacao`, `percentual_defeitos_op` e `percentual_defeitos_operacao`
+  - mostrar operadores envolvidos por operação defeituosa quando houver rastreio em `registros_producao`
+  - integrar a leitura à dashboard sem quebrar a visão operacional já homologada
+
+  Regras:
+  - `percentual_reprovacao = quantidade_reprovada / quantidade_revisada * 100`
+  - `percentual_defeitos_op = total_defeitos / (quantidade_revisada * operacoes_produtivas_op) * 100`
+  - `percentual_defeitos_operacao = defeitos_operacao / quantidade_revisada * 100`
+
+  **Evidência:** UI administrativa passa a exibir reprovação, intensidade de defeitos operacionais e lista de operações/operadores envolvidos sem regressão na dashboard do turno.
+
+  O dashboard do turno passou a consolidar qualidade em `lib/queries/qualidade.ts`, com fallback seguro quando o schema remoto ainda não estiver aplicado, e a projetar `resumoQualidadeTurno` / `qualidadeResumoOps` em `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts`; `components/dashboard/DashboardVisaoOperacionalTab.tsx` agora mostra cards de revisadas, reprovadas, reprovação e defeitos operacionais quando houver revisão lançada; `components/dashboard/ModalDetalhesOpTurno.tsx` passou a exibir o bloco completo de qualidade da OP com `percentual_reprovacao`, `percentual_defeitos_op`, `percentual_defeitos_operacao` e operadores envolvidos por operação de origem; e a validação técnica foi concluída com `npx tsc --noEmit` sem erros.
+
+- [x] **HU 36.6 — Como produto, quero homologar ponta a ponta o setor `Qualidade` como etapa oficial do turno com input especial de revisão, para confiar na nova leitura sem complexidade desnecessária.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - validar roteiro com `Qualidade` derivando QR e seção do turno
+  - validar apontamento de qualidade via scanner e via `/admin/apontamentos`
+  - validar indicadores de reprovação e defeitos por operação
+  - consolidar evidência documental da sprint
+
+  Regras:
+  - a sprint só fecha com `npx tsc --noEmit` e evidência operacional do fluxo de revisão sem erros
+  - `Qualidade` deve obedecer às mesmas regras estruturais dos demais setores em capacidade, aceite e encerramento
+  - o fluxo não pode introduzir rastreio por peça individual nem retrabalho automático
+
+  **Evidência:** setor `Qualidade` homologado como etapa oficial do fluxo do turno, com QR, revisão, defeitos por operação de origem e indicadores administrativos consistentes.
+
+  Homologação ponta a ponta concluída em `2026-04-23`: `npm run build -- --webpack` e `npx tsc --noEmit` fecharam sem erros; o projeto Supabase remoto recebeu as migrations da Sprint 36, a RPC de qualidade e a correção idempotente que migra o setor `Qualidade` existente para `modo_apontamento = revisao_qualidade`; o usuário `jrmeloafrf@gmail.com` foi habilitado com `pode_revisar_qualidade = true`; o turno aberto `2fe7c979-57fc-43e9-8ad9-ee3c508b69ed` foi validado com `Qualidade` derivado como setor `6`, `5` seções de OP com QR próprio e operação `Q1`; a função sequencial `public.obter_disponibilidade_fluxo_turno_setor_operacao(uuid)` foi restaurada no remoto com ajuste de tipos para destravar o consumo da fila; e foram executados dois lançamentos reais em `OP-000015` na operação de qualidade `9892076c-1fe7-44ae-8b15-2f06efafc00c`, um em `manual_qualidade` (`3` aprovadas, `1` reprovada, `2` defeitos distribuídos nas operações `P64` e `P62`) e outro em `scanner_qualidade` (`2` aprovadas, `0` reprovadas). A validação read-only final confirmou `5` aprovadas, `1` reprovada, `6` revisadas, `2` defeitos, `34` operações produtivas na base da OP e os indicadores `percentual_reprovacao = 16,7%` e `percentual_defeitos_op = 1,0%`.
+
+**Fechamento da Sprint 36 em `2026-04-23`:** o setor `Qualidade` passa a operar como etapa oficial do fluxo derivado do turno, com `modo_apontamento` especial de revisão, permissão específica de revisor, backend próprio para aprovadas/reprovadas e defeitos por operação de origem, scanner e `/admin/apontamentos` adaptados, indicadores administrativos na dashboard e homologação real no Supabase com lançamentos efetivos em produção controlada.
+
+---
+
+## SPRINT 37 — Reconciliação do vocabulário operacional dos cards do kanban
+**Status:** 🚧 Em andamento
+**Pré-requisito:** Sprint 36 concluída.
+**Objetivo:** formalizar as 5 definições canônicas dos cards de demanda no kanban operacional e corrigir dois desalinhamentos entre essas definições e o que o código calcula/exibe hoje.
+
+Os dois desalinhamentos identificados:
+1. **Excedente** usa `quantidadeAceitaTurno` (saldo restante decrescente) em vez de `quantidadeAceitaAcumuladaSetor` (plano total alocado) — `lib/utils/hidratacao-capacidade-setor-turno.ts:332`
+2. **Plano do dia** recai em fallback para `quantidadeAceitaTurno` quando `quantidadeAceitaAcumuladaSetor` está ausente, exibindo o saldo decrescente em vez do plano fixo — `components/dashboard/KanbanOperacionalTurno.tsx:322` e `:523`
+
+- [x] **HU 37.1 — Como produto, quero formalizar no PRD as 5 definições canônicas dos cards do kanban, para que o vocabulário operacional seja inequívoco em código, testes e UI.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - inserir na seção `9.3.4` do `docs/PRD.md` a tabela com os 5 cards, seus campos internos e fórmulas canônicas
+  - registrar as 3 regras obrigatórias: Plano do dia é estável, Excedente compara plano (não saldo), Disponível agora ≤ Plano do dia
+  - registrar que nenhuma superfície pode usar `quantidadeAceitaTurno` como substituto de `quantidadeAceitaAcumuladaSetor` no card Plano do dia
+
+  Regras:
+  - a formalização não pode alterar contratos de banco, types ou actions
+  - o PRD deve ser a fonte de verdade que guia as próximas HUs desta sprint
+
+  **Evidência:** `docs/PRD.md` passa a registrar os 5 cards com fórmulas canônicas e regras de integridade do vocabulário.
+
+  `docs/PRD.md` foi atualizado em `2026-04-25` para incluir, na seção `9.3.4`, a tabela com os 5 cards canônicos (`Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído`, `Excedente`), seus campos internos e fórmulas, além das 3 regras obrigatórias de integridade do vocabulário.
+
+- [ ] **HU 37.2 — Como sistema, quero que a fórmula de Excedente compare backlog vivo com o plano total alocado, para refletir corretamente o que vai para turno futuro.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - alterar `lib/utils/hidratacao-capacidade-setor-turno.ts:332`: substituir `quantidadeAceitaTurno` por `quantidadeAceitaAcumuladaSetor` no cálculo de `quantidadeExcedenteTurno`
+  - atualizar `lib/utils/hidratacao-capacidade-setor-turno.test.ts` com os valores esperados pela nova fórmula
+
+  Regras:
+  - a mudança não pode alterar `quantidadeAceitaTurno`, `quantidadeDisponivelApontamento` nem `saldoManualPermitido`
+  - a nova fórmula deve ser: `Math.max(backlog - quantidadeAceitaAcumuladaSetor, 0)`
+  - os testes devem cobrir: demanda com toda capacidade aceita, demanda parcialmente aceita e demanda com aceite zero
+
+  **Evidência:** `npx tsc --noEmit` e `node --test` sem erros; cenário manual no turno real confirma Excedente = Backlog vivo − Plano do dia.
+
+- [ ] **HU 37.3 — Como supervisor, quero que o card Plano do dia exiba sempre o plano alocado estável, não o saldo que decresce com a produção.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - remover `?? demanda.quantidadeAceitaTurno` da variável `quantidadePlanoDoDia` em `components/dashboard/KanbanOperacionalTurno.tsx` nas linhas 322 e 523
+  - registros sem `quantidadeAceitaAcumuladaSetor` devem exibir `0` — sem fallback para saldo
+
+  Regras:
+  - a remoção do fallback não pode afetar os demais cards (`Disponível agora`, `Concluído`, `Excedente`, `Backlog vivo`)
+  - o alerta `excedePlanoAtual` deve continuar funcionando com base em `resumirPlanoDiarioTurno`
+
+  **Evidência:** card Plano do dia permanece com o mesmo valor do início ao fim do turno, mesmo após vários apontamentos.
+
+- [ ] **HU 37.4 — Como produto, quero homologar ponta a ponta o vocabulário corrigido, para confiar que os 5 cards refletem exatamente as definições do PRD.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar no turno aberto: Plano do dia estável ao longo do dia (não cai após apontamentos)
+  - validar: Excedente = Backlog vivo − Plano do dia para demandas com aceite total, parcial e zero
+  - validar: Disponível agora ≤ Plano do dia em todos os cards
+  - consolidar evidência documental da sprint
+
+  Regras:
+  - a sprint só fecha com `npx tsc --noEmit` e `node --test` sem erros
+  - os demais fluxos (scanner, apontamento manual, carry-over) não podem sofrer regressão
+
+  **Evidência:** vocabulário dos 5 cards homologado no turno real, com `npx tsc --noEmit` e `node --test` sem erros e evidência documental registrada.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
