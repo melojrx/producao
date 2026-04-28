@@ -1289,6 +1289,28 @@ Guardrails:
 - as ações de imagem devem respeitar o mesmo controle administrativo do CRUD de produtos
 - a UX final deve reduzir erro operacional e melhorar conferência visual do produto em produção
 
+Contrato de ficha do produto para impressão/PDF:
+- o CRUD de produtos deve oferecer uma **Ficha do Produto** como documento oficial para envio externo, consultoria e conferência administrativa
+- a ficha não é um print da tela de detalhe; ela deve ser uma superfície própria, renderizada com layout documental e preparada para impressão/PDF
+- a prévia web oficial da ficha fica em `/admin/produtos/[id]/ficha`
+- a geração do PDF na primeira versão deve usar a impressão nativa do navegador (`window.print()`), com CSS específico de impressão, sem instalar biblioteca adicional
+- qualquer geração de PDF server-side futura deve ser tratada como evolução separada e só pode usar nova biblioteca mediante aprovação explícita
+- a ficha deve conter, no mínimo:
+  - referência
+  - nome
+  - descrição
+  - status
+  - imagens `Frente` e `Costa`, quando cadastradas
+  - T.P Produto
+  - data/hora de geração
+  - roteiro agrupado por setor
+  - sequência, código, descrição, máquina e T.P de cada operação
+  - subtotal de operações e T.P por setor
+- produtos sem uma ou duas imagens devem exibir estado vazio documental, sem bloquear a impressão
+- produtos sem roteiro devem exibir estado vazio claro, sem quebrar a ficha
+- a ficha é uma leitura administrativa do cadastro do produto e não altera roteiro, T.P Produto, imagens, planejamento, scanner, apontamentos ou dashboard operacional
+- a listagem e o detalhe do produto devem expor ação explícita `Ficha/PDF`
+
 Contrato de ciclo de vida:
 - o produto deve ter duas ações distintas de ciclo de vida: `arquivar/desativar` e `excluir permanentemente`
 - `arquivar/desativar` remove o produto das listas ativas de uso operacional futuro, mas preserva integralmente o histórico já produzido

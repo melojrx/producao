@@ -3928,9 +3928,15 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 ---
 
 ## SPRINT 37 — Reconciliação do vocabulário operacional dos cards do kanban
-**Status:** 🚧 Em andamento
+**Status:** ⏸️ Pausada
 **Pré-requisito:** Sprint 36 concluída.
 **Objetivo:** formalizar as 5 definições canônicas dos cards de demanda no kanban operacional e corrigir dois desalinhamentos entre essas definições e o que o código calcula/exibe hoje.
+
+**Nota de pausa em `2026-04-28`:**
+- por confirmação explícita do usuário, a Sprint 37 fica pausada antes da execução das HUs `37.2`, `37.3` e `37.4`
+- a `HU 37.1` permanece concluída e preservada
+- nenhuma alteração da Sprint 37 deve ser retomada sem nova confirmação explícita do usuário
+- a prioridade ativa passa para a Sprint 38 — Ficha do produto para impressão/PDF
 
 Os dois desalinhamentos identificados:
 1. **Excedente** usa `quantidadeAceitaTurno` (saldo restante decrescente) em vez de `quantidadeAceitaAcumuladaSetor` (plano total alocado) — `lib/utils/hidratacao-capacidade-setor-turno.ts:332`
@@ -4000,13 +4006,136 @@ Os dois desalinhamentos identificados:
 
 ---
 
+## SPRINT 38 — Ficha do produto para impressão/PDF
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 36 concluída e confirmação explícita do usuário em `2026-04-28` para pausar a Sprint 37 e abrir esta frente.
+**Objetivo:** implantar uma ficha documental do produto com prévia web e geração de PDF por impressão nativa do navegador, sem depender de print da tela de detalhe e sem instalar bibliotecas fora da stack aprovada.
+
+**Decisões de produto homologadas para esta sprint:**
+- a ficha do produto é um documento oficial para envio ao consultor
+- a ficha não é print da tela de detalhe; ela possui layout próprio, documental e imprimível
+- a primeira versão usa prévia web em `/admin/produtos/[id]/ficha` e `window.print()` para gerar PDF pelo navegador
+- PDF server-side fica fora do escopo inicial por exigir biblioteca adicional e aprovação explícita
+- a ficha deve conter referência, nome, descrição, imagens Frente/Costa, roteiro por setor, operações, máquina, T.P por operação, T.P total, status e data de geração
+- a listagem e a tela de detalhe do produto devem expor ação `Ficha/PDF`
+- a mudança não altera fluxo operacional, scanner, turno, apontamentos, roteiro nem cálculo de T.P
+
+- [x] **HU 38.1 — Como produto, quero formalizar a Ficha do Produto no PRD/TASKS/BACKLOG, para que a impressão/PDF tenha contrato oficial e não seja tratada como print improvisado.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - registrar no PRD a ficha como documento oficial do produto
+  - registrar que a ficha possui prévia web própria em `/admin/produtos/[id]/ficha`
+  - registrar que a primeira versão usa impressão nativa do navegador para geração de PDF
+  - registrar campos obrigatórios da ficha
+  - registrar no BACKLOG a nova sprint e a pausa da Sprint 37
+
+  Regras:
+  - não instalar biblioteca adicional de PDF nesta sprint
+  - não alterar o contrato operacional do produto
+  - a documentação deve deixar explícito que a ficha não é print da tela de detalhe
+
+  **Evidência:** `docs/PRD.md` passou a registrar a Ficha do Produto como documento oficial, com prévia em `/admin/produtos/[id]/ficha`, geração de PDF via `window.print()` e campos obrigatórios da ficha; `docs/TASKS.md` abriu a Sprint 38 e marcou a Sprint 37 como pausada; `docs/BACKLOG.md` registrou a nova frente e a pausa da Sprint 37.
+
+- [x] **HU 38.2 — Como sistema, quero preparar a composição tipada dos dados da ficha, para agrupar o roteiro por setor e calcular subtotais sem lógica espalhada na UI.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar função pura em `lib/utils/` para agrupar roteiro por setor
+  - calcular subtotal de operações e T.P por setor
+  - preservar a sequência original do roteiro
+  - cobrir produto sem roteiro, roteiro com setor ausente e múltiplos setores
+
+  Regras:
+  - sem acesso direto a Supabase no utilitário
+  - sem `any`
+  - a função deve ser testável via `node --test --experimental-strip-types`
+
+  **Evidência:** criado `lib/utils/ficha-produto.ts` com `agruparRoteiroProdutoParaFicha()` e `FichaProdutoSetor`, agrupando roteiro por setor, preservando sequência interna e calculando subtotais de T.P; criado `lib/utils/ficha-produto.test.ts` cobrindo múltiplos setores, setor ausente e produto sem roteiro. `node --test --experimental-strip-types lib/utils/ficha-produto.test.ts` passa sem erros.
+
+- [x] **HU 38.3 — Como admin, quero abrir uma prévia web da ficha em `/admin/produtos/[id]/ficha`, para revisar o documento antes de imprimir ou salvar em PDF.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar a rota `/admin/produtos/[id]/ficha`
+  - carregar o produto por `buscarProdutoComRoteiro()`
+  - renderizar layout documental próprio
+  - exibir estado vazio para produto sem imagens ou sem roteiro
+  - exibir data/hora de geração
+
+  Regras:
+  - usar Server Component por padrão
+  - usar Client Component apenas para o botão de impressão
+  - o layout deve ser próprio da ficha, não reaproveitamento visual da tela de detalhe
+
+  **Evidência:** criada a rota `app/admin/produtos/[id]/ficha/page.tsx`, carregando o produto por `buscarProdutoComRoteiro()` e renderizando a prévia com `components/produtos/FichaProdutoDocumento.tsx`; a ficha exibe referência, nome, descrição, status, T.P total, data de geração, imagens Frente/Costa e roteiro agrupado por setor com subtotais.
+
+- [x] **HU 38.4 — Como admin, quero imprimir/salvar a ficha como PDF pelo navegador, para enviar ao consultor um documento profissional sem biblioteca adicional.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar botão `Imprimir / salvar PDF` chamando `window.print()`
+  - aplicar classes `print:*` e dimensões compatíveis com A4
+  - ocultar controles administrativos durante impressão
+  - preservar legibilidade do documento com roteiro longo
+
+  Regras:
+  - a impressão deve usar CSS próprio de documento
+  - a prévia web deve continuar navegável fora do modo impressão
+  - não usar print da tela de detalhe
+
+  **Evidência:** criado `components/produtos/FichaProdutoActions.tsx` com botão `Imprimir / salvar PDF` chamando `window.print()`; a ficha usa layout A4 com classes `print:*`, controles administrativos ocultos em impressão e documento dedicado sem reaproveitar a tela de detalhe. Nenhuma biblioteca adicional foi instalada.
+
+- [x] **HU 38.5 — Como admin, quero acessar a ficha pela listagem e pelo detalhe do produto, para gerar o PDF sem procurar rotas manuais.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - adicionar ação `Ficha/PDF` na listagem de produtos
+  - adicionar ação `Ficha/PDF` na tela de detalhe do produto
+  - preservar ações existentes de editar, duplicar, detalhe, arquivar e excluir
+
+  Regras:
+  - a ação deve ser explícita e previsível
+  - a mudança não pode alterar o CRUD de produto
+
+  **Evidência:** `app/(admin)/produtos/ListaProdutos.tsx` ganhou ação `Ficha/PDF` por produto usando ícone `FileText`, preservando editar, duplicar, detalhe e ciclo de vida; `app/admin/produtos/[id]/page.tsx` ganhou botão principal `Ficha/PDF` apontando para `/admin/produtos/[id]/ficha`.
+
+- [x] **HU 38.6 — Como produto, quero homologar a ficha do produto com cenários reais, para confiar que o PDF enviado ao consultor é completo e profissional.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - validar produto sem imagens
+  - validar produto com uma imagem
+  - validar produto com duas imagens
+  - validar produto com roteiro longo
+  - rodar `node --test --experimental-strip-types` nos testes da ficha
+  - rodar `npx tsc --noEmit`
+
+  Regras:
+  - a sprint só fecha com validação de tipos
+  - o roteiro e o T.P Produto não podem sofrer regressão
+  - limitações da primeira versão devem ficar documentadas
+
+  **Evidência:** ficha do produto homologada com prévia web, impressão/PDF via navegador e validações executáveis sem erros.
+
+  Homologação final confirmada pelo usuário em `2026-04-28`: a prévia web e a impressão/PDF da ficha do produto foram validadas no navegador. Validação técnica executada com `node --test --experimental-strip-types lib/utils/ficha-produto.test.ts`, `npx tsc --noEmit` e `npm run build -- --webpack`, todos sem erros; o build confirmou a rota dinâmica `/admin/produtos/[id]/ficha`.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37 (pausada)
+Sprint 36 ──► Sprint 38
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

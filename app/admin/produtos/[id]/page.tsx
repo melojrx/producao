@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Copy, Pencil } from 'lucide-react'
+import { ArrowLeft, Copy, FileText, Pencil } from 'lucide-react'
 import { ProdutoLifecycleActions } from '@/components/admin/actions/ProdutoLifecycleActions'
 import { DetailField } from '@/components/admin/DetailField'
 import { GaleriaProdutoDetalhe } from '@/components/produtos/GaleriaProdutoDetalhe'
@@ -40,6 +40,13 @@ export default async function ProdutoDetalhePage({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href={`/admin/produtos/${produto.id}/ficha`}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          >
+            <FileText size={16} />
+            Ficha/PDF
+          </Link>
           <Link
             href={`/admin/produtos?duplicar=${produto.id}`}
             className="inline-flex items-center gap-2 rounded-lg border border-violet-300 px-4 py-2 text-sm font-medium text-violet-700 transition-colors hover:bg-violet-50"
