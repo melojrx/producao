@@ -4205,6 +4205,48 @@ Os dois desalinhamentos identificados:
 
 ---
 
+## SPRINT 41 — Correção dos Security Advisors Supabase
+**Status:** ⚠️ Parcialmente concluída por bloqueio externo de plano Supabase
+**Pré-requisito:** solicitação explícita do usuário para corrigir vulnerabilidades indicadas no Security Advisor do projeto remoto `jsuufbgdcqxogimmocof`.
+**Objetivo:** reduzir a superfície pública do banco remoto sem alterar regras de negócio da aplicação.
+
+**Decisões técnicas desta sprint:**
+- aplicar as correções por Supabase Management API, conforme regra do projeto para SQL remoto
+- não alterar frontend, backend, schema funcional ou regras de exclusão
+- manter funções de mutação acessíveis ao `service_role`, pois as actions do sistema usam `createAdminClient()`
+- habilitar RLS nas tabelas de qualidade com leitura apenas para usuários autenticados
+- registrar o SQL aplicado em `scripts/sprint41_supabase_security_advisors.sql`
+
+- [x] **HU 41.1 — Como mantenedor, quero remover os advisors SQL corrigíveis, para reduzir privilégios públicos indevidos no schema exposto.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - alterar `public.vw_status_maquinas` para `security_invoker = true`
+  - fixar `search_path = public, pg_temp` nas 6 funções apontadas pelo advisor
+  - habilitar RLS em `public.qualidade_registros` e `public.qualidade_detalhes`
+  - criar políticas de leitura para `authenticated` nas tabelas de qualidade
+  - revogar `EXECUTE` de `public`, `anon` e `authenticated` nas 13 funções `SECURITY DEFINER`
+  - manter `EXECUTE` das funções `SECURITY DEFINER` para `service_role`
+
+  **Evidência esperada:** Security Advisor sem `security_definer_view`, `function_search_path_mutable`, `rls_disabled_in_public`, `anon_security_definer_function_executable` e `authenticated_security_definer_function_executable`.
+
+  **Evidência:** SQL aplicado no Supabase remoto via Management API a partir de `scripts/sprint41_supabase_security_advisors.sql`, com status `201`. Revalidação do Security Advisor retornou apenas `WARN auth_leaked_password_protection`. Validações read-only confirmaram `public.vw_status_maquinas` com `reloptions = {security_invoker=true}`, RLS ativo em `qualidade_registros` e `qualidade_detalhes`, políticas `SELECT` para `authenticated`, funções `SECURITY DEFINER` com grants apenas para `postgres` e `service_role`, e 6 funções com `search_path=public, pg_temp`. Não houve alteração TypeScript nesta HU.
+
+- [ ] **HU 41.2 — Como mantenedor, quero habilitar proteção contra senhas vazadas no Supabase Auth, para remover o advisor remanescente de autenticação.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - habilitar `password_hibp_enabled` no Auth do Supabase
+  - revalidar o Security Advisor sem warnings remanescentes
+
+  **Evidência esperada:** `GET /v1/projects/jsuufbgdcqxogimmocof/advisors/security` sem `auth_leaked_password_protection`.
+
+  **Bloqueio:** tentativa de `PATCH /v1/projects/jsuufbgdcqxogimmocof/config/auth` com `password_hibp_enabled=true` retornou HTTP `402` com a mensagem de que leaked password protection via HaveIBeenPwned.org está disponível apenas no plano Pro ou superior. A correção depende de upgrade do plano Supabase ou execução manual após o recurso estar disponível.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4212,7 +4254,7 @@ Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
 Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37 (pausada)
-Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40
+Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

@@ -548,6 +548,20 @@
 
 **Fechamento em `2026-04-29`:** `OperacaoLifecycleActions` passou a usar modal visual próprio para desativação e exclusão permanente, sem `confirm()` nativo, preservando o padrão compacto e completo. Textos centralizados em `lib/utils/operacao-lifecycle-copy.ts` com teste focado em `lib/utils/operacao-lifecycle-copy.test.ts`. Validação executada com `node --test --experimental-strip-types lib/utils/operacao-lifecycle-copy.test.ts lib/utils/operacao-duplicacao.test.ts`, `npx tsc --noEmit` e `npm run build -- --webpack`, todos sem erros. Homologação manual em `/admin/operacoes` confirmada pelo usuário.
 
+## SPRINT 41 — Correção dos Security Advisors Supabase
+**Objetivo:** corrigir vulnerabilidades apontadas pelo Security Advisor do projeto remoto `jsuufbgdcqxogimmocof`, reduzindo privilégios públicos indevidos no schema exposto e preservando o contrato funcional da aplicação.
+**Entregável:** SQL aplicado via Management API com view `security_invoker`, RLS em tabelas de qualidade, `search_path` fixo nas funções apontadas e `EXECUTE` das funções `SECURITY DEFINER` restrito ao `service_role`.
+**Status:** ⚠️ Parcialmente concluída por bloqueio externo de plano Supabase
+
+- Corrigir `security_definer_view` em `public.vw_status_maquinas`
+- Corrigir `function_search_path_mutable` nas 6 funções apontadas
+- Corrigir `rls_disabled_in_public` em `qualidade_registros` e `qualidade_detalhes`
+- Corrigir execução pública de 13 funções `SECURITY DEFINER`
+- Tentar habilitar `auth_leaked_password_protection` no Supabase Auth
+- Documentar bloqueio se o recurso depender de plano superior
+
+**Fechamento parcial em `2026-04-29`:** as vulnerabilidades SQL foram corrigidas no Supabase remoto via Management API usando `scripts/sprint41_supabase_security_advisors.sql`. A revalidação do Security Advisor passou a retornar apenas `WARN auth_leaked_password_protection`; as validações read-only confirmaram `public.vw_status_maquinas` com `security_invoker=true`, RLS ativo nas tabelas de qualidade, políticas `SELECT` para `authenticated`, grants das funções `SECURITY DEFINER` restritos a `postgres` e `service_role`, e `search_path=public, pg_temp` nas 6 funções apontadas. A proteção de senhas vazadas não pôde ser habilitada porque o endpoint de Auth retornou HTTP `402`, informando que o recurso HaveIBeenPwned.org está disponível apenas em plano Pro ou superior.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -557,7 +571,7 @@ Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
 Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37 (pausada)
-Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40
+Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
