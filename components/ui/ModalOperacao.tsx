@@ -5,11 +5,13 @@ import { ImagePlus, RefreshCw, Trash2, Upload, X } from 'lucide-react'
 import { QRCodeDisplay } from '@/components/qrcode/QRCodeDisplay'
 import { criarOperacao, editarOperacao } from '@/lib/actions/operacoes'
 import { OPERACAO_IMAGENS_MAX_BYTES } from '@/lib/constants'
+import { prepararOperacaoParaDuplicacao } from '@/lib/utils/operacao-duplicacao'
 import { calcularMetaDia, calcularMetaHora } from '@/lib/utils/producao'
 import type { FormActionState, MaquinaOption, OperacaoListItem, SetorOption } from '@/types'
 
 interface ModalOperacaoProps {
   operacao?: OperacaoListItem
+  operacaoBase?: OperacaoListItem
   maquinas: MaquinaOption[]
   setores: SetorOption[]
   aoFechar: () => void
@@ -70,13 +72,21 @@ function obterClasseStatusImagem(draft: OperacaoImagemDraft): string {
   return 'border-gray-200 bg-gray-100 text-gray-600'
 }
 
-export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOperacaoProps) {
+export function ModalOperacao({
+  operacao,
+  operacaoBase,
+  maquinas,
+  setores,
+  aoFechar,
+}: ModalOperacaoProps) {
   const acao = operacao ? editarOperacao.bind(null, operacao.id) : criarOperacao
   const [estado, executar, pendente] = useActionState(acao, estadoInicial)
+  const operacaoDuplicada = operacaoBase ? prepararOperacaoParaDuplicacao(operacaoBase) : undefined
+  const operacaoInicial = operacao ?? operacaoDuplicada
   const prefixoIds = useId()
   const inputImagemRef = useRef<HTMLInputElement | null>(null)
   const [tempoPadraoMin, setTempoPadraoMin] = useState(
-    operacao?.tempo_padrao_min ? String(operacao.tempo_padrao_min) : ''
+    operacaoInicial?.tempo_padrao_min ? String(operacaoInicial.tempo_padrao_min) : ''
   )
   const [imagem, setImagem] = useState<OperacaoImagemDraft>(() => criarImagemDraftInicial(operacao))
 
@@ -102,6 +112,7 @@ export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOp
     ? calcularMetaDia(tempoPadraoNumero)
     : 0
   const modoEdicao = !!operacao
+  const modoDuplicacao = !operacao && !!operacaoBase
   const inputImagemId = `${prefixoIds}-imagem-operacao`
   const statusImagem = obterStatusImagem(imagem)
 
@@ -158,12 +169,12 @@ export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOp
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
-      aria-label={modoEdicao ? 'Editar operação' : 'Nova operação'}
+      aria-label={modoEdicao ? 'Editar operação' : modoDuplicacao ? 'Duplicar operação' : 'Nova operação'}
     >
       <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b p-5">
           <h2 className="text-lg font-semibold text-gray-900">
-            {modoEdicao ? 'Editar Operação' : 'Nova Operação'}
+            {modoEdicao ? 'Editar Operação' : modoDuplicacao ? 'Duplicar Operação' : 'Nova Operação'}
           </h2>
           <button
             type="button"
@@ -198,7 +209,7 @@ export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOp
                     name="codigo"
                     type="text"
                     required
-                    defaultValue={operacao?.codigo ?? ''}
+                    defaultValue={operacaoInicial?.codigo ?? ''}
                     placeholder="Informe o código real da operação"
                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
@@ -212,7 +223,7 @@ export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOp
                     id="setor_id"
                     name="setor_id"
                     required
-                    defaultValue={operacao?.setor_id ?? ''}
+                    defaultValue={operacaoInicial?.setor_id ?? ''}
                     className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
                     <option value="" disabled>
@@ -235,7 +246,7 @@ export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOp
                   id="maquina_id"
                   name="maquina_id"
                   required
-                  defaultValue={operacao?.maquina_id ?? ''}
+                  defaultValue={operacaoInicial?.maquina_id ?? ''}
                   className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 >
                   <option value="" disabled>
@@ -262,10 +273,16 @@ export function ModalOperacao({ operacao, maquinas, setores, aoFechar }: ModalOp
                   name="descricao"
                   type="text"
                   required
-                  defaultValue={operacao?.descricao ?? ''}
+                  defaultValue={operacaoInicial?.descricao ?? ''}
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
+
+              {modoDuplicacao ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  O clone reaproveita descrição, máquina, setor e T.P. Código, QR e imagem são tratados como novos dados da operação.
+                </div>
+              ) : null}
 
               <div className="grid gap-4 md:grid-cols-[1fr,auto]">
                 <div className="flex flex-col gap-1">

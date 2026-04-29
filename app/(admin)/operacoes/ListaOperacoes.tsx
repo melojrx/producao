@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Copy,
   Eye,
   Pencil,
   Plus,
@@ -39,6 +40,8 @@ interface ListaOperacoesProps {
   total: number
   totalPages: number
 }
+
+type ModalOperacaoModo = 'criar' | 'editar' | 'duplicar'
 
 interface SortableHeaderProps {
   activeField: OperacaoSortField
@@ -111,7 +114,8 @@ export function ListaOperacoes({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [modalAberto, setModalAberto] = useState(false)
-  const [operacaoEditando, setOperacaoEditando] = useState<OperacaoListItem | undefined>()
+  const [modalModo, setModalModo] = useState<ModalOperacaoModo>('criar')
+  const [operacaoSelecionada, setOperacaoSelecionada] = useState<OperacaoListItem | undefined>()
   const [busca, setBusca] = useState(buscaInicial)
 
   useEffect(() => {
@@ -139,12 +143,20 @@ export function ListaOperacoes({
   }
 
   function abrirCriar() {
-    setOperacaoEditando(undefined)
+    setModalModo('criar')
+    setOperacaoSelecionada(undefined)
     setModalAberto(true)
   }
 
   function abrirEditar(operacao: OperacaoListItem) {
-    setOperacaoEditando(operacao)
+    setModalModo('editar')
+    setOperacaoSelecionada(operacao)
+    setModalAberto(true)
+  }
+
+  function abrirDuplicar(operacao: OperacaoListItem) {
+    setModalModo('duplicar')
+    setOperacaoSelecionada(operacao)
     setModalAberto(true)
   }
 
@@ -366,6 +378,15 @@ export function ListaOperacoes({
                           >
                             <Pencil size={16} />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => abrirDuplicar(operacao)}
+                            aria-label={`Duplicar ${operacao.codigo}`}
+                            title={`Duplicar ${operacao.codigo}`}
+                            className="inline-flex rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-violet-50 hover:text-violet-600"
+                          >
+                            <Copy size={16} />
+                          </button>
                           <Link
                             href={`/admin/operacoes/${operacao.id}`}
                             aria-label={`Ver detalhes de ${operacao.codigo}`}
@@ -455,7 +476,8 @@ export function ListaOperacoes({
 
       {modalAberto ? (
         <ModalOperacao
-          operacao={operacaoEditando}
+          operacao={modalModo === 'editar' ? operacaoSelecionada : undefined}
+          operacaoBase={modalModo === 'duplicar' ? operacaoSelecionada : undefined}
           maquinas={maquinas}
           setores={setores}
           aoFechar={() => setModalAberto(false)}

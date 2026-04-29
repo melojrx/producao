@@ -1190,6 +1190,13 @@ Regras obrigatórias:
 - na UI do CRUD de operações, a seleção de máquina deve exibir o campo `modelo` da máquina como referência principal de escolha
 - o `codigo` da operação deixa de ser gerado automaticamente e passa a ser preenchido manualmente pelo usuário
 - o `codigo` continua obrigatório e único no cadastro de operações
+- o CRUD deve oferecer duplicação assistida de operação existente, reutilizando o modal de criação com campos técnicos pré-preenchidos
+- na duplicação assistida, o sistema deve reaproveitar `descricao`, `maquina`, `setor` e `tempo_padrao_min`, mantendo `codigo` editável e sugerindo um novo valor sem burlar a unicidade
+- a operação clonada deve nascer como ativa e com novo QR Code gerado pelo banco, nunca reaproveitando o `qr_code_token` da operação original
+- a imagem da operação original não deve ser copiada automaticamente na duplicação, para evitar vínculo cruzado de storage; o clone deve começar sem imagem
+- ações destrutivas ou de ciclo de vida em operações devem usar modal visual próprio da aplicação, nunca `confirm()`/`alert()` nativo do navegador como experiência principal
+- o modal de ciclo de vida deve cobrir `desativar operação` e `excluir permanentemente`, com texto claro sobre preservação de histórico, bloqueio por dependências e confirmação explícita do usuário
+- mensagens retornadas pelo backend, como bloqueio por roteiro ou histórico de produção, devem continuar aparecendo inline no contexto do CRUD
 
 Contrato de imagem da operação:
 - o cadastro da operação passa a suportar uma imagem única opcional de referência visual

@@ -4128,6 +4128,83 @@ Os dois desalinhamentos identificados:
 
 ---
 
+## SPRINT 39 — Duplicação assistida de operações
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 35 concluída e confirmação explícita do usuário em `2026-04-28` para formalizar a frente curta de clone no CRUD de operações.
+**Objetivo:** permitir que o administrador clone uma operação existente a partir de `/admin/operacoes`, reaproveitando os campos técnicos do cadastro original sem duplicar QR Code nem imagem.
+
+**Decisões de produto homologadas para esta sprint:**
+- a duplicação deve seguir o padrão já usado no cadastro de produtos: modal de criação pré-carregado, sem action específica de clone
+- o clone reaproveita `descricao`, `maquina`, `setor` e `tempo_padrao_min`
+- o `codigo` continua manual, obrigatório e único; a UI pode sugerir um código derivado, mas o usuário precisa poder editá-lo antes de salvar
+- a operação clonada nasce como `ativa`
+- o QR Code deve ser novo, gerado pelo default do banco em `operacoes.qr_code_token`
+- a imagem não deve ser copiada automaticamente; o clone começa sem imagem para evitar vínculo cruzado de storage
+- a mudança não altera scanner, planejamento de turno, apontamentos, relatórios, roteiros existentes nem cálculo de metas
+
+- [x] **HU 39.1 — Como admin, quero duplicar uma operação existente no cadastro de operações, para criar operações parecidas com menos retrabalho e sem risco de reaproveitar QR ou imagem indevidamente.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - adicionar ação de duplicar na listagem de operações, preservando editar, detalhe, paginação, ordenação e ciclo de vida
+  - adaptar `ModalOperacao` para aceitar uma operação-base em modo de duplicação
+  - pré-preencher `descricao`, `maquina_id`, `setor_id` e `tempo_padrao_min`
+  - sugerir um novo `codigo` editável para o clone
+  - manter o clone sem imagem inicial
+  - reutilizar `criarOperacao()` para persistência, permitindo que o banco gere novo `qr_code_token`
+
+  Regras:
+  - não criar nova tabela, migration ou coluna
+  - não copiar `id`, `qr_code_token`, `imagem_url`, histórico, vínculos de roteiro ou registros de produção
+  - não reaproveitar automaticamente arquivo de imagem da operação-base
+  - o clone deve respeitar as validações atuais de código único, setor, máquina e T.P válido
+  - a implementação deve preservar TypeScript strict, sem `any`
+
+  **Evidência esperada:** `npx tsc --noEmit` sem erros e criação manual de uma operação clonada confirmando novo código, novo QR Code, imagem vazia e campos técnicos reaproveitados da operação-base.
+
+  **Evidência:** implementação registrada em `app/(admin)/operacoes/ListaOperacoes.tsx`, `components/ui/ModalOperacao.tsx`, `lib/utils/operacao-duplicacao.ts` e `lib/utils/operacao-duplicacao.test.ts`. Validação técnica concluída com `node --test --experimental-strip-types lib/utils/operacao-duplicacao.test.ts`, `npx tsc --noEmit` e `npm run build -- --webpack`, todos sem erros. Homologação manual confirmada pelo usuário: clone de operação criado pela UI reaproveitando campos técnicos, com novo código/QR e imagem vazia.
+
+---
+
+## SPRINT 40 — Modal de confirmação para ciclo de vida de operações
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 39 concluída e confirmação explícita do usuário para substituir `confirm()` nativo por modal visual no CRUD de operações.
+**Objetivo:** substituir os diálogos nativos de navegador usados em ações de ciclo de vida de operações por um modal consistente com o padrão visual já homologado em produtos.
+
+**Decisões de produto homologadas para esta sprint:**
+- reaproveitar o padrão visual de `ProdutoLifecycleActions` em `OperacaoLifecycleActions`
+- substituir `confirm()` por modal próprio com overlay, ícone `AlertTriangle`, botão cancelar e botão confirmar
+- cobrir as duas ações existentes: `Desativar operação` e `Excluir permanentemente`
+- manter mensagens inline quando a action retornar bloqueio ou erro, por exemplo operação vinculada a roteiro ou histórico
+- preservar tanto o modo compacto da listagem quanto o modo completo da tela de detalhe
+- não alterar backend, schema, permissões, regras de exclusão, rotas ou contrato das server actions
+
+- [x] **HU 40.1 — Como admin, quero confirmar desativação e exclusão de operação em modal visual próprio, para evitar a experiência crua do navegador e manter consistência com o restante do admin.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - remover chamadas a `confirm()` de `components/admin/actions/OperacaoLifecycleActions.tsx`
+  - criar estado local de ação pendente para `desativar` e `excluir`
+  - adicionar modal visual com overlay, `AlertTriangle`, fechamento por cancelar e botão de confirmação
+  - usar textos específicos para operação, diferenciando desativação preservadora de histórico e exclusão permanente condicionada a ausência de dependências
+  - manter mensagens inline de sucesso, erro e bloqueio retornadas por `desativarOperacao()` e `excluirOperacao()`
+  - preservar comportamento compacto na listagem e completo na tela de detalhe
+
+  Regras:
+  - não alterar `lib/actions/operacoes.ts`
+  - não mudar regras de dependência de exclusão
+  - não criar componente genérico nesta sprint
+  - usar apenas Tailwind e Lucide React
+  - preservar TypeScript strict, sem `any`
+
+  **Evidência esperada:** `npx tsc --noEmit` sem erros e fluxo manual em `/admin/operacoes` confirmando que desativar e excluir abrem modal visual próprio, cancelamento não executa action, confirmação executa a action correta e mensagens inline continuam aparecendo quando houver bloqueio por dependência.
+
+  **Evidência:** `components/admin/actions/OperacaoLifecycleActions.tsx` foi refatorado para remover `confirm()` nativo, usar estado local de ação pendente e renderizar modal visual próprio para `desativar` e `excluir`, preservando modo compacto e completo. Criado `lib/utils/operacao-lifecycle-copy.ts` com os textos do modal e `lib/utils/operacao-lifecycle-copy.test.ts` cobrindo desativação e exclusão. Validação concluída com `node --test --experimental-strip-types lib/utils/operacao-lifecycle-copy.test.ts lib/utils/operacao-duplicacao.test.ts`, `npx tsc --noEmit` e `npm run build -- --webpack`, todos sem erros. Homologação manual em `/admin/operacoes` confirmada pelo usuário.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4135,7 +4212,7 @@ Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
 Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37 (pausada)
-Sprint 36 ──► Sprint 38
+Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
