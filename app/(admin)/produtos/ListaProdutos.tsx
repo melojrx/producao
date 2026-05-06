@@ -55,20 +55,18 @@ export function ListaProdutos({
     setModalAberto(true)
   }
 
+  const produtoModelo = produtosIniciais.find((produto) => produto.id === produtoDuplicarIdInicial)
+
   useEffect(() => {
-    if (!produtoDuplicarIdInicial) {
-      return
-    }
-
-    const produtoModelo = produtosIniciais.find((produto) => produto.id === produtoDuplicarIdInicial)
-
     if (!produtoModelo) {
       router.replace('/admin/produtos')
       return
     }
 
-    abrirDuplicar(produtoModelo)
-    router.replace('/admin/produtos')
+    if (produtoModelo) {
+      abrirDuplicar(produtoModelo)
+      router.replace('/admin/produtos')
+    }
   }, [produtoDuplicarIdInicial, produtosIniciais, router])
 
   return (

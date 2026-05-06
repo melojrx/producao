@@ -2,22 +2,29 @@ import { ListaSetores } from '../../(admin)/setores/ListaSetores'
 import { listarSetores } from '@/lib/queries/setores'
 
 export default async function AdminSetoresPage() {
-  try {
-    const setores = await listarSetores()
+  const setores = await listarSetores()
 
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Setores</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Gerencie os setores produtivos que serão usados pela V2 de turno, OP e scanner.
-          </p>
-        </div>
-
-        <ListaSetores setoresIniciais={setores} />
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Setores</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Gerencie os setores produtivos que serão usados pela V2 de turno, OP e scanner.
+        </p>
       </div>
-    )
-  } catch (error) {
+
+      <ListaSetores setoresIniciais={setores} />
+    </div>
+  )
+}
+
+function AdminSetoresPageFallback() {
+  return (
+    <div className="space-y-6">
+      <p className="text-red-600">Erro ao carregar setores.</p>
+    </div>
+  )
+}
     const mensagem =
       error instanceof Error ? error.message : 'Não foi possível carregar os setores.'
 
