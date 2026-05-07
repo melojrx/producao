@@ -82,6 +82,14 @@ interface EtapasFluxoCanonicasPorOpV2<TDemanda> {
   final: TDemanda
 }
 
+interface EtapasFluxoParalelasMinimasPorOpV2<TDemanda> {
+  preparacao: TDemanda
+  frente: TDemanda
+  costa: TDemanda
+  montagem?: TDemanda
+  final?: TDemanda
+}
+
 export interface DiagnosticoFluxoParaleloDemandaV2
   extends DiagnosticoFluxoSequencialDemandaV2 {
   etapaFluxoChave?: EtapaFluxoChaveV2
@@ -248,6 +256,45 @@ function tentarMapearEtapasCanonicasPorOp<TDemanda extends Pick<EtapaFluxoSetorV
   }
 }
 
+function tentarMapearEtapasParalelasMinimasPorOp<
+  TDemanda extends Pick<EtapaFluxoSetorV2, 'setorNome'> & {
+    etapaFluxoChave?: EtapaFluxoChaveV2
+  }
+>(etapas: TDemanda[]): EtapasFluxoParalelasMinimasPorOpV2<TDemanda> | null {
+  const etapasPorChave = new Map<EtapaFluxoChaveV2, TDemanda>()
+
+  for (const etapa of etapas) {
+    const etapaFluxoChave =
+      etapa.etapaFluxoChave ?? mapearEtapaFluxoCosturaPorNomeSetor(etapa.setorNome)
+
+    if (!etapaFluxoChave) {
+      continue
+    }
+
+    if (etapasPorChave.has(etapaFluxoChave)) {
+      return null
+    }
+
+    etapasPorChave.set(etapaFluxoChave, etapa)
+  }
+
+  const preparacao = etapasPorChave.get('preparacao')
+  const frente = etapasPorChave.get('frente')
+  const costa = etapasPorChave.get('costa')
+
+  if (!preparacao || !frente || !costa) {
+    return null
+  }
+
+  return {
+    preparacao,
+    frente,
+    costa,
+    montagem: etapasPorChave.get('montagem'),
+    final: etapasPorChave.get('final'),
+  }
+}
+
 function criarPosicaoFluxoAtiva(input: {
   etapa: EtapaFluxoChaveV2
   setorId: string | null
@@ -403,30 +450,30 @@ export function enriquecerDemandasComFluxoParalelo<
   const diagnosticosPorDemandaId = new Map<string, DiagnosticoFluxoBaseSemFilaV2>()
 
   for (const demandasTurnoOp of demandasPorTurnoOp.values()) {
-    const etapasCanonicas = tentarMapearEtapasCanonicasPorOp(demandasTurnoOp)
+    const demandasSequenciais = enriquecerDemandasComFluxoSequencial(demandasTurnoOp)
+
+    for (const demanda of demandasSequenciais) {
+      diagnosticosPorDemandaId.set(demanda.id, {
+        etapaFluxoChave:
+          mapearEtapaFluxoCosturaPorNomeSetor(demanda.setorNome) ?? undefined,
+        quantidadeBacklogSetor: demanda.quantidadeBacklogSetor,
+        quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
+        quantidadeExcedenteTurno: demanda.quantidadeExcedenteTurno,
+        quantidadePendenteSetor: demanda.quantidadePendenteSetor,
+        quantidadeLiberadaSetor: demanda.quantidadeLiberadaSetor,
+        quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
+        quantidadeBloqueadaAnterior: demanda.quantidadeBloqueadaAnterior,
+        quantidadeSincronizadaMontagem: 0,
+        quantidadeBloqueadaSincronizacao: 0,
+        setorAnteriorId: demanda.setorAnteriorId,
+        setorAnteriorCodigo: demanda.setorAnteriorCodigo,
+        setorAnteriorNome: demanda.setorAnteriorNome,
+      })
+    }
+
+    const etapasCanonicas = tentarMapearEtapasParalelasMinimasPorOp(demandasTurnoOp)
 
     if (!etapasCanonicas) {
-      const demandasSequenciais = enriquecerDemandasComFluxoSequencial(demandasTurnoOp)
-
-      for (const demanda of demandasSequenciais) {
-        diagnosticosPorDemandaId.set(demanda.id, {
-          etapaFluxoChave:
-            mapearEtapaFluxoCosturaPorNomeSetor(demanda.setorNome) ?? undefined,
-          quantidadeBacklogSetor: demanda.quantidadeBacklogSetor,
-          quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
-          quantidadeExcedenteTurno: demanda.quantidadeExcedenteTurno,
-          quantidadePendenteSetor: demanda.quantidadePendenteSetor,
-          quantidadeLiberadaSetor: demanda.quantidadeLiberadaSetor,
-          quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
-          quantidadeBloqueadaAnterior: demanda.quantidadeBloqueadaAnterior,
-          quantidadeSincronizadaMontagem: 0,
-          quantidadeBloqueadaSincronizacao: 0,
-          setorAnteriorId: demanda.setorAnteriorId,
-          setorAnteriorCodigo: demanda.setorAnteriorCodigo,
-          setorAnteriorNome: demanda.setorAnteriorNome,
-        })
-      }
-
       continue
     }
 
@@ -444,17 +491,6 @@ export function enriquecerDemandasComFluxoParalelo<
       quantidadePlanejada: etapasCanonicas.costa.quantidadePlanejada,
       quantidadeLiberada: etapasCanonicas.preparacao.quantidadeRealizada,
       quantidadeRealizada: etapasCanonicas.costa.quantidadeRealizada,
-    })
-    const sincronizacaoMontagem = calcularSincronizacaoParcialMontagem({
-      quantidadePlanejada: etapasCanonicas.montagem.quantidadePlanejada,
-      quantidadeConcluidaFrente: etapasCanonicas.frente.quantidadeRealizada,
-      quantidadeConcluidaCosta: etapasCanonicas.costa.quantidadeRealizada,
-      quantidadeRealizadaMontagem: etapasCanonicas.montagem.quantidadeRealizada,
-    })
-    const liberacaoFinal = criarLiberacaoEtapa({
-      quantidadePlanejada: etapasCanonicas.final.quantidadePlanejada,
-      quantidadeLiberada: etapasCanonicas.montagem.quantidadeRealizada,
-      quantidadeRealizada: etapasCanonicas.final.quantidadeRealizada,
     })
 
     diagnosticosPorDemandaId.set(
@@ -487,30 +523,49 @@ export function enriquecerDemandasComFluxoParalelo<
         setorAnteriorNome: etapasCanonicas.preparacao.setorNome,
       })
     )
-    diagnosticosPorDemandaId.set(
-      etapasCanonicas.montagem.id,
-      criarDiagnosticoFluxoSemFila({
-        etapaFluxoChave: 'montagem',
-        demanda: etapasCanonicas.montagem,
-        quantidadeLiberadaSetor: sincronizacaoMontagem.quantidadeSincronizadaMontagem,
-        setorAnteriorNome: 'Frente + Costa',
-        quantidadeSincronizadaMontagem:
-          sincronizacaoMontagem.quantidadeSincronizadaMontagem,
-        quantidadeBloqueadaSincronizacao:
-          sincronizacaoMontagem.quantidadeBloqueadaSincronizacao,
+
+    if (etapasCanonicas.montagem) {
+      const sincronizacaoMontagem = calcularSincronizacaoParcialMontagem({
+        quantidadePlanejada: etapasCanonicas.montagem.quantidadePlanejada,
+        quantidadeConcluidaFrente: etapasCanonicas.frente.quantidadeRealizada,
+        quantidadeConcluidaCosta: etapasCanonicas.costa.quantidadeRealizada,
+        quantidadeRealizadaMontagem: etapasCanonicas.montagem.quantidadeRealizada,
       })
-    )
-    diagnosticosPorDemandaId.set(
-      etapasCanonicas.final.id,
-      criarDiagnosticoFluxoSemFila({
-        etapaFluxoChave: 'final',
-        demanda: etapasCanonicas.final,
-        quantidadeLiberadaSetor: liberacaoFinal.quantidadeLiberada,
-        setorAnteriorId: etapasCanonicas.montagem.setorId,
-        setorAnteriorCodigo: etapasCanonicas.montagem.setorCodigo,
-        setorAnteriorNome: etapasCanonicas.montagem.setorNome,
-      })
-    )
+
+      diagnosticosPorDemandaId.set(
+        etapasCanonicas.montagem.id,
+        criarDiagnosticoFluxoSemFila({
+          etapaFluxoChave: 'montagem',
+          demanda: etapasCanonicas.montagem,
+          quantidadeLiberadaSetor: sincronizacaoMontagem.quantidadeSincronizadaMontagem,
+          setorAnteriorNome: 'Frente + Costa',
+          quantidadeSincronizadaMontagem:
+            sincronizacaoMontagem.quantidadeSincronizadaMontagem,
+          quantidadeBloqueadaSincronizacao:
+            sincronizacaoMontagem.quantidadeBloqueadaSincronizacao,
+        })
+      )
+
+      if (etapasCanonicas.final) {
+        const liberacaoFinal = criarLiberacaoEtapa({
+          quantidadePlanejada: etapasCanonicas.final.quantidadePlanejada,
+          quantidadeLiberada: etapasCanonicas.montagem.quantidadeRealizada,
+          quantidadeRealizada: etapasCanonicas.final.quantidadeRealizada,
+        })
+
+        diagnosticosPorDemandaId.set(
+          etapasCanonicas.final.id,
+          criarDiagnosticoFluxoSemFila({
+            etapaFluxoChave: 'final',
+            demanda: etapasCanonicas.final,
+            quantidadeLiberadaSetor: liberacaoFinal.quantidadeLiberada,
+            setorAnteriorId: etapasCanonicas.montagem.setorId,
+            setorAnteriorCodigo: etapasCanonicas.montagem.setorCodigo,
+            setorAnteriorNome: etapasCanonicas.montagem.setorNome,
+          })
+        )
+      }
+    }
   }
 
   const posicoesPorDemandaId = new Map<string, number | null>()

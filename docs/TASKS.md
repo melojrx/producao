@@ -4680,6 +4680,45 @@ Escopo futuro previsto:
 
 ---
 
+## SPRINT 46 — Correção do fork paralelo sem etapa Finalização
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 44 concluída e bug homologado em teste real de abertura/apontamento de turno.
+**Objetivo:** corrigir a liberação operacional de `Costa` quando uma OP possui `Preparação`, `Frente`, `Costa` e `Montagem`, mas não possui setor canônico `Final`/`Finalização`, preservando o fork paralelo homologado entre `Frente` e `Costa`.
+
+**Contexto do bug:**
+- em teste real de abertura de turno, `Preparação` produziu `97` peças
+- `Frente` recebeu `97` peças em `Disponível`
+- `Costa` permaneceu com `Disponível = 0`
+- como `Frente` e `Costa` são trilhas paralelas oficiais após `Preparação`, ambas devem receber o mesmo teto liberado por `Preparação`
+
+**Causa técnica esperada:**
+- a função de fluxo paralelo só ativa o grafo canônico quando encontra todas as etapas `Preparação`, `Frente`, `Costa`, `Montagem` e `Final`
+- quando o roteiro não possui `Final`/`Finalização`, o sistema cai no fallback sequencial
+- nesse fallback, `Costa` passa a depender de `Frente`, o que zera indevidamente a disponibilidade de `Costa` enquanto `Frente` ainda não produziu
+
+- [x] **HU 46.1 — Como supervisor, quero que `Costa` receba disponibilidade junto com `Frente` após produção em `Preparação`, mesmo quando a OP não tiver etapa `Finalização`.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar teste de regressão com OP contendo `Preparação`, `Frente`, `Costa` e `Montagem`, sem `Final`/`Finalização`
+  - provar no teste que, com `97` peças produzidas em `Preparação`, `Frente` e `Costa` recebem `97` em `quantidadeDisponivelApontamento`
+  - ajustar `lib/utils/fluxo-paralelo-turno.ts` para ativar o fork paralelo quando existirem pelo menos `Preparação`, `Frente` e `Costa`
+  - manter `Montagem` dependente da interseção real entre `Frente` e `Costa` quando existir
+  - preservar fallback sequencial para roteiros que não tenham o par paralelo `Frente + Costa`
+
+  Regras:
+  - não alterar banco, RPCs ou contratos Supabase nesta sprint
+  - não iniciar a arquitetura genérica da Sprint 45
+  - não mudar os cálculos de capacidade, saldo, carry-over ou cards canônicos
+  - a correção deve ser feita em função pura e coberta por teste automatizado
+
+  **Evidência esperada:** teste automatizado reproduz o bug e passa após a correção; `npx tsc --noEmit` passa sem erros; dashboard, scanner e apontamentos ficam corrigidos por consumirem a mesma função pura de fluxo.
+
+  **Evidência:** criado teste de regressão em `lib/utils/fluxo-paralelo-turno.test.ts` com OP sem `Final`/`Finalização`, contendo `Preparação = 97`, `Frente = 0`, `Costa = 0` e `Montagem = 0`. O teste falhou antes da correção mostrando `Costa` com `setorAnteriorNome = Frente` e `quantidadeDisponivelApontamento = 0`. `lib/utils/fluxo-paralelo-turno.ts` foi ajustado para iniciar o fork paralelo quando existirem pelo menos `Preparação`, `Frente` e `Costa`, sem exigir `Finalização`; demandas não canônicas preservam o fallback sequencial. Após a correção, `Frente` e `Costa` recebem `97` em `Disponível`, ambas com anterior `Preparação`, e `Montagem` segue dependente da interseção `Frente + Costa`. Validação em `2026-05-07`: `node --test --experimental-strip-types lib/utils/fluxo-paralelo-turno.test.ts lib/utils/fluxo-sequencial-turno.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts` passou 22/22; `npx tsc --noEmit` passou sem erros.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4692,6 +4731,7 @@ Sprint 37 ──► Sprint 42
 Sprint 42 ──► Sprint 43
 Sprint 43 ──► Sprint 44
 Sprint 44 ──► Sprint 45
+Sprint 45 ──► Sprint 46
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

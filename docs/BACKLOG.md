@@ -624,6 +624,19 @@
 - Preservar os conceitos homologados de capacidade, disponibilidade, produzido, saldo, carry-over e fila
 - Não iniciar implementação sem confirmação explícita após conclusão da Sprint 44
 
+## SPRINT 46 — Correção do fork paralelo sem etapa Finalização
+**Objetivo:** corrigir a disponibilidade de `Costa` quando uma OP não possui setor `Final`/`Finalização`, mantendo `Frente` e `Costa` como trilhas paralelas oficiais após `Preparação`.
+**Entregável:** teste de regressão e ajuste em função pura para que `Preparação` libere simultaneamente `Frente` e `Costa` mesmo em roteiros sem etapa final canônica.
+**Status:** ✅ Concluída
+
+- Reproduzir em teste automatizado o cenário real: `Preparação = 97`, `Frente disponível = 97`, `Costa disponível` não pode ficar `0`
+- Corrigir a ativação do fluxo paralelo para depender do fork mínimo `Preparação + Frente + Costa`, sem exigir `Finalização`
+- Manter `Montagem` dependente da interseção real entre `Frente` e `Costa`
+- Preservar fallback sequencial para roteiros sem par paralelo
+- Validar com teste focado, `npx tsc --noEmit` e evidência registrada no `TASKS.md`
+
+**Fechamento em `2026-05-07`:** a regressão real foi reproduzida em teste antes da correção: OP sem `Finalização`, `Preparação = 97`, `Frente disponível = 97` e `Costa disponível = 0` por queda indevida no fluxo sequencial. `lib/utils/fluxo-paralelo-turno.ts` passou a ativar o fork mínimo quando existem `Preparação`, `Frente` e `Costa`, mantendo `Montagem` por interseção `Frente + Costa` quando existir e preservando fallback sequencial para roteiros sem par paralelo. Validação executada com a suíte de fluxo/kanban/capacidade e `npx tsc --noEmit`, sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -638,6 +651,7 @@ Sprint 37 ──► Sprint 42
 Sprint 42 ──► Sprint 43
 Sprint 43 ──► Sprint 44
 Sprint 44 ──► Sprint 45
+Sprint 45 ──► Sprint 46
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

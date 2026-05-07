@@ -316,6 +316,82 @@ test('enriquece as demandas do fluxo paralelo liberando Montagem apenas pela int
   )
 })
 
+test('mantém Frente e Costa paralelas quando o roteiro não possui etapa Finalização', () => {
+  const demandas = enriquecerDemandasComFluxoParalelo([
+    {
+      id: 'demanda-preparacao',
+      turnoOpId: 'op-sem-finalizacao',
+      setorId: 'setor-preparacao',
+      setorCodigo: 10,
+      setorNome: 'Preparação',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 97,
+      status: 'em_andamento',
+      iniciadoEm: '2026-05-07T08:00:00.000Z',
+      encerradoEm: null,
+    },
+    {
+      id: 'demanda-frente',
+      turnoOpId: 'op-sem-finalizacao',
+      setorId: 'setor-frente',
+      setorCodigo: 20,
+      setorNome: 'Frente',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'demanda-costa',
+      turnoOpId: 'op-sem-finalizacao',
+      setorId: 'setor-costa',
+      setorCodigo: 30,
+      setorNome: 'Costa',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'demanda-montagem',
+      turnoOpId: 'op-sem-finalizacao',
+      setorId: 'setor-montagem',
+      setorCodigo: 40,
+      setorNome: 'Montagem',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+  ])
+
+  const frente = demandas.find((demanda) => demanda.id === 'demanda-frente')
+  const costa = demandas.find((demanda) => demanda.id === 'demanda-costa')
+  const montagem = demandas.find((demanda) => demanda.id === 'demanda-montagem')
+
+  assert.deepEqual(
+    {
+      frenteDisponivel: frente?.quantidadeDisponivelApontamento,
+      frenteAnterior: frente?.setorAnteriorNome,
+      costaDisponivel: costa?.quantidadeDisponivelApontamento,
+      costaAnterior: costa?.setorAnteriorNome,
+      montagemDisponivel: montagem?.quantidadeDisponivelApontamento,
+      montagemAnterior: montagem?.setorAnteriorNome,
+    },
+    {
+      frenteDisponivel: 97,
+      frenteAnterior: 'Preparação',
+      costaDisponivel: 97,
+      costaAnterior: 'Preparação',
+      montagemDisponivel: 0,
+      montagemAnterior: 'Frente + Costa',
+    }
+  )
+})
+
 test('resume a OP com múltiplas posições ativas e mantém um resumo compatível para a UI atual', () => {
   const resumo = resolverResumoFluxoOpParalelo([
     {
