@@ -1,8 +1,28 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Gauge, TableProperties, Timer } from 'lucide-react'
-import type { ResumoEficienciaOperacionalTurnoV2 } from '@/types'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Gauge,
+  TableProperties,
+  Timer,
+} from 'lucide-react'
+import {
+  ordenarEficienciaOperacionalPorDia,
+  ordenarEficienciaOperacionalPorHora,
+  ordenarEficienciaOperacionalPorOperacao,
+  type EficienciaDiaSortField,
+  type EficienciaHoraSortField,
+  type EficienciaOperacaoSortField,
+  type EficienciaSortState,
+} from '@/lib/utils/eficiencia-operacional-ordenacao'
+import type { ResumoEficienciaOperacionalTurnoV2, SortDirection } from '@/types'
 
 interface EficienciaOperacionalTurnoV2Props {
   resumo: ResumoEficienciaOperacionalTurnoV2 | undefined
@@ -159,6 +179,56 @@ function PaginacaoTabela({
   )
 }
 
+function alternarOrdenacao<TField extends string>(
+  ordenacaoAtual: EficienciaSortState<TField>,
+  field: TField
+): EficienciaSortState<TField> {
+  if (ordenacaoAtual.field !== field) {
+    return { field, direction: 'asc' }
+  }
+
+  return {
+    field,
+    direction: ordenacaoAtual.direction === 'asc' ? 'desc' : 'asc',
+  }
+}
+
+function SortableHeader<TField extends string>({
+  activeField,
+  className,
+  direction,
+  field,
+  label,
+  onSort,
+}: {
+  activeField: TField
+  className?: string
+  direction: SortDirection
+  field: TField
+  label: string
+  onSort: (field: TField) => void
+}) {
+  const isActive = field === activeField
+  const Icon = !isActive ? ArrowUpDown : direction === 'asc' ? ArrowUp : ArrowDown
+  const proximaDirecao = isActive && direction === 'asc' ? 'descendente' : 'ascendente'
+
+  return (
+    <th className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        aria-label={`Ordenar por ${label} em ordem ${proximaDirecao}`}
+        className={`inline-flex items-center gap-2 text-left transition-colors ${
+          isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'
+        }`}
+      >
+        <span>{label}</span>
+        <Icon size={14} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
+      </button>
+    </th>
+  )
+}
+
 export function EficienciaOperacionalTurnoV2({
   resumo,
   operadoresDisponiveis,
@@ -170,6 +240,35 @@ export function EficienciaOperacionalTurnoV2({
   const [paginaHora, setPaginaHora] = useState(1)
   const [paginaDia, setPaginaDia] = useState(1)
   const [paginaOperacao, setPaginaOperacao] = useState(1)
+  const [ordenacaoHora, setOrdenacaoHora] = useState<EficienciaSortState<EficienciaHoraSortField>>({
+    field: 'hora',
+    direction: 'desc',
+  })
+  const [ordenacaoDia, setOrdenacaoDia] = useState<EficienciaSortState<EficienciaDiaSortField>>({
+    field: 'eficienciaPct',
+    direction: 'desc',
+  })
+  const [ordenacaoOperacao, setOrdenacaoOperacao] = useState<
+    EficienciaSortState<EficienciaOperacaoSortField>
+  >({
+    field: 'eficienciaPct',
+    direction: 'desc',
+  })
+
+  const ordenarHora = (field: EficienciaHoraSortField) => {
+    setOrdenacaoHora((ordenacaoAtual) => alternarOrdenacao(ordenacaoAtual, field))
+    setPaginaHora(1)
+  }
+
+  const ordenarDia = (field: EficienciaDiaSortField) => {
+    setOrdenacaoDia((ordenacaoAtual) => alternarOrdenacao(ordenacaoAtual, field))
+    setPaginaDia(1)
+  }
+
+  const ordenarOperacao = (field: EficienciaOperacaoSortField) => {
+    setOrdenacaoOperacao((ordenacaoAtual) => alternarOrdenacao(ordenacaoAtual, field))
+    setPaginaOperacao(1)
+  }
 
   const totalPaginasHora = useMemo(
     () => calcularTotalPaginas(porHora.length, itensPorPaginaSuperior),
@@ -196,17 +295,30 @@ export function EficienciaOperacionalTurnoV2({
     setPaginaOperacao((paginaAtual) => Math.min(paginaAtual, totalPaginasOperacao))
   }, [totalPaginasOperacao])
 
+  const porHoraOrdenado = useMemo(
+    () => ordenarEficienciaOperacionalPorHora(porHora, ordenacaoHora),
+    [ordenacaoHora, porHora]
+  )
+  const porDiaOrdenado = useMemo(
+    () => ordenarEficienciaOperacionalPorDia(porDia, ordenacaoDia),
+    [ordenacaoDia, porDia]
+  )
+  const porOperacaoOrdenado = useMemo(
+    () => ordenarEficienciaOperacionalPorOperacao(porOperacao, ordenacaoOperacao),
+    [ordenacaoOperacao, porOperacao]
+  )
+
   const porHoraPaginado = useMemo(
-    () => paginarItens(porHora, paginaHora, itensPorPaginaSuperior),
-    [itensPorPaginaSuperior, paginaHora, porHora]
+    () => paginarItens(porHoraOrdenado, paginaHora, itensPorPaginaSuperior),
+    [itensPorPaginaSuperior, paginaHora, porHoraOrdenado]
   )
   const porDiaPaginado = useMemo(
-    () => paginarItens(porDia, paginaDia, itensPorPaginaSuperior),
-    [itensPorPaginaSuperior, paginaDia, porDia]
+    () => paginarItens(porDiaOrdenado, paginaDia, itensPorPaginaSuperior),
+    [itensPorPaginaSuperior, paginaDia, porDiaOrdenado]
   )
   const porOperacaoPaginado = useMemo(
-    () => paginarItens(porOperacao, paginaOperacao, ITENS_POR_PAGINA_OPERACAO),
-    [paginaOperacao, porOperacao]
+    () => paginarItens(porOperacaoOrdenado, paginaOperacao, ITENS_POR_PAGINA_OPERACAO),
+    [paginaOperacao, porOperacaoOrdenado]
   )
 
   const destaqueResumo = useMemo(() => {
@@ -324,12 +436,54 @@ export function EficienciaOperacionalTurnoV2({
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-3">Hora</th>
-                      <th className="px-4 py-3">Operador</th>
-                      <th className="px-4 py-3">Operações</th>
-                      <th className="px-4 py-3">Peças</th>
-                      <th className="px-4 py-3">Min. padrão</th>
-                      <th className="px-4 py-3">Efic%</th>
+                      <SortableHeader
+                        activeField={ordenacaoHora.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoHora.direction}
+                        field="hora"
+                        label="Hora"
+                        onSort={ordenarHora}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoHora.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoHora.direction}
+                        field="operadorNome"
+                        label="Operador"
+                        onSort={ordenarHora}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoHora.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoHora.direction}
+                        field="totalOperacoes"
+                        label="Operações"
+                        onSort={ordenarHora}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoHora.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoHora.direction}
+                        field="quantidadeRealizada"
+                        label="Peças"
+                        onSort={ordenarHora}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoHora.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoHora.direction}
+                        field="minutosPadraoRealizados"
+                        label="Min. padrão"
+                        onSort={ordenarHora}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoHora.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoHora.direction}
+                        field="eficienciaPct"
+                        label="Efic%"
+                        onSort={ordenarHora}
+                      />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
@@ -402,10 +556,38 @@ export function EficienciaOperacionalTurnoV2({
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-3">Data</th>
-                      <th className="px-4 py-3">Operador</th>
-                      <th className="px-4 py-3">Peças</th>
-                      <th className="px-4 py-3">Efic%</th>
+                      <SortableHeader
+                        activeField={ordenacaoDia.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoDia.direction}
+                        field="data"
+                        label="Data"
+                        onSort={ordenarDia}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoDia.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoDia.direction}
+                        field="operadorNome"
+                        label="Operador"
+                        onSort={ordenarDia}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoDia.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoDia.direction}
+                        field="quantidadeRealizada"
+                        label="Peças"
+                        onSort={ordenarDia}
+                      />
+                      <SortableHeader
+                        activeField={ordenacaoDia.field}
+                        className="px-4 py-3"
+                        direction={ordenacaoDia.direction}
+                        field="eficienciaPct"
+                        label="Efic%"
+                        onSort={ordenarDia}
+                      />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
@@ -466,13 +648,62 @@ export function EficienciaOperacionalTurnoV2({
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50">
                   <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-3">Hora</th>
-                    <th className="px-4 py-3">Operador</th>
-                    <th className="px-4 py-3">Operação</th>
-                    <th className="px-4 py-3">T.P.</th>
-                    <th className="px-4 py-3">Meta/hora</th>
-                    <th className="px-4 py-3">Realizado</th>
-                    <th className="px-4 py-3">Efic%</th>
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="hora"
+                      label="Hora"
+                      onSort={ordenarOperacao}
+                    />
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="operadorNome"
+                      label="Operador"
+                      onSort={ordenarOperacao}
+                    />
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="operacaoDescricao"
+                      label="Operação"
+                      onSort={ordenarOperacao}
+                    />
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="tempoPadraoMinSnapshot"
+                      label="T.P."
+                      onSort={ordenarOperacao}
+                    />
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="metaHora"
+                      label="Meta/hora"
+                      onSort={ordenarOperacao}
+                    />
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="quantidadeRealizada"
+                      label="Realizado"
+                      onSort={ordenarOperacao}
+                    />
+                    <SortableHeader
+                      activeField={ordenacaoOperacao.field}
+                      className="px-4 py-3"
+                      direction={ordenacaoOperacao.direction}
+                      field="eficienciaPct"
+                      label="Efic%"
+                      onSort={ordenarOperacao}
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">

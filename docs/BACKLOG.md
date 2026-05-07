@@ -637,6 +637,19 @@
 
 **Fechamento em `2026-05-07`:** a regressão real foi reproduzida em teste antes da correção: OP sem `Finalização`, `Preparação = 97`, `Frente disponível = 97` e `Costa disponível = 0` por queda indevida no fluxo sequencial. `lib/utils/fluxo-paralelo-turno.ts` passou a ativar o fork mínimo quando existem `Preparação`, `Frente` e `Costa`, mantendo `Montagem` por interseção `Frente + Costa` quando existir e preservando fallback sequencial para roteiros sem par paralelo. Validação executada com a suíte de fluxo/kanban/capacidade e `npx tsc --noEmit`, sem erros.
 
+## SPRINT 47 — Ordenação nas tabelas da aba Operadores
+**Objetivo:** replicar na aba `Operadores` da dashboard o comportamento de ordenação por clique no cabeçalho já existente na tabela de detalhamento dos relatórios.
+**Entregável:** `Eficiência por hora`, `Eficiência do dia por operador` e `Eficiência por operação` com cabeçalhos clicáveis, ícones de direção, estado independente por tabela e ordenação aplicada antes da paginação.
+**Status:** ✅ Concluída
+
+- Criar função pura compartilhada para ordenar os registros das três tabelas de eficiência operacional
+- Cobrir ordenação ascendente e descendente por teste automatizado
+- Adicionar cabeçalhos clicáveis com Lucide React nas três tabelas da aba `Operadores`
+- Preservar queries, contratos de banco e cálculos de eficiência
+- Validar com teste focado, `npx tsc --noEmit` e evidência registrada no `TASKS.md`
+
+**Fechamento em `2026-05-07`:** a aba `Operadores` da dashboard recebeu ordenação local nas três tabelas de eficiência operacional, reaproveitando o comportamento visual de cabeçalho clicável com ícone de direção já homologado nos relatórios. A ordenação é feita por função pura, antes da paginação, com estado independente por tabela e sem alteração em queries, banco ou métricas. Validação executada com teste focado de ordenação, suíte relacionada de eficiência operacional com loader de alias, `npx tsc --noEmit` e `git diff --check`, sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -652,6 +665,7 @@ Sprint 42 ──► Sprint 43
 Sprint 43 ──► Sprint 44
 Sprint 44 ──► Sprint 45
 Sprint 45 ──► Sprint 46
+Sprint 46 ──► Sprint 47
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

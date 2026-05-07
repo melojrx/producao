@@ -4719,6 +4719,47 @@ Escopo futuro previsto:
 
 ---
 
+## SPRINT 47 — Ordenação nas tabelas da aba Operadores
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 46 concluída e comportamento desejado homologado visualmente na tabela `Detalhamento atômico filtrado` dos relatórios.
+**Objetivo:** levar o comportamento de ordenação por clique no cabeçalho para as três tabelas da aba `Operadores` da dashboard, mantendo a leitura operacional atual e sem alterar métricas, queries ou contratos de banco.
+
+**Contexto da melhoria:**
+- a tabela `Detalhamento atômico filtrado` em `/admin/relatorios` já permite clicar nos cabeçalhos para ordenar as colunas
+- a aba `Operadores` da dashboard possui três tabelas úteis para análise operacional:
+  - `Eficiência por hora`
+  - `Eficiência do dia por operador`
+  - `Eficiência por operação`
+- essas três tabelas hoje são exibidas em uma ordem fixa derivada da query/consolidação
+- o usuário precisa poder reorganizar visualmente cada tabela conforme a coluna de interesse, sem sair da dashboard
+
+- [x] **HU 47.1 — Como supervisor, quero ordenar as três tabelas da aba Operadores clicando nos cabeçalhos, para analisar eficiência por diferentes critérios sem depender da ordem padrão.**
+  **Prioridade:** P1
+  **Risco:** Baixo
+
+  Tarefas:
+  - criar uma função pura de ordenação para os registros de eficiência operacional da dashboard
+  - cobrir por teste a ordenação ascendente e descendente das três leituras:
+    - eficiência por hora
+    - eficiência do dia por operador
+    - eficiência por operação
+  - adicionar cabeçalhos clicáveis com ícones de direção nas três tabelas de `components/dashboard/EficienciaOperacionalTurnoV2.tsx`
+  - manter a paginação atual, aplicando a ordenação antes do recorte da página
+  - resetar a página da tabela para `1` quando o usuário trocar a coluna ou direção de ordenação
+
+  Regras:
+  - não alterar queries, banco, RPCs ou cálculos de eficiência nesta sprint
+  - não instalar novas bibliotecas
+  - usar Lucide React para ícones de ordenação
+  - preservar os valores exibidos; a mudança é somente na ordem visual das linhas
+  - cada tabela deve manter seu estado de ordenação independente
+
+  **Evidência esperada:** testes automatizados comprovam a ordenação das três tabelas; `npx tsc --noEmit` passa sem erros; a aba `Operadores` passa a exibir cabeçalhos clicáveis com indicação visual de ordenação.
+
+  **Evidência:** criada a função pura `lib/utils/eficiencia-operacional-ordenacao.ts` para ordenar as três leituras da aba `Operadores` sem alterar os arrays originais. O teste `lib/utils/eficiencia-operacional-ordenacao.test.ts` cobre ordenação ascendente e descendente em `Eficiência por hora`, `Eficiência do dia por operador` e `Eficiência por operação`. `components/dashboard/EficienciaOperacionalTurnoV2.tsx` passou a usar cabeçalhos clicáveis com ícones Lucide (`ArrowUpDown`, `ArrowUp`, `ArrowDown`), estado independente de ordenação por tabela e paginação aplicada após a ordenação. A troca de coluna/direção reseta a página da tabela para `1`. Validação em `2026-05-07`: `node --test --experimental-strip-types lib/utils/eficiencia-operacional-ordenacao.test.ts` passou 3/3; `node --experimental-loader /tmp/producao-alias-loader.mjs --test --experimental-strip-types lib/utils/eficiencia-operacional-ordenacao.test.ts lib/queries/eficiencia-operacional-turno-base.test.ts` passou 2/2 arquivos; `npx tsc --noEmit` e `git diff --check` passaram sem erros.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4732,6 +4773,7 @@ Sprint 42 ──► Sprint 43
 Sprint 43 ──► Sprint 44
 Sprint 44 ──► Sprint 45
 Sprint 45 ──► Sprint 46
+Sprint 46 ──► Sprint 47
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
