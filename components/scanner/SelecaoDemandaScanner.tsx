@@ -117,25 +117,25 @@ export function SelecaoDemandaScanner({
               <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    Backlog vivo
+                    Peças da OP
                   </p>
                   <p className="mt-1 font-semibold text-white">{leituraDemanda.backlogVivo}</p>
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    Plano do dia
+                    Capacidade
                   </p>
                   <p className="mt-1 font-semibold text-white">{leituraDemanda.planoDoDia}</p>
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    Disponível agora
+                    Disponível
                   </p>
                   <p className="mt-1 font-semibold text-white">{leituraDemanda.disponivelAgora}</p>
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    Peças completas
+                    Produzido
                   </p>
                   <p className="mt-1 font-semibold text-white">{demanda.quantidadeConcluida}</p>
                 </div>
@@ -150,8 +150,8 @@ export function SelecaoDemandaScanner({
                   <div className="flex items-start gap-2">
                     <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                     <p>
-                      A disponibilidade imediata desta OP já ultrapassa o saldo visual do plano do
-                      dia. O scanner continua liberado.
+                      A disponibilidade imediata desta OP já ultrapassa o saldo visual da
+                      capacidade. O scanner continua liberado.
                     </p>
                   </div>
                 </div>

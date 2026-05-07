@@ -352,7 +352,7 @@ export function PainelQualidadeSupervisor({
             >
               {secoesQualidade.map((secao) => (
                 <option key={secao.id} value={secao.id}>
-                  {secao.numeroOp} · {secao.produtoReferencia} · disponível agora {secao.quantidadeDisponivelAgora}
+                  {secao.numeroOp} · {secao.produtoReferencia} · disponível {secao.quantidadeDisponivelAgora}
                 </option>
               ))}
             </select>
@@ -369,7 +369,7 @@ export function PainelQualidadeSupervisor({
             <p className="mt-2 text-2xl font-semibold text-blue-900">{secaoSelecionada.quantidadeConcluida}</p>
           </article>
           <article className="rounded-2xl bg-cyan-50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">Disponível agora</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">Disponível</p>
             <p className="mt-2 text-2xl font-semibold text-cyan-900">{secaoSelecionada.quantidadeDisponivelAgora}</p>
           </article>
         </div>

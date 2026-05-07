@@ -780,8 +780,8 @@ export function PainelApontamentosSupervisor({
                     >
                       {secoesFiltradas.map((secao) => (
                         <option key={secao.id} value={secao.id}>
-                          {secao.numeroOp} · {secao.setorNome} · plano do dia{' '}
-                          {secao.quantidadePlanoDoDia} · disponível agora{' '}
+                          {secao.numeroOp} · {secao.setorNome} · capacidade{' '}
+                          {secao.quantidadePlanoDoDia} · disponível{' '}
                           {saldoRestanteSecao(secao)} · manual supervisor {saldoManualSecao(secao)}
                         </option>
                       ))}
@@ -801,7 +801,7 @@ export function PainelApontamentosSupervisor({
                 <div className="grid gap-3 md:grid-cols-6">
                   <article className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Backlog vivo
+                      Peças da OP
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">
                       {secaoSelecionada.quantidadeBacklogTotal}
@@ -809,7 +809,7 @@ export function PainelApontamentosSupervisor({
                   </article>
                   <article className="rounded-2xl bg-blue-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                      Plano do dia
+                      Capacidade
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-blue-900">
                       {secaoSelecionada.quantidadePlanoDoDia}
@@ -817,7 +817,7 @@ export function PainelApontamentosSupervisor({
                   </article>
                   <article className="rounded-2xl bg-cyan-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">
-                      Disponível agora
+                      Disponível
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-cyan-900">
                       {saldoSecaoSelecionada}
@@ -833,7 +833,7 @@ export function PainelApontamentosSupervisor({
                   </article>
                   <article className="rounded-2xl bg-emerald-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                      Concluído
+                      Produzido
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-emerald-900">
                       {secaoSelecionada.quantidadeConcluida}
@@ -841,7 +841,7 @@ export function PainelApontamentosSupervisor({
                   </article>
                   <article className="rounded-2xl bg-amber-50 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                      Excedente
+                      Saldo
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-amber-900">
                       {secaoSelecionada.quantidadeExcedenteTurno}
@@ -871,7 +871,7 @@ export function PainelApontamentosSupervisor({
 
                 {resumoPlanoSecao?.excedePlanoAtual || resumoPlanoSecao?.excedePlanoComQuantidade ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    Este lançamento ultrapassa o saldo visual do plano do dia deste setor. O
+                    Este lançamento ultrapassa o saldo visual da capacidade deste setor. O
                     apontamento continua permitido, mas a leitura diária já excedeu o teto
                     planejado.
                   </div>
@@ -999,7 +999,7 @@ export function PainelApontamentosSupervisor({
                         Atividade real {operadoresComAtividadeSecao}
                       </span>
                       <span className="inline-flex items-center gap-2 font-medium">
-                        Plano do dia {secaoSelecionada.quantidadePlanoDoDia} · disponível agora{' '}
+                        Capacidade {secaoSelecionada.quantidadePlanoDoDia} · disponível{' '}
                         {saldoSecaoSelecionada} · manual supervisor {saldoManualSecaoSelecionada}
                       </span>
                     </div>
@@ -1103,9 +1103,9 @@ export function PainelApontamentosSupervisor({
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
                     <p className="text-sm text-slate-500">
-                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · backlog vivo{' '}
-                      {secaoSelecionada.quantidadeBacklogTotal} · plano do dia{' '}
-                      {secaoSelecionada.quantidadePlanoDoDia} · disponível agora{' '}
+                      {secaoSelecionada.numeroOp} · {secaoSelecionada.setorNome} · peças da OP{' '}
+                      {secaoSelecionada.quantidadeBacklogTotal} · capacidade{' '}
+                      {secaoSelecionada.quantidadePlanoDoDia} · disponível{' '}
                       {saldoSecaoSelecionada} · manual supervisor {saldoManualSecaoSelecionada}.
                     </p>
 

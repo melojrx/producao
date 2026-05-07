@@ -82,7 +82,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
             </article>
 
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Backlog vivo</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Peças da OP</p>
               <p className="mt-2 text-3xl font-semibold text-slate-900">
                 {formatarQuantidade(setor.quantidadeBacklogTotal)}
               </p>
@@ -90,7 +90,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
 
             <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                Plano do dia
+                Capacidade
               </p>
               <p className="mt-2 text-3xl font-semibold text-blue-900">
                 {formatarQuantidade(setor.quantidadeAceitaTurno)}
@@ -99,7 +99,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
 
             <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                Peças completas
+                Produzido
               </p>
               <p className="mt-2 text-3xl font-semibold text-emerald-900">
                 {formatarQuantidade(setor.quantidadeConcluida)}
@@ -108,7 +108,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
 
             <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                Excedente
+                Saldo
               </p>
               <p className="mt-2 text-3xl font-semibold text-amber-900">
                 {formatarQuantidade(setor.quantidadeExcedenteTurno)}
@@ -130,7 +130,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
               <div className="flex items-start gap-2">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                 <p>
-                  A execução imediata deste setor já ultrapassa o saldo visual do plano do dia.
+                  A execução imediata deste setor já ultrapassa o saldo visual da capacidade.
                   Scanner e apontamentos continuam operando, mas o teto diário do turno foi
                   excedido nesta leitura.
                 </p>
@@ -187,7 +187,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                   <div className="mt-3 grid gap-2 sm:grid-cols-4">
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                        Backlog vivo
+                        Peças da OP
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-900">
                         {formatarQuantidade(demanda.quantidadeBacklogSetor)}
@@ -195,7 +195,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
-                        Plano do dia
+                        Capacidade
                       </p>
                       <p className="mt-1 text-sm font-semibold text-blue-900">
                         {formatarQuantidade(demanda.quantidadeAceitaAcumuladaSetor ?? 0)}
@@ -203,7 +203,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
-                        Concluido
+                        Produzido
                       </p>
                       <p className="mt-1 text-sm font-semibold text-emerald-900">
                         {formatarQuantidade(demanda.quantidadeConcluida)}
@@ -211,7 +211,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
-                        Excedente
+                        Saldo
                       </p>
                       <p className="mt-1 text-sm font-semibold text-amber-900">
                         {formatarQuantidade(demanda.quantidadeExcedenteTurno)}
@@ -221,7 +221,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
 
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
                     <span>
-                      Disponível agora {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
+                      Disponível {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
                     </span>
                     <span>
                       Manual supervisor {formatarQuantidade(saldoManualSupervisor)}
@@ -234,7 +234,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                   {dependeDeExcecaoManual ? (
                     <div className="mt-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
                       Fora da prioridade automática agora, mas ainda com saldo manual do supervisor
-                      dentro do plano do dia.
+                      dentro da capacidade.
                     </div>
                   ) : null}
                       </>

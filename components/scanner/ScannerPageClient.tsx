@@ -390,7 +390,7 @@ export function ScannerPageClient({
           <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4 backdrop-blur-md">
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <Boxes size={16} className="text-fuchsia-300" />
-              Disponível agora
+              Disponível
             </div>
             <p className="mt-3 text-sm font-medium text-white">
               {demandaAtual

@@ -143,7 +143,7 @@ export function KanbanOperacionalTurno({
             </h2>
             <p className="text-sm text-slate-600">
               Cada coluna representa o setor fisico atual da OP ou do saldo efetivamente liberado.
-              O quadro evita duplicacao ficticia e separa backlog vivo, plano do dia,
+              O quadro evita duplicacao ficticia e separa peças da OP, capacidade,
               disponibilidade imediata e gargalos reais. Na bifurcacao oficial, a mesma OP pode
               aparecer simultaneamente em Frente e Costa.
             </p>
@@ -243,7 +243,7 @@ export function KanbanOperacionalTurno({
 
                   <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
                     <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase tracking-wide text-slate-500">
-                      <span>Carga do plano do dia</span>
+                      <span>Carga da capacidade</span>
                       <span>{formatarMinutos(capacidadeTotal)}</span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
@@ -432,7 +432,7 @@ export function KanbanOperacionalTurno({
                           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                             <div className="rounded-2xl bg-slate-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                Backlog vivo
+                                Peças da OP
                               </p>
                               <p className="mt-1 text-lg font-semibold text-slate-900">
                                 {formatarQuantidade(demanda.quantidadeBacklogSetor)}
@@ -440,7 +440,7 @@ export function KanbanOperacionalTurno({
                             </div>
                             <div className="rounded-2xl bg-blue-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-                                Plano do dia
+                                Capacidade
                               </p>
                               <p className="mt-1 text-lg font-semibold text-blue-900">
                                 {formatarQuantidade(quantidadePlanoDoDia)}
@@ -448,7 +448,7 @@ export function KanbanOperacionalTurno({
                             </div>
                             <div className="rounded-2xl bg-cyan-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
-                                Disponível agora
+                                Disponível
                               </p>
                               <p className="mt-1 text-lg font-semibold text-cyan-900">
                                 {formatarQuantidade(demanda.quantidadeDisponivelApontamento)}
@@ -456,7 +456,7 @@ export function KanbanOperacionalTurno({
                             </div>
                             <div className="rounded-2xl bg-emerald-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-                                Concluido
+                                Produzido
                               </p>
                               <p className="mt-1 text-lg font-semibold text-emerald-900">
                                 {formatarQuantidade(demanda.quantidadeConcluida)}
@@ -464,7 +464,7 @@ export function KanbanOperacionalTurno({
                             </div>
                             <div className="rounded-2xl bg-amber-50 px-3 py-2">
                               <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                                Excedente
+                                Saldo
                               </p>
                               <p className="mt-1 text-lg font-semibold text-amber-900">
                                 {formatarQuantidade(demanda.quantidadeExcedenteTurno)}
@@ -576,7 +576,7 @@ export function KanbanOperacionalTurno({
                                   </div>
                                   <div className="rounded-xl bg-blue-50 px-3 py-2">
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-                                      Plano do dia
+                                      Capacidade
                                     </p>
                                     <p className="mt-1 text-sm font-semibold text-blue-900">
                                       {formatarQuantidade(quantidadePlanoDoDia)}
@@ -584,7 +584,7 @@ export function KanbanOperacionalTurno({
                                   </div>
                                   <div className="rounded-xl bg-slate-100 px-3 py-2">
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                      Backlog vivo
+                                      Peças da OP
                                     </p>
                                     <p className="mt-1 text-sm font-semibold text-slate-900">
                                       {formatarQuantidade(demanda.quantidadeBacklogSetor)}

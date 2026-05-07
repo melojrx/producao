@@ -75,24 +75,24 @@ export function SelecaoOperacaoScanner({
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
         <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Backlog vivo</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Peças da OP</p>
           <p className="mt-1 font-semibold text-white">{backlogVivo}</p>
         </div>
         <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Plano do dia
+            Capacidade
           </p>
           <p className="mt-1 font-semibold text-white">{planoDoDia}</p>
         </div>
         <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Disponível agora
+            Disponível
           </p>
           <p className="mt-1 font-semibold text-white">{disponivelAgora}</p>
         </div>
         <div className="rounded-2xl bg-slate-900/60 px-3 py-3">
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Peças completas
+            Produzido
           </p>
           <p className="mt-1 font-semibold text-white">{demandaSelecionada.quantidadeConcluida}</p>
         </div>
@@ -103,8 +103,8 @@ export function SelecaoOperacaoScanner({
           <div className="flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <p>
-              A disponibilidade imediata desta demanda já ultrapassa o saldo visual do plano do
-              dia. O fluxo continua liberado para apontamento.
+              A disponibilidade imediata desta demanda já ultrapassa o saldo visual da capacidade.
+              O fluxo continua liberado para apontamento.
             </p>
           </div>
         </div>
@@ -155,7 +155,7 @@ export function SelecaoOperacaoScanner({
                 </div>
                 <div className="rounded-xl bg-slate-900/60 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    Disponível agora
+                    Disponível
                   </p>
                   <p className="mt-1 font-semibold text-white">{saldoOperacao}</p>
                 </div>

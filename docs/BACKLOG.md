@@ -50,12 +50,15 @@
 | 38 | Ficha do produto para impressão/PDF | ✅ Concluída | 2 |
 | 39 | Duplicação assistida de operações | ✅ Concluída | 1 |
 | 40 | Modal de confirmação para operações | ✅ Concluída | 1 |
-
+| 41 | Correção dos Security Advisors Supabase | ⚠️ Parcialmente concluída por bloqueio externo | 1 |
 | 42 | Correções de homologação da Sprint 37 | ✅ Concluída | 6 |
+| 43 | Separação entre resumo da OP e métricas setoriais | ✅ Concluída | 1 |
+| 44 | Vocabulário operacional do chão de fábrica e realinhamento documental | ✅ Concluída | 1 |
+| 45 | Arquitetura futura de setores dinâmicos e fluxo configurável | 🧭 Planejada | 5 |
 
-**Total estimado: 80 dias úteis**
+**Total estimado: 87 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto: schema e types para `Frente`/`Costa`, bucket público no Supabase, upload server-side com troca/remoção individual, modal com previews grandes e tela de detalhe com galeria visual e ampliação. A Sprint 34 foi concluída incluindo `descrição` no contrato e no CRUD do produto e reorganizando o modal para priorizar identificação textual e imagens antes do roteiro. A Sprint 35 foi concluída levando a imagem única da operação ao contrato completo do CRUD administrativo, com migration remota aplicada, bucket público provisionado, modal com preview e detalhe com destaque visual da operação. A Sprint 36 foi concluída consolidando o setor `Qualidade` como etapa oficial do fluxo derivado do turno, com `modo_apontamento = revisao_qualidade`, schema remoto aplicado, RPC de revisão, scanner e `/admin/apontamentos` adaptados e indicadores de reprovação/defeitos na dashboard. A Sprint 37 fica pausada a partir de `2026-04-28` após a conclusão da `37.1`, por decisão explícita do usuário, para priorizar a Sprint 38. A Sprint 38 foi concluída com ficha documental do produto para prévia web, impressão e geração de PDF pelo navegador, sem instalar biblioteca adicional. A Sprint 39 foi concluída com duplicação assistida de operações homologada pela UI. A Sprint 40 foi concluída substituindo os `confirm()` nativos de ciclo de vida das operações por modal visual no padrão já homologado em produtos. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto; as Sprints 34 e 35 consolidaram descrição do produto e imagem única da operação. A Sprint 36 consolidou o setor `Qualidade` como etapa oficial do fluxo. A Sprint 37 foi retomada e concluída em `2026-05-06`; a Sprint 38 entregou a ficha documental do produto; as Sprints 39 e 40 fecharam melhorias administrativas de operações; a Sprint 41 ficou parcialmente concluída por bloqueio externo do plano Supabase; a Sprint 42 corrigiu desvios semânticos do kanban; a Sprint 43 separou métricas setoriais do resumo da OP; a Sprint 44 está aberta para realinhamento documental e linguagem operacional do chão de fábrica; e a Sprint 45 fica planejada como evolução futura de setores dinâmicos e fluxo configurável. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -593,6 +596,34 @@
 
 **Fechamento em `2026-05-07`:** `docs/PRD.md` formalizou a separação entre leitura consolidada da OP e leitura da OP no setor. `components/dashboard/ModalDetalhesOpTurno.tsx` passou a mostrar no topo somente `Quantidade da OP`, `Peças completas`, `Progresso operacional` e `Seções concluídas`, preservando `Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído` e `Excedente` apenas nas seções internas da OP. A função pura `lib/utils/resumo-modal-op.ts` e o teste `lib/utils/resumo-modal-op.test.ts` protegem a regressão contra a volta de métricas setoriais no topo agregado. Validação concluída com a suíte utilitária focada, `npx tsc --noEmit` e `git diff --check`, sem erros.
 
+## SPRINT 44 — Vocabulário operacional do chão de fábrica e realinhamento documental
+**Objetivo:** alinhar PRD, TASKS, BACKLOG e nomenclatura visível dos cards do kanban ao linguajar real da fábrica, mantendo intactos os campos internos, fórmulas e contratos homologados.
+**Entregável:** documentação final do sistema como PCP/controle de capacidade; cards setoriais com rótulos `Peças da OP`, `Capacidade`, `Disponível`, `Produzido` e `Saldo`; `Em Produção` formalizado como estado operacional, não como sexto card; e Sprint 45 registrada como backlog futuro de setores dinâmicos.
+**Status:** ✅ Concluída
+
+- Realinhar o PRD ao papel do sistema como PCP, acompanhamento operacional e gestão de capacidade produtiva
+- Trocar apenas os rótulos visíveis dos cards setoriais, sem alterar fórmulas
+- Preservar o mapeamento interno: `quantidadeBacklogSetor`, `quantidadeAceitaAcumuladaSetor`, `quantidadeDisponivelApontamento`, `quantidadeConcluida` e `quantidadeExcedenteTurno`
+- Formalizar `Em Produção` como estado/status operacional, sem novo KPI numérico nesta sprint
+- Registrar Sprint 45 como frente futura planejada para setores dinâmicos e fluxo configurável
+- Homologar que a mudança foi semântica/documental e que os cálculos seguem idênticos
+- Não remover hardcodes de fluxo, não reestruturar banco e não iniciar arquitetura dinâmica dentro da Sprint 44
+
+**Fechamento em `2026-05-07`:** a Sprint 44 encerra com o PRD realinhado ao papel do sistema como PCP e controle de capacidade, os rótulos visíveis dos cards setoriais ajustados para o vocabulário do chão de fábrica (`Peças da OP`, `Capacidade`, `Disponível`, `Produzido`, `Saldo`), `Em Produção` formalizado como estado operacional e a Sprint 45 registrada como backlog futuro. A revisão final confirmou ausência de alterações em fórmulas, actions, queries, RPCs, scripts e contratos de banco; os campos internos homologados foram preservados. Validação concluída com `node --test --experimental-strip-types lib/utils/vocabulario-operacional.test.ts lib/utils/resumo-modal-op.test.ts`, `npx tsc --noEmit` e `git diff --check`, todos sem erros.
+
+## SPRINT 45 — Arquitetura futura de setores dinâmicos e fluxo configurável
+**Objetivo:** evoluir a arquitetura para que o fluxo produtivo seja orientado por roteiro, dependências e configuração, sem depender de nomes fixos ou quantidade fixa de setores.
+**Entregável:** plano arquitetural e futura implementação de fluxo produtivo configurável, com suporte a setores dinâmicos, fluxos lineares, paralelos e híbridos, reentrada, suboperações, setores simultâneos e setores opcionais.
+**Status:** 🧭 Planejada
+
+- Modelar fluxo produtivo como grafo configurável
+- Configurar dependências entre setores/etapas a partir do roteiro produtivo
+- Eliminar gradualmente dependência de nomes fixos como `Preparação`, `Frente`, `Costa`, `Montagem` e `Final`
+- Suportar criação, remoção e reorganização de setores sem reescrever regras matemáticas
+- Suportar quantidade variável de setores por produto, OP ou momento operacional da empresa
+- Preservar os conceitos homologados de capacidade, disponibilidade, produzido, saldo, carry-over e fila
+- Não iniciar implementação sem confirmação explícita após conclusão da Sprint 44
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -605,6 +636,8 @@ Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Spri
 Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
 Sprint 37 ──► Sprint 42
 Sprint 42 ──► Sprint 43
+Sprint 43 ──► Sprint 44
+Sprint 44 ──► Sprint 45
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

@@ -468,7 +468,7 @@ export function ModalDetalhesOpTurno({
                     <div className="mt-4 grid gap-3 sm:grid-cols-4">
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                          Backlog vivo
+                          Peças da OP
                         </p>
                         <p className="mt-2 text-xl font-semibold text-slate-900">
                           {secao.quantidadeBacklogTotal}
@@ -477,7 +477,7 @@ export function ModalDetalhesOpTurno({
 
                       <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
-                          Plano do dia
+                          Capacidade
                         </p>
                         <p className="mt-2 text-xl font-semibold text-blue-900">
                           {secao.quantidadeAceitaTurno}
@@ -486,7 +486,7 @@ export function ModalDetalhesOpTurno({
 
                       <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-700">
-                          Disponível agora
+                          Disponível
                         </p>
                         <p className="mt-2 text-xl font-semibold text-cyan-900">
                           {secao.quantidadeDisponivelApontamento}
@@ -495,7 +495,7 @@ export function ModalDetalhesOpTurno({
 
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
-                          Concluído
+                          Produzido
                         </p>
                         <p className="mt-2 text-xl font-semibold text-emerald-900">
                           {secao.quantidadeConcluida}
@@ -504,7 +504,7 @@ export function ModalDetalhesOpTurno({
 
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
-                          Excedente
+                          Saldo
                         </p>
                         <p className="mt-2 text-xl font-semibold text-amber-900">
                           {secao.quantidadeExcedenteTurno}

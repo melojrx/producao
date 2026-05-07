@@ -4519,6 +4519,167 @@ Regra de negócio reafirmada:
 
 ---
 
+## SPRINT 44 — Vocabulário operacional do chão de fábrica e realinhamento documental
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 43 concluída.
+**Objetivo:** alinhar as regras de negócio e a nomenclatura visível dos cards do kanban ao linguajar real do chão de fábrica, preservando os campos internos, fórmulas e contratos já homologados.
+
+---
+
+### Contexto do realinhamento
+
+Após a homologação das Sprints 37, 42 e 43, os cálculos dos cards setoriais ficaram semanticamente corretos, mas os nomes ainda refletem uma linguagem técnica interna (`Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído`, `Excedente`). Para fechamento do desenvolvimento, a UI e a documentação precisam falar a linguagem operacional usada pela fábrica.
+
+Regra central desta sprint:
+- esta sprint não altera fórmula, banco, RPC, fluxo de apontamento, regra de capacidade nem regra de fila
+- a mudança é de vocabulário visível e documentação de negócio
+- os nomes novos são equivalentes diretos dos conceitos já homologados
+- `Em Produção` será tratado como estado/status operacional, não como sexto card numérico nesta sprint
+
+Mapeamento oficial:
+
+| Nome operacional | Conceito atual homologado | Campo interno preservado |
+|---|---|---|
+| **Peças da OP** | `Backlog vivo` | `quantidadeBacklogSetor` |
+| **Capacidade** | `Plano do dia` / compromisso de capacidade do turno | `quantidadeAceitaAcumuladaSetor` |
+| **Disponível** | `Disponível agora` | `quantidadeDisponivelApontamento` |
+| **Produzido** | `Concluído` no setor | `quantidadeConcluida` / `quantidadeRealizada` consolidada |
+| **Saldo** | `Excedente` para próximo turno | `quantidadeExcedenteTurno` |
+| **Em Produção** | carga em andamento/carry-over/fila ativa | status operacional, sem novo campo numérico |
+
+- [x] **HU 44.1 — Como produto, quero realinhar o PRD ao papel do sistema como PCP e controle de capacidade, para deixar as regras finais inequívocas.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - registrar que o sistema é PCP, acompanhamento operacional e gestão de capacidade produtiva em tempo real
+  - reafirmar que o sistema não é apenas lançador de apontamentos
+  - consolidar as regras de capacidade limitada, continuidade entre turnos, fila produtiva, saldo pendente, carry-over e não bloqueio operacional por saldo visual
+  - registrar que a fábrica nunca reinicia do zero: a produção continua entre turnos até conclusão total da OP
+
+  Regras:
+  - não criar nova fórmula concorrente para capacidade, disponibilidade, saldo ou produção
+  - preservar as regras já homologadas nas Sprints 29, 30, 31, 32, 37, 42 e 43
+  - a documentação deve diferenciar decisão orientativa do sistema e bloqueio estrutural real
+
+  **Evidência esperada:** `docs/PRD.md` contém uma seção de realinhamento operacional final com as regras de PCP, capacidade limitada, continuidade entre turnos e flexibilidade supervisória.
+
+  **Evidência:** `docs/PRD.md` recebeu a seção `2.1 Realinhamento operacional final — PCP, capacidade e chão de fábrica`, formalizando que o sistema é PCP/controle de capacidade em tempo real e não apenas lançador de apontamentos. A seção consolida capacidade limitada, fotografia operacional da abertura, continuidade entre turnos, carry-over setorial, fila produtiva, não bloqueio por saldo visual e a lista de respostas operacionais obrigatórias, sem criar fórmula nova nem alterar contratos de banco.
+
+- [x] **HU 44.2 — Como supervisor, quero ver os cards do kanban com linguagem do chão de fábrica, para que a leitura operacional seja imediata.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - trocar os rótulos visíveis do kanban operacional:
+    - `Backlog vivo` → `Peças da OP`
+    - `Plano do dia` → `Capacidade`
+    - `Disponível agora` → `Disponível`
+    - `Concluído` → `Produzido`
+    - `Excedente` → `Saldo`
+  - aplicar a mesma nomenclatura nas superfícies que exibem os cards setoriais:
+    - kanban operacional
+    - detalhe de setor
+    - seções internas da OP
+    - scanner, quando exibir a leitura resumida da demanda setorial
+    - painel de apontamentos do supervisor, quando exibir os mesmos conceitos
+  - manter os nomes internos dos campos TypeScript e banco para evitar refatoração desnecessária
+
+  Regras:
+  - a troca é de rótulo visual e texto explicativo, não de fórmula
+  - `Capacidade` deve continuar usando `quantidadeAceitaAcumuladaSetor`
+  - `Disponível` deve continuar usando `quantidadeDisponivelApontamento`
+  - `Saldo` deve continuar usando `quantidadeExcedenteTurno`
+  - textos auxiliares devem deixar claro que `Saldo` significa saldo para próximo turno, não saldo executável agora
+
+  **Evidência esperada:** as telas operacionais deixam de exibir os nomes antigos dos cards setoriais e passam a exibir `Peças da OP`, `Capacidade`, `Disponível`, `Produzido` e `Saldo`, mantendo os mesmos valores antes/depois.
+
+  **Evidência:** os rótulos visíveis das superfícies operacionais foram alinhados para `Peças da OP`, `Capacidade`, `Disponível`, `Produzido` e `Saldo` em kanban, detalhe de setor, detalhe de seção, seções internas da OP, scanner e painel de apontamentos, preservando os campos internos `quantidadeBacklogSetor`, `quantidadeAceitaAcumuladaSetor`, `quantidadeDisponivelApontamento`, `quantidadeConcluida` e `quantidadeExcedenteTurno`. `docs/PRD.md` também passou a tratar esses nomes como vocabulário canônico da UI. Criado teste de regressão `lib/utils/vocabulario-operacional.test.ts`, que primeiro falhou com os nomes antigos e depois passou. Validação: `node --test --experimental-strip-types lib/utils/vocabulario-operacional.test.ts lib/utils/resumo-modal-op.test.ts` passou 3/3; `npx tsc --noEmit` e `git diff --check` sem erros.
+
+- [x] **HU 44.3 — Como produto, quero formalizar `Em Produção` como estado operacional, para não criar um sexto card ambíguo.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - registrar no PRD que `Em Produção` representa estado operacional de uma demanda ou fila, não KPI numérico canônico
+  - diferenciar `Em Produção` de:
+    - `Capacidade`
+    - `Disponível`
+    - `Saldo`
+    - carry-over
+    - fila ativa
+  - manter `Em Produção` como status/indicador quando houver trabalho em curso, sem criar novo campo de cálculo nesta sprint
+
+  Regras:
+  - não adicionar sexto card ao kanban nesta sprint
+  - não renomear carry-over para `Em Produção`
+  - não misturar carga herdada com produção fisicamente em execução agora
+
+  **Evidência esperada:** `docs/PRD.md` define `Em Produção` como estado operacional e impede sua leitura como card numérico ou fórmula nova.
+
+  **Evidência:** `docs/PRD.md` passou a definir `Em Produção` como estado/status operacional da demanda, setor ou fila, sem tratá-lo como sexto card numérico canônico. A regra diferencia explicitamente `Em Produção` de `Capacidade`, `Disponível`, `Saldo`, carry-over e fila ativa, preservando os cinco cards oficiais e confirmando que esta sprint não cria campo, fórmula, RPC nem KPI novo.
+
+- [x] **HU 44.4 — Como produto, quero registrar uma sprint futura para setores dinâmicos e fluxo configurável, para planejar a evolução arquitetural sem misturá-la ao realinhamento atual.**
+  **Prioridade:** P1
+  **Risco:** Baixo
+
+  Tarefas:
+  - criar no `docs/BACKLOG.md` a Sprint 45 como frente futura planejada
+  - registrar que a Sprint 45 deverá estudar/implementar arquitetura orientada por roteiro produtivo e dependências configuráveis
+  - deixar explícito que a Sprint 44 não remove hardcodes de fluxo nem reestrutura banco
+  - listar no backlog futuro os objetivos:
+    - setores dinâmicos
+    - quantidade variável de setores
+    - fluxo linear, paralelo e híbrido configurável
+    - dependências entre setores/etapas
+    - reentrada, suboperações e setores opcionais
+    - eliminação gradual de dependência de nomes fixos como `Preparação`, `Frente`, `Costa`, `Montagem` e `Final`
+
+  Regras:
+  - a Sprint 45 deve nascer como backlog/documentação futura, não como execução automática
+  - nenhuma alteração arquitetural deve ser iniciada sem confirmação explícita do usuário
+
+  **Evidência esperada:** `docs/BACKLOG.md` contém a Sprint 45 planejada para reestruturação arquitetural de setores dinâmicos, e `docs/TASKS.md` registra a dependência futura sem abrir execução.
+
+  **Evidência:** `docs/BACKLOG.md` registra a Sprint 45 como frente futura planejada para arquitetura de setores dinâmicos e fluxo configurável, com grafo produtivo, dependências entre setores/etapas, quantidade variável de setores, fluxo linear/paralelo/híbrido, reentrada, suboperações, setores opcionais e eliminação gradual de dependência de nomes fixos. O backlog também explicita que a Sprint 44 não remove hardcodes de fluxo, não reestrutura banco e não inicia arquitetura dinâmica. `docs/TASKS.md` mantém a Sprint 45 como planejada, dependente da conclusão da Sprint 44 e de confirmação explícita do usuário.
+
+- [x] **HU 44.5 — Como produto, quero homologar que o realinhamento foi apenas semântico, para garantir que os cálculos não mudaram.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - revisar diffs para confirmar ausência de alterações em fórmulas, queries, actions, RPCs e contratos de banco
+  - rodar `npx tsc --noEmit` se houver alteração em arquivos TypeScript
+  - se houver alteração de componente React, validar visualmente que os valores permanecem os mesmos e apenas os rótulos mudaram
+  - registrar evidência documental da sprint
+
+  Regras:
+  - não aceitar mudança de fórmula nesta sprint
+  - não aceitar criação de campo novo de banco nesta sprint
+  - não avançar para Sprint 45 sem confirmação explícita do usuário
+
+  **Evidência esperada:** evidência final confirma que a Sprint 44 alterou documentação e rótulos visíveis, preservando os campos internos e cálculos homologados.
+
+  **Evidência:** revisão final da Sprint 44 confirmou que os diffs atingem componentes de UI, `docs/PRD.md`, `docs/TASKS.md`, `docs/BACKLOG.md` e o teste `lib/utils/vocabulario-operacional.test.ts`, sem alteração em `lib/actions`, `lib/queries`, fórmulas utilitárias de capacidade/kanban, RPCs, scripts ou contratos de banco. Os rótulos visíveis foram realinhados para `Peças da OP`, `Capacidade`, `Disponível`, `Produzido` e `Saldo`, preservando `quantidadeBacklogSetor`, `quantidadeAceitaAcumuladaSetor`, `quantidadeDisponivelApontamento`, `quantidadeConcluida` e `quantidadeExcedenteTurno`. Validação final em `2026-05-07`: `node --test --experimental-strip-types lib/utils/vocabulario-operacional.test.ts lib/utils/resumo-modal-op.test.ts` passou 3/3; `npx tsc --noEmit` e `git diff --check` sem erros.
+
+---
+
+## SPRINT 45 — Arquitetura futura de setores dinâmicos e fluxo configurável
+**Status:** 🧭 Planejada
+**Pré-requisito:** Sprint 44 concluída e confirmação explícita do usuário.
+**Objetivo:** planejar a evolução arquitetural para que o sistema deixe de depender de fluxo fixo e passe a interpretar dinamicamente roteiro produtivo, setores, dependências, paralelismos e reentradas conforme a realidade da empresa.
+
+**Nota:** esta sprint está registrada como backlog futuro. Nenhuma implementação deve iniciar sem confirmação explícita do usuário.
+
+Escopo futuro previsto:
+- modelar fluxo produtivo como grafo configurável, não como sequência fixa
+- permitir setores dinâmicos sem dependência de nomes ou quantidade fixa
+- suportar fluxo linear, paralelo, híbrido, reentrada, suboperações, setores simultâneos e setores opcionais
+- preservar os conceitos matemáticos já homologados: capacidade, disponibilidade, produzido, saldo, carry-over e fila
+- planejar migração segura dos hardcodes atuais de `Preparação`, `Frente`, `Costa`, `Montagem` e `Final`
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4529,6 +4690,8 @@ Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Spri
 Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
 Sprint 37 ──► Sprint 42
 Sprint 42 ──► Sprint 43
+Sprint 43 ──► Sprint 44
+Sprint 44 ──► Sprint 45
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

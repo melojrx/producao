@@ -219,8 +219,8 @@ export function ConfirmacaoRegistro({
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-emerald-50/90">
                   {operador.nome} recebeu o apontamento na operação{' '}
-                  <strong>{operacaoSelecionada.operacaoCodigo}</strong>. Backlog vivo, plano do
-                  dia e disponibilidade imediata já foram recalculados.
+                  <strong>{operacaoSelecionada.operacaoCodigo}</strong>. Peças da OP, capacidade
+                  e disponibilidade imediata já foram recalculadas.
                 </p>
               </div>
             </div>
@@ -237,7 +237,7 @@ export function ConfirmacaoRegistro({
 
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                Disponível agora
+                Disponível
               </p>
               <p className="mt-2 text-2xl font-semibold text-white">
                 {disponibilidadeImediataDemanda}
@@ -373,7 +373,7 @@ export function ConfirmacaoRegistro({
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Disponível agora na operação
+                  Disponível na operação
                 </p>
                 <p className="mt-2 text-xl font-semibold text-white">
                   {disponibilidadeImediataOperacao}
@@ -381,7 +381,7 @@ export function ConfirmacaoRegistro({
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Peças completas
+                  Produzido
                 </p>
                 <p className="mt-2 text-xl font-semibold text-white">
                   {demandaSelecionada.quantidadeConcluida}
@@ -389,13 +389,13 @@ export function ConfirmacaoRegistro({
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Backlog vivo
+                  Peças da OP
                 </p>
                 <p className="mt-2 text-xl font-semibold text-white">{backlogVivo}</p>
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Plano do dia
+                  Capacidade
                 </p>
                 <p className="mt-2 text-xl font-semibold text-white">{planoDoDia}</p>
               </div>
@@ -411,7 +411,7 @@ export function ConfirmacaoRegistro({
               <div className="flex items-start gap-2">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                 <p>
-                  Este registro ultrapassa o saldo visual do plano do dia para o setor. O scanner
+                  Este registro ultrapassa o saldo visual da capacidade para o setor. O scanner
                   continua liberado e o apontamento não será bloqueado.
                 </p>
               </div>
@@ -464,7 +464,7 @@ export function ConfirmacaoRegistro({
 
             <p className="mt-2 text-xs text-slate-400">
               Digite a quantidade desejada ou ajuste pelos botões. O campo pode voltar para `0`
-              antes do registro. Disponível agora para a operação: {disponibilidadeImediataOperacao}
+              antes do registro. Disponível para a operação: {disponibilidadeImediataOperacao}
               , apenas como informação.
             </p>
           </div>

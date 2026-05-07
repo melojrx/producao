@@ -86,21 +86,21 @@ export function DashboardVisaoOperacionalTab({
           destaque="blue"
         />
         <CardKPI
-          titulo="Backlog vivo"
+          titulo="Peças da OP"
           valor={resumo.quantidadeBacklogTotal}
           descricao="Fila real ainda presente nos setores do turno, incluindo o que já estava pendente e o que entrou pelo fluxo durante o dia."
           icone={ClipboardList}
           destaque="slate"
         />
         <CardKPI
-          titulo="Plano do dia"
+          titulo="Capacidade"
           valor={resumo.quantidadeAceitaTurno}
           descricao="Teto visual do dia em peças completas, derivado da capacidade global do turno e redistribuído operacionalmente pelos setores."
           icone={PackageCheck}
           destaque="blue"
         />
         <CardKPI
-          titulo="Disponível Agora"
+          titulo="Disponível"
           valor={resumo.quantidadeDisponivelAgora}
           descricao="Parcela que está liberada para execução imediata neste momento, já respeitando a prioridade operacional do setor."
           icone={Activity}
@@ -114,7 +114,7 @@ export function DashboardVisaoOperacionalTab({
           destaque="emerald"
         />
         <CardKPI
-          titulo="Excedente"
+          titulo="Saldo"
           valor={resumo.quantidadeExcedenteTurno}
           descricao="Saldo que nao coube na capacidade do dia e precisa seguir como backlog real para os proximos turnos."
           icone={Boxes}

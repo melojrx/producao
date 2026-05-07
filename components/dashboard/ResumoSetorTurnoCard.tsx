@@ -61,7 +61,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
       <div className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-slate-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Backlog vivo
+            Peças da OP
           </p>
           <p className="mt-1 font-semibold text-slate-900">
             {formatarQuantidade(setor.quantidadeBacklogTotal)}
@@ -69,7 +69,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
         </div>
         <div className="rounded-xl bg-blue-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
-            Plano do dia
+            Capacidade
           </p>
           <p className="mt-1 font-semibold text-blue-900">
             {formatarQuantidade(setor.quantidadeAceitaTurno)}
@@ -77,7 +77,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
         </div>
         <div className="rounded-xl bg-emerald-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-            Concluido
+            Produzido
           </p>
           <p className="mt-1 font-semibold text-emerald-900">
             {formatarQuantidade(setor.quantidadeConcluida)}
@@ -85,7 +85,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
         </div>
         <div className="rounded-xl bg-amber-50 px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-            Excedente
+            Saldo
           </p>
           <p className="mt-1 font-semibold text-amber-900">
             {formatarQuantidade(setor.quantidadeExcedenteTurno)}
@@ -95,7 +95,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
 
       <div className="mt-3 rounded-xl bg-cyan-50 px-3 py-2 text-sm">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">
-          Disponível agora
+          Disponível
         </p>
         <p className="mt-1 font-semibold text-cyan-900">
           {formatarQuantidade(disponibilidadeAgora)}
@@ -107,7 +107,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
           <div className="flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <p>
-              A execução atual já ultrapassa o saldo visual do plano do dia. O setor segue
+              A execução atual já ultrapassa o saldo visual da capacidade. O setor segue
               operando, mas o turno passou do teto diário planejado.
             </p>
           </div>

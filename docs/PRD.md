@@ -23,6 +23,41 @@ Sistema web de coleta e monitoramento de produção via QR Code que transforma d
 
 **Princípio central:** simplicidade extrema para o operador, riqueza de informação para o supervisor.
 
+### 2.1 Realinhamento operacional final — PCP, capacidade e chão de fábrica
+
+O sistema deve funcionar como um sistema de PCP (Planejamento e Controle da Produção), acompanhamento operacional e gestão de capacidade produtiva em tempo real. Ele não deve ser interpretado apenas como um lançador de apontamentos.
+
+Objetivo operacional:
+- planejar o turno com base na capacidade real disponível
+- acompanhar a produção em andamento por OP, setor e operação
+- controlar gargalos e fila produtiva em tempo real
+- distinguir o que ainda falta produzir, o que cabe produzir hoje, o que está liberado agora, o que foi produzido e o que ficará como saldo para o próximo turno
+- preservar a continuidade da produção entre turnos até a conclusão total da OP
+
+Regras finais de domínio:
+- a fábrica possui limite produtivo real; o sistema nunca deve assumir produção infinita
+- capacidade, disponibilidade, produção e saldo são conceitos diferentes e não podem ser tratados como sinônimos
+- a abertura do turno representa a fotografia operacional real da fábrica naquele momento
+- a abertura do turno deve carregar somente carga ativa ou pendente: produção pendente, carga herdada, saldo parcial, OPs em andamento, capacidade ocupada e disponibilidade operacional
+- a abertura do turno não deve recarregar setores concluídos, operações finalizadas, cargas encerradas nem produção já concluída
+- a produção nunca reinicia do zero: o carry-over setorial preserva o que não foi aceito por falta de capacidade e o que foi aceito mas não concluído
+- a fila produtiva e a prioridade operacional orientam o fluxo padrão, mas não devem apagar exceções reais decididas pelo supervisor
+- o sistema deve alertar inconsistências, sinalizar riscos, mostrar impacto em capacidade e evidenciar gargalos, sem bloquear operações legítimas do chão de fábrica por saldo visual, fila, plano ou disponibilidade automática
+- bloqueios continuam permitidos apenas para dados estruturalmente inválidos, turno fechado ou inexistente, usuário sem permissão, operador inválido, máquina inválida quando aplicável, ou contexto encerrado manualmente
+
+Leituras obrigatórias que o sistema deve responder continuamente:
+- o que ainda falta produzir
+- o que cabe produzir no turno atual
+- o que está liberado operacionalmente agora
+- o que já foi produzido
+- o que ficará como saldo para turno futuro
+- onde há carga herdada ou produção em andamento
+
+Diretriz de simplicidade:
+- as regras acima consolidam o comportamento já homologado nas Sprints 29, 30, 31, 32, 37, 42 e 43
+- este realinhamento não cria fórmulas concorrentes nem novos contratos de banco
+- a nomenclatura operacional visível deve falar a linguagem do chão de fábrica, enquanto os campos internos podem preservar os nomes técnicos já homologados
+
 ---
 
 ## 3. USUÁRIOS
@@ -705,35 +740,46 @@ Regra obrigatória da capacidade setorial operacional:
 - scanner e apontamentos não devem ser bloqueados por desconformidade de capacidade derivada; nesses fluxos a regra deve gerar alerta visual e leitura operacional explícita, sem trava transacional adicional
 
 Vocabulário canônico dos cards de demanda no kanban operacional:
-- o kanban exibe exatamente 5 métricas por card de demanda; os nomes e fórmulas abaixo são os únicos válidos em todo o sistema
+- o kanban exibe exatamente 5 métricas por card de demanda; os nomes operacionais abaixo são os únicos válidos na UI
+- os campos internos preservam a nomenclatura técnica já homologada para evitar refatoração desnecessária de contratos, banco e fórmulas
 
-| Card | Campo interno | Fórmula canônica |
+| Card operacional | Campo interno | Fórmula canônica |
 |---|---|---|
-| **Backlog vivo** | `quantidadeBacklogSetor` | peças da OP pendentes no setor: `max(quantidadePlanejada − quantidadeConcluida, 0)` |
-| **Plano do dia** | `quantidadeAceitaAcumuladaSetor` | porção estável da capacidade global do turno alocada a esta demanda; espelha a capacidade produtiva diária em cada setor quando há backlog suficiente |
-| **Disponível agora** | `quantidadeDisponivelApontamento` | liberação operacional imediata: `min(fluxo_FIFO_disponível, quantidadeAceitaTurno)` — limitado pela prioridade da fila, pelo fluxo recebido do setor anterior e pelo saldo aceito no dia |
-| **Concluído** | `quantidadeConcluida` | peças 100% finalizadas no setor no turno corrente |
-| **Excedente** | `quantidadeExcedenteTurno` | `max(backlogVivo − quantidadeAceitaAcumuladaSetor, 0)` — backlog que ultrapassa o plano do dia e vai para turno futuro |
+| **Peças da OP** | `quantidadeBacklogSetor` | peças da OP pendentes no setor: `max(quantidadePlanejada − quantidadeConcluida, 0)` |
+| **Capacidade** | `quantidadeAceitaAcumuladaSetor` | porção estável da capacidade global do turno alocada a esta demanda; espelha a capacidade produtiva diária em cada setor quando há backlog suficiente |
+| **Disponível** | `quantidadeDisponivelApontamento` | liberação operacional imediata: `min(fluxo_FIFO_disponível, quantidadeAceitaTurno)` — limitado pela prioridade da fila, pelo fluxo recebido do setor anterior e pelo saldo aceito no dia |
+| **Produzido** | `quantidadeConcluida` | peças 100% finalizadas no setor no turno corrente |
+| **Saldo** | `quantidadeExcedenteTurno` | `max(pecasDaOp − capacidade, 0)` — backlog que ultrapassa a capacidade do dia e vai para turno futuro |
 
 Regras obrigatórias do vocabulário:
-- **Plano do dia é estável:** o valor de `quantidadeAceitaAcumuladaSetor` não decresce conforme a produção avança no turno; ele representa o compromisso total alocado a esta demanda a partir da capacidade global, não o saldo remanescente
-- **Excedente compara plano, não saldo:** `Excedente = Backlog vivo − Plano do dia`; a fórmula usa `quantidadeAceitaAcumuladaSetor` (plano total alocado), nunca `quantidadeAceitaTurno` (saldo restante decrescente)
-- **Disponível agora ≤ Plano do dia:** a disponibilidade imediata nunca pode ultrapassar o saldo aceito do dia (`quantidadeAceitaTurno = quantidadeAceitaAcumuladaSetor − quantidadeConcluida`)
-- **Disponível agora não é capacidade espelhada:** todos os setores usam o mesmo critério, mas o valor pode ser diferente entre setores porque depende da liberação real do fluxo e da prioridade operacional. O primeiro setor pode ter `Disponível agora = Plano do dia`; setores posteriores podem ficar em `0` até receberem peças do setor anterior; um setor final pode exibir `500` se já recebeu `500` da etapa anterior, mesmo que o plano fixo do dia seja `572`.
-- **Sem fallback para saldo:** nenhuma superfície de UI pode usar `quantidadeAceitaTurno` como substituto de `quantidadeAceitaAcumuladaSetor` no card de Plano do dia; registros sem `quantidadeAceitaAcumuladaSetor` devem exibir `0`
-- **Manual supervisor é exceção separada:** `saldoManualPermitido` permite lançamento supervisório dentro do saldo aceito do dia, mas não altera o card `Disponível agora` e não reclassifica excedente como plano.
-- **Scanner e apontamentos não bloqueiam por saldo visual:** `Plano do dia`, `Disponível agora`, `saldoManualPermitido`, backlog, excedente e saldo de operação são leituras informativas para o supervisor/operador. Scanner, apontamentos do supervisor e qualidade só podem bloquear dados estruturalmente inválidos, turno fechado/inexistente, usuário sem permissão, operador inválido, máquina inválida ou contexto encerrado manualmente; nunca podem bloquear porque a quantidade ultrapassou disponibilidade automática, plano do dia, saldo visual ou FIFO.
+- **Capacidade é estável:** o valor de `quantidadeAceitaAcumuladaSetor` não decresce conforme a produção avança no turno; ele representa o compromisso total alocado a esta demanda a partir da capacidade global, não o saldo remanescente
+- **Saldo compara capacidade, não saldo executável:** `Saldo = Peças da OP − Capacidade`; a fórmula usa `quantidadeAceitaAcumuladaSetor` (capacidade total alocada), nunca `quantidadeAceitaTurno` (saldo restante decrescente)
+- **Disponível ≤ Capacidade:** a disponibilidade imediata nunca pode ultrapassar o saldo aceito do dia (`quantidadeAceitaTurno = quantidadeAceitaAcumuladaSetor − quantidadeConcluida`)
+- **Disponível não é capacidade espelhada:** todos os setores usam o mesmo critério, mas o valor pode ser diferente entre setores porque depende da liberação real do fluxo e da prioridade operacional. O primeiro setor pode ter `Disponível = Capacidade`; setores posteriores podem ficar em `0` até receberem peças do setor anterior; um setor final pode exibir `500` se já recebeu `500` da etapa anterior, mesmo que a capacidade fixa do dia seja `572`.
+- **Sem fallback para saldo:** nenhuma superfície de UI pode usar `quantidadeAceitaTurno` como substituto de `quantidadeAceitaAcumuladaSetor` no card de Capacidade; registros sem `quantidadeAceitaAcumuladaSetor` devem exibir `0`
+- **Manual supervisor é exceção separada:** `saldoManualPermitido` permite lançamento supervisório dentro do saldo aceito do dia, mas não altera o card `Disponível` e não reclassifica saldo de turno futuro como capacidade do dia.
+- **Scanner e apontamentos não bloqueiam por saldo visual:** `Capacidade`, `Disponível`, `saldoManualPermitido`, peças da OP, saldo e saldo de operação são leituras informativas para o supervisor/operador. Scanner, apontamentos do supervisor e qualidade só podem bloquear dados estruturalmente inválidos, turno fechado/inexistente, usuário sem permissão, operador inválido, máquina inválida ou contexto encerrado manualmente; nunca podem bloquear porque a quantidade ultrapassou disponibilidade automática, capacidade, saldo visual ou FIFO.
+
+Estado operacional `Em Produção`:
+- `Em Produção` é um estado/status operacional da demanda, setor ou fila, não um sexto card numérico canônico
+- pode ser usado para indicar que há trabalho em curso, carga ativa, apontamento recente, demanda em execução ou continuidade operacional acompanhada pela supervisão
+- não substitui nem renomeia `Capacidade`: capacidade continua sendo o compromisso/teto aceito no turno por `quantidadeAceitaAcumuladaSetor`
+- não substitui `Disponível`: disponível continua sendo apenas a liberação operacional imediata por `quantidadeDisponivelApontamento`
+- não substitui `Saldo`: saldo continua sendo a parcela que não coube na capacidade do turno e permanece em `quantidadeExcedenteTurno`
+- não é sinônimo de carry-over: carry-over é carga herdada entre turnos; uma demanda herdada pode estar pendente, disponível, em fila ou em execução, conforme o estado real
+- não é sinônimo de fila ativa: fila indica prioridade/ordem operacional; `Em Produção` indica condição de andamento
+- nesta sprint, `Em Produção` não cria campo novo, fórmula nova, RPC nova nem sexto KPI no kanban
 
 Separação obrigatória entre leitura da OP e leitura da OP no setor:
-- os 5 cards canônicos (`Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído`, `Excedente`) pertencem à demanda da OP dentro de um setor específico
+- os 5 cards canônicos (`Peças da OP`, `Capacidade`, `Disponível`, `Produzido`, `Saldo`) pertencem à demanda da OP dentro de um setor específico
 - eles podem aparecer no kanban, no detalhe do setor e nas seções internas da OP, sempre vinculados ao setor correspondente
-- o modal principal de detalhe da OP inteira não pode reutilizar esses 5 cards como resumo agregado, porque isso mistura granularidades e pode fazer um `Plano do dia` de outro setor parecer válido para a OP no setor clicado
+- o modal principal de detalhe da OP inteira não pode reutilizar esses 5 cards como resumo agregado, porque isso mistura granularidades e pode fazer uma `Capacidade` de outro setor parecer válida para a OP no setor clicado
 - o modal principal da OP deve responder apenas à situação geral da OP no turno, com cards brutos e consolidados:
   - `Quantidade da OP`: quantidade administrativa da OP no turno; em carry-over, representa a quantidade remanescente carregada para o novo turno
   - `Peças completas`: quantidade realmente completa da OP no funil inteiro
   - `Progresso operacional`: percentual ponderado por T.P. executado na OP
   - `Seções concluídas`: quantidade de setores/seções obrigatórios concluídos sobre o total da OP
-- quando o usuário precisar entender `Plano do dia`, `Disponível agora` ou `Excedente`, a UI deve direcionar a leitura para o setor/seção correspondente, nunca para o topo agregado da OP
+- quando o usuário precisar entender `Capacidade`, `Disponível` ou `Saldo`, a UI deve direcionar a leitura para o setor/seção correspondente, nunca para o topo agregado da OP
 
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`
@@ -1864,11 +1910,11 @@ Objetivo:
 
 Regras fechadas desta flexibilização:
 
-- o `Plano do dia` do setor continua sendo o teto fixo de capacidade aceita no turno
-- `Disponível agora` continua representando apenas a liberação automática prioritária do setor
+- a `Capacidade` do setor continua sendo o teto fixo de capacidade aceita no turno
+- `Disponível` continua representando apenas a liberação automática prioritária do setor
 - a prioridade automática continua favorecendo a OP da frente da fila
 - o supervisor pode lançar manualmente em OPs posteriores da fila, desde que consuma somente a parcela já aceita no dia para aquele setor
-- a soma entre o que já foi concluído no setor e o novo lançamento manual não pode ultrapassar o `Plano do dia` do setor
+- a soma entre o que já foi produzido no setor e o novo lançamento manual não pode ultrapassar a `Capacidade` do setor
 - o lançamento manual em OP posterior não depende de `quantidadeDisponivelApontamento > 0`; depende da existência de saldo aceito no dia para aquela OP dentro do teto setorial
 - o scanner operacional padrão permanece disciplinado pela prioridade automática e não herda essa exceção
 - o apontamento manual do supervisor passa a ser a superfície explícita de exceção operacional controlada
@@ -1876,7 +1922,7 @@ Regras fechadas desta flexibilização:
 Semântica canônica dos campos:
 
 - `quantidadeAceitaAcumuladaSetor`
-  - significa quanto daquela OP efetivamente coube no plano do dia do setor
+  - significa quanto daquela OP efetivamente coube na capacidade do dia do setor
 - `quantidadeAceitaTurno`
   - significa o saldo remanescente da parcela aceita que ainda não foi concluído no setor
 - `quantidadeDisponivelApontamento`
@@ -1904,11 +1950,11 @@ Consequência direta:
 
 Exemplo de referência em `Finalização`:
 
-- `Plano do dia = 601`
+- `Capacidade = 601`
 - OP `#1 = 588`
 - OP `#2 = 13`
 - OP `#3 = 0`
-- `concluído no setor = 0`
+- `produzido no setor = 0`
 
 Resultado esperado:
 
@@ -1925,7 +1971,7 @@ Depois que a OP `#1` ou a OP `#2` consumirem esse saldo:
 Comportamento por superfície:
 
 - Kanban:
-  - continua mostrando prioridade automática em `Disponível agora`
+  - continua mostrando prioridade automática em `Disponível`
   - pode expor, de forma secundária, um indicador de `saldo manual supervisor`
 - Scanner:
   - mantém a disciplina operacional padrão baseada em prioridade automática
@@ -1940,7 +1986,7 @@ Comportamento por superfície:
 Guardrails obrigatórios:
 
 - o supervisor nunca pode lançar acima do saldo aceito daquela OP
-- o supervisor nunca pode fazer o setor ultrapassar o `Plano do dia`
+- o supervisor nunca pode fazer o setor ultrapassar a `Capacidade`
 - a prioridade automática da fila continua sendo a política padrão do sistema
 - a exceção supervisória não pode reclassificar como capacidade do dia o que já virou `quantidadeExcedenteTurno`
 - toda exceção manual precisa permanecer rastreável para auditoria operacional e análise gerencial
