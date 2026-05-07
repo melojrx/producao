@@ -73,7 +73,7 @@ export function ModalDetalhesSecaoTurno({
   const operadoresSemSetor = operadoresTurno.filter((operador) => !operador.setorId)
   const progresso = secao.progressoOperacionalPct
   const resumoPlano = resumirPlanoDiarioTurno({
-    quantidadeAceitaTurno: secao.quantidadeAceitaTurno,
+    quantidadePlanoDoDia: secao.quantidadeAceitaTurno,
     quantidadeConcluida: secao.quantidadeConcluida,
     quantidadeDisponivelApontamento: secao.quantidadeDisponivelApontamento,
   })

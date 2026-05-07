@@ -176,6 +176,7 @@ function calcularElegivelFluxoDemanda(demanda: TurnoSetorDemandaV2): number {
 }
 
 function calcularDisponibilidadeExecucaoDemanda(demanda: TurnoSetorDemandaV2): number {
+  // Disponivel agora e a liberacao operacional imediata da fila, nao o plano fixo do dia.
   if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
     return demanda.quantidadeDisponivelApontamento
   }
@@ -236,12 +237,12 @@ function calcularQuantidadeEntradaAcumuladaSetor(input: {
   demanda: TurnoSetorDemandaV2
   quantidadeConcluidaDemandaNoTurnoAtual: number
 }): number {
-  if (typeof input.demanda.quantidadeEntradaAcumuladaSetor === 'number') {
-    return normalizarNumeroPositivo(input.demanda.quantidadeEntradaAcumuladaSetor)
-  }
+  const quantidadeLiberadaSetor = normalizarNumeroPositivo(
+    input.demanda.quantidadeLiberadaSetor ?? 0
+  )
 
-  if (typeof input.demanda.quantidadeLiberadaSetor === 'number') {
-    return normalizarNumeroPositivo(input.demanda.quantidadeLiberadaSetor)
+  if (quantidadeLiberadaSetor > 0) {
+    return quantidadeLiberadaSetor
   }
 
   return (
@@ -296,10 +297,11 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
         demanda,
         quantidadeConcluidaDemandaNoTurnoAtual: quantidadeConcluidaDemanda,
       })
+      const quantidadePlanejavelSetor = Math.max(backlog, quantidadeEntradaAcumuladaSetor)
 
       if (
         tpTotalSetorProduto <= 0 ||
-        quantidadeEntradaAcumuladaSetor <= 0 ||
+        quantidadePlanejavelSetor <= 0 ||
         planoRestanteSetorPecas <= 0
       ) {
         snapshotsPorDemandaId.set(demanda.id, {
@@ -315,7 +317,7 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
       }
 
       const quantidadeAceitaAcumuladaSetor = Math.min(
-        quantidadeEntradaAcumuladaSetor,
+        quantidadePlanejavelSetor,
         planoRestanteSetorPecas
       )
       const quantidadeAceitaTurno = calcularSaldoAceitoDisponivelHoje(

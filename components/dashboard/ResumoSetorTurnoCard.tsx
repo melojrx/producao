@@ -35,7 +35,7 @@ export function ResumoSetorTurnoCard({ setor, onClick }: ResumoSetorTurnoCardPro
     0
   )
   const resumoPlano = resumirPlanoDiarioTurno({
-    quantidadeAceitaTurno: setor.quantidadeAceitaTurno,
+    quantidadePlanoDoDia: setor.quantidadeAceitaTurno,
     quantidadeConcluida: setor.quantidadeConcluida,
     quantidadeDisponivelApontamento: disponibilidadeAgora,
   })

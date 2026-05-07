@@ -46,10 +46,12 @@
 | 34 | Descrição do produto e reorganização do cadastro | ✅ Concluída | 1 |
 | 35 | Imagem única da operação | ✅ Concluída | 2 |
 | 36 | Qualidade como setor especial de revisão no fluxo operacional | ✅ Concluída | 3 |
-| 37 | Reconciliação do vocabulário operacional dos cards do kanban | ⏸️ Pausada | 1 |
+| 37 | Reconciliação do vocabulário operacional dos cards do kanban | ✅ Concluída | 1 |
 | 38 | Ficha do produto para impressão/PDF | ✅ Concluída | 2 |
 | 39 | Duplicação assistida de operações | ✅ Concluída | 1 |
 | 40 | Modal de confirmação para operações | ✅ Concluída | 1 |
+
+| 42 | Correções de homologação da Sprint 37 | ✅ Concluída | 6 |
 
 **Total estimado: 80 dias úteis**
 
@@ -496,7 +498,7 @@
 ## SPRINT 37 — Reconciliação do vocabulário operacional dos cards do kanban
 **Objetivo:** formalizar as 5 definições canônicas dos cards de demanda no kanban operacional e corrigir dois desalinhamentos entre essas definições e o que o código calcula/exibe hoje: a fórmula de `Excedente` usa o saldo restante em vez do plano total alocado, e o card `Plano do dia` recai em fallback incorreto para o saldo decrescente quando `quantidadeAceitaAcumuladaSetor` está ausente.
 **Entregável:** `docs/PRD.md` com os 5 conceitos e fórmulas canônicas formalizados; fórmula de `Excedente` corrigida em `lib/utils/hidratacao-capacidade-setor-turno.ts` e testes atualizados; fallback incorreto removido de `components/dashboard/KanbanOperacionalTurno.tsx`; homologação no turno real confirmando Plano do dia estável e Excedente = Backlog vivo − Plano do dia.
-**Status:** ⏸️ Pausada
+**Status:** ✅ Concluída
 
 - Formalizar os 5 cards canônicos e suas fórmulas na seção `9.3.4` do PRD
 - Corrigir `quantidadeExcedenteTurno` em `hidratacao-capacidade-setor-turno.ts`: trocar `quantidadeAceitaTurno` por `quantidadeAceitaAcumuladaSetor`
@@ -504,7 +506,7 @@
 - Remover fallback `?? demanda.quantidadeAceitaTurno` de `KanbanOperacionalTurno.tsx` (linhas 322 e 523)
 - Homologar no turno aberto: Plano do dia estável ao longo do dia, Excedente = Backlog vivo − Plano do dia, Disponível agora ≤ Plano do dia, `npx tsc --noEmit` e `node --test` sem erros
 
-**Pausa em `2026-04-28`:** a sprint foi pausada com `37.1` concluída e `37.2` a `37.4` pendentes. Retomada depende de confirmação explícita do usuário.
+**Fechamento em `2026-05-06`:** a sprint foi retomada e concluída. A fórmula de `Excedente` (`Math.max(backlog - quantidadeAceitaAcumuladaSetor, 0)`) e o card `Plano do dia` (`quantidadeAceitaAcumuladaSetor ?? 0`) já estavam corretos no código — os desalinhamentos descritos haviam sido corrigidos antes da pausa. O bloqueio real era o alias `@/lib/utils/producao` em `meta-grupo-turno.ts`, que impedia `node --test` de resolver o módulo; resolvido extraindo `calcularMetaGrupo` como função local pura. `node --test` passou 7/7 em `hidratacao-capacidade-setor-turno.test.ts` e 33/33 na suíte completa sem regressão.
 
 ## SPRINT 38 — Ficha do produto para impressão/PDF
 **Objetivo:** implantar uma ficha documental do produto com prévia web e geração de PDF pela impressão nativa do navegador, para envio profissional ao consultor.
@@ -562,6 +564,21 @@
 
 **Fechamento parcial em `2026-04-29`:** as vulnerabilidades SQL foram corrigidas no Supabase remoto via Management API usando `scripts/sprint41_supabase_security_advisors.sql`. A revalidação do Security Advisor passou a retornar apenas `WARN auth_leaked_password_protection`; as validações read-only confirmaram `public.vw_status_maquinas` com `security_invoker=true`, RLS ativo nas tabelas de qualidade, políticas `SELECT` para `authenticated`, grants das funções `SECURITY DEFINER` restritos a `postgres` e `service_role`, e `search_path=public, pg_temp` nas 6 funções apontadas. A proteção de senhas vazadas não pôde ser habilitada porque o endpoint de Auth retornou HTTP `402`, informando que o recurso HaveIBeenPwned.org está disponível apenas em plano Pro ou superior.
 
+## SPRINT 42 — Correções de homologação da Sprint 37
+**Objetivo:** corrigir desvios semânticos reais do kanban operacional após a homologação da Sprint 37, preservando a definição canônica dos cards `Plano do dia` e `Concluído`.
+**Entregável:** hidratação de capacidade sem uso de entrada histórica como teto do plano, carry-over sem contaminar produção concluída do turno novo, UI alinhada para exibir `Plano do dia` por `quantidadeAceitaAcumuladaSetor`, contrato documental único para os cinco KPIs dos cards e scanner/apontamentos sem bloqueio por saldo visual.
+**Status:** ✅ Concluída
+
+- Corrigir `Plano do dia` para não ser limitado por entrada histórica/carry-over
+- Separar carry-over liberado de `quantidade_realizada` do turno novo
+- Garantir que `quantidade_liberada_setor = 0` por default não zere o plano em turno aberto
+- Propagar `quantidadeAceitaAcumuladaSetor` para scanner e detalhe de setor
+- Corrigir o erro TypeScript pré-existente em `/admin/setores`
+- Explicitar que `Disponível agora` é liberação operacional imediata, não capacidade diária espelhada
+- Remover bloqueios de scanner, apontamentos e qualidade baseados em plano, FIFO, disponibilidade automática e saldo visual
+
+**Fechamento em `2026-05-06`:** Sprint reaberta e fechada com correções adicionais das HUs 42.3 a 42.6. A causa final do `Plano do dia = 0` era a combinação de `quantidade_liberada_setor DEFAULT 0` sendo tratado como entrada real do setor e `quantidadeEntradaAcumuladaSetor` ainda limitando `quantidadeAceitaAcumuladaSetor`. A hidratação agora ignora liberação zerada, calcula o plano pelo maior entre backlog e entrada acumulada calculada, limitado pela capacidade global restante, e mantém `quantidadeAceitaTurno` como saldo de execução. O erro TypeScript pré-existente em `app/admin/setores/page.tsx` foi corrigido com `try/catch` no carregamento de setores, e os tipos do scanner foram alinhados aos campos de capacidade. O PRD registra que `Disponível agora` pode variar entre setores porque depende do fluxo/FIFO, enquanto `Plano do dia` continua sendo a capacidade diária espelhada. Scanner, apontamentos e qualidade passaram a tratar plano/FIFO/saldo como leitura informativa, com RPCs remotas atualizadas para não bloquear por saldo visual. Validação executada com `npx tsc --noEmit`, `git diff --check`, `node --test --experimental-strip-types lib/utils/plano-diario-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` e `node --test --experimental-strip-types lib/queries/fluxo-sequencial-turno-base.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/apontamento-supervisor.test.ts`, todos sem falhas.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -570,8 +587,9 @@
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37 (pausada)
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37
 Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
+Sprint 37 ──► Sprint 42
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

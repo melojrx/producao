@@ -511,11 +511,7 @@ export function useScanner(options: UseScannerOptions = {}) {
     const demandas = await buscarDemandasScaneadasPorTurnoSetor(turnoSetorId)
 
     return demandas.filter(
-      (demanda) =>
-        demanda.status !== 'concluida' &&
-        demanda.status !== 'encerrada_manualmente' &&
-        demanda.saldoRestante > 0 &&
-        calcularSaldoDisponivelSequencialDemanda(demanda) > 0
+      (demanda) => demanda.status !== 'encerrada_manualmente'
     )
   }
 
@@ -533,7 +529,7 @@ export function useScanner(options: UseScannerOptions = {}) {
 
     if (demandasAtivas.length === 0) {
       const mensagem =
-        'O setor aberto não possui OPs/produtos liberados pelo fluxo anterior para apontamento.'
+        'O setor aberto não possui OPs/produtos disponíveis para seleção no scanner.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -555,14 +551,8 @@ export function useScanner(options: UseScannerOptions = {}) {
         return { sucesso: false, erro: mensagem }
       }
 
-      if (setor.status === 'concluida' || setor.status === 'encerrada_manualmente') {
-        const mensagem = 'Este setor já está encerrado e não aceita novos apontamentos.'
-        setErro(mensagem)
-        return { sucesso: false, erro: mensagem }
-      }
-
-      if (setor.saldoRestante <= 0) {
-        const mensagem = 'Este setor não possui disponibilidade imediata para lançamento.'
+      if (setor.status === 'encerrada_manualmente') {
+        const mensagem = 'Este setor foi encerrado manualmente e não aceita novos apontamentos.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
@@ -579,7 +569,7 @@ export function useScanner(options: UseScannerOptions = {}) {
 
         if (demandasAtivas.length === 0) {
           const mensagem =
-            'O setor Qualidade ainda não possui OPs/produtos liberados pelo fluxo anterior para revisão.'
+            'O setor Qualidade não possui OPs/produtos disponíveis para seleção no scanner.'
           setErro(mensagem)
           return { sucesso: false, erro: mensagem }
         }
@@ -706,15 +696,12 @@ export function useScanner(options: UseScannerOptions = {}) {
       }
 
       const operacoesDisponiveis = operacoes.filter(
-        (operacao) =>
-          operacao.status !== 'concluida' &&
-          operacao.status !== 'encerrada_manualmente' &&
-          calcularSaldoDisponivelSequencialOperacao(demandaSelecionada, operacao) > 0
+        (operacao) => operacao.status !== 'encerrada_manualmente'
       )
 
       if (operacoesDisponiveis.length === 0) {
         const mensagem =
-          'A OP/produto escolhida ainda não possui lote liberado pelo setor anterior para esta operação.'
+          'A OP/produto escolhida não possui operações abertas para lançamento neste setor.'
         setErro(mensagem)
         return { sucesso: false, erro: mensagem }
       }
@@ -744,30 +731,6 @@ export function useScanner(options: UseScannerOptions = {}) {
 
     if (!Number.isInteger(quantidade) || quantidade < 1) {
       const mensagem = 'A quantidade deve ser um número inteiro maior ou igual a 1.'
-      setErro(mensagem)
-      return { sucesso: false, erro: mensagem }
-    }
-
-    const saldoOperacao = calcularSaldoRestante(
-      estado.operacaoSelecionada.quantidadePlanejada,
-      estado.operacaoSelecionada.quantidadeRealizada
-    )
-    const saldoSequencialOperacao = calcularSaldoDisponivelSequencialOperacao(
-      estado.demandaSelecionada,
-      estado.operacaoSelecionada
-    )
-
-    if (quantidade > saldoOperacao) {
-      const mensagem = `A quantidade informada ultrapassa o saldo da operação. Saldo disponível: ${saldoOperacao}.`
-      setErro(mensagem)
-      return { sucesso: false, erro: mensagem }
-    }
-
-    if (quantidade > saldoSequencialOperacao) {
-      const mensagem =
-        estado.demandaSelecionada.setorAnteriorNome && saldoSequencialOperacao === 0
-          ? `Esta operação ainda não recebeu peças liberadas de ${estado.demandaSelecionada.setorAnteriorNome}.`
-          : `A quantidade informada ultrapassa o lote liberado pelo fluxo anterior. Disponível agora: ${saldoSequencialOperacao}.`
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }
@@ -934,30 +897,6 @@ export function useScanner(options: UseScannerOptions = {}) {
 
     if (quantidadeRevisada <= 0) {
       const mensagem = 'Informe ao menos uma peça aprovada ou reprovada para registrar a revisão.'
-      setErro(mensagem)
-      return { sucesso: false, erro: mensagem }
-    }
-
-    const saldoOperacao = calcularSaldoRestante(
-      estado.operacaoQualidade.quantidadePlanejada,
-      estado.operacaoQualidade.quantidadeRealizada
-    )
-    const saldoSequencialOperacao = calcularSaldoDisponivelSequencialOperacao(
-      estado.demandaSelecionada,
-      estado.operacaoQualidade
-    )
-
-    if (quantidadeRevisada > saldoOperacao) {
-      const mensagem = `A quantidade revisada ultrapassa o saldo da operação de qualidade. Saldo disponível: ${saldoOperacao}.`
-      setErro(mensagem)
-      return { sucesso: false, erro: mensagem }
-    }
-
-    if (quantidadeRevisada > saldoSequencialOperacao) {
-      const mensagem =
-        estado.demandaSelecionada.setorAnteriorNome && saldoSequencialOperacao === 0
-          ? `A revisão ainda não recebeu peças liberadas de ${estado.demandaSelecionada.setorAnteriorNome}.`
-          : `A quantidade revisada ultrapassa o lote liberado pelo fluxo anterior. Disponível agora: ${saldoSequencialOperacao}.`
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }

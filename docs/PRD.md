@@ -710,8 +710,8 @@ Vocabulário canônico dos cards de demanda no kanban operacional:
 | Card | Campo interno | Fórmula canônica |
 |---|---|---|
 | **Backlog vivo** | `quantidadeBacklogSetor` | peças da OP pendentes no setor: `max(quantidadePlanejada − quantidadeConcluida, 0)` |
-| **Plano do dia** | `quantidadeAceitaAcumuladaSetor` | porção da capacidade global do turno alocada a esta demanda; pode ser `0` para demandas que excedem o teto do dia |
-| **Disponível agora** | `quantidadeDisponivelApontamento` | `min(fluxo_FIFO_disponível, quantidadeAceitaTurno)` — limitado pela prioridade da fila e pelo saldo aceito no dia |
+| **Plano do dia** | `quantidadeAceitaAcumuladaSetor` | porção estável da capacidade global do turno alocada a esta demanda; espelha a capacidade produtiva diária em cada setor quando há backlog suficiente |
+| **Disponível agora** | `quantidadeDisponivelApontamento` | liberação operacional imediata: `min(fluxo_FIFO_disponível, quantidadeAceitaTurno)` — limitado pela prioridade da fila, pelo fluxo recebido do setor anterior e pelo saldo aceito no dia |
 | **Concluído** | `quantidadeConcluida` | peças 100% finalizadas no setor no turno corrente |
 | **Excedente** | `quantidadeExcedenteTurno` | `max(backlogVivo − quantidadeAceitaAcumuladaSetor, 0)` — backlog que ultrapassa o plano do dia e vai para turno futuro |
 
@@ -719,7 +719,10 @@ Regras obrigatórias do vocabulário:
 - **Plano do dia é estável:** o valor de `quantidadeAceitaAcumuladaSetor` não decresce conforme a produção avança no turno; ele representa o compromisso total alocado a esta demanda a partir da capacidade global, não o saldo remanescente
 - **Excedente compara plano, não saldo:** `Excedente = Backlog vivo − Plano do dia`; a fórmula usa `quantidadeAceitaAcumuladaSetor` (plano total alocado), nunca `quantidadeAceitaTurno` (saldo restante decrescente)
 - **Disponível agora ≤ Plano do dia:** a disponibilidade imediata nunca pode ultrapassar o saldo aceito do dia (`quantidadeAceitaTurno = quantidadeAceitaAcumuladaSetor − quantidadeConcluida`)
+- **Disponível agora não é capacidade espelhada:** todos os setores usam o mesmo critério, mas o valor pode ser diferente entre setores porque depende da liberação real do fluxo e da prioridade operacional. O primeiro setor pode ter `Disponível agora = Plano do dia`; setores posteriores podem ficar em `0` até receberem peças do setor anterior; um setor final pode exibir `500` se já recebeu `500` da etapa anterior, mesmo que o plano fixo do dia seja `572`.
 - **Sem fallback para saldo:** nenhuma superfície de UI pode usar `quantidadeAceitaTurno` como substituto de `quantidadeAceitaAcumuladaSetor` no card de Plano do dia; registros sem `quantidadeAceitaAcumuladaSetor` devem exibir `0`
+- **Manual supervisor é exceção separada:** `saldoManualPermitido` permite lançamento supervisório dentro do saldo aceito do dia, mas não altera o card `Disponível agora` e não reclassifica excedente como plano.
+- **Scanner e apontamentos não bloqueiam por saldo visual:** `Plano do dia`, `Disponível agora`, `saldoManualPermitido`, backlog, excedente e saldo de operação são leituras informativas para o supervisor/operador. Scanner, apontamentos do supervisor e qualidade só podem bloquear dados estruturalmente inválidos, turno fechado/inexistente, usuário sem permissão, operador inválido, máquina inválida ou contexto encerrado manualmente; nunca podem bloquear porque a quantidade ultrapassou disponibilidade automática, plano do dia, saldo visual ou FIFO.
 
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`

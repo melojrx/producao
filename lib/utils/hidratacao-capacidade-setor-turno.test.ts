@@ -706,3 +706,46 @@ test('limita o plano setorial ao teto global do turno e preserva o saldo remanes
   assert.equal(setoresHidratados[0]?.capacidadeMinutosConsumida, 0)
   assert.equal(setoresHidratados[0]?.capacidadeMinutosReservada, 60)
 })
+
+test('mantem plano do dia pela capacidade global quando quantidade liberada do carry-over nasce zerada', () => {
+  const turnoComTetoGlobal: Pick<
+    TurnoV2,
+    'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'
+  > = {
+    operadoresDisponiveis: 20,
+    minutosTurno: 510,
+    capacidadeGlobalTurnoPecas: 601,
+  }
+  const demandaComCampoNovoDefaultZero: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    quantidadePlanejada: 1000,
+    quantidadeRealizada: 0,
+    quantidadeConcluida: 0,
+    quantidadeBacklogSetor: 1000,
+    quantidadeAceitaTurno: 1000,
+    quantidadeExcedenteTurno: 0,
+    quantidadePendenteSetor: 1000,
+    quantidadeDisponivelApontamento: 1000,
+    quantidadeLiberadaSetor: 0,
+  }
+  const operacoesPreparacao = criarOperacoesSecaoBase()
+    .filter((operacao) => operacao.setorId === 'setor-1')
+    .map((operacao) => ({
+      ...operacao,
+      quantidadePlanejada: 1000,
+      quantidadeRealizada: 0,
+      status: 'aberta' as const,
+    }))
+
+  const demandasLimitadas = aplicarCapacidadeOperacionalDemandas({
+    turno: turnoComTetoGlobal,
+    demandasSetor: [demandaComCampoNovoDefaultZero],
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+  })
+
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaAcumuladaSetor, 601)
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 601)
+  assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 399)
+  assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 601)
+})

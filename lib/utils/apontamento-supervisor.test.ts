@@ -52,11 +52,19 @@ test('mantem o contexto do supervisor acionavel mesmo fora da prioridade automat
       quantidadeDisponivelApontamento: 0,
       saldoManualPermitido: 18,
     }),
+    true
+  )
+  assert.equal(
+    supervisorPodeAcionarContexto({
+      status: 'encerrada_manualmente',
+      quantidadeDisponivelApontamento: 18,
+      saldoManualPermitido: 18,
+    }),
     false
   )
 })
 
-test('valida o lote do supervisor pelo saldo manual permitido da operacao', () => {
+test('valida apenas a existencia do contexto do supervisor sem bloquear por saldo informativo', () => {
   const contexto = {
     turnoSetorOperacaoId: 'operacao-posterior',
     numeroOp: '17822',
@@ -97,9 +105,6 @@ test('valida o lote do supervisor pelo saldo manual permitido da operacao', () =
       ],
       [contexto]
     ),
-    {
-      erro:
-        'A operação 17822 em Preparacao permite no máximo 26 peça(s) dentro do saldo aceito do dia.',
-    }
+    {}
   )
 })

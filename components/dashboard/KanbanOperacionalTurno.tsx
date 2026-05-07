@@ -334,7 +334,7 @@ export function KanbanOperacionalTurno({
                         resumoParalelo.quantidadeSincronizadaMontagem > 0 ||
                         resumoParalelo.quantidadeBloqueadaSincronizacao > 0
                       const resumoPlano = resumirPlanoDiarioTurno({
-                        quantidadeAceitaTurno: quantidadePlanoDoDia,
+                        quantidadePlanoDoDia,
                         quantidadeConcluida: demanda.quantidadeConcluida,
                         quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
                       })

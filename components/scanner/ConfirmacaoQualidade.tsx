@@ -155,11 +155,6 @@ export function ConfirmacaoQualidade({
       return
     }
 
-    if (quantidadeRevisada > saldoDisponivel) {
-      onErro(`A revisão ultrapassa o saldo disponível da qualidade. Saldo atual: ${saldoDisponivel}.`)
-      return
-    }
-
     if (reprovadas > 0 && defeitos.length === 0) {
       onErro('Informe ao menos uma operação de origem para as peças reprovadas.')
       return
@@ -250,7 +245,7 @@ export function ConfirmacaoQualidade({
             <button
               type="button"
               onClick={() => setExibindoSucesso(false)}
-              disabled={estaRegistrando || saldoDisponivel <= 0}
+              disabled={estaRegistrando}
               className="flex min-h-14 items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-base font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Nova revisão
@@ -424,7 +419,7 @@ export function ConfirmacaoQualidade({
             <button
               type="button"
               onClick={handleRegistrar}
-              disabled={estaRegistrando || saldoDisponivel <= 0}
+              disabled={estaRegistrando}
               className="inline-flex min-h-14 items-center justify-center gap-2 rounded-3xl bg-emerald-500 px-4 py-4 text-base font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <ShieldCheck size={18} />

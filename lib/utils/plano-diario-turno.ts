@@ -3,6 +3,7 @@ function normalizarNumero(valor?: number | null): number {
 }
 
 interface PlanoDiarioTurnoInput {
+  quantidadePlanoDoDia?: number | null
   quantidadeAceitaTurno?: number | null
   quantidadeConcluida?: number | null
   quantidadeRealizada?: number | null
@@ -22,7 +23,10 @@ export interface ResumoPlanoDiarioTurno {
 export function resumirPlanoDiarioTurno(
   input: PlanoDiarioTurnoInput
 ): ResumoPlanoDiarioTurno {
-  const planoDiaPecas = Math.max(normalizarNumero(input.quantidadeAceitaTurno), 0)
+  const planoDiaPecas = Math.max(
+    normalizarNumero(input.quantidadePlanoDoDia ?? input.quantidadeAceitaTurno),
+    0
+  )
   const quantidadeConcluida = Math.max(
     normalizarNumero(input.quantidadeConcluida ?? input.quantidadeRealizada),
     0

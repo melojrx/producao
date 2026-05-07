@@ -303,6 +303,7 @@ export interface TurnoSetorDemandaScaneada {
   statusFila?: TurnoSetorFilaStatusV2
   quantidadeBacklogSetor?: number
   quantidadeAceitaTurno?: number
+  quantidadeAceitaAcumuladaSetor?: number
   quantidadeExcedenteTurno?: number
   quantidadePendenteSetor?: number
   quantidadeLiberadaSetor?: number

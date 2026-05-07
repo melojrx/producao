@@ -51,14 +51,14 @@ export function SelecaoDemandaScanner({
     excedePlanoAtual: boolean
   } {
     const resumoPlano = resumirPlanoDiarioTurno({
-      quantidadeAceitaTurno: demanda.quantidadeAceitaTurno,
+      quantidadePlanoDoDia: demanda.quantidadeAceitaAcumuladaSetor,
       quantidadeConcluida: demanda.quantidadeConcluida,
       quantidadeDisponivelApontamento: demanda.quantidadeDisponivelApontamento,
     })
 
     return {
       backlogVivo: demanda.quantidadeBacklogSetor ?? demanda.saldoRestante,
-      planoDoDia: demanda.quantidadeAceitaTurno ?? demanda.saldoRestante,
+      planoDoDia: demanda.quantidadeAceitaAcumuladaSetor ?? 0,
       disponivelAgora:
         demanda.quantidadeDisponivelApontamento ?? demanda.quantidadeAceitaTurno ?? demanda.saldoRestante,
       excedePlanoAtual: resumoPlano.excedePlanoAtual,
@@ -78,29 +78,25 @@ export function SelecaoDemandaScanner({
         escolher a demanda dentro deste setor.
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-        {demandas.length} OP/produto(s) com disponibilidade imediata neste setor
+        {demandas.length} OP/produto(s) disponível(is) para seleção neste setor
       </p>
 
       <div className="mt-5 space-y-3">
         {demandas.map((demanda) => {
           const leituraDemanda = formatarLeituraDemanda(demanda)
-          const demandaDisponivel =
-            leituraDemanda.disponivelAgora > 0 &&
-            demanda.status !== 'concluida' &&
-            demanda.status !== 'encerrada_manualmente'
 
           return (
             <button
               key={demanda.id}
               type="button"
               onClick={() => {
-                if (!demandaDisponivel) {
+                if (demanda.status === 'encerrada_manualmente') {
                   return
                 }
 
                 void onSelecionarDemanda(demanda.id)
               }}
-              disabled={!demandaDisponivel}
+              disabled={demanda.status === 'encerrada_manualmente'}
               className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div className="flex items-start justify-between gap-3">
@@ -193,7 +189,9 @@ export function SelecaoDemandaScanner({
               ) : null}
 
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
-                {demandaDisponivel ? 'Selecionar OP/produto' : 'Demanda sem disponibilidade'}
+                {leituraDemanda.disponivelAgora > 0
+                  ? 'Selecionar OP/produto'
+                  : 'Selecionar OP/produto mesmo sem disponibilidade automática'}
                 <ArrowRight size={16} />
               </div>
             </button>

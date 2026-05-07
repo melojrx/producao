@@ -45,13 +45,13 @@ export function SelecaoOperacaoScanner({
   setor,
 }: SelecaoOperacaoScannerProps) {
   const backlogVivo = demandaSelecionada.quantidadeBacklogSetor ?? demandaSelecionada.saldoRestante
-  const planoDoDia = demandaSelecionada.quantidadeAceitaTurno ?? demandaSelecionada.saldoRestante
+  const planoDoDia = demandaSelecionada.quantidadeAceitaAcumuladaSetor ?? 0
   const disponivelAgora =
     demandaSelecionada.quantidadeDisponivelApontamento ??
     demandaSelecionada.quantidadeAceitaTurno ??
     demandaSelecionada.saldoRestante
   const resumoPlano = resumirPlanoDiarioTurno({
-    quantidadeAceitaTurno: demandaSelecionada.quantidadeAceitaTurno,
+    quantidadePlanoDoDia: demandaSelecionada.quantidadeAceitaAcumuladaSetor,
     quantidadeConcluida: demandaSelecionada.quantidadeConcluida,
     quantidadeDisponivelApontamento: demandaSelecionada.quantidadeDisponivelApontamento,
   })
@@ -70,7 +70,7 @@ export function SelecaoOperacaoScanner({
         {demandaSelecionada.numeroOp} · {setor.setorNome} · Operador {operador.nome}
       </p>
       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-        {operacoes.length} operação(ões) elegíveis para execução agora
+        {operacoes.length} operação(ões) disponível(is) para seleção
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
@@ -116,14 +116,14 @@ export function SelecaoOperacaoScanner({
             operacao.quantidadePlanejada - operacao.quantidadeRealizada,
             0
           )
-          const operacaoDisponivel = saldoOperacao > 0 && operacao.status !== 'concluida'
+          const operacaoBloqueada = operacao.status === 'encerrada_manualmente'
 
           return (
             <button
               key={operacao.id}
               type="button"
               onClick={() => onSelecionarOperacao(operacao.id)}
-              disabled={!operacaoDisponivel}
+              disabled={operacaoBloqueada}
               className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div className="flex items-start justify-between gap-3">
@@ -162,7 +162,9 @@ export function SelecaoOperacaoScanner({
               </div>
 
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300">
-                {operacaoDisponivel ? 'Selecionar operação' : 'Operação sem disponibilidade'}
+                {saldoOperacao > 0
+                  ? 'Selecionar operação'
+                  : 'Selecionar operação mesmo sem saldo visual'}
                 <ArrowRight size={16} />
               </div>
             </button>

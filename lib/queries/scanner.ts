@@ -353,6 +353,7 @@ interface TurnoSetorDemandaScannerRow {
   turno_setor_op_legacy_id: string | null
   quantidade_planejada: number
   quantidade_realizada: number
+  quantidade_liberada_setor: number
   status: string
   turno_ops?: {
     numero_op: string
@@ -378,6 +379,7 @@ interface TurnoSetorDemandaFluxoScannerRow {
   setor_id: string
   quantidade_planejada: number
   quantidade_realizada: number
+  quantidade_liberada_setor: number
   status: string
   iniciado_em: string | null
   encerrado_em: string | null
@@ -488,6 +490,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
         turno_setor_op_legacy_id,
         quantidade_planejada,
         quantidade_realizada,
+        quantidade_liberada_setor,
         status,
         turno_ops!inner (
           numero_op
@@ -506,7 +509,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
     return []
   }
 
-  const demandasBase = data.map((demanda) => {
+  const demandasBase: TurnoSetorDemandaScaneada[] = data.map((demanda) => {
     const turnoOp = extrairRegistroUnico(demanda.turno_ops)
     const produto = extrairRegistroUnico(demanda.produtos)
 
@@ -523,6 +526,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
       quantidadePlanejada: demanda.quantidade_planejada,
       quantidadeRealizada: demanda.quantidade_realizada,
       quantidadeConcluida: demanda.quantidade_realizada,
+      quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
       progressoOperacionalPct: 0,
       cargaPlanejadaTp: 0,
       cargaRealizadaTp: 0,
@@ -538,7 +542,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
   const turnoId = demandasBase[0]?.turnoId ?? null
   const turnoOpIds = Array.from(new Set(demandasBase.map((demanda) => demanda.turnoOpId).filter(Boolean)))
 
-  let demandasComFluxo = demandasBase
+  let demandasComFluxo: TurnoSetorDemandaScaneada[] = demandasBase
 
   if (turnoId && turnoOpIds.length > 0) {
     const [{ data: turnoResumo, error: turnoResumoError }, { data: opsTurno, error: opsTurnoError }] =
@@ -572,6 +576,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
           setor_id,
           quantidade_planejada,
           quantidade_realizada,
+          quantidade_liberada_setor,
           status,
           iniciado_em,
           encerrado_em,
@@ -615,7 +620,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
         if (turnoResumoAtual) {
           const opsPlanejamento = mapearOpsTurnoScanner(opsTurno ?? [], produtos ?? [])
           const demandasPlanejamentoBase = (demandasRelacionadas ?? [])
-            .map((demanda) => {
+            .map((demanda): TurnoSetorDemandaV2 | null => {
               const setor = extrairRegistroUnico(demanda.setores)
               const op = opsPlanejamento.find((item) => item.id === demanda.turno_op_id)
 
@@ -638,6 +643,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
                 quantidadePlanejada: demanda.quantidade_planejada,
                 quantidadeRealizada: demanda.quantidade_realizada,
                 quantidadeConcluida: demanda.quantidade_realizada,
+                quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
                 progressoOperacionalPct: 0,
                 cargaPlanejadaTp: 0,
                 cargaRealizadaTp: 0,
@@ -684,6 +690,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
               statusFila: diagnostico.statusFila,
               quantidadeBacklogSetor: diagnostico.quantidadeBacklogSetor,
               quantidadeAceitaTurno: diagnostico.quantidadeAceitaTurno,
+              quantidadeAceitaAcumuladaSetor: diagnostico.quantidadeAceitaAcumuladaSetor,
               quantidadeExcedenteTurno: diagnostico.quantidadeExcedenteTurno,
               quantidadePendenteSetor: diagnostico.quantidadePendenteSetor,
               quantidadeLiberadaSetor: diagnostico.quantidadeLiberadaSetor,

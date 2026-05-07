@@ -72,12 +72,6 @@ interface TurnoOpCarryOver {
   status: TurnoOpRow['status']
 }
 
-interface TurnoSetorOperacaoCarryOverBase {
-  setorId: string
-  operacaoId: string
-  quantidadeRealizada: number
-}
-
 interface TurnoSetorDemandaCarryOverFluxoRow {
   id: string
   turno_op_id: string
@@ -650,50 +644,27 @@ async function hidratarProgressoCarryOverDaOp(
 ): Promise<{ erro?: string }> {
   const supabase = createAdminClient()
 
-  const [
-    { data: demandasOrigem, error: demandasOrigemError },
-    { data: operacoesOrigem, error: operacoesOrigemError },
-    { data: operacoesDestino, error: operacoesDestinoError },
-  ] = await Promise.all([
-    supabase
-      .from('turno_setor_demandas')
-      .select(
-        `
-          id,
-          turno_op_id,
-          setor_id,
-          quantidade_planejada,
-          quantidade_realizada,
-          status,
-          iniciado_em,
-          encerrado_em,
-          setores!inner (
-            codigo,
-            nome
-          )
-        `
-      )
-      .eq('turno_op_id', turnoOpOrigemId)
-      .order('created_at', { ascending: true })
-      .returns<TurnoSetorDemandaCarryOverFluxoRow[]>(),
-    supabase
-      .from('turno_setor_operacoes')
-      .select('setor_id, operacao_id, quantidade_realizada')
-      .eq('turno_op_id', turnoOpOrigemId)
-      .returns<
-        Pick<TurnoSetorOperacaoRow, 'setor_id' | 'operacao_id' | 'quantidade_realizada'>[]
-      >(),
-    supabase
-      .from('turno_setor_operacoes')
-      .select('id, turno_setor_op_id, setor_id, operacao_id, quantidade_planejada')
-      .eq('turno_op_id', turnoOpDestinoId)
-      .returns<
-        Pick<
-          TurnoSetorOperacaoRow,
-          'id' | 'turno_setor_op_id' | 'setor_id' | 'operacao_id' | 'quantidade_planejada'
-        >[]
-      >(),
-  ])
+  const { data: demandasOrigem, error: demandasOrigemError } = await supabase
+    .from('turno_setor_demandas')
+    .select(
+      `
+        id,
+        turno_op_id,
+        setor_id,
+        quantidade_planejada,
+        quantidade_realizada,
+        status,
+        iniciado_em,
+        encerrado_em,
+        setores!inner (
+          codigo,
+          nome
+        )
+      `
+    )
+    .eq('turno_op_id', turnoOpOrigemId)
+    .order('created_at', { ascending: true })
+    .returns<TurnoSetorDemandaCarryOverFluxoRow[]>()
 
   if (demandasOrigemError) {
     return {
@@ -701,40 +672,7 @@ async function hidratarProgressoCarryOverDaOp(
     }
   }
 
-  if (operacoesOrigemError) {
-    return {
-      erro: `Erro ao carregar o progresso do turno anterior para carry-over: ${operacoesOrigemError.message}`,
-    }
-  }
-
-  if (operacoesDestinoError) {
-    return {
-      erro: `Erro ao carregar as operações derivadas do novo turno no carry-over: ${operacoesDestinoError.message}`,
-    }
-  }
-
-  const progressoOrigemPorChave = new Map<string, TurnoSetorOperacaoCarryOverBase>()
-
-  for (const operacaoOrigem of operacoesOrigem ?? []) {
-    if (!operacaoOrigem.setor_id || !operacaoOrigem.operacao_id) {
-      continue
-    }
-
-    if (operacaoOrigem.quantidade_realizada <= 0) {
-      continue
-    }
-
-    progressoOrigemPorChave.set(
-      `${operacaoOrigem.setor_id}:${operacaoOrigem.operacao_id}`,
-      {
-        setorId: operacaoOrigem.setor_id,
-        operacaoId: operacaoOrigem.operacao_id,
-        quantidadeRealizada: operacaoOrigem.quantidade_realizada,
-      }
-    )
-  }
-
-  if (progressoOrigemPorChave.size === 0) {
+  if (!demandasOrigem || demandasOrigem.length === 0) {
     return {}
   }
 
@@ -781,67 +719,24 @@ async function hidratarProgressoCarryOverDaOp(
     }).map((snapshot) => [snapshot.setorId, snapshot] as const)
   )
 
-  const secoesAfetadas = new Set<string>()
+  const setoesComLiberacao = [...snapshotsCarryOverPorSetorId.entries()].filter(
+    ([, snapshot]) => snapshot.quantidadeRealizadaDestino > 0
+  )
 
-  for (const operacaoDestino of operacoesDestino ?? []) {
-    if (!operacaoDestino.setor_id || !operacaoDestino.operacao_id) {
-      continue
-    }
-
-    const progressoOrigem = progressoOrigemPorChave.get(
-      `${operacaoDestino.setor_id}:${operacaoDestino.operacao_id}`
-    )
-
-    if (!progressoOrigem) {
-      continue
-    }
-
-    const snapshotCarryOver = snapshotsCarryOverPorSetorId.get(operacaoDestino.setor_id)
-    const quantidadeLiberadaSetor =
-      snapshotCarryOver?.quantidadeRealizadaDestino ?? operacaoDestino.quantidade_planejada
-
-    const quantidadeRealizada = Math.min(
-      operacaoDestino.quantidade_planejada,
-      quantidadeLiberadaSetor,
-      progressoOrigem.quantidadeRealizada
-    )
-
-    if (quantidadeRealizada <= 0) {
-      continue
-    }
-
-    const status =
-      quantidadeRealizada >= operacaoDestino.quantidade_planejada ? 'concluida' : 'em_andamento'
-
-    const { error: updateError } = await supabase
-      .from('turno_setor_operacoes')
-      .update({
-        quantidade_realizada: quantidadeRealizada,
-        status,
-      })
-      .eq('id', operacaoDestino.id)
-
-    if (updateError) {
-      return {
-        erro: `Erro ao hidratar a operação ${operacaoDestino.operacao_id} no carry-over: ${updateError.message}`,
-      }
-    }
-
-    secoesAfetadas.add(operacaoDestino.turno_setor_op_id)
-  }
-
-  if (secoesAfetadas.size === 0) {
+  if (setoesComLiberacao.length === 0) {
     return {}
   }
 
-  for (const secaoId of secoesAfetadas) {
-    const { error: syncSecaoError } = await supabase.rpc('sincronizar_andamento_turno_setor_op', {
-      p_turno_setor_op_id: secaoId,
-    })
+  for (const [setorId, snapshot] of setoesComLiberacao) {
+    const { error: updateDemandaError } = await supabase
+      .from('turno_setor_demandas')
+      .update({ quantidade_liberada_setor: snapshot.quantidadeRealizadaDestino })
+      .eq('turno_op_id', turnoOpDestinoId)
+      .eq('setor_id', setorId)
 
-    if (syncSecaoError) {
+    if (updateDemandaError) {
       return {
-        erro: `Erro ao sincronizar a seção derivada do carry-over: ${syncSecaoError.message}`,
+        erro: `Erro ao persistir quantidade liberada no carry-over do setor ${setorId}: ${updateDemandaError.message}`,
       }
     }
   }

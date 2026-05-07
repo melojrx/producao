@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { listarDisponibilidadeSequencialOperacoesComClient } from '@/lib/queries/fluxo-sequencial-turno-base'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 import type { OrigemLancamentoQualidade } from '@/types'
 
@@ -55,10 +54,6 @@ interface RegistrarRevisaoQualidadeRpcRow {
   status_turno_op: string
 }
 
-interface ValidacaoDisponibilidadeResultado {
-  erro?: string
-}
-
 function quantidadeInteiraNaoNegativa(quantidade: number): boolean {
   return Number.isInteger(quantidade) && quantidade >= 0
 }
@@ -96,37 +91,6 @@ function validarDefeitos(
   }
 
   return null
-}
-
-async function validarDisponibilidadeSequencialQualidade(
-  turnoSetorOperacaoIdQualidade: string,
-  quantidadeRevisada: number
-): Promise<ValidacaoDisponibilidadeResultado> {
-  const supabase = createAdminClient()
-  const disponibilidade = await listarDisponibilidadeSequencialOperacoesComClient(supabase, [
-    turnoSetorOperacaoIdQualidade,
-  ])
-  const contexto = disponibilidade[0]
-
-  if (!contexto) {
-    return {
-      erro: 'A operação de qualidade selecionada não foi encontrada no fluxo sequencial do turno.',
-    }
-  }
-
-  if (quantidadeRevisada > contexto.quantidadeDisponivelOperacao) {
-    if (contexto.quantidadeDisponivelOperacao === 0 && contexto.setorAnteriorNome) {
-      return {
-        erro: `A operação de qualidade em ${contexto.setorNome} ainda não recebeu peças liberadas de ${contexto.setorAnteriorNome}.`,
-      }
-    }
-
-    return {
-      erro: `A operação de qualidade em ${contexto.setorNome} possui apenas ${contexto.quantidadeDisponivelOperacao} peça(s) liberadas no fluxo para revisão agora.`,
-    }
-  }
-
-  return {}
 }
 
 async function resolverRevisorQualidadeAutenticado(): Promise<{
@@ -208,18 +172,6 @@ export async function registrarRevisaoQualidade(
     return {
       sucesso: false,
       erro: revisor.erro ?? 'Não foi possível identificar o revisor autenticado.',
-    }
-  }
-
-  const { erro: erroDisponibilidadeSequencial } = await validarDisponibilidadeSequencialQualidade(
-    input.turnoSetorOperacaoIdQualidade,
-    quantidadeRevisada
-  )
-
-  if (erroDisponibilidadeSequencial) {
-    return {
-      sucesso: false,
-      erro: erroDisponibilidadeSequencial,
     }
   }
 

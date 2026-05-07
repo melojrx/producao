@@ -44,7 +44,7 @@ export interface ValidacaoLancamentoSupervisorResultado {
 function statusPermiteApontamentoSupervisor(
   status: SupervisorAcionamentoContexto['status']
 ): boolean {
-  return status !== 'concluida' && status !== 'encerrada_manualmente'
+  return status !== 'encerrada_manualmente'
 }
 
 export function calcularSaldoAceitoDaOp(
@@ -105,10 +105,7 @@ export function supervisorPodeAcionarContexto(
     return false
   }
 
-  return (
-    normalizarNumeroPositivo(contexto.quantidadeDisponivelApontamento) > 0 ||
-    normalizarNumeroPositivo(contexto.saldoManualPermitido) > 0
-  )
+  return true
 }
 
 export function supervisorDependeDeExcecaoManual(
@@ -127,38 +124,15 @@ export function validarLancamentosSupervisorContraContextos(
   lancamentos: SupervisorLancamentoPayload[],
   contextos: SupervisorDisponibilidadeOperacaoContexto[]
 ): ValidacaoLancamentoSupervisorResultado {
-  const totaisPorOperacao = new Map<string, number>()
-
-  for (const lancamento of lancamentos) {
-    const totalAtual = totaisPorOperacao.get(lancamento.turnoSetorOperacaoId) ?? 0
-    totaisPorOperacao.set(lancamento.turnoSetorOperacaoId, totalAtual + lancamento.quantidade)
-  }
-
   const contextoPorOperacaoId = new Map(
     contextos.map((contexto) => [contexto.turnoSetorOperacaoId, contexto] as const)
   )
 
-  for (const [turnoSetorOperacaoId, quantidadeTotal] of totaisPorOperacao.entries()) {
-    const contexto = contextoPorOperacaoId.get(turnoSetorOperacaoId)
-
-    if (!contexto) {
+  for (const lancamento of lancamentos) {
+    if (!contextoPorOperacaoId.has(lancamento.turnoSetorOperacaoId)) {
       return {
         erro: 'Uma das operações selecionadas não foi encontrada no fluxo sequencial do turno.',
       }
-    }
-
-    if (quantidadeTotal <= contexto.quantidadeManualPermitidaOperacao) {
-      continue
-    }
-
-    if (contexto.saldoManualPermitido <= 0) {
-      return {
-        erro: `A operação ${contexto.numeroOp} em ${contexto.setorNome} não possui saldo manual permitido dentro do plano do dia.`,
-      }
-    }
-
-    return {
-      erro: `A operação ${contexto.numeroOp} em ${contexto.setorNome} permite no máximo ${contexto.quantidadeManualPermitidaOperacao} peça(s) dentro do saldo aceito do dia.`,
     }
   }
 

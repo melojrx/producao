@@ -35,7 +35,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
     0
   )
   const resumoPlano = resumirPlanoDiarioTurno({
-    quantidadeAceitaTurno: setor.quantidadeAceitaTurno,
+    quantidadePlanoDoDia: setor.quantidadeAceitaTurno,
     quantidadeConcluida: setor.quantidadeConcluida,
     quantidadeDisponivelApontamento: disponibilidadeAgora,
   })
@@ -198,9 +198,7 @@ export function ModalDetalhesSetorTurno({ setor, aoFechar }: ModalDetalhesSetorT
                         Plano do dia
                       </p>
                       <p className="mt-1 text-sm font-semibold text-blue-900">
-                        {formatarQuantidade(
-                          demanda.quantidadeAceitaAcumuladaSetor ?? demanda.quantidadeAceitaTurno
-                        )}
+                        {formatarQuantidade(demanda.quantidadeAceitaAcumuladaSetor ?? 0)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">

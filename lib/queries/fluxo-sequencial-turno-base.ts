@@ -40,6 +40,7 @@ type TurnoSetorDemandaFluxoRow = Pick<
   | 'turno_setor_op_legacy_id'
   | 'quantidade_planejada'
   | 'quantidade_realizada'
+  | 'quantidade_liberada_setor'
   | 'status'
   | 'iniciado_em'
   | 'encerrado_em'
@@ -160,6 +161,7 @@ function mapearDemandaTurno(
     iniciadoEm: demanda.iniciado_em,
     encerradoEm: demanda.encerrado_em,
     turnoSetorOpLegacyId: demanda.turno_setor_op_legacy_id,
+    quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
   }
 }
 
@@ -258,6 +260,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         turno_setor_op_legacy_id,
         quantidade_planejada,
         quantidade_realizada,
+        quantidade_liberada_setor,
         status,
         iniciado_em,
         encerrado_em,

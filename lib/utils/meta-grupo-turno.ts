@@ -1,4 +1,3 @@
-import { calcularMetaGrupo } from '@/lib/utils/producao'
 import type {
   ComparativoMetaGrupoHoraItem,
   RegistroProducaoTurnoHora,
@@ -7,6 +6,15 @@ import type {
   TurnoOpV2,
   TurnoV2,
 } from '@/types'
+
+function calcularMetaGrupo(
+  funcionariosAtivos: number,
+  minutosTurno: number,
+  tpProduto: number
+): number {
+  if (tpProduto <= 0 || funcionariosAtivos <= 0 || minutosTurno <= 0) return 0
+  return Math.floor((funcionariosAtivos * minutosTurno) / tpProduto)
+}
 
 const MINUTOS_POR_HORA = 60
 const MILISSEGUNDOS_POR_MINUTO = 60 * 1000

@@ -3,9 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { listarDisponibilidadeSequencialOperacoesComClient } from '@/lib/queries/fluxo-sequencial-turno-base'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
-import { validarLancamentosSupervisorContraContextos } from '@/lib/utils/apontamento-supervisor'
 
 export interface RegistrarProducaoInput {
   operadorId: string
@@ -91,10 +89,6 @@ interface RegistrarSupervisorRpcRow {
   total_lancamentos: number
 }
 
-interface ValidacaoSequencialOperacaoResultado {
-  erro?: string
-}
-
 function quantidadeValida(quantidade: number): boolean {
   return Number.isInteger(quantidade) && quantidade >= 1
 }
@@ -142,49 +136,6 @@ function parseLancamentosSupervisor(raw: string): { data?: LancamentoSupervisorP
   } catch {
     return { erro: 'Não foi possível interpretar os lançamentos informados.' }
   }
-}
-
-async function validarDisponibilidadeSequencialOperacao(
-  turnoSetorOperacaoId: string,
-  quantidade: number
-): Promise<ValidacaoSequencialOperacaoResultado> {
-  const supabase = createAdminClient()
-  const disponibilidade = await listarDisponibilidadeSequencialOperacoesComClient(supabase, [
-    turnoSetorOperacaoId,
-  ])
-  const contexto = disponibilidade[0]
-
-  if (!contexto) {
-    return {
-      erro: 'A operação selecionada não foi encontrada no fluxo sequencial do turno.',
-    }
-  }
-
-  if (quantidade > contexto.quantidadeDisponivelOperacao) {
-    if (contexto.quantidadeDisponivelOperacao === 0 && contexto.setorAnteriorNome) {
-      return {
-        erro: `A operação ${contexto.numeroOp} em ${contexto.setorNome} ainda não recebeu peças liberadas de ${contexto.setorAnteriorNome}.`,
-      }
-    }
-
-    return {
-      erro: `A operação ${contexto.numeroOp} em ${contexto.setorNome} possui apenas ${contexto.quantidadeDisponivelOperacao} peça(s) liberadas no fluxo para apontamento agora.`,
-    }
-  }
-
-  return {}
-}
-
-async function validarDisponibilidadeSequencialLoteSupervisor(
-  lancamentos: LancamentoSupervisorPayload[]
-): Promise<ValidacaoSequencialOperacaoResultado> {
-  const supabase = createAdminClient()
-  const disponibilidades = await listarDisponibilidadeSequencialOperacoesComClient(
-    supabase,
-    lancamentos.map((lancamento) => lancamento.turnoSetorOperacaoId)
-  )
-
-  return validarLancamentosSupervisorContraContextos(lancamentos, disponibilidades)
 }
 
 async function resolverUsuarioSistemaAutenticadoOpcional(): Promise<string | null> {
@@ -274,18 +225,6 @@ export async function registrarProducaoOperacao(
       ? await resolverUsuarioSistemaAutenticadoOpcional()
       : input.usuarioSistemaId
 
-  const { erro: erroDisponibilidadeSequencial } = await validarDisponibilidadeSequencialOperacao(
-    input.turnoSetorOperacaoId,
-    input.quantidade
-  )
-
-  if (erroDisponibilidadeSequencial) {
-    return {
-      sucesso: false,
-      erro: erroDisponibilidadeSequencial,
-    }
-  }
-
   const supabase = createAdminClient()
 
   const { data, error } = await supabase.rpc('registrar_producao_turno_setor_operacao', {
@@ -368,16 +307,6 @@ export async function registrarApontamentosSupervisor(
     return {
       sucesso: false,
       erro: 'Seu usuário administrativo não foi encontrado para autoria do lançamento.',
-    }
-  }
-
-  const { erro: erroDisponibilidadeSequencial } =
-    await validarDisponibilidadeSequencialLoteSupervisor(parsedLancamentos.data)
-
-  if (erroDisponibilidadeSequencial) {
-    return {
-      sucesso: false,
-      erro: erroDisponibilidadeSequencial,
     }
   }
 

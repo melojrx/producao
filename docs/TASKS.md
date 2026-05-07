@@ -3928,15 +3928,14 @@ Esta mudança foi aplicada em `2026-04-02` na Sprint 13, preservando o papel pat
 ---
 
 ## SPRINT 37 — Reconciliação do vocabulário operacional dos cards do kanban
-**Status:** ⏸️ Pausada
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 36 concluída.
 **Objetivo:** formalizar as 5 definições canônicas dos cards de demanda no kanban operacional e corrigir dois desalinhamentos entre essas definições e o que o código calcula/exibe hoje.
 
 **Nota de pausa em `2026-04-28`:**
-- por confirmação explícita do usuário, a Sprint 37 fica pausada antes da execução das HUs `37.2`, `37.3` e `37.4`
-- a `HU 37.1` permanece concluída e preservada
-- nenhuma alteração da Sprint 37 deve ser retomada sem nova confirmação explícita do usuário
-- a prioridade ativa passa para a Sprint 38 — Ficha do produto para impressão/PDF
+- por confirmação explícita do usuário, a Sprint 37 ficou pausada antes da execução das HUs `37.2`, `37.3` e `37.4`
+- a `HU 37.1` permaneceu concluída e preservada durante a pausa
+- retomada e concluída em `2026-05-06`
 
 Os dois desalinhamentos identificados:
 1. **Excedente** usa `quantidadeAceitaTurno` (saldo restante decrescente) em vez de `quantidadeAceitaAcumuladaSetor` (plano total alocado) — `lib/utils/hidratacao-capacidade-setor-turno.ts:332`
@@ -3959,7 +3958,7 @@ Os dois desalinhamentos identificados:
 
   `docs/PRD.md` foi atualizado em `2026-04-25` para incluir, na seção `9.3.4`, a tabela com os 5 cards canônicos (`Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído`, `Excedente`), seus campos internos e fórmulas, além das 3 regras obrigatórias de integridade do vocabulário.
 
-- [ ] **HU 37.2 — Como sistema, quero que a fórmula de Excedente compare backlog vivo com o plano total alocado, para refletir corretamente o que vai para turno futuro.**
+- [x] **HU 37.2 — Como sistema, quero que a fórmula de Excedente compare backlog vivo com o plano total alocado, para refletir corretamente o que vai para turno futuro.**
   **Prioridade:** P0
   **Risco:** Médio
 
@@ -3972,9 +3971,9 @@ Os dois desalinhamentos identificados:
   - a nova fórmula deve ser: `Math.max(backlog - quantidadeAceitaAcumuladaSetor, 0)`
   - os testes devem cobrir: demanda com toda capacidade aceita, demanda parcialmente aceita e demanda com aceite zero
 
-  **Evidência:** `npx tsc --noEmit` e `node --test` sem erros; cenário manual no turno real confirma Excedente = Backlog vivo − Plano do dia.
+  **Evidência:** a fórmula `Math.max(backlog - quantidadeAceitaAcumuladaSetor, 0)` já estava aplicada em `hidratacao-capacidade-setor-turno.ts:333`; os testes cobrem demanda parcialmente aceita (`backlog=60, aceita=33 → excedente=27`), demanda com teto global (`backlog=700, aceita=601 → excedente=99`) e demanda com aceite zero (`excedente=backlog`). O bloqueio de execução era o alias `@/lib/utils/producao` em `meta-grupo-turno.ts`, resolvido extraindo `calcularMetaGrupo` como função local pura. `node --test` passou 7/7 em `hidratacao-capacidade-setor-turno.test.ts` e 33/33 na suíte completa sem regressão.
 
-- [ ] **HU 37.3 — Como supervisor, quero que o card Plano do dia exiba sempre o plano alocado estável, não o saldo que decresce com a produção.**
+- [x] **HU 37.3 — Como supervisor, quero que o card Plano do dia exiba sempre o plano alocado estável, não o saldo que decresce com a produção.**
   **Prioridade:** P0
   **Risco:** Baixo
 
@@ -3986,9 +3985,9 @@ Os dois desalinhamentos identificados:
   - a remoção do fallback não pode afetar os demais cards (`Disponível agora`, `Concluído`, `Excedente`, `Backlog vivo`)
   - o alerta `excedePlanoAtual` deve continuar funcionando com base em `resumirPlanoDiarioTurno`
 
-  **Evidência:** card Plano do dia permanece com o mesmo valor do início ao fim do turno, mesmo após vários apontamentos.
+  **Evidência:** o fallback `?? demanda.quantidadeAceitaTurno` já não existia nas linhas 322 e 523 de `KanbanOperacionalTurno.tsx`; ambas usam `demanda.quantidadeAceitaAcumuladaSetor ?? 0`, garantindo que registros sem `quantidadeAceitaAcumuladaSetor` exibam `0` sem recair no saldo decrescente. Nenhuma alteração de código foi necessária nesta HU.
 
-- [ ] **HU 37.4 — Como produto, quero homologar ponta a ponta o vocabulário corrigido, para confiar que os 5 cards refletem exatamente as definições do PRD.**
+- [x] **HU 37.4 — Como produto, quero homologar ponta a ponta o vocabulário corrigido, para confiar que os 5 cards refletem exatamente as definições do PRD.**
   **Prioridade:** P0
   **Risco:** Baixo
 
@@ -4002,7 +4001,7 @@ Os dois desalinhamentos identificados:
   - a sprint só fecha com `npx tsc --noEmit` e `node --test` sem erros
   - os demais fluxos (scanner, apontamento manual, carry-over) não podem sofrer regressão
 
-  **Evidência:** vocabulário dos 5 cards homologado no turno real, com `npx tsc --noEmit` e `node --test` sem erros e evidência documental registrada.
+  **Evidência:** `node --test --experimental-strip-types` passou 7/7 em `hidratacao-capacidade-setor-turno.test.ts` e 33/33 na suíte completa (hidratação, kanban, apontamento-supervisor, capacidade-setor, carry-over, fluxo-continuo, fluxo-paralelo, fluxo-sequencial) sem regressão. Havia um erro pré-existente de TypeScript em `app/admin/setores/page.tsx`, posteriormente corrigido na `HU 42.4`. Fórmula de Excedente validada: `backlog=60, aceita=33 → 27`; `backlog=700, aceita=601 → 99`; `backlog=50, aceita=0 → 50`. Plano do dia usa `quantidadeAceitaAcumuladaSetor ?? 0` em ambas as superfícies do kanban, sem fallback para saldo decrescente. Correção técnica da sprint: extração de `calcularMetaGrupo` como função local em `meta-grupo-turno.ts` para eliminar dependência de alias `@/lib/utils/producao` que impedia `node --test` de resolver o módulo.
 
 ---
 
@@ -4247,14 +4246,172 @@ Os dois desalinhamentos identificados:
 
 ---
 
+## SPRINT 42 — Correções de homologação da Sprint 37
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 37 concluída.
+**Objetivo:** corrigir os desvios semânticos identificados durante a homologação real do kanban operacional após o fechamento da Sprint 37.
+
+---
+
+### Contexto dos problemas identificados
+
+Durante a homologação do turno aberto após a Sprint 37, dois comportamentos incorretos foram observados no kanban operacional. Ambos têm origem na camada de hidratação de capacidade (`lib/utils/hidratacao-capacidade-setor-turno.ts`) e afetam diretamente a confiabilidade dos cards exibidos ao supervisor.
+
+---
+
+- [x] **HU 42.1 — Como supervisor, quero que o Plano do dia de cada setor reflita sempre a capacidade global do turno, não um valor persistido de entrada anterior.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  **Problema identificado:**
+  O setor `Costa` exibia `Plano do dia = 458` enquanto todos os outros setores exibiam `572` (capacidade global do turno). A causa raiz está em `aplicarCapacidadeOperacionalDemandas`: o campo `quantidadeEntradaAcumuladaSetor` é lido diretamente do banco (linha 239–241) e usado como teto do `quantidadeAceitaAcumuladaSetor` via `Math.min(quantidadeEntradaAcumuladaSetor, planoRestanteSetorPecas)` (linha 317–320). Quando esse campo foi persistido com um valor menor (458) em um turno anterior com capacidade diferente ou com outra demanda consumindo parte do plano, o código respeita o valor histórico em vez de recalcular com a capacidade atual. O resultado é um Plano do dia incorreto e instável entre turnos.
+
+  **Causa raiz técnica:**
+  `quantidadeEntradaAcumuladaSetor` representa quanto entrou no setor (dado histórico de fluxo), não o teto do plano do dia. Usar esse campo como limitador de `quantidadeAceitaAcumuladaSetor` mistura dois conceitos distintos: entrada acumulada de fluxo e capacidade alocada do turno.
+
+  **Solução:**
+  Substituir o limitador de `quantidadeAceitaAcumuladaSetor` de `quantidadeEntradaAcumuladaSetor` para `backlog` (quanto há para fazer), mantendo `planoRestanteSetorPecas` como o outro limitador:
+
+  ```ts
+  // antes
+  const quantidadeAceitaAcumuladaSetor = Math.min(
+    quantidadeEntradaAcumuladaSetor,
+    planoRestanteSetorPecas
+  )
+
+  // depois
+  const quantidadeAceitaAcumuladaSetor = Math.min(
+    backlog,
+    planoRestanteSetorPecas
+  )
+  ```
+
+  `quantidadeEntradaAcumuladaSetor` continua sendo calculado e retornado no snapshot para uso em `Disponível agora` e carry-over — apenas deixa de controlar o Plano do dia.
+
+  Tarefas:
+  - alterar `lib/utils/hidratacao-capacidade-setor-turno.ts` linha 317: substituir `quantidadeEntradaAcumuladaSetor` por `backlog` no `Math.min` que calcula `quantidadeAceitaAcumuladaSetor`
+  - atualizar `lib/utils/hidratacao-capacidade-setor-turno.test.ts`: revisar valores esperados de `quantidadeAceitaAcumuladaSetor` nos cenários afetados
+  - validar que `quantidadeEntradaAcumuladaSetor` continua sendo calculado e retornado corretamente no snapshot
+
+  Regras:
+  - `quantidadeAceitaTurno`, `quantidadeDisponivelApontamento` e `saldoManualPermitido` não podem ser alterados
+  - o Plano do dia deve ser idêntico em todos os setores com backlog ≥ capacidade global
+  - setores com backlog < capacidade global devem exibir o backlog como Plano do dia (não a capacidade global)
+  - `node --test` deve passar sem regressão na suíte completa
+
+  **Evidência:** a correção real foi remover o branch que priorizava `quantidadeEntradaAcumuladaSetor` do banco em `calcularQuantidadeEntradaAcumuladaSetor` — o valor persistido historicamente podia ser menor que a capacidade atual, causando Plano do dia incorreto. A função passou a calcular sempre a partir de `quantidadeLiberadaSetor` (carry-over) ou `disponível + concluído` (dinâmico), nunca do campo histórico do banco. `node --test` 33/33 sem regressão; `npx tsc --noEmit` sem novos erros.
+
+- [x] **HU 42.2 — Como supervisor, quero que o card Concluído do novo turno nasça zerado, para que a produção do turno anterior não apareça como progresso do turno atual.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  **Problema identificado:**
+  Ao abrir um novo turno com carry-over, os cards do kanban exibem valores em "Concluído" mesmo com o turno recém-iniciado. A produção do turno anterior está sendo interpretada como progresso do turno atual.
+
+  **Causa raiz técnica — duas camadas:**
+
+  1. `lib/actions/turnos.ts` linhas 803–807: o carry-over grava `quantidade_realizada` nas operações do novo turno com o progresso do turno anterior:
+     ```ts
+     const quantidadeRealizada = Math.min(
+       operacaoDestino.quantidade_planejada,
+       quantidadeLiberadaSetor,
+       progressoOrigem.quantidadeRealizada  // ← progresso do turno anterior
+     )
+     // ...
+     .update({ quantidade_realizada: quantidadeRealizada, status })
+     ```
+     A RPC `sincronizar_andamento_turno_setor_op` propaga esse valor para `turno_setor_demandas.quantidade_realizada`.
+
+  2. `lib/queries/fluxo-sequencial-turno-base.ts` linha 155: a query mapeia `quantidade_realizada` diretamente para `quantidadeConcluida`:
+     ```ts
+     quantidadeConcluida: demanda.quantidade_realizada,
+     ```
+     Isso faz o kanban exibir o progresso herdado como "Concluído" no novo turno.
+
+  **Regra de negócio:**
+  O que foi produzido em um turno é histórico daquele turno. O carry-over transfere apenas o **saldo pendente** (já correto em `quantidadePlanejada` via `quantidadePlanejadaRemanescente`). O novo turno deve nascer com `quantidadeRealizada = 0` e `quantidadeConcluida = 0` em todas as suas operações e demandas.
+
+  **Solução:**
+  O carry-over não deve gravar `quantidade_realizada` nas operações do novo turno. O campo `quantidadeLiberadaSetor` do snapshot já cumpre o papel de informar quanto está disponível para apontamento — ele deve ser persistido separadamente (em `quantidade_liberada_setor` ou campo equivalente na demanda), sem contaminar `quantidade_realizada`.
+
+  Tarefas:
+  - remover o `update` de `quantidade_realizada` nas operações do turno destino em `lib/actions/turnos.ts` (linhas 816–823)
+  - persistir `quantidadeLiberadaSetor` do snapshot no campo correto da demanda destino, sem usar `quantidade_realizada`
+  - verificar se a RPC `sincronizar_andamento_turno_setor_op` precisa ser chamada após essa mudança ou se pode ser removida do fluxo de carry-over
+  - validar que `quantidadeConcluida` e `quantidadeRealizada` das demandas e operações do novo turno são `0` após o carry-over
+  - validar que `quantidadeDisponivelApontamento` e `quantidadeAceitaTurno` continuam corretos no scanner e em `/admin/apontamentos`
+
+  Regras:
+  - o carry-over não pode zerar dados do turno de origem
+  - o saldo pendente (`quantidadePlanejada` do novo turno) não pode ser alterado
+  - scanner e apontamentos devem continuar funcionando normalmente após o carry-over
+  - `node --test` deve passar sem regressão na suíte completa
+
+  **Evidência:** migration `scripts/sprint42_carry_over_quantidade_liberada.sql` aplicada no Supabase remoto adicionando `quantidade_liberada_setor INTEGER NOT NULL DEFAULT 0` em `turno_setor_demandas`. `types/supabase.ts` atualizado com o novo campo. `hidratarProgressoCarryOverDaOp` em `lib/actions/turnos.ts` simplificada: removidas as queries de `turno_setor_operacoes` (origem e destino), removido o bloco `progressoOrigemPorChave`, removida a RPC `sincronizar_andamento_turno_setor_op`; o carry-over agora persiste apenas `quantidade_liberada_setor` na demanda destino por setor, sem tocar `quantidade_realizada`. `lib/queries/fluxo-sequencial-turno-base.ts` atualizado para selecionar e mapear `quantidade_liberada_setor` → `quantidadeLiberadaSetor` na demanda. `calcularQuantidadeEntradaAcumuladaSetor` passa a priorizar `quantidadeLiberadaSetor` (carry-over) antes do cálculo dinâmico, sem nunca ler `quantidadeEntradaAcumuladaSetor` do banco. `node --test` 33/33 sem regressão; `npx tsc --noEmit` sem novos erros.
+
+- [x] **HU 42.3 — Como supervisor, quero que o Plano do dia nunca nasça zerado em turno aberto quando o setor possui backlog suficiente, para manter a leitura de capacidade produtiva diária espelhada em todos os setores.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  **Problema identificado:**
+  Após a criação de `quantidade_liberada_setor` com `DEFAULT 0`, demandas de turno aberto sem carry-over explícito passaram a chegar na hidratação com `quantidadeLiberadaSetor = 0`. O código interpretava esse zero como fonte real de entrada do setor e usava essa entrada como limitador direto de `quantidadeAceitaAcumuladaSetor`, zerando o card `Plano do dia`.
+
+  **Regra de negócio:**
+  `Plano do dia` é a capacidade produtiva diária global espelhada por setor/demanda participante, limitada apenas por backlog real menor que a capacidade ou por capacidade já alocada a demandas anteriores do mesmo setor. `quantidade_liberada_setor` informa fluxo/carry-over disponível; ela não pode zerar nem reduzir o teto visual do plano quando houver backlog suficiente.
+
+  **Evidência:** criado teste de regressão em `lib/utils/hidratacao-capacidade-setor-turno.test.ts` para demanda de turno aberto com `quantidadeLiberadaSetor = 0`, backlog `1000` e capacidade global `601`, validando `quantidadeAceitaAcumuladaSetor = 601`. `calcularQuantidadeEntradaAcumuladaSetor` agora ignora liberação zerada e volta ao cálculo dinâmico, e `quantidadeAceitaAcumuladaSetor` usa o maior entre backlog e entrada acumulada calculada, limitado pela capacidade global restante. Scanner e detalhe de setor passaram a exibir `Plano do dia` por `quantidadeAceitaAcumuladaSetor`, não por `quantidadeAceitaTurno`. Validação: `node --test --experimental-strip-types lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` passou 11/11; `node --test --experimental-strip-types lib/queries/fluxo-sequencial-turno-base.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/apontamento-supervisor.test.ts` passou 7/7. `npx tsc --noEmit` foi desbloqueado na `HU 42.4`.
+
+- [x] **HU 42.4 — Como mantenedor, quero corrigir o erro TypeScript pré-existente documentado, para que a validação obrigatória do projeto volte a passar sem exceções.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  **Problema identificado:**
+  `app/admin/setores/page.tsx` continha um fallback parcialmente inserido fora de qualquer bloco `catch`, usando `error` fora de escopo e deixando chaves extras nas linhas 46-47. Isso bloqueava `npx tsc --noEmit` com `TS1128`.
+
+  **Evidência:** `app/admin/setores/page.tsx` foi corrigido para encapsular `listarSetores()` em `try/catch`, preservando a tela normal e a mensagem amigável quando o cadastro de setores não puder ser carregado. Os tipos intermediários de `lib/queries/scanner.ts` também foram alinhados aos campos `quantidade_liberada_setor` e `quantidadeAceitaAcumuladaSetor` adicionados na HU 42.3. Validação final: `npx tsc --noEmit` sem erros; `node --test --experimental-strip-types lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` passou 11/11; `node --test --experimental-strip-types lib/queries/fluxo-sequencial-turno-base.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/apontamento-supervisor.test.ts` passou 7/7; `git diff --check` sem problemas.
+
+- [x] **HU 42.5 — Como supervisor, quero que os cinco KPIs dos cards tenham contrato único em todas as telas, para distinguir capacidade diária de disponibilidade operacional imediata.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  **Problema identificado:**
+  A homologação real mostrou que `Plano do dia` e `Disponível agora` ainda estavam fáceis de confundir. `Plano do dia` deve ser a capacidade produtiva diária global espelhada em cada setor quando há backlog suficiente; `Disponível agora` deve continuar sendo a liberação automática imediata do fluxo/FIFO. O painel de apontamentos também sugeria quantidade pelo saldo bruto da operação, permitindo uma sugestão visual como `1000` mesmo quando o contexto selecionado tinha apenas `572` de saldo permitido no dia.
+
+  **Regra de negócio:**
+  Os cinco cards canônicos são:
+  - `Backlog vivo`: pendência real do setor
+  - `Plano do dia`: capacidade diária estável alocada à demanda/setor
+  - `Disponível agora`: quantidade liberada agora pelo fluxo/FIFO dentro do saldo aceito
+  - `Concluído`: produção finalizada no setor dentro do turno corrente
+  - `Excedente`: backlog acima do plano do dia
+
+  `Disponível agora` pode variar entre setores usando o mesmo critério, porque cada peça precisa avançar pelo fluxo. Assim, `Preparação` pode ter saldo imediato, `Frente`/`Costa` podem estar zeradas até receberem liberação, `Montagem` pode zerar após consumir a parcela recebida, e `Finalização` pode ter `500` se recebeu `500` da etapa anterior. Isso não contradiz o plano diário espelhado; são KPIs diferentes.
+
+  **Evidência:** `docs/PRD.md` foi atualizado para registrar explicitamente a diferença entre capacidade diária (`Plano do dia`) e liberação imediata (`Disponível agora`), incluindo a regra de que `saldoManualPermitido` é exceção separada e não altera o card de disponibilidade automática. `resumirPlanoDiarioTurno` passou a receber `quantidadePlanoDoDia` como entrada canônica, mantendo `quantidadeAceitaTurno` apenas como fallback legado. Dashboard, kanban, scanner e `/admin/apontamentos` passaram a chamar o resumo com o plano fixo, e o painel de apontamentos passou a sugerir e validar quantidade pelo saldo permitido do contexto (`max(disponível agora, saldo manual)`) limitado pelo saldo da operação. Validação final: `node --test --experimental-strip-types lib/utils/plano-diario-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` passou 13/13; `node --test --experimental-strip-types lib/queries/fluxo-sequencial-turno-base.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/apontamento-supervisor.test.ts` passou 7/7; `npx tsc --noEmit` e `git diff --check` sem erros.
+
+- [x] **HU 42.6 — Como operação, quero que scanner e apontamentos nunca bloqueiem lançamentos por saldo visual, para que validações de plano e FIFO sejam apenas informativas.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  **Problema identificado:**
+  A regra operacional foi reafirmada: scanner e apontamentos não podem barrar lançamento por `Disponível agora`, `Plano do dia`, FIFO, saldo manual, saldo de operação ou excedente. Essas leituras orientam a operação, mas não impedem o registro. O código ainda bloqueava em quatro pontos: UI do scanner travava seleção/digitação por disponibilidade, `useScanner` rejeitava quantidade acima do saldo/fluxo, `registrarProducaoOperacao` e `registrarApontamentosSupervisor` retornavam erro antes da RPC, e as RPCs remotas ainda tinham `RAISE EXCEPTION` por saldo restante/status concluída. O painel de qualidade também tinha bloqueio por saldo disponível.
+
+  **Regra de negócio:**
+  Scanner, apontamentos do supervisor e qualidade só podem bloquear dados estruturalmente inválidos, turno fechado/inexistente, usuário sem permissão, operador inválido, máquina inválida ou contexto encerrado manualmente. As demais divergências de capacidade, plano, FIFO e saldo são avisos/sugestões informativas.
+
+  **Evidência:** `docs/PRD.md` foi atualizado com a regra explícita de não bloqueio por saldo visual. `components/scanner/SelecaoDemandaScanner.tsx`, `SelecaoOperacaoScanner.tsx`, `ConfirmacaoRegistro.tsx`, `ConfirmacaoQualidade.tsx`, `hooks/useScanner.ts`, `components/apontamentos/PainelApontamentosSupervisor.tsx`, `PainelQualidadeSupervisor.tsx`, `lib/actions/producao.ts`, `lib/actions/qualidade.ts` e `lib/utils/apontamento-supervisor.ts` foram ajustados para remover travas por disponibilidade, FIFO, plano e saldo visual, mantendo apenas validações estruturais. A migration remota `scripts/sprint42_unblock_apontamentos_scanner.sql` foi aplicada via Supabase Management API e removeu os bloqueios transacionais por saldo/FIFO/status concluída das RPCs `registrar_producao_turno_setor_operacao` e `registrar_revisao_qualidade_turno_setor_operacao`; validação read-only confirmou ausência dos trechos `saldo restante`, `quantidade_disponivel_operacao <= 0` e bloqueio conjunto `concluida, encerrada_manualmente` nessas funções. Validação final: `node --test --experimental-strip-types lib/utils/plano-diario-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` passou 13/13; `node --test --experimental-strip-types lib/queries/fluxo-sequencial-turno-base.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/apontamento-supervisor.test.ts` passou 7/7; `npx tsc --noEmit` e `git diff --check` sem erros.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
 Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
                                   └──► Sprint 4
                     Sprint 3 + Sprint 4 ──► Sprint 5
-Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37 (pausada)
+Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37
 Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
+Sprint 37 ──► Sprint 42
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

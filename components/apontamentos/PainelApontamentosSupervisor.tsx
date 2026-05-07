@@ -18,7 +18,6 @@ import {
 } from '@/lib/actions/producao'
 import {
   supervisorDependeDeExcecaoManual,
-  supervisorPodeAcionarContexto,
 } from '@/lib/utils/apontamento-supervisor'
 import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
@@ -79,10 +78,21 @@ function saldoRestanteOperacao(operacao: TurnoSetorOperacaoApontamentoV2): numbe
   return Math.max(operacao.quantidadePlanejada - operacao.quantidadeRealizada, 0)
 }
 
+function saldoMaximoLancamentoSecao(secao: SecaoComContexto): number {
+  return Math.max(saldoRestanteSecao(secao), saldoManualSecao(secao))
+}
+
+function saldoMaximoLancamentoOperacao(
+  operacao: TurnoSetorOperacaoApontamentoV2,
+  saldoMaximoSecao: number
+): number {
+  return Math.min(saldoRestanteOperacao(operacao), Math.max(saldoMaximoSecao, 0))
+}
+
 function statusPermiteApontamento(
   status: TurnoSetorOpStatusV2 | TurnoSetorOperacaoStatusV2
 ): boolean {
-  return status !== 'concluida' && status !== 'encerrada_manualmente'
+  return status !== 'encerrada_manualmente'
 }
 
 function saldoManualSecao(secao: Pick<SecaoComContexto, 'saldoManualPermitido'>): number {
@@ -90,15 +100,11 @@ function saldoManualSecao(secao: Pick<SecaoComContexto, 'saldoManualPermitido'>)
 }
 
 function secaoEstaAcionavel(secao: SecaoComContexto): boolean {
-  return supervisorPodeAcionarContexto({
-    status: secao.status,
-    quantidadeDisponivelApontamento: saldoRestanteSecao(secao),
-    saldoManualPermitido: saldoManualSecao(secao),
-  })
+  return statusPermiteApontamento(secao.status)
 }
 
 function operacaoEstaAcionavel(operacao: TurnoSetorOperacaoApontamentoV2): boolean {
-  return statusPermiteApontamento(operacao.status) && saldoRestanteOperacao(operacao) > 0
+  return statusPermiteApontamento(operacao.status)
 }
 
 const estadoInicial: RegistrarApontamentosSupervisorActionState = {
@@ -171,28 +177,42 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
 
 function criarLancamentoDraft(
   operadores: TurnoOperadorV2[],
-  operacoes: TurnoSetorOperacaoApontamentoV2[]
+  operacoes: TurnoSetorOperacaoApontamentoV2[],
+  saldoMaximoSecao: number
 ): LancamentoDraft {
   const operacaoInicial = operacoes[0]
+  const saldoMaximoOperacao = operacaoInicial
+    ? saldoMaximoLancamentoOperacao(operacaoInicial, saldoMaximoSecao)
+    : 0
 
   return {
     id: criarIdLocal(),
     operadorId: operadores[0]?.operadorId ?? '',
     turnoSetorOperacaoId: operacaoInicial?.id ?? '',
-    quantidade: operacaoInicial ? String(saldoRestanteOperacao(operacaoInicial)) : '',
+    quantidade: saldoMaximoOperacao > 0 ? String(saldoMaximoOperacao) : '',
   }
 }
 
 function obterQuantidadeSugerida(
   turnoSetorOperacaoId: string,
-  operacoes: TurnoSetorOperacaoApontamentoV2[]
+  operacoes: TurnoSetorOperacaoApontamentoV2[],
+  saldoMaximoSecao: number
 ): string {
   const operacaoSelecionada = operacoes.find((operacao) => operacao.id === turnoSetorOperacaoId)
 
-  return operacaoSelecionada ? String(saldoRestanteOperacao(operacaoSelecionada)) : ''
+  if (!operacaoSelecionada) {
+    return ''
+  }
+
+  const saldoMaximoOperacao = saldoMaximoLancamentoOperacao(
+    operacaoSelecionada,
+    saldoMaximoSecao
+  )
+
+  return saldoMaximoOperacao > 0 ? String(saldoMaximoOperacao) : ''
 }
 
-function normalizarQuantidadeInput(valor: string, saldoMaximo: number): string {
+function normalizarQuantidadeInput(valor: string): string {
   if (valor.trim() === '') {
     return ''
   }
@@ -202,7 +222,7 @@ function normalizarQuantidadeInput(valor: string, saldoMaximo: number): string {
     return ''
   }
 
-  const quantidadeNormalizada = Math.min(Math.max(quantidade, 1), Math.max(saldoMaximo, 1))
+  const quantidadeNormalizada = Math.max(quantidade, 1)
   return String(quantidadeNormalizada)
 }
 
@@ -380,6 +400,9 @@ export function PainelApontamentosSupervisor({
     () => new Map(operacoesDaSecao.map((operacao) => [operacao.id, operacao])),
     [operacoesDaSecao]
   )
+  const saldoMaximoSecaoSelecionada = secaoSelecionada
+    ? saldoMaximoLancamentoSecao(secaoSelecionada)
+    : 0
 
   const payloadLancamentos = useMemo(
     () =>
@@ -505,14 +528,14 @@ export function PainelApontamentosSupervisor({
           )
             ? lancamento.turnoSetorOperacaoId
             : (operacoesDaSecao[0]?.id ?? '')
-          const operacaoSelecionada = operacoesDaSecao.find(
-            (operacao) => operacao.id === turnoSetorOperacaoId
-          )
-          const saldoMaximo = operacaoSelecionada ? saldoRestanteOperacao(operacaoSelecionada) : 0
           const quantidade =
             turnoSetorOperacaoId !== lancamento.turnoSetorOperacaoId
-              ? obterQuantidadeSugerida(turnoSetorOperacaoId, operacoesDaSecao)
-              : normalizarQuantidadeInput(lancamento.quantidade, saldoMaximo)
+              ? obterQuantidadeSugerida(
+                  turnoSetorOperacaoId,
+                  operacoesDaSecao,
+                  saldoMaximoSecaoSelecionada
+                )
+              : normalizarQuantidadeInput(lancamento.quantidade)
 
           return {
             ...lancamento,
@@ -536,9 +559,9 @@ export function PainelApontamentosSupervisor({
         return []
       }
 
-      return [criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao)]
+      return [criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao, saldoMaximoSecaoSelecionada)]
     })
-  }, [operacoesDaSecao, operadoresDaSecao, secaoSelecionada])
+  }, [operacoesDaSecao, operadoresDaSecao, saldoMaximoSecaoSelecionada, secaoSelecionada])
 
   useEffect(() => {
     const finalizouComSucesso = pendenciaAnteriorRef.current && !pendente && estado.sucesso
@@ -568,7 +591,7 @@ export function PainelApontamentosSupervisor({
   function adicionarLancamento(): void {
     setLancamentos((estadoAtual) => [
       ...estadoAtual,
-      criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao),
+      criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao, saldoMaximoSecaoSelecionada),
     ])
   }
 
@@ -614,35 +637,12 @@ export function PainelApontamentosSupervisor({
         !lancamento.turnoSetorOperacaoId ||
         !operacaoSelecionada ||
         !Number.isInteger(quantidade) ||
-        quantidade <= 0 ||
-        quantidade > saldoRestanteOperacao(operacaoSelecionada)
+        quantidade <= 0
       )
     })
 
     if (possuiLancamentoInvalido) {
-      return 'Preencha operador, operação e quantidade válida sem ultrapassar o saldo da operação.'
-    }
-
-    const quantidadePorOperacao = new Map<string, number>()
-
-    for (const lancamento of lancamentos) {
-      const quantidade = Number.parseInt(lancamento.quantidade, 10)
-      const totalAtual = quantidadePorOperacao.get(lancamento.turnoSetorOperacaoId) ?? 0
-      quantidadePorOperacao.set(lancamento.turnoSetorOperacaoId, totalAtual + quantidade)
-    }
-
-    const excedeuSaldoAgregado = Array.from(quantidadePorOperacao.entries()).some(
-      ([turnoSetorOperacaoId, quantidadeTotal]) => {
-        const operacaoSelecionada = operacoesDaSecaoPorId.get(turnoSetorOperacaoId)
-
-        return operacaoSelecionada
-          ? quantidadeTotal > saldoRestanteOperacao(operacaoSelecionada)
-          : true
-      }
-    )
-
-    if (excedeuSaldoAgregado) {
-      return 'A soma das linhas não pode ultrapassar o saldo pendente da mesma operação.'
+      return 'Preencha operador, operação e quantidade válida.'
     }
 
     return null
@@ -666,7 +666,7 @@ export function PainelApontamentosSupervisor({
   }, 0)
   const resumoPlanoSecao = secaoSelecionada
     ? resumirPlanoDiarioTurno({
-        quantidadeAceitaTurno: secaoSelecionada.quantidadePlanoDoDia,
+        quantidadePlanoDoDia: secaoSelecionada.quantidadePlanoDoDia,
         quantidadeConcluida: secaoSelecionada.quantidadeConcluida,
         quantidadeDisponivelApontamento: saldoSecaoSelecionada,
         quantidadeSelecionada: quantidadeLoteAtual,
@@ -1007,13 +1007,6 @@ export function PainelApontamentosSupervisor({
 
                   <div className="space-y-3">
                     {lancamentos.map((lancamento, index) => {
-                      const operacaoSelecionada = operacoesDaSecaoPorId.get(
-                        lancamento.turnoSetorOperacaoId
-                      )
-                      const saldoMaximo = operacaoSelecionada
-                        ? saldoRestanteOperacao(operacaoSelecionada)
-                        : 0
-
                       return (
                         <div
                           key={lancamento.id}
@@ -1066,7 +1059,8 @@ export function PainelApontamentosSupervisor({
                                     turnoSetorOperacaoId,
                                     quantidade: obterQuantidadeSugerida(
                                       turnoSetorOperacaoId,
-                                      operacoesDaSecao
+                                      operacoesDaSecao,
+                                      saldoMaximoSecaoSelecionada
                                     ),
                                   })
                                 }}
@@ -1088,21 +1082,17 @@ export function PainelApontamentosSupervisor({
                               <input
                                 type="number"
                                 min={1}
-                                max={operacaoSelecionada ? saldoMaximo : undefined}
                                 step={1}
                                 value={lancamento.quantidade}
                                 onChange={(event) =>
                                   atualizarLancamento(lancamento.id, {
-                                    quantidade: normalizarQuantidadeInput(
-                                      event.target.value,
-                                      saldoMaximo
-                                    ),
+                                    quantidade: normalizarQuantidadeInput(event.target.value),
                                   })
                                 }
                                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                               <p className="text-xs text-slate-500">
-                                Sugestão automática: saldo atual da operação selecionada.
+                                Sugestão automática informativa; o lançamento não é bloqueado por saldo visual.
                               </p>
                             </div>
                           </div>
@@ -1121,7 +1111,7 @@ export function PainelApontamentosSupervisor({
 
                     <button
                       type="submit"
-                      disabled={pendente || secaoSelecionada.status === 'concluida'}
+                      disabled={pendente || secaoSelecionada.status === 'encerrada_manualmente'}
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Save size={16} />

@@ -47,26 +47,22 @@ function formatarTurno(iniciadoEm: string): string {
   return FORMATADOR_DATA_HORA_TURNO.format(new Date(iniciadoEm))
 }
 
-function limitarQuantidade(valor: number, saldoMaximo: number): number {
-  if (saldoMaximo <= 0) {
-    return 0
-  }
-
-  return Math.min(Math.max(0, valor), saldoMaximo)
+function normalizarQuantidadePositiva(valor: number): number {
+  return Math.max(0, valor)
 }
 
-function normalizarQuantidadeDigitada(valor: string, saldoMaximo: number): string {
+function normalizarQuantidadeDigitada(valor: string): string {
   const apenasDigitos = valor.replace(/\D+/g, '')
 
   if (apenasDigitos.length === 0) {
     return ''
   }
 
-  const quantidadeNormalizada = limitarQuantidade(Number.parseInt(apenasDigitos, 10), saldoMaximo)
+  const quantidadeNormalizada = normalizarQuantidadePositiva(Number.parseInt(apenasDigitos, 10))
   return String(quantidadeNormalizada)
 }
 
-function obterQuantidadeAtual(valor: string, saldoMaximo: number): number {
+function obterQuantidadeAtual(valor: string): number {
   if (valor.trim() === '') {
     return 0
   }
@@ -77,7 +73,7 @@ function obterQuantidadeAtual(valor: string, saldoMaximo: number): number {
     return 0
   }
 
-  return limitarQuantidade(quantidade, saldoMaximo)
+  return normalizarQuantidadePositiva(quantidade)
 }
 
 function calcularQuantidadeAceitaDemanda(
@@ -133,7 +129,7 @@ export function ConfirmacaoRegistro({
   onTrocarOperador,
 }: ConfirmacaoRegistroProps) {
   const backlogVivo = demandaSelecionada.quantidadeBacklogSetor ?? demandaSelecionada.saldoRestante
-  const planoDoDia = demandaSelecionada.quantidadeAceitaTurno ?? demandaSelecionada.saldoRestante
+  const planoDoDia = demandaSelecionada.quantidadeAceitaAcumuladaSetor ?? 0
   const disponibilidadeImediataOperacao = calcularDisponibilidadeImediataOperacao(
     demandaSelecionada,
     operacaoSelecionada
@@ -145,28 +141,25 @@ export function ConfirmacaoRegistro({
   const [quantidadeDigitada, setQuantidadeDigitada] = useState('0')
   const [exibindoSucesso, setExibindoSucesso] = useState(false)
   const [ultimaQuantidadeRegistrada, setUltimaQuantidadeRegistrada] = useState<number | null>(null)
-  const quantidadeAtual = obterQuantidadeAtual(quantidadeDigitada, disponibilidadeImediataOperacao)
+  const quantidadeAtual = obterQuantidadeAtual(quantidadeDigitada)
   const resumoPlano = resumirPlanoDiarioTurno({
-    quantidadeAceitaTurno: demandaSelecionada.quantidadeAceitaTurno,
+    quantidadePlanoDoDia: demandaSelecionada.quantidadeAceitaAcumuladaSetor,
     quantidadeConcluida: demandaSelecionada.quantidadeConcluida,
     quantidadeDisponivelApontamento: demandaSelecionada.quantidadeDisponivelApontamento,
     quantidadeSelecionada: quantidadeAtual,
   })
 
   useEffect(() => {
-    setQuantidadeDigitada('0')
+    setQuantidadeDigitada(
+      disponibilidadeImediataOperacao > 0 ? String(disponibilidadeImediataOperacao) : '1'
+    )
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
   }, [demandaSelecionada.id, disponibilidadeImediataOperacao, operacaoSelecionada.id, operador.id, setor.id])
 
   function ajustarQuantidade(valor: number) {
     setQuantidadeDigitada((quantidadeAtualTexto) =>
-      String(
-        limitarQuantidade(
-          obterQuantidadeAtual(quantidadeAtualTexto, disponibilidadeImediataOperacao) + valor,
-          disponibilidadeImediataOperacao
-        )
-      )
+      String(normalizarQuantidadePositiva(obterQuantidadeAtual(quantidadeAtualTexto) + valor))
     )
   }
 
@@ -188,14 +181,18 @@ export function ConfirmacaoRegistro({
     }
 
     setUltimaQuantidadeRegistrada(quantidadeAtual)
-    setQuantidadeDigitada('0')
+    setQuantidadeDigitada(
+      disponibilidadeImediataOperacao > 0 ? String(disponibilidadeImediataOperacao) : '1'
+    )
     setExibindoSucesso(true)
   }
 
   function handleNovaQuantidade() {
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
-    setQuantidadeDigitada('0')
+    setQuantidadeDigitada(
+      disponibilidadeImediataOperacao > 0 ? String(disponibilidadeImediataOperacao) : '1'
+    )
     onNovaQuantidade()
   }
 
@@ -252,7 +249,7 @@ export function ConfirmacaoRegistro({
             <button
               type="button"
               onClick={handleNovaQuantidade}
-              disabled={estaRegistrando || disponibilidadeImediataOperacao <= 0}
+              disabled={estaRegistrando}
               className="flex min-h-14 items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-base font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Nova quantidade
@@ -431,7 +428,7 @@ export function ConfirmacaoRegistro({
                 type="button"
                 onClick={() => ajustarQuantidade(-1)}
                 aria-label="Diminuir quantidade"
-                disabled={estaRegistrando || disponibilidadeImediataOperacao <= 0}
+                disabled={estaRegistrando}
                 className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-slate-900 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Minus size={22} />
@@ -441,26 +438,16 @@ export function ConfirmacaoRegistro({
                 id="quantidade-producao"
                 type="number"
                 min={0}
-                max={disponibilidadeImediataOperacao}
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={quantidadeDigitada}
                 onChange={(event) => {
-                  setQuantidadeDigitada(
-                    normalizarQuantidadeDigitada(
-                      event.target.value,
-                      disponibilidadeImediataOperacao
-                    )
-                  )
+                  setQuantidadeDigitada(normalizarQuantidadeDigitada(event.target.value))
                 }}
                 onBlur={() => {
-                  setQuantidadeDigitada(
-                    String(
-                      obterQuantidadeAtual(quantidadeDigitada, disponibilidadeImediataOperacao)
-                    )
-                  )
+                  setQuantidadeDigitada(String(obterQuantidadeAtual(quantidadeDigitada)))
                 }}
-                disabled={estaRegistrando || disponibilidadeImediataOperacao <= 0}
+                disabled={estaRegistrando}
                 className="w-full bg-transparent text-center text-4xl font-semibold text-white outline-none disabled:opacity-60"
               />
 
@@ -468,7 +455,7 @@ export function ConfirmacaoRegistro({
                 type="button"
                 onClick={() => ajustarQuantidade(1)}
                 aria-label="Aumentar quantidade"
-                disabled={estaRegistrando || disponibilidadeImediataOperacao <= 0}
+                disabled={estaRegistrando}
                 className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-slate-900 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus size={22} />
@@ -477,7 +464,8 @@ export function ConfirmacaoRegistro({
 
             <p className="mt-2 text-xs text-slate-400">
               Digite a quantidade desejada ou ajuste pelos botões. O campo pode voltar para `0`
-              antes do registro. Disponível agora para a operação: {disponibilidadeImediataOperacao}.
+              antes do registro. Disponível agora para a operação: {disponibilidadeImediataOperacao}
+              , apenas como informação.
             </p>
           </div>
 
@@ -486,7 +474,7 @@ export function ConfirmacaoRegistro({
             onClick={() => {
               void handleRegistrar()
             }}
-            disabled={estaRegistrando || disponibilidadeImediataOperacao <= 0 || quantidadeAtual <= 0}
+            disabled={estaRegistrando || quantidadeAtual <= 0}
             className="flex min-h-14 w-full items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {estaRegistrando ? 'Registrando...' : 'Registrar quantidade'}

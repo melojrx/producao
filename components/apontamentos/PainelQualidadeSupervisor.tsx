@@ -119,12 +119,7 @@ function montarSecoesQualidade(planejamento: PlanejamentoTurnoV2): SecaoQualidad
       }
     })
     .filter((secao): secao is SecaoQualidadeComContexto => Boolean(secao))
-    .filter(
-      (secao) =>
-        secao.status !== 'concluida' &&
-        secao.status !== 'encerrada_manualmente' &&
-        secao.quantidadeDisponivelAgora > 0
-    )
+    .filter((secao) => secao.status !== 'encerrada_manualmente')
     .sort((primeiraSecao, segundaSecao) => {
       const comparacaoOp = primeiraSecao.numeroOp.localeCompare(segundaSecao.numeroOp)
       if (comparacaoOp !== 0) {
@@ -212,13 +207,6 @@ export function PainelQualidadeSupervisor({
 
     if (quantidadeRevisada <= 0) {
       setErro('Informe ao menos uma peça aprovada ou reprovada.')
-      return null
-    }
-
-    if (quantidadeRevisada > secaoSelecionada.quantidadeDisponivelAgora) {
-      setErro(
-        `A revisão ultrapassa o saldo disponível da seção. Disponível agora: ${secaoSelecionada.quantidadeDisponivelAgora}.`
-      )
       return null
     }
 
