@@ -579,6 +579,20 @@
 
 **Fechamento em `2026-05-06`:** Sprint reaberta e fechada com correções adicionais das HUs 42.3 a 42.6. A causa final do `Plano do dia = 0` era a combinação de `quantidade_liberada_setor DEFAULT 0` sendo tratado como entrada real do setor e `quantidadeEntradaAcumuladaSetor` ainda limitando `quantidadeAceitaAcumuladaSetor`. A hidratação agora ignora liberação zerada, calcula o plano pelo maior entre backlog e entrada acumulada calculada, limitado pela capacidade global restante, e mantém `quantidadeAceitaTurno` como saldo de execução. O erro TypeScript pré-existente em `app/admin/setores/page.tsx` foi corrigido com `try/catch` no carregamento de setores, e os tipos do scanner foram alinhados aos campos de capacidade. O PRD registra que `Disponível agora` pode variar entre setores porque depende do fluxo/FIFO, enquanto `Plano do dia` continua sendo a capacidade diária espelhada. Scanner, apontamentos e qualidade passaram a tratar plano/FIFO/saldo como leitura informativa, com RPCs remotas atualizadas para não bloquear por saldo visual. Validação executada com `npx tsc --noEmit`, `git diff --check`, `node --test --experimental-strip-types lib/utils/plano-diario-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/fluxo-continuo-turno.test.ts` e `node --test --experimental-strip-types lib/queries/fluxo-sequencial-turno-base.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/apontamento-supervisor.test.ts`, todos sem falhas.
 
+## SPRINT 43 — Separação entre resumo da OP e métricas setoriais
+**Objetivo:** ajustar a semântica do modal de detalhe da OP para que o topo exiba apenas dados consolidados da OP inteira, sem reutilizar os cinco cards canônicos que pertencem à OP dentro de um setor.
+**Entregável:** `docs/PRD.md` com a separação formal entre leitura da OP e leitura setorial; `ModalDetalhesOpTurno` com cards reduzidos para `Quantidade da OP`, `Peças completas`, `Progresso operacional` e `Seções concluídas`; métricas setoriais preservadas apenas no kanban, detalhe de setor e seções internas da OP; testes de regressão contra a volta de `Plano do dia` agregado no topo da OP.
+**Status:** ✅ Concluída
+
+- Formalizar que `Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído` e `Excedente` são métricas de demanda setorial
+- Remover esses cards do topo do modal da OP
+- Exibir no topo do modal da OP apenas `Quantidade da OP`, `Peças completas`, `Progresso operacional` e `Seções concluídas`
+- Usar o rótulo escolhido **Quantidade da OP** para o valor administrativo do turno/carry-over
+- Manter os cinco cards canônicos dentro das seções/setores da OP
+- Criar teste de regressão para o cenário em que uma OP no setor `Finalização` tem `Plano do dia = 0`, mas o agregado da OP possui quantidade maior
+
+**Fechamento em `2026-05-07`:** `docs/PRD.md` formalizou a separação entre leitura consolidada da OP e leitura da OP no setor. `components/dashboard/ModalDetalhesOpTurno.tsx` passou a mostrar no topo somente `Quantidade da OP`, `Peças completas`, `Progresso operacional` e `Seções concluídas`, preservando `Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído` e `Excedente` apenas nas seções internas da OP. A função pura `lib/utils/resumo-modal-op.ts` e o teste `lib/utils/resumo-modal-op.test.ts` protegem a regressão contra a volta de métricas setoriais no topo agregado. Validação concluída com a suíte utilitária focada, `npx tsc --noEmit` e `git diff --check`, sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -590,6 +604,7 @@ Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
 Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37
 Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
 Sprint 37 ──► Sprint 42
+Sprint 42 ──► Sprint 43
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

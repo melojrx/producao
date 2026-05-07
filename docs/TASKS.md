@@ -4403,6 +4403,122 @@ Durante a homologação do turno aberto após a Sprint 37, dois comportamentos i
 
 ---
 
+## SPRINT 43 — Separação entre resumo da OP e métricas setoriais
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 42 concluída.
+**Objetivo:** corrigir a semântica do modal de detalhe da OP para que ele mostre apenas dados brutos e consolidados da OP inteira, deixando os cinco cards canônicos (`Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído`, `Excedente`) restritos ao contexto da OP dentro de cada setor.
+
+---
+
+### Contexto do problema identificado
+
+Durante a homologação visual do kanban, a OP `200900` no setor `Finalização` exibiu corretamente no card setorial:
+
+```text
+Backlog vivo = 1300
+Plano do dia = 0
+Disponível agora = 0
+Concluído = 0
+Excedente = 1300
+```
+
+Ao abrir o modal "Detalhe operacional da OP", o topo do modal exibiu `Plano do dia = 1300`. Esse número não vinha da demanda da OP em `Finalização`; vinha do agregado da OP inteira (`opResumo`), montado a partir do maior valor entre demandas/setores. O rótulo `Plano do dia` no topo do modal passou a sugerir incorretamente que a OP tinha plano no setor clicado, quando na verdade aquele setor estava com plano zerado por fila/capacidade.
+
+Regra de negócio reafirmada:
+- os cinco cards canônicos são métricas da **OP no setor**
+- o modal da OP inteira deve responder "qual é a situação geral da OP?", não "qual é a situação desta OP neste setor?"
+- o rótulo escolhido para o card administrativo principal da OP é **Quantidade da OP**
+
+---
+
+- [x] **HU 43.1 — Como produto, quero formalizar a diferença entre resumo da OP e métricas da OP no setor, para evitar ambiguidade nos cards operacionais.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - registrar no PRD que `Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído` e `Excedente` pertencem à demanda setorial
+  - registrar que o modal principal da OP deve usar apenas cards consolidados da OP inteira
+  - formalizar o rótulo **Quantidade da OP** para o card administrativo principal
+
+  Regras:
+  - não alterar a definição canônica dos cinco cards setoriais da Sprint 37
+  - não reclassificar `Plano do dia` como métrica agregada da OP
+  - manter o detalhe setorial da OP disponível na seção interna "Seções da OP"
+
+  **Evidência esperada:** `docs/PRD.md` contém a separação explícita entre leitura da OP inteira e leitura da OP dentro do setor.
+
+  **Evidência:** `docs/PRD.md` formaliza que `Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído` e `Excedente` pertencem à demanda da OP dentro de um setor, enquanto o modal principal da OP inteira deve mostrar somente `Quantidade da OP`, `Peças completas`, `Progresso operacional` e `Seções concluídas`.
+
+- [x] **HU 43.2 — Como supervisor, quero que o topo do modal da OP mostre apenas dados brutos da OP inteira, para não confundir plano setorial com resumo geral da OP.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - remover do topo de `ModalDetalhesOpTurno` os cards `Backlog vivo`, `Plano do dia`, `Disponível agora` e `Excedente`
+  - manter no topo apenas:
+    - **Quantidade da OP**
+    - **Peças completas**
+    - **Progresso operacional**
+    - **Seções concluídas**
+  - usar `op.quantidadePlanejada` como fonte inicial de **Quantidade da OP**
+  - preservar `op.quantidadeConcluida` como **Peças completas**
+  - preservar `op.progressoOperacionalPct` como **Progresso operacional**
+  - preservar `secoesConcluidas/secoes.length` como **Seções concluídas**
+
+  Regras:
+  - o modal da OP não deve exibir `opResumo.quantidadeAceitaTurno` com rótulo `Plano do dia`
+  - o modal da OP não deve exibir `opResumo.quantidadeExcedenteTurno` com rótulo `Excedente`
+  - nenhum card do topo do modal da OP deve depender de `quantidadeAceitaAcumuladaSetor`
+
+  **Evidência esperada:** ao abrir a OP `200900`, o topo do modal mostra `Quantidade da OP = 1300`, `Peças completas = 0`, `Progresso operacional` e `Seções concluídas`, sem card `Plano do dia`.
+
+  **Evidência:** `components/dashboard/ModalDetalhesOpTurno.tsx` passou a montar o topo com `montarCardsResumoModalOp`, usando `op.quantidadePlanejada`, `op.quantidadeConcluida`, `op.progressoOperacionalPct` e `secoesConcluidas/secoes.length`. O topo deixou de renderizar `Backlog vivo`, `Plano do dia`, `Disponível agora` e `Excedente`, impedindo que `opResumo.quantidadeAceitaTurno` volte a aparecer como `Plano do dia` agregado.
+
+- [x] **HU 43.3 — Como supervisor, quero continuar vendo as métricas setoriais dentro do modal da OP, para entender onde a OP está pendente sem perder contexto de setor.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Tarefas:
+  - manter a seção interna "Seções da OP" no modal
+  - dentro de cada seção/setor da OP, exibir as métricas setoriais com os nomes canônicos:
+    - `Backlog vivo`
+    - `Plano do dia`
+    - `Disponível agora`
+    - `Concluído`
+    - `Excedente`
+  - garantir que cada valor venha da demanda setorial correspondente, não do agregado da OP
+
+  Regras:
+  - `Plano do dia` dentro da seção deve usar `quantidadeAceitaAcumuladaSetor ?? 0`
+  - `Disponível agora` dentro da seção deve usar `quantidadeDisponivelApontamento`
+  - `Excedente` dentro da seção deve usar `quantidadeExcedenteTurno`
+  - valores agregados da OP podem aparecer apenas como resumo bruto, nunca com rótulo canônico setorial
+
+  **Evidência esperada:** no modal da OP, a seção `Finalização` da OP `200900` mostra `Plano do dia = 0` e `Excedente = 1300`, coerente com o kanban.
+
+  **Evidência:** a seção interna `Seções da OP` foi preservada em `components/dashboard/ModalDetalhesOpTurno.tsx` com os cards setoriais `Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído` e `Excedente`, usando os campos da seção contextualizada. Em `components/dashboard/MonitorPlanejamentoTurnoV2.tsx`, esses valores continuam sendo derivados da demanda setorial correspondente antes de abrir o modal.
+
+- [x] **HU 43.4 — Como produto, quero testes de regressão para impedir que métricas setoriais voltem ao topo agregado da OP, para proteger o vocabulário operacional.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - adicionar teste utilitário ou de composição para o resumo do modal da OP, se a lógica for extraída para função pura
+  - validar que o resumo principal da OP não inclui `Plano do dia`, `Disponível agora` nem `Excedente`
+  - validar que uma OP com demanda de `Finalização` em fila e plano `0` não exibe `1300` como plano no topo do modal
+  - validar que as métricas setoriais continuam disponíveis na seção interna da OP
+
+  Regras:
+  - se a lógica permanecer diretamente no componente, extrair uma função pura pequena para tornar a regressão testável
+  - rodar `npx tsc --noEmit` após qualquer alteração TypeScript
+  - rodar a suíte focada de dashboard/turno afetada pela mudança
+
+  **Evidência esperada:** testes passam e `npx tsc --noEmit` passa sem erros.
+
+  **Evidência:** criada a função pura `montarCardsResumoModalOp` em `lib/utils/resumo-modal-op.ts` e a regressão `lib/utils/resumo-modal-op.test.ts`, cobrindo que o resumo principal da OP contém apenas `Quantidade da OP`, `Peças completas`, `Progresso operacional` e `Seções concluídas`, sem `Plano do dia`, `Disponível agora` ou `Excedente`. Validação concluída em `2026-05-07`: `node --experimental-loader /tmp/producao-alias-loader.mjs --test --experimental-strip-types lib/utils/resumo-modal-op.test.ts lib/utils/turno-setores.test.ts lib/utils/kanban-operacional-turno.test.ts lib/utils/hidratacao-capacidade-setor-turno.test.ts lib/utils/plano-diario-turno.test.ts lib/utils/apontamento-supervisor.test.ts` passou 6/6; `npx tsc --noEmit` e `git diff --check` sem erros.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4412,6 +4528,7 @@ Sprint 0 ──► Sprint 1 ──► Sprint 2 ──► Sprint 3
 Sprint 5 ──► Sprint 6 ──► Sprint 7 ──► Sprint 8 ──► Sprint 9 ──► Sprint 10 ──► Sprint 11 ──► Sprint 12 ──► Sprint 13 ──► Sprint 14 ──► Sprint 15 ──► Sprint 16 ──► Sprint 17 ──► Sprint 18 ──► Sprint 19 ──► Sprint 20 ──► Sprint 24 ──► Sprint 25 ──► Sprint 26 ──► Sprint 27 ──► Sprint 28 ──► Sprint 29 ──► Sprint 30 ──► Sprint 31 ──► Sprint 32 ──► Sprint 33 ──► Sprint 34 ──► Sprint 35 ──► Sprint 36 ──► Sprint 37
 Sprint 36 ──► Sprint 38 ──► Sprint 39 ──► Sprint 40 ──► Sprint 41
 Sprint 37 ──► Sprint 42
+Sprint 42 ──► Sprint 43
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

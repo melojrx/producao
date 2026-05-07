@@ -2,9 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import {
-  Activity,
   CheckCircle2,
-  ClipboardList,
   ExternalLink,
   Layers3,
   Package,
@@ -13,6 +11,10 @@ import {
   X,
 } from 'lucide-react'
 import { ModalDetalhesSecaoTurno } from '@/components/dashboard/ModalDetalhesSecaoTurno'
+import {
+  montarCardsResumoModalOp,
+  type ResumoModalOpCardTipo,
+} from '@/lib/utils/resumo-modal-op'
 import type { TurnoOpResumoDashboardItem } from '@/lib/utils/turno-setores'
 import type {
   ProdutoListItem,
@@ -85,9 +87,36 @@ function formatarPercentual(valor: number | null): string {
   return `${valor.toFixed(1)}%`
 }
 
+function obterTemaCardResumoOp(tipo: ResumoModalOpCardTipo): string {
+  if (tipo === 'quantidade_op') {
+    return 'border-blue-200 bg-blue-50 text-blue-700'
+  }
+
+  if (tipo === 'pecas_completas') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+
+  if (tipo === 'progresso_operacional') {
+    return 'border-violet-200 bg-violet-50 text-violet-700'
+  }
+
+  return 'border-slate-200 bg-white text-slate-700'
+}
+
+function obterIconeCardResumoOp(tipo: ResumoModalOpCardTipo) {
+  if (tipo === 'pecas_completas') {
+    return <CheckCircle2 size={18} />
+  }
+
+  if (tipo === 'secoes_concluidas') {
+    return <Layers3 size={18} />
+  }
+
+  return <Package size={18} />
+}
+
 export function ModalDetalhesOpTurno({
   op,
-  opResumo,
   secoes,
   qualidadeResumo,
   iniciadoEmTurno,
@@ -102,12 +131,14 @@ export function ModalDetalhesOpTurno({
     op.id
   )}`
   const secoesConcluidas = secoes.filter((secao) => secao.status === 'concluida').length
-  const secoesPendentes = secoes.length - secoesConcluidas
   const progresso = op.progressoOperacionalPct
-  const quantidadeDisponivelAgora = secoes.reduce(
-    (soma, secao) => soma + secao.quantidadeDisponivelApontamento,
-    0
-  )
+  const cardsResumoOp = montarCardsResumoModalOp({
+    quantidadeOp: op.quantidadePlanejada,
+    pecasCompletas: op.quantidadeConcluida,
+    progressoOperacionalPct: progresso,
+    secoesConcluidas,
+    totalSecoes: secoes.length,
+  })
   const secaoSelecionada = useMemo(
     () => secoes.find((secao) => secao.id === secaoSelecionadaId) ?? null,
     [secaoSelecionadaId, secoes]
@@ -207,124 +238,36 @@ export function ModalDetalhesOpTurno({
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-            <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Backlog vivo
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-slate-900">
-                    {opResumo?.quantidadeBacklogTotal ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
-                  <ClipboardList size={18} />
-                </div>
-              </div>
-            </article>
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {cardsResumoOp.map((card) => {
+              const temaCard = obterTemaCardResumoOp(card.tipo)
 
-            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                    Plano do dia
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-blue-900">
-                    {opResumo?.quantidadeAceitaTurno ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
-                  <Package size={18} />
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-cyan-700">
-                    Disponível agora
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-cyan-900">
-                    {quantidadeDisponivelAgora}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-cyan-100 p-3 text-cyan-700">
-                  <Activity size={18} />
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                    Peças completas
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-emerald-900">
-                    {op.quantidadeConcluida}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700">
-                  <CheckCircle2 size={18} />
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                    Excedente
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-amber-900">
-                    {opResumo?.quantidadeExcedenteTurno ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
-                  <Activity size={18} />
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                    Progresso operacional
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-blue-900">
-                    {progresso.toFixed(0)}%
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-blue-800">
-                    {op.cargaRealizadaTp.toFixed(2)} / {op.cargaPlanejadaTp.toFixed(2)} min
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-blue-100 p-3 text-blue-700">
-                  <Package size={18} />
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                    Seções concluídas
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold text-violet-900">
-                    {secoesConcluidas}/{secoes.length}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-violet-800">
-                    {secoesPendentes} pendentes
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-violet-100 p-3 text-violet-700">
-                  <Layers3 size={18} />
-                </div>
-              </div>
-            </article>
+              return (
+                <article
+                  key={card.tipo}
+                  className={`rounded-2xl border p-4 shadow-sm ${temaCard}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide">
+                        {card.rotulo}
+                      </p>
+                      <p className="mt-2 text-3xl font-semibold text-slate-900">{card.valor}</p>
+                      {card.tipo === 'progresso_operacional' ? (
+                        <p className="mt-1 text-xs font-medium">
+                          {op.cargaRealizadaTp.toFixed(2)} / {op.cargaPlanejadaTp.toFixed(2)} min
+                        </p>
+                      ) : card.detalhe ? (
+                        <p className="mt-1 text-xs font-medium">{card.detalhe}</p>
+                      ) : null}
+                    </div>
+                    <div className="rounded-2xl bg-white/70 p-3">
+                      {obterIconeCardResumoOp(card.tipo)}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -533,9 +476,9 @@ export function ModalDetalhesOpTurno({
                       </div>
 
                       <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
                           Plano do dia
-                          </p>
+                        </p>
                         <p className="mt-2 text-xl font-semibold text-blue-900">
                           {secao.quantidadeAceitaTurno}
                         </p>
@@ -552,7 +495,7 @@ export function ModalDetalhesOpTurno({
 
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
-                          Concluido
+                          Concluído
                         </p>
                         <p className="mt-2 text-xl font-semibold text-emerald-900">
                           {secao.quantidadeConcluida}

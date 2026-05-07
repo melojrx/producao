@@ -724,6 +724,17 @@ Regras obrigatórias do vocabulário:
 - **Manual supervisor é exceção separada:** `saldoManualPermitido` permite lançamento supervisório dentro do saldo aceito do dia, mas não altera o card `Disponível agora` e não reclassifica excedente como plano.
 - **Scanner e apontamentos não bloqueiam por saldo visual:** `Plano do dia`, `Disponível agora`, `saldoManualPermitido`, backlog, excedente e saldo de operação são leituras informativas para o supervisor/operador. Scanner, apontamentos do supervisor e qualidade só podem bloquear dados estruturalmente inválidos, turno fechado/inexistente, usuário sem permissão, operador inválido, máquina inválida ou contexto encerrado manualmente; nunca podem bloquear porque a quantidade ultrapassou disponibilidade automática, plano do dia, saldo visual ou FIFO.
 
+Separação obrigatória entre leitura da OP e leitura da OP no setor:
+- os 5 cards canônicos (`Backlog vivo`, `Plano do dia`, `Disponível agora`, `Concluído`, `Excedente`) pertencem à demanda da OP dentro de um setor específico
+- eles podem aparecer no kanban, no detalhe do setor e nas seções internas da OP, sempre vinculados ao setor correspondente
+- o modal principal de detalhe da OP inteira não pode reutilizar esses 5 cards como resumo agregado, porque isso mistura granularidades e pode fazer um `Plano do dia` de outro setor parecer válido para a OP no setor clicado
+- o modal principal da OP deve responder apenas à situação geral da OP no turno, com cards brutos e consolidados:
+  - `Quantidade da OP`: quantidade administrativa da OP no turno; em carry-over, representa a quantidade remanescente carregada para o novo turno
+  - `Peças completas`: quantidade realmente completa da OP no funil inteiro
+  - `Progresso operacional`: percentual ponderado por T.P. executado na OP
+  - `Seções concluídas`: quantidade de setores/seções obrigatórios concluídos sobre o total da OP
+- quando o usuário precisar entender `Plano do dia`, `Disponível agora` ou `Excedente`, a UI deve direcionar a leitura para o setor/seção correspondente, nunca para o topo agregado da OP
+
 Gráfico obrigatório da Meta do Grupo V2:
 - a dashboard V2 deve exibir um gráfico de `Projeção do planejado x Alcançado por hora`
 - a curva de projeção deve partir da `meta_grupo_turno` calculada para o turno aberto
