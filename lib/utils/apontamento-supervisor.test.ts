@@ -3,6 +3,8 @@ import test from 'node:test'
 import {
   calcularQuantidadeManualPermitidaOperacao,
   calcularSaldoManualPermitido,
+  normalizarQuantidadeSupervisorInput,
+  resolverQuantidadeSupervisorAoAlterarOperacao,
   supervisorDependeDeExcecaoManual,
   supervisorPodeAcionarContexto,
   validarLancamentosSupervisorContraContextos,
@@ -106,5 +108,27 @@ test('valida apenas a existencia do contexto do supervisor sem bloquear por sald
       [contexto]
     ),
     {}
+  )
+})
+
+test('preserva quantidade digitada pelo supervisor sem sobrescrever por sugestao automatica', () => {
+  assert.equal(normalizarQuantidadeSupervisorInput(''), '')
+  assert.equal(normalizarQuantidadeSupervisorInput('27'), '27')
+  assert.equal(normalizarQuantidadeSupervisorInput('0'), '0')
+  assert.equal(normalizarQuantidadeSupervisorInput('1e3'), '')
+
+  assert.equal(
+    resolverQuantidadeSupervisorAoAlterarOperacao({
+      quantidadeAtual: '18',
+      quantidadeSugerida: '72',
+    }),
+    '18'
+  )
+  assert.equal(
+    resolverQuantidadeSupervisorAoAlterarOperacao({
+      quantidadeAtual: '',
+      quantidadeSugerida: '72',
+    }),
+    '72'
   )
 })

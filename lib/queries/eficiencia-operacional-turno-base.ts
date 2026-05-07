@@ -288,7 +288,7 @@ export function consolidarResumoEficienciaOperacionalTurno(
   return {
     porHora: Array.from(agregacaoPorHoraOperador.values()).sort(
       (primeiroRegistro, segundoRegistro) =>
-        primeiroRegistro.hora.localeCompare(segundoRegistro.hora) ||
+        segundoRegistro.hora.localeCompare(primeiroRegistro.hora) ||
         primeiroRegistro.operadorNome.localeCompare(segundoRegistro.operadorNome)
     ),
     porDia: Array.from(agregacaoPorDia.values()).sort(
@@ -298,7 +298,8 @@ export function consolidarResumoEficienciaOperacionalTurno(
     ),
     porOperacao: Array.from(agregacaoPorOperacao.values()).sort(
       (primeiroRegistro, segundoRegistro) =>
-        primeiroRegistro.hora.localeCompare(segundoRegistro.hora) ||
+        segundoRegistro.eficienciaPct - primeiroRegistro.eficienciaPct ||
+        segundoRegistro.hora.localeCompare(primeiroRegistro.hora) ||
         primeiroRegistro.operadorNome.localeCompare(segundoRegistro.operadorNome) ||
         primeiroRegistro.operacaoDescricao.localeCompare(segundoRegistro.operacaoDescricao)
     ),

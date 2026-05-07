@@ -41,6 +41,29 @@ export interface ValidacaoLancamentoSupervisorResultado {
   erro?: string
 }
 
+export function normalizarQuantidadeSupervisorInput(valor: string): string {
+  const valorNormalizado = valor.trim()
+
+  if (valorNormalizado === '') {
+    return ''
+  }
+
+  if (!/^\d+$/.test(valorNormalizado)) {
+    return ''
+  }
+
+  return valorNormalizado
+}
+
+export function resolverQuantidadeSupervisorAoAlterarOperacao(input: {
+  quantidadeAtual: string
+  quantidadeSugerida: string
+}): string {
+  const quantidadeAtual = normalizarQuantidadeSupervisorInput(input.quantidadeAtual)
+
+  return quantidadeAtual === '' ? input.quantidadeSugerida : quantidadeAtual
+}
+
 function statusPermiteApontamentoSupervisor(
   status: SupervisorAcionamentoContexto['status']
 ): boolean {

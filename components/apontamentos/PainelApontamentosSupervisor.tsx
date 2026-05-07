@@ -17,6 +17,8 @@ import {
   type RegistrarApontamentosSupervisorActionState,
 } from '@/lib/actions/producao'
 import {
+  normalizarQuantidadeSupervisorInput,
+  resolverQuantidadeSupervisorAoAlterarOperacao,
   supervisorDependeDeExcecaoManual,
 } from '@/lib/utils/apontamento-supervisor'
 import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
@@ -210,20 +212,6 @@ function obterQuantidadeSugerida(
   )
 
   return saldoMaximoOperacao > 0 ? String(saldoMaximoOperacao) : ''
-}
-
-function normalizarQuantidadeInput(valor: string): string {
-  if (valor.trim() === '') {
-    return ''
-  }
-
-  const quantidade = Number.parseInt(valor, 10)
-  if (!Number.isFinite(quantidade)) {
-    return ''
-  }
-
-  const quantidadeNormalizada = Math.max(quantidade, 1)
-  return String(quantidadeNormalizada)
 }
 
 function statusSecaoTema(status: TurnoSetorOpStatusV2 | TurnoSetorOperacaoStatusV2): string {
@@ -535,7 +523,7 @@ export function PainelApontamentosSupervisor({
                   operacoesDaSecao,
                   saldoMaximoSecaoSelecionada
                 )
-              : normalizarQuantidadeInput(lancamento.quantidade)
+              : normalizarQuantidadeSupervisorInput(lancamento.quantidade)
 
           return {
             ...lancamento,
@@ -1057,11 +1045,14 @@ export function PainelApontamentosSupervisor({
 
                                   atualizarLancamento(lancamento.id, {
                                     turnoSetorOperacaoId,
-                                    quantidade: obterQuantidadeSugerida(
-                                      turnoSetorOperacaoId,
-                                      operacoesDaSecao,
-                                      saldoMaximoSecaoSelecionada
-                                    ),
+                                    quantidade: resolverQuantidadeSupervisorAoAlterarOperacao({
+                                      quantidadeAtual: lancamento.quantidade,
+                                      quantidadeSugerida: obterQuantidadeSugerida(
+                                        turnoSetorOperacaoId,
+                                        operacoesDaSecao,
+                                        saldoMaximoSecaoSelecionada
+                                      ),
+                                    }),
                                   })
                                 }}
                                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1086,7 +1077,9 @@ export function PainelApontamentosSupervisor({
                                 value={lancamento.quantidade}
                                 onChange={(event) =>
                                   atualizarLancamento(lancamento.id, {
-                                    quantidade: normalizarQuantidadeInput(event.target.value),
+                                    quantidade: normalizarQuantidadeSupervisorInput(
+                                      event.target.value
+                                    ),
                                   })
                                 }
                                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"

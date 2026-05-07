@@ -165,3 +165,179 @@ test('consolida a hora do operador sem perder o detalhamento por operacao na mes
     eficienciaPct: 50,
   })
 })
+
+test('ordena eficiencia por hora com lancamentos mais recentes primeiro', () => {
+  const turno: TurnoEficienciaOperacionalConsolidavel = {
+    id: 'turno-ordem',
+    iniciadoEm: '2026-05-07T08:00:00-03:00',
+    minutosTurno: 540,
+  }
+
+  const operacoesTurno: TurnoSetorOperacaoApontamentoV2[] = [
+    {
+      id: 'tso-ordem',
+      turnoId: 'turno-ordem',
+      turnoOpId: 'top-ordem',
+      turnoSetorOpId: 'secao-ordem',
+      turnoSetorId: 'setor-ordem',
+      turnoSetorDemandaId: 'demanda-ordem',
+      produtoOperacaoId: 'po-ordem',
+      operacaoId: 'op-ordem',
+      setorId: 'setor-ordem',
+      sequencia: 1,
+      tempoPadraoMinSnapshot: 0.5,
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      status: 'em_andamento',
+      iniciadoEm: null,
+      encerradoEm: null,
+      operacaoCodigo: 'OP-ORDEM',
+      operacaoDescricao: 'Costura ordem',
+      maquinaCodigo: 'MAQ-001',
+      maquinaModelo: 'Reta 1 agulha',
+    },
+  ]
+
+  const registros: RegistroEficienciaOperacionalConsolidavel[] = [
+    {
+      horaRegistro: '2026-05-07T10:05:00-03:00',
+      quantidade: 10,
+      operadorId: 'operador-1',
+      turnoSetorOperacaoId: 'tso-ordem',
+    },
+    {
+      horaRegistro: '2026-05-07T14:15:00-03:00',
+      quantidade: 10,
+      operadorId: 'operador-1',
+      turnoSetorOperacaoId: 'tso-ordem',
+    },
+    {
+      horaRegistro: '2026-05-07T11:20:00-03:00',
+      quantidade: 10,
+      operadorId: 'operador-1',
+      turnoSetorOperacaoId: 'tso-ordem',
+    },
+  ]
+
+  const operadores: OperadorEficienciaOperacionalConsolidavel[] = [
+    {
+      id: 'operador-1',
+      nome: 'Maria',
+      matricula: '001',
+    },
+  ]
+
+  const resumo = consolidarResumoEficienciaOperacionalTurno(
+    turno,
+    operacoesTurno,
+    registros,
+    operadores
+  )
+
+  assert.deepEqual(
+    resumo.porHora.map((registro) => registro.hora),
+    ['2026-05-07T14:00:00', '2026-05-07T11:00:00', '2026-05-07T10:00:00']
+  )
+})
+
+test('ordena eficiencia por operacao da maior para a menor eficiencia', () => {
+  const turno: TurnoEficienciaOperacionalConsolidavel = {
+    id: 'turno-operacao',
+    iniciadoEm: '2026-05-07T08:00:00-03:00',
+    minutosTurno: 540,
+  }
+
+  const operacoesTurno: TurnoSetorOperacaoApontamentoV2[] = [
+    {
+      id: 'tso-baixa',
+      turnoId: 'turno-operacao',
+      turnoOpId: 'top-operacao',
+      turnoSetorOpId: 'secao-operacao',
+      turnoSetorId: 'setor-operacao',
+      turnoSetorDemandaId: 'demanda-operacao',
+      produtoOperacaoId: 'po-baixa',
+      operacaoId: 'op-baixa',
+      setorId: 'setor-operacao',
+      sequencia: 1,
+      tempoPadraoMinSnapshot: 0.6,
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      status: 'em_andamento',
+      iniciadoEm: null,
+      encerradoEm: null,
+      operacaoCodigo: 'OP-BAIXA',
+      operacaoDescricao: 'Operacao baixa eficiencia',
+      maquinaCodigo: 'MAQ-001',
+      maquinaModelo: 'Reta 1 agulha',
+    },
+    {
+      id: 'tso-alta',
+      turnoId: 'turno-operacao',
+      turnoOpId: 'top-operacao',
+      turnoSetorOpId: 'secao-operacao',
+      turnoSetorId: 'setor-operacao',
+      turnoSetorDemandaId: 'demanda-operacao',
+      produtoOperacaoId: 'po-alta',
+      operacaoId: 'op-alta',
+      setorId: 'setor-operacao',
+      sequencia: 2,
+      tempoPadraoMinSnapshot: 6,
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      status: 'em_andamento',
+      iniciadoEm: null,
+      encerradoEm: null,
+      operacaoCodigo: 'OP-ALTA',
+      operacaoDescricao: 'Operacao alta eficiencia',
+      maquinaCodigo: 'MAQ-001',
+      maquinaModelo: 'Reta 1 agulha',
+    },
+  ]
+
+  const registros: RegistroEficienciaOperacionalConsolidavel[] = [
+    {
+      horaRegistro: '2026-05-07T10:05:00-03:00',
+      quantidade: 10,
+      operadorId: 'operador-1',
+      turnoSetorOperacaoId: 'tso-baixa',
+    },
+    {
+      horaRegistro: '2026-05-07T11:10:00-03:00',
+      quantidade: 10,
+      operadorId: 'operador-1',
+      turnoSetorOperacaoId: 'tso-alta',
+    },
+  ]
+
+  const operadores: OperadorEficienciaOperacionalConsolidavel[] = [
+    {
+      id: 'operador-1',
+      nome: 'Maria',
+      matricula: '001',
+    },
+  ]
+
+  const resumo = consolidarResumoEficienciaOperacionalTurno(
+    turno,
+    operacoesTurno,
+    registros,
+    operadores
+  )
+
+  assert.deepEqual(
+    resumo.porOperacao.map((registro) => ({
+      operacaoId: registro.operacaoId,
+      eficienciaPct: registro.eficienciaPct,
+    })),
+    [
+      {
+        operacaoId: 'op-alta',
+        eficienciaPct: 100,
+      },
+      {
+        operacaoId: 'op-baixa',
+        eficienciaPct: 10,
+      },
+    ]
+  )
+})
