@@ -5,6 +5,19 @@
 
 BEGIN;
 
+ALTER TABLE public.turno_setor_operacoes
+  DROP CONSTRAINT IF EXISTS turno_setor_operacoes_check;
+
+ALTER TABLE public.turno_setor_operacoes
+  DROP CONSTRAINT IF EXISTS turno_setor_operacoes_quantidade_realizada_check;
+
+ALTER TABLE public.turno_setor_operacoes
+  DROP CONSTRAINT IF EXISTS turno_setor_operacoes_quantidade_realizada_non_negative_check;
+
+ALTER TABLE public.turno_setor_operacoes
+  ADD CONSTRAINT turno_setor_operacoes_quantidade_realizada_non_negative_check
+  CHECK (quantidade_realizada >= 0);
+
 CREATE OR REPLACE FUNCTION public.registrar_producao_turno_setor_operacao(
   p_operador_id UUID,
   p_turno_setor_operacao_id UUID,
