@@ -30,6 +30,7 @@ export interface SnapshotCarryOverSetorialV2 {
   quantidadeLiberadaDestino: number
   quantidadePendenteDestino: number
   quantidadeLiberadaOrigem: number
+  demandaConcluidaDestino: boolean
 }
 
 interface DemandaCarryOverConsolidavel {
@@ -106,7 +107,7 @@ function calcularQuantidadeLiberadaDestino(input: {
   quantidadePlanejadaDestino: number
   quantidadeRealizadaOrigem: number
   quantidadeLiberadaPersistidaOrigem: number
-  quantidadeLiberadaFluxoOrigem: number
+  quantidadeDisponivelFluxoOrigem: number
   usarLiberacaoFluxo: boolean
 }): number {
   const quantidadePlanejadaDestino = normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino)
@@ -114,16 +115,16 @@ function calcularQuantidadeLiberadaDestino(input: {
   const quantidadeLiberadaPersistidaOrigem = normalizarInteiroNaoNegativo(
     input.quantidadeLiberadaPersistidaOrigem
   )
-  const quantidadeLiberadaFluxoOrigem = normalizarInteiroNaoNegativo(
-    input.quantidadeLiberadaFluxoOrigem
+  const quantidadeDisponivelFluxoOrigem = normalizarInteiroNaoNegativo(
+    input.quantidadeDisponivelFluxoOrigem
   )
-  const quantidadeOperacionalOrigem = Math.max(
-    quantidadeRealizadaOrigem,
-    quantidadeLiberadaPersistidaOrigem
+  const saldoLiberadoPersistidoOrigem = Math.max(
+    quantidadeLiberadaPersistidaOrigem - quantidadeRealizadaOrigem,
+    0
   )
   const quantidadeLiberadaOperacional = input.usarLiberacaoFluxo
-    ? Math.max(quantidadeLiberadaFluxoOrigem, quantidadeLiberadaPersistidaOrigem)
-    : quantidadeOperacionalOrigem
+    ? Math.max(quantidadeDisponivelFluxoOrigem, saldoLiberadoPersistidoOrigem)
+    : saldoLiberadoPersistidoOrigem
 
   return Math.min(quantidadePlanejadaDestino, quantidadeLiberadaOperacional)
 }
@@ -224,7 +225,7 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
         quantidadePlanejadaDestino,
         quantidadeRealizadaOrigem,
         quantidadeLiberadaPersistidaOrigem,
-        quantidadeLiberadaFluxoOrigem: demanda.quantidadeLiberadaSetor,
+        quantidadeDisponivelFluxoOrigem: demanda.quantidadeDisponivelApontamento,
         usarLiberacaoFluxo:
           demanda.setorAnteriorId !== null ||
           demanda.etapaFluxoChave === 'montagem' ||
@@ -245,6 +246,8 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
           0
         ),
         quantidadeLiberadaOrigem: normalizarInteiroNaoNegativo(demanda.quantidadeLiberadaSetor),
+        demandaConcluidaDestino:
+          quantidadePlanejadaDestino > 0 && quantidadeRealizadaDestino >= quantidadePlanejadaDestino,
       }
     })
 }

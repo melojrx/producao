@@ -4814,6 +4814,11 @@ Escopo futuro previsto:
 - a Sprint 42 separou corretamente carry-over liberado de `quantidade_realizada`, mas o carry-over repetido ficou sem teste para o caso `quantidade_liberada_setor > 0` e `quantidade_realizada = 0`
 - o fechamento do turno ainda calcula saldo de OP a partir de `turno_setor_demandas.quantidade_realizada`, o que é frágil quando o consolidado setorial não acompanha a camada atômica `turno_setor_operacoes`
 
+**Evidência adicional da homologação real em `2026-05-11`:**
+- após fechar o turno `aaec74be-2fce-443e-81d8-1993299b5416` e abrir o turno `4f78ad77-d333-41dc-8df1-b6b96ebdeb64`, a OP `13089` voltou com `Preparação.quantidade_liberada_setor = 792`
+- isso reabre indevidamente o próprio setor já produzido; a regra correta é: produção concluída no setor anterior libera o próximo setor, mas não vira disponibilidade para refazer o mesmo setor
+- correção complementar: `quantidade_liberada_setor` do destino deve representar apenas o saldo ainda executável naquele setor, isto é, liberação aceita menos quantidade já realizada; para setores posteriores, a liberação vem do fluxo (`Preparação -> Frente/Costa -> Montagem`)
+
 - [x] **HU 49.1 — Como produto, quero formalizar a regressão real e o contrato de correção do carry-over repetido, para impedir novas correções pontuais sem preservar a regra de continuidade entre turnos.**
   **Prioridade:** P0
   **Risco:** Baixo
@@ -4933,6 +4938,8 @@ Escopo futuro previsto:
   - não avançar para Sprint 45 ou outra frente antes de fechar esta regressão P0
 
   **Evidência esperada:** `node --test --experimental-strip-types` nas suítes focadas passa sem falhas; `npx tsc --noEmit` passa; consulta read-only no turno real confirma que novas aberturas preservam continuidade por setor.
+
+  **Evidência parcial:** homologação real do turno `4f78ad77-d333-41dc-8df1-b6b96ebdeb64` revelou que a primeira correção ainda reabria o mesmo setor já produzido quando `quantidade_realizada` da origem era positiva. O teste `não reabre no mesmo setor a quantidade já produzida no turno anterior` foi adicionado em `lib/utils/carry-over-turno.test.ts`, falhou antes da correção com `Preparação.quantidadeLiberadaDestino = 792` e passou após ajustar `calcularQuantidadeLiberadaDestino()` para usar disponibilidade de fluxo já abatida do realizado. O teste `preserva liberação herdada para sucessores sem reabrir etapa concluída no carry-over` foi adicionado em `lib/utils/fluxo-paralelo-turno.test.ts`, falhou antes da correção porque a leitura descartava a liberação persistida de Frente/Costa e reabria Preparação, e passou após o fluxo paralelo considerar `quantidadeLiberadaSetor` persistida como carry-over válido e tratar etapa herdada `concluida` como não executável. `hidratarProgressoCarryOverDaOp()` passou a marcar a demanda destino como `concluida` quando o setor já estava completo na origem, sem gravar produção herdada em `quantidade_realizada`. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 36/36; `npx tsc --noEmit` e `git diff --check` passaram sem erros. Com aprovação explícita do usuário, aplicado patch de dados no turno aberto para a OP `13089`, demanda `a38ac71b-0f79-4ff3-8df9-5ec2003f1639`: `Preparação.quantidade_liberada_setor` foi de `792` para `0` e `status` de `aberta` para `concluida`; consulta read-only posterior confirmou `Frente = 792`, `Costa = 792`, `Montagem = 0`, `Finalização = 0`, `Qualidade = 0`, todos com `quantidade_realizada = 0` no turno novo. A HU permanece aberta até validar novo ciclo real após deploy.
 
 ---
 

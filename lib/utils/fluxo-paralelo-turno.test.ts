@@ -392,6 +392,83 @@ test('mantém Frente e Costa paralelas quando o roteiro não possui etapa Finali
   )
 })
 
+test('preserva liberação herdada para sucessores sem reabrir etapa concluída no carry-over', () => {
+  const demandas = enriquecerDemandasComFluxoParalelo([
+    {
+      id: 'demanda-preparacao-herdada',
+      turnoOpId: 'op-carry-over',
+      setorId: 'setor-preparacao',
+      setorCodigo: 10,
+      setorNome: 'Preparação',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      quantidadeLiberadaSetor: 0,
+      status: 'concluida',
+      iniciadoEm: null,
+      encerradoEm: '2026-05-11T20:38:59.703Z',
+    },
+    {
+      id: 'demanda-frente-herdada',
+      turnoOpId: 'op-carry-over',
+      setorId: 'setor-frente',
+      setorCodigo: 20,
+      setorNome: 'Frente',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      quantidadeLiberadaSetor: 792,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'demanda-costa-herdada',
+      turnoOpId: 'op-carry-over',
+      setorId: 'setor-costa',
+      setorCodigo: 30,
+      setorNome: 'Costa',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      quantidadeLiberadaSetor: 792,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'demanda-montagem-herdada',
+      turnoOpId: 'op-carry-over',
+      setorId: 'setor-montagem',
+      setorCodigo: 40,
+      setorNome: 'Montagem',
+      quantidadePlanejada: 792,
+      quantidadeRealizada: 0,
+      quantidadeLiberadaSetor: 0,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+  ])
+
+  const preparacao = demandas.find((demanda) => demanda.id === 'demanda-preparacao-herdada')
+  const frente = demandas.find((demanda) => demanda.id === 'demanda-frente-herdada')
+  const costa = demandas.find((demanda) => demanda.id === 'demanda-costa-herdada')
+  const montagem = demandas.find((demanda) => demanda.id === 'demanda-montagem-herdada')
+
+  assert.deepEqual(
+    {
+      preparacaoDisponivel: preparacao?.quantidadeDisponivelApontamento,
+      frenteDisponivel: frente?.quantidadeDisponivelApontamento,
+      costaDisponivel: costa?.quantidadeDisponivelApontamento,
+      montagemDisponivel: montagem?.quantidadeDisponivelApontamento,
+    },
+    {
+      preparacaoDisponivel: 0,
+      frenteDisponivel: 792,
+      costaDisponivel: 792,
+      montagemDisponivel: 0,
+    }
+  )
+})
+
 test('resume a OP com múltiplas posições ativas e mantém um resumo compatível para a UI atual', () => {
   const resumo = resolverResumoFluxoOpParalelo([
     {

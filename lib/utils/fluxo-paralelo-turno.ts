@@ -111,6 +111,48 @@ function normalizarInteiroNaoNegativo(valor: number): number {
   return Math.floor(valor)
 }
 
+function obterQuantidadeLiberadaPersistida(
+  demanda: DemandaFluxoSequencialBase
+): number {
+  if (
+    'quantidadeLiberadaSetor' in demanda &&
+    typeof demanda.quantidadeLiberadaSetor === 'number'
+  ) {
+    return normalizarInteiroNaoNegativo(demanda.quantidadeLiberadaSetor)
+  }
+
+  return 0
+}
+
+function calcularLiberacaoEtapaSemPredecessora(
+  demanda: DemandaFluxoSequencialBase
+): number {
+  const quantidadeLiberadaPersistida = obterQuantidadeLiberadaPersistida(demanda)
+
+  if (demanda.status === 'concluida') {
+    return Math.max(
+      normalizarInteiroNaoNegativo(demanda.quantidadeRealizada),
+      quantidadeLiberadaPersistida
+    )
+  }
+
+  if (quantidadeLiberadaPersistida > 0) {
+    return quantidadeLiberadaPersistida
+  }
+
+  return demanda.quantidadePlanejada
+}
+
+function calcularLiberacaoEtapaComCarryOver(
+  quantidadeLiberadaFluxo: number,
+  demanda: DemandaFluxoSequencialBase
+): number {
+  return Math.max(
+    normalizarInteiroNaoNegativo(quantidadeLiberadaFluxo),
+    obterQuantidadeLiberadaPersistida(demanda)
+  )
+}
+
 function normalizarNomeSetorParaEtapa(valor: string): string {
   return valor
     .trim()
@@ -479,17 +521,23 @@ export function enriquecerDemandasComFluxoParalelo<
 
     const liberacaoPreparacao = criarLiberacaoEtapa({
       quantidadePlanejada: etapasCanonicas.preparacao.quantidadePlanejada,
-      quantidadeLiberada: etapasCanonicas.preparacao.quantidadePlanejada,
+      quantidadeLiberada: calcularLiberacaoEtapaSemPredecessora(etapasCanonicas.preparacao),
       quantidadeRealizada: etapasCanonicas.preparacao.quantidadeRealizada,
     })
     const liberacaoFrente = criarLiberacaoEtapa({
       quantidadePlanejada: etapasCanonicas.frente.quantidadePlanejada,
-      quantidadeLiberada: etapasCanonicas.preparacao.quantidadeRealizada,
+      quantidadeLiberada: calcularLiberacaoEtapaComCarryOver(
+        etapasCanonicas.preparacao.quantidadeRealizada,
+        etapasCanonicas.frente
+      ),
       quantidadeRealizada: etapasCanonicas.frente.quantidadeRealizada,
     })
     const liberacaoCosta = criarLiberacaoEtapa({
       quantidadePlanejada: etapasCanonicas.costa.quantidadePlanejada,
-      quantidadeLiberada: etapasCanonicas.preparacao.quantidadeRealizada,
+      quantidadeLiberada: calcularLiberacaoEtapaComCarryOver(
+        etapasCanonicas.preparacao.quantidadeRealizada,
+        etapasCanonicas.costa
+      ),
       quantidadeRealizada: etapasCanonicas.costa.quantidadeRealizada,
     })
 
@@ -531,16 +579,19 @@ export function enriquecerDemandasComFluxoParalelo<
         quantidadeConcluidaCosta: etapasCanonicas.costa.quantidadeRealizada,
         quantidadeRealizadaMontagem: etapasCanonicas.montagem.quantidadeRealizada,
       })
+      const quantidadeLiberadaMontagem = calcularLiberacaoEtapaComCarryOver(
+        sincronizacaoMontagem.quantidadeSincronizadaMontagem,
+        etapasCanonicas.montagem
+      )
 
       diagnosticosPorDemandaId.set(
         etapasCanonicas.montagem.id,
         criarDiagnosticoFluxoSemFila({
           etapaFluxoChave: 'montagem',
           demanda: etapasCanonicas.montagem,
-          quantidadeLiberadaSetor: sincronizacaoMontagem.quantidadeSincronizadaMontagem,
+          quantidadeLiberadaSetor: quantidadeLiberadaMontagem,
           setorAnteriorNome: 'Frente + Costa',
-          quantidadeSincronizadaMontagem:
-            sincronizacaoMontagem.quantidadeSincronizadaMontagem,
+          quantidadeSincronizadaMontagem: quantidadeLiberadaMontagem,
           quantidadeBloqueadaSincronizacao:
             sincronizacaoMontagem.quantidadeBloqueadaSincronizacao,
         })
@@ -549,7 +600,10 @@ export function enriquecerDemandasComFluxoParalelo<
       if (etapasCanonicas.final) {
         const liberacaoFinal = criarLiberacaoEtapa({
           quantidadePlanejada: etapasCanonicas.final.quantidadePlanejada,
-          quantidadeLiberada: etapasCanonicas.montagem.quantidadeRealizada,
+          quantidadeLiberada: calcularLiberacaoEtapaComCarryOver(
+            etapasCanonicas.montagem.quantidadeRealizada,
+            etapasCanonicas.final
+          ),
           quantidadeRealizada: etapasCanonicas.final.quantidadeRealizada,
         })
 

@@ -417,9 +417,103 @@ test('libera Montagem no carry-over quando Frente e Costa foram concluídas por 
   })
 
   const montagem = snapshots.find((snapshot) => snapshot.setorId === 'setor-montagem')
+  const frente = snapshots.find((snapshot) => snapshot.setorId === 'setor-frente')
+  const costa = snapshots.find((snapshot) => snapshot.setorId === 'setor-costa')
 
+  assert.equal(frente?.quantidadeLiberadaDestino, 0)
+  assert.equal(costa?.quantidadeLiberadaDestino, 0)
   assert.equal(montagem?.quantidadeLiberadaDestino, 1305)
   assert.equal(montagem?.quantidadeRealizadaDestino, 0)
+})
+
+test('não reabre no mesmo setor a quantidade já produzida no turno anterior', () => {
+  const snapshots = normalizarDemandasCarryOverEntreTurnos({
+    quantidadePlanejadaDestino: 792,
+    demandasOrigem: [
+      {
+        id: 'prep-concluida',
+        turnoOpId: 'turno-op-repetido',
+        setorId: 'setor-preparacao',
+        setorCodigo: 10,
+        setorNome: 'Preparação',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 792,
+        quantidadeLiberadaSetor: 0,
+        status: 'concluida',
+        iniciadoEm: '2026-05-11T20:35:28.842Z',
+        encerradoEm: '2026-05-11T20:38:59.703Z',
+      },
+      {
+        id: 'frente-liberada',
+        turnoOpId: 'turno-op-repetido',
+        setorId: 'setor-frente',
+        setorCodigo: 20,
+        setorNome: 'Frente',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 0,
+        quantidadeLiberadaSetor: 0,
+        status: 'encerrada_manualmente',
+        iniciadoEm: null,
+        encerradoEm: '2026-05-11T20:38:59.703Z',
+      },
+      {
+        id: 'costa-liberada',
+        turnoOpId: 'turno-op-repetido',
+        setorId: 'setor-costa',
+        setorCodigo: 30,
+        setorNome: 'Costa',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 0,
+        quantidadeLiberadaSetor: 0,
+        status: 'encerrada_manualmente',
+        iniciadoEm: null,
+        encerradoEm: '2026-05-11T20:38:59.703Z',
+      },
+      {
+        id: 'montagem-bloqueada',
+        turnoOpId: 'turno-op-repetido',
+        setorId: 'setor-montagem',
+        setorCodigo: 40,
+        setorNome: 'Montagem',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 0,
+        quantidadeLiberadaSetor: 0,
+        status: 'encerrada_manualmente',
+        iniciadoEm: null,
+        encerradoEm: '2026-05-11T20:38:59.703Z',
+      },
+    ],
+  })
+
+  assert.deepEqual(
+    snapshots.map((snapshot) => ({
+      setorId: snapshot.setorId,
+      quantidadeLiberadaDestino: snapshot.quantidadeLiberadaDestino,
+      demandaConcluidaDestino: snapshot.demandaConcluidaDestino,
+    })),
+    [
+      {
+        setorId: 'setor-preparacao',
+        quantidadeLiberadaDestino: 0,
+        demandaConcluidaDestino: true,
+      },
+      {
+        setorId: 'setor-frente',
+        quantidadeLiberadaDestino: 792,
+        demandaConcluidaDestino: false,
+      },
+      {
+        setorId: 'setor-costa',
+        quantidadeLiberadaDestino: 792,
+        demandaConcluidaDestino: false,
+      },
+      {
+        setorId: 'setor-montagem',
+        quantidadeLiberadaDestino: 0,
+        demandaConcluidaDestino: false,
+      },
+    ]
+  )
 })
 
 test('limita o carry-over de Montagem à interseção real entre Frente e Costa', () => {

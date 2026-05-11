@@ -33,6 +33,7 @@ type TurnoOpRow = Tables<'turno_ops'>
 type TurnoOpInsert = TablesInsert<'turno_ops'>
 type TurnoOpUpdate = TablesUpdate<'turno_ops'>
 type TurnoSetorDemandaRow = Tables<'turno_setor_demandas'>
+type TurnoSetorDemandaUpdate = TablesUpdate<'turno_setor_demandas'>
 type TurnoSetorOperacaoRow = Tables<'turno_setor_operacoes'>
 type TurnoSetorOpRow = Tables<'turno_setor_ops'>
 
@@ -794,18 +795,26 @@ async function hidratarProgressoCarryOverDaOp(
     }).map((snapshot) => [snapshot.setorId, snapshot] as const)
   )
 
-  const setoresComLiberacao = [...snapshotsCarryOverPorSetorId.entries()].filter(
-    ([, snapshot]) => snapshot.quantidadeLiberadaDestino > 0
+  const setoresComCarryOver = [...snapshotsCarryOverPorSetorId.entries()].filter(
+    ([, snapshot]) => snapshot.quantidadeLiberadaDestino > 0 || snapshot.demandaConcluidaDestino
   )
 
-  if (setoresComLiberacao.length === 0) {
+  if (setoresComCarryOver.length === 0) {
     return {}
   }
 
-  for (const [setorId, snapshot] of setoresComLiberacao) {
+  for (const [setorId, snapshot] of setoresComCarryOver) {
+    const payload: TurnoSetorDemandaUpdate = {
+      quantidade_liberada_setor: snapshot.quantidadeLiberadaDestino,
+    }
+
+    if (snapshot.demandaConcluidaDestino) {
+      payload.status = 'concluida'
+    }
+
     const { error: updateDemandaError } = await supabase
       .from('turno_setor_demandas')
-      .update({ quantidade_liberada_setor: snapshot.quantidadeLiberadaDestino })
+      .update(payload)
       .eq('turno_op_id', turnoOpDestinoId)
       .eq('setor_id', setorId)
 
