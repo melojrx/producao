@@ -749,3 +749,60 @@ test('mantem plano do dia pela capacidade global quando quantidade liberada do c
   assert.equal(demandasLimitadas[0]?.quantidadeExcedenteTurno, 399)
   assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 601)
 })
+
+test('calcula backlog operacional com progresso herdado sem consumir capacidade do turno atual', () => {
+  const turno: Pick<
+    TurnoV2,
+    'operadoresDisponiveis' | 'minutosTurno' | 'capacidadeGlobalTurnoPecas'
+  > = {
+    operadoresDisponiveis: 20,
+    minutosTurno: 510,
+    capacidadeGlobalTurnoPecas: 100,
+  }
+  const demandaComProgressoHerdado: TurnoSetorDemandaV2 = {
+    ...criarDemandasBase()[0],
+    quantidadePlanejada: 100,
+    quantidadeRealizada: 0,
+    quantidadeConcluida: 0,
+    quantidadeHerdadaSetor: 60,
+    quantidadeLiberadaSetor: 40,
+    quantidadeBacklogSetor: undefined,
+    quantidadePendenteSetor: undefined,
+    quantidadeAceitaTurno: undefined,
+    quantidadeExcedenteTurno: undefined,
+    quantidadeDisponivelApontamento: undefined,
+  }
+  const operacoesPreparacao = criarOperacoesSecaoBase()
+    .filter((operacao) => operacao.setorId === 'setor-1')
+    .map((operacao) => ({
+      ...operacao,
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      status: 'aberta' as const,
+    }))
+
+  const demandasLimitadas = aplicarCapacidadeOperacionalDemandas({
+    turno,
+    demandasSetor: [demandaComProgressoHerdado],
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+    quantidadeRealizadaAtualPorOperacaoId: new Map<string, number>(),
+  })
+
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaTurno, 40)
+  assert.equal(demandasLimitadas[0]?.quantidadeAceitaAcumuladaSetor, 40)
+  assert.equal(demandasLimitadas[0]?.quantidadeEntradaAcumuladaSetor, 40)
+  assert.equal(demandasLimitadas[0]?.quantidadeDisponivelApontamento, 40)
+
+  const setoresHidratados = hidratarSetoresTurnoComCapacidade({
+    turno,
+    setoresAtivos: [criarSetoresBase()[0]],
+    demandasSetor: demandasLimitadas,
+    operacoesSecao: operacoesPreparacao,
+    ops: [criarOpBase()],
+    quantidadeRealizadaAtualPorOperacaoId: new Map<string, number>(),
+  })
+
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosConsumida, 0)
+  assert.equal(setoresHidratados[0]?.capacidadeMinutosReservada, 80)
+})

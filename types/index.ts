@@ -295,6 +295,7 @@ export interface TurnoSetorDemandaScaneada {
   produtoReferencia: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeHerdadaSetor?: number
   quantidadeConcluida: number
   progressoOperacionalPct: number
   cargaPlanejadaTp: number
@@ -838,6 +839,7 @@ export interface TurnoSetorDemandaV2 {
   produtoNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeHerdadaSetor?: number
   quantidadeConcluida: number
   progressoOperacionalPct: number
   cargaPlanejadaTp: number

@@ -548,7 +548,7 @@ async function listarTurnoSetorDemandas(
   const { data: demandas, error: demandasError } = await supabase
     .from('turno_setor_demandas')
     .select(
-      'id, turno_setor_id, turno_id, turno_op_id, produto_id, setor_id, turno_setor_op_legacy_id, quantidade_planejada, quantidade_realizada, status, iniciado_em, encerrado_em'
+      'id, turno_setor_id, turno_id, turno_op_id, produto_id, setor_id, turno_setor_op_legacy_id, quantidade_planejada, quantidade_herdada_setor, quantidade_realizada, status, iniciado_em, encerrado_em'
     )
     .eq('turno_id', turnoId)
     .order('created_at', { ascending: true })
@@ -582,7 +582,7 @@ async function listarTurnoSetorDemandas(
   const opsPorId = new Map(opsTurno.map((op) => [op.id, op]))
 
   return demandas
-    .map((demanda, indiceOriginal) => {
+    .map((demanda, indiceOriginal): (TurnoSetorDemandaV2 & { indiceOriginal: number }) | null => {
       const setor = setoresPorId.get(demanda.setor_id)
       const op = opsPorId.get(demanda.turno_op_id)
 
@@ -604,6 +604,7 @@ async function listarTurnoSetorDemandas(
         produtoNome: op.produtoNome,
         quantidadePlanejada: demanda.quantidade_planejada,
         quantidadeRealizada: demanda.quantidade_realizada,
+        quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
         quantidadeConcluida: demanda.quantidade_realizada,
         progressoOperacionalPct: 0,
         cargaPlanejadaTp: 0,

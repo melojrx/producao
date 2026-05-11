@@ -161,25 +161,29 @@ test('normaliza o progresso setorial do carry-over sem reabrir setores já concl
       setorId: snapshot.setorId,
       quantidadePlanejadaDestino: snapshot.quantidadePlanejadaDestino,
       quantidadeRealizadaDestino: snapshot.quantidadeRealizadaDestino,
+      quantidadeHerdadaDestino: snapshot.quantidadeHerdadaDestino,
       quantidadePendenteDestino: snapshot.quantidadePendenteDestino,
     })),
     [
       {
         setorId: 'setor-preparacao',
         quantidadePlanejadaDestino: 80,
-        quantidadeRealizadaDestino: 80,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 80,
         quantidadePendenteDestino: 0,
       },
       {
         setorId: 'setor-frente',
         quantidadePlanejadaDestino: 80,
-        quantidadeRealizadaDestino: 70,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 70,
         quantidadePendenteDestino: 10,
       },
       {
         setorId: 'setor-costa',
         quantidadePlanejadaDestino: 80,
-        quantidadeRealizadaDestino: 20,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 20,
         quantidadePendenteDestino: 60,
       },
     ]
@@ -245,27 +249,32 @@ test('mantém o parcelamento setorial íntegro quando o carry-over se repete em 
     snapshotsTurnoSeguinte.map((snapshot) => ({
       setorId: snapshot.setorId,
       quantidadeRealizadaDestino: snapshot.quantidadeRealizadaDestino,
+      quantidadeHerdadaDestino: snapshot.quantidadeHerdadaDestino,
       quantidadePendenteDestino: snapshot.quantidadePendenteDestino,
     })),
     [
       {
         setorId: 'setor-preparacao',
-        quantidadeRealizadaDestino: 65,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 65,
         quantidadePendenteDestino: 0,
       },
       {
         setorId: 'setor-frente',
-        quantidadeRealizadaDestino: 50,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 50,
         quantidadePendenteDestino: 15,
       },
       {
         setorId: 'setor-costa',
-        quantidadeRealizadaDestino: 30,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 30,
         quantidadePendenteDestino: 35,
       },
       {
         setorId: 'setor-final',
-        quantidadeRealizadaDestino: 15,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 15,
         quantidadePendenteDestino: 50,
       },
     ]
@@ -516,6 +525,139 @@ test('não reabre no mesmo setor a quantidade já produzida no turno anterior', 
   )
 })
 
+test('carrega progresso herdado no destino sem contaminar produção do turno novo', () => {
+  const snapshots = normalizarDemandasCarryOverEntreTurnos({
+    quantidadePlanejadaDestino: 792,
+    demandasOrigem: [
+      {
+        id: 'prep-real',
+        turnoOpId: 'turno-op-13089',
+        setorId: 'setor-preparacao',
+        setorCodigo: 10,
+        setorNome: 'Preparação',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 447,
+        quantidadeLiberadaSetor: 0,
+        status: 'em_andamento',
+        iniciadoEm: '2026-05-11T20:39:23.743Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'frente-real',
+        turnoOpId: 'turno-op-13089',
+        setorId: 'setor-frente',
+        setorCodigo: 20,
+        setorNome: 'Frente',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 447,
+        quantidadeLiberadaSetor: 792,
+        status: 'em_andamento',
+        iniciadoEm: '2026-05-11T20:39:23.743Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'costa-real',
+        turnoOpId: 'turno-op-13089',
+        setorId: 'setor-costa',
+        setorCodigo: 30,
+        setorNome: 'Costa',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 447,
+        quantidadeLiberadaSetor: 792,
+        status: 'em_andamento',
+        iniciadoEm: '2026-05-11T20:39:23.743Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'montagem-real',
+        turnoOpId: 'turno-op-13089',
+        setorId: 'setor-montagem',
+        setorCodigo: 40,
+        setorNome: 'Montagem',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 345,
+        quantidadeLiberadaSetor: 0,
+        status: 'em_andamento',
+        iniciadoEm: '2026-05-11T20:39:23.743Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'final-real',
+        turnoOpId: 'turno-op-13089',
+        setorId: 'setor-final',
+        setorCodigo: 50,
+        setorNome: 'Finalização',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 447,
+        quantidadeLiberadaSetor: 0,
+        status: 'em_andamento',
+        iniciadoEm: '2026-05-11T20:39:23.743Z',
+        encerradoEm: null,
+      },
+      {
+        id: 'qualidade-real',
+        turnoOpId: 'turno-op-13089',
+        setorId: 'setor-qualidade',
+        setorCodigo: 60,
+        setorNome: 'Qualidade',
+        quantidadePlanejada: 792,
+        quantidadeRealizada: 0,
+        quantidadeLiberadaSetor: 0,
+        status: 'aberta',
+        iniciadoEm: null,
+        encerradoEm: null,
+      },
+    ],
+  })
+
+  assert.deepEqual(
+    snapshots.map((snapshot) => ({
+      setorId: snapshot.setorId,
+      quantidadeRealizadaDestino: snapshot.quantidadeRealizadaDestino,
+      quantidadeHerdadaDestino: snapshot.quantidadeHerdadaDestino,
+      quantidadeLiberadaDestino: snapshot.quantidadeLiberadaDestino,
+    })),
+    [
+      {
+        setorId: 'setor-preparacao',
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 447,
+        quantidadeLiberadaDestino: 345,
+      },
+      {
+        setorId: 'setor-frente',
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 447,
+        quantidadeLiberadaDestino: 345,
+      },
+      {
+        setorId: 'setor-costa',
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 447,
+        quantidadeLiberadaDestino: 345,
+      },
+      {
+        setorId: 'setor-montagem',
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 345,
+        quantidadeLiberadaDestino: 102,
+      },
+      {
+        setorId: 'setor-final',
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 447,
+        quantidadeLiberadaDestino: 0,
+      },
+      {
+        setorId: 'setor-qualidade',
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 0,
+        quantidadeLiberadaDestino: 447,
+      },
+    ]
+  )
+})
+
 test('limita o carry-over de Montagem à interseção real entre Frente e Costa', () => {
   const snapshots = normalizarDemandasCarryOverEntreTurnos({
     quantidadePlanejadaDestino: 100,
@@ -587,32 +729,38 @@ test('limita o carry-over de Montagem à interseção real entre Frente e Costa'
     snapshots.map((snapshot) => ({
       setorId: snapshot.setorId,
       quantidadeRealizadaDestino: snapshot.quantidadeRealizadaDestino,
+      quantidadeHerdadaDestino: snapshot.quantidadeHerdadaDestino,
       quantidadeLiberadaOrigem: snapshot.quantidadeLiberadaOrigem,
     })),
     [
       {
         setorId: 'setor-preparacao',
-        quantidadeRealizadaDestino: 100,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 100,
         quantidadeLiberadaOrigem: 100,
       },
       {
         setorId: 'setor-frente',
-        quantidadeRealizadaDestino: 20,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 20,
         quantidadeLiberadaOrigem: 100,
       },
       {
         setorId: 'setor-costa',
-        quantidadeRealizadaDestino: 70,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 70,
         quantidadeLiberadaOrigem: 100,
       },
       {
         setorId: 'setor-montagem',
-        quantidadeRealizadaDestino: 20,
-        quantidadeLiberadaOrigem: 20,
+        quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 30,
+        quantidadeLiberadaOrigem: 30,
       },
       {
         setorId: 'setor-final',
         quantidadeRealizadaDestino: 0,
+        quantidadeHerdadaDestino: 0,
         quantidadeLiberadaOrigem: 30,
       },
     ]

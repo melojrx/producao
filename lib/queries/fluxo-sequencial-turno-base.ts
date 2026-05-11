@@ -38,6 +38,7 @@ type TurnoSetorDemandaFluxoRow = Pick<
   | 'produto_id'
   | 'setor_id'
   | 'turno_setor_op_legacy_id'
+  | 'quantidade_herdada_setor'
   | 'quantidade_planejada'
   | 'quantidade_realizada'
   | 'quantidade_liberada_setor'
@@ -153,6 +154,7 @@ function mapearDemandaTurno(
     produtoNome: '',
     quantidadePlanejada: demanda.quantidade_planejada,
     quantidadeRealizada: demanda.quantidade_realizada,
+    quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
     quantidadeConcluida: demanda.quantidade_realizada,
     progressoOperacionalPct: 0,
     cargaPlanejadaTp: 0,
@@ -259,6 +261,7 @@ export async function listarDisponibilidadeSequencialOperacoesComClient(
         setor_id,
         turno_setor_op_legacy_id,
         quantidade_planejada,
+        quantidade_herdada_setor,
         quantidade_realizada,
         quantidade_liberada_setor,
         status,

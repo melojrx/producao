@@ -352,6 +352,7 @@ interface TurnoSetorDemandaScannerRow {
   setor_id: string
   turno_setor_op_legacy_id: string | null
   quantidade_planejada: number
+  quantidade_herdada_setor: number
   quantidade_realizada: number
   quantidade_liberada_setor: number
   status: string
@@ -378,6 +379,7 @@ interface TurnoSetorDemandaFluxoScannerRow {
   turno_setor_op_legacy_id: string | null
   setor_id: string
   quantidade_planejada: number
+  quantidade_herdada_setor: number
   quantidade_realizada: number
   quantidade_liberada_setor: number
   status: string
@@ -489,6 +491,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
         setor_id,
         turno_setor_op_legacy_id,
         quantidade_planejada,
+        quantidade_herdada_setor,
         quantidade_realizada,
         quantidade_liberada_setor,
         status,
@@ -525,13 +528,16 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
       produtoReferencia: produto?.referencia ?? 'Sem referência',
       quantidadePlanejada: demanda.quantidade_planejada,
       quantidadeRealizada: demanda.quantidade_realizada,
+      quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
       quantidadeConcluida: demanda.quantidade_realizada,
       quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
       progressoOperacionalPct: 0,
       cargaPlanejadaTp: 0,
       cargaRealizadaTp: 0,
       saldoRestante: Math.max(
-        demanda.quantidade_planejada - demanda.quantidade_realizada,
+        demanda.quantidade_planejada -
+          demanda.quantidade_herdada_setor -
+          demanda.quantidade_realizada,
         0
       ),
       status: demanda.status as TurnoSetorDemandaScaneada['status'],
@@ -575,6 +581,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
           turno_setor_op_legacy_id,
           setor_id,
           quantidade_planejada,
+          quantidade_herdada_setor,
           quantidade_realizada,
           quantidade_liberada_setor,
           status,
@@ -642,6 +649,7 @@ export async function buscarDemandasScaneadasPorTurnoSetor(
                 produtoNome: op.produtoNome,
                 quantidadePlanejada: demanda.quantidade_planejada,
                 quantidadeRealizada: demanda.quantidade_realizada,
+                quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
                 quantidadeConcluida: demanda.quantidade_realizada,
                 quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
                 progressoOperacionalPct: 0,

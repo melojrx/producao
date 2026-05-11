@@ -1,6 +1,9 @@
 import {
   enriquecerDemandasComFluxoParalelo,
 } from './fluxo-paralelo-turno.ts'
+import {
+  calcularProgressoOperacionalSetor,
+} from './fluxo-sequencial-turno.ts'
 import type { DemandaFluxoSequencialBase } from './fluxo-sequencial-turno.ts'
 
 type DemandaCarryOverOrigem = Pick<
@@ -17,6 +20,7 @@ type DemandaCarryOverOrigem = Pick<
   | 'encerradoEm'
 > & {
   quantidadeLiberadaSetor?: number
+  quantidadeHerdadaSetor?: number
 }
 
 export interface SnapshotCarryOverSetorialV2 {
@@ -27,6 +31,8 @@ export interface SnapshotCarryOverSetorialV2 {
   quantidadePlanejadaDestino: number
   quantidadeRealizadaOrigem: number
   quantidadeRealizadaDestino: number
+  quantidadeHerdadaOrigem: number
+  quantidadeHerdadaDestino: number
   quantidadeLiberadaDestino: number
   quantidadePendenteDestino: number
   quantidadeLiberadaOrigem: number
@@ -39,6 +45,7 @@ interface DemandaCarryOverConsolidavel {
   setorId: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeHerdadaSetor?: number
 }
 
 interface OperacaoCarryOverConsolidavel {
@@ -105,13 +112,15 @@ function obterOperacoesDaDemanda(
 
 function calcularQuantidadeLiberadaDestino(input: {
   quantidadePlanejadaDestino: number
-  quantidadeRealizadaOrigem: number
+  quantidadeProgressoOperacionalOrigem: number
   quantidadeLiberadaPersistidaOrigem: number
   quantidadeDisponivelFluxoOrigem: number
   usarLiberacaoFluxo: boolean
 }): number {
   const quantidadePlanejadaDestino = normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino)
-  const quantidadeRealizadaOrigem = normalizarInteiroNaoNegativo(input.quantidadeRealizadaOrigem)
+  const quantidadeProgressoOperacionalOrigem = normalizarInteiroNaoNegativo(
+    input.quantidadeProgressoOperacionalOrigem
+  )
   const quantidadeLiberadaPersistidaOrigem = normalizarInteiroNaoNegativo(
     input.quantidadeLiberadaPersistidaOrigem
   )
@@ -119,25 +128,16 @@ function calcularQuantidadeLiberadaDestino(input: {
     input.quantidadeDisponivelFluxoOrigem
   )
   const saldoLiberadoPersistidoOrigem = Math.max(
-    quantidadeLiberadaPersistidaOrigem - quantidadeRealizadaOrigem,
+    quantidadeLiberadaPersistidaOrigem,
     0
   )
   const quantidadeLiberadaOperacional = input.usarLiberacaoFluxo
     ? Math.max(quantidadeDisponivelFluxoOrigem, saldoLiberadoPersistidoOrigem)
     : saldoLiberadoPersistidoOrigem
 
-  return Math.min(quantidadePlanejadaDestino, quantidadeLiberadaOperacional)
-}
-
-function calcularQuantidadeRealizadaDestino(input: {
-  quantidadePlanejadaDestino: number
-  quantidadeRealizadaOrigem: number
-  quantidadeLiberadaFluxoOrigem: number
-}): number {
   return Math.min(
-    normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino),
-    normalizarInteiroNaoNegativo(input.quantidadeRealizadaOrigem),
-    normalizarInteiroNaoNegativo(input.quantidadeLiberadaFluxoOrigem)
+    Math.max(quantidadePlanejadaDestino - quantidadeProgressoOperacionalOrigem, 0),
+    quantidadeLiberadaOperacional
   )
 }
 
@@ -169,6 +169,7 @@ export function consolidarDemandasCarryOverComOperacoes<
 
     return {
       ...demanda,
+      quantidadeHerdadaSetor: normalizarInteiroNaoNegativo(demanda.quantidadeHerdadaSetor ?? 0),
       quantidadeRealizada: Math.max(
         normalizarInteiroNaoNegativo(demanda.quantidadeRealizada),
         quantidadeRealizadaOperacoes
@@ -179,7 +180,7 @@ export function consolidarDemandasCarryOverComOperacoes<
 
 export function calcularQuantidadePlanejadaRemanescenteCarryOver(input: {
   quantidadePlanejadaOrigem: number
-  demandasOrigem: Array<Pick<DemandaCarryOverOrigem, 'quantidadeRealizada'>>
+  demandasOrigem: Array<Pick<DemandaCarryOverOrigem, 'quantidadeRealizada' | 'quantidadeHerdadaSetor'>>
   quantidadeRealizadaFallback?: number
 }): number {
   const quantidadePlanejadaOrigem = normalizarInteiroNaoNegativo(input.quantidadePlanejadaOrigem)
@@ -194,7 +195,8 @@ export function calcularQuantidadePlanejadaRemanescenteCarryOver(input: {
 
   const quantidadeFinalizada = Math.min(
     ...input.demandasOrigem.map((demanda) =>
-      normalizarInteiroNaoNegativo(demanda.quantidadeRealizada)
+      normalizarInteiroNaoNegativo(demanda.quantidadeRealizada) +
+      normalizarInteiroNaoNegativo(demanda.quantidadeHerdadaSetor ?? 0)
     )
   )
 
@@ -213,20 +215,25 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
     .map((demanda) => {
       const demandaOrigem = demandasOrigemPorId.get(demanda.id)
       const quantidadeRealizadaOrigem = normalizarInteiroNaoNegativo(demanda.quantidadeRealizada)
+      const quantidadeHerdadaOrigem = normalizarInteiroNaoNegativo(
+        demandaOrigem?.quantidadeHerdadaSetor ?? 0
+      )
+      const quantidadeProgressoOperacionalOrigem = calcularProgressoOperacionalSetor(demanda)
       const quantidadeLiberadaPersistidaOrigem = normalizarInteiroNaoNegativo(
         demandaOrigem?.quantidadeLiberadaSetor ?? 0
       )
-      const quantidadeRealizadaDestino = calcularQuantidadeRealizadaDestino({
+      const quantidadeRealizadaDestino = 0
+      const quantidadeHerdadaDestino = Math.min(
         quantidadePlanejadaDestino,
-        quantidadeRealizadaOrigem,
-        quantidadeLiberadaFluxoOrigem: demanda.quantidadeLiberadaSetor,
-      })
+        quantidadeProgressoOperacionalOrigem
+      )
       const quantidadeLiberadaDestino = calcularQuantidadeLiberadaDestino({
         quantidadePlanejadaDestino,
-        quantidadeRealizadaOrigem,
+        quantidadeProgressoOperacionalOrigem,
         quantidadeLiberadaPersistidaOrigem,
         quantidadeDisponivelFluxoOrigem: demanda.quantidadeDisponivelApontamento,
         usarLiberacaoFluxo:
+          quantidadeProgressoOperacionalOrigem > 0 ||
           demanda.setorAnteriorId !== null ||
           demanda.etapaFluxoChave === 'montagem' ||
           demanda.etapaFluxoChave === 'final',
@@ -240,14 +247,16 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
         quantidadePlanejadaDestino,
         quantidadeRealizadaOrigem,
         quantidadeRealizadaDestino,
+        quantidadeHerdadaOrigem,
+        quantidadeHerdadaDestino,
         quantidadeLiberadaDestino,
         quantidadePendenteDestino: Math.max(
-          quantidadePlanejadaDestino - quantidadeRealizadaDestino,
+          quantidadePlanejadaDestino - quantidadeHerdadaDestino,
           0
         ),
         quantidadeLiberadaOrigem: normalizarInteiroNaoNegativo(demanda.quantidadeLiberadaSetor),
         demandaConcluidaDestino:
-          quantidadePlanejadaDestino > 0 && quantidadeRealizadaDestino >= quantidadePlanejadaDestino,
+          quantidadePlanejadaDestino > 0 && quantidadeHerdadaDestino >= quantidadePlanejadaDestino,
       }
     })
 }

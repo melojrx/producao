@@ -79,6 +79,7 @@ interface TurnoSetorDemandaCarryOverFluxoRow {
   turno_op_id: string
   setor_id: string
   quantidade_planejada: number
+  quantidade_herdada_setor: number
   quantidade_realizada: number
   quantidade_liberada_setor: number
   status: TurnoSetorDemandaRow['status']
@@ -106,6 +107,7 @@ interface TurnoSetorOperacaoCarryOverRow {
 interface DemandaCarryOverSaldo {
   turno_op_id: string
   quantidade_planejada: number
+  quantidade_herdada_setor: number
   quantidade_realizada: number
 }
 
@@ -416,12 +418,19 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
 
   const { data: demandas, error: demandasError } = await supabase
     .from('turno_setor_demandas')
-    .select('id, turno_op_id, setor_id, quantidade_planejada, quantidade_realizada')
+    .select(
+      'id, turno_op_id, setor_id, quantidade_planejada, quantidade_herdada_setor, quantidade_realizada'
+    )
     .eq('turno_id', turnoId)
     .returns<
       Pick<
         TurnoSetorDemandaRow,
-        'id' | 'turno_op_id' | 'setor_id' | 'quantidade_planejada' | 'quantidade_realizada'
+        | 'id'
+        | 'turno_op_id'
+        | 'setor_id'
+        | 'quantidade_planejada'
+        | 'quantidade_herdada_setor'
+        | 'quantidade_realizada'
       >[]
     >()
 
@@ -449,6 +458,7 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
       turnoOpId: demanda.turno_op_id,
       setorId: demanda.setor_id,
       quantidadePlanejada: demanda.quantidade_planejada,
+      quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
       quantidadeRealizada: demanda.quantidade_realizada,
     })),
     (operacoes ?? []).map((operacao) => ({
@@ -465,6 +475,7 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
     demandasTurnoOp.push({
       turno_op_id: demanda.turnoOpId,
       quantidade_planejada: demanda.quantidadePlanejada,
+      quantidade_herdada_setor: demanda.quantidadeHerdadaSetor ?? 0,
       quantidade_realizada: demanda.quantidadeRealizada,
     })
     demandasPorTurnoOpId.set(demanda.turnoOpId, demandasTurnoOp)
@@ -477,6 +488,15 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
         demandasTurnoOp.length > 0
           ? Math.min(...demandasTurnoOp.map((demanda) => demanda.quantidade_realizada))
           : op.quantidade_realizada
+      const quantidadeProgressoOperacionalConsolidada =
+        demandasTurnoOp.length > 0
+          ? Math.min(
+              ...demandasTurnoOp.map(
+                (demanda) =>
+                  demanda.quantidade_herdada_setor + demanda.quantidade_realizada
+              )
+            )
+          : op.quantidade_realizada
 
       const quantidadeRealizada = Math.max(
         0,
@@ -485,9 +505,10 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
       const quantidadePlanejadaRemanescente = calcularQuantidadePlanejadaRemanescenteCarryOver({
         quantidadePlanejadaOrigem: op.quantidade_planejada,
         demandasOrigem: demandasTurnoOp.map((demanda) => ({
+          quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
           quantidadeRealizada: demanda.quantidade_realizada,
         })),
-        quantidadeRealizadaFallback: quantidadeRealizada,
+        quantidadeRealizadaFallback: quantidadeProgressoOperacionalConsolidada,
       })
 
       return {
@@ -702,6 +723,7 @@ async function hidratarProgressoCarryOverDaOp(
         turno_op_id,
         setor_id,
         quantidade_planejada,
+        quantidade_herdada_setor,
         quantidade_realizada,
         quantidade_liberada_setor,
         status,
@@ -754,6 +776,7 @@ async function hidratarProgressoCarryOverDaOp(
         setorCodigo: setor.codigo,
         setorNome: setor.nome,
         quantidadePlanejada: demanda.quantidade_planejada,
+        quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
         quantidadeRealizada: demanda.quantidade_realizada,
         quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
         status: demanda.status as TurnoSetorDemandaStatusV2,
@@ -771,6 +794,7 @@ async function hidratarProgressoCarryOverDaOp(
         setorCodigo: number
         setorNome: string
         quantidadePlanejada: number
+        quantidadeHerdadaSetor: number
         quantidadeRealizada: number
         quantidadeLiberadaSetor: number
         status: TurnoSetorDemandaStatusV2
@@ -796,7 +820,10 @@ async function hidratarProgressoCarryOverDaOp(
   )
 
   const setoresComCarryOver = [...snapshotsCarryOverPorSetorId.entries()].filter(
-    ([, snapshot]) => snapshot.quantidadeLiberadaDestino > 0 || snapshot.demandaConcluidaDestino
+    ([, snapshot]) =>
+      snapshot.quantidadeHerdadaDestino > 0 ||
+      snapshot.quantidadeLiberadaDestino > 0 ||
+      snapshot.demandaConcluidaDestino
   )
 
   if (setoresComCarryOver.length === 0) {
@@ -805,6 +832,7 @@ async function hidratarProgressoCarryOverDaOp(
 
   for (const [setorId, snapshot] of setoresComCarryOver) {
     const payload: TurnoSetorDemandaUpdate = {
+      quantidade_herdada_setor: snapshot.quantidadeHerdadaDestino,
       quantidade_liberada_setor: snapshot.quantidadeLiberadaDestino,
     }
 

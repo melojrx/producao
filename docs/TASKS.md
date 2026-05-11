@@ -4941,6 +4941,52 @@ Escopo futuro previsto:
 
   **Evidência parcial:** homologação real do turno `4f78ad77-d333-41dc-8df1-b6b96ebdeb64` revelou que a primeira correção ainda reabria o mesmo setor já produzido quando `quantidade_realizada` da origem era positiva. O teste `não reabre no mesmo setor a quantidade já produzida no turno anterior` foi adicionado em `lib/utils/carry-over-turno.test.ts`, falhou antes da correção com `Preparação.quantidadeLiberadaDestino = 792` e passou após ajustar `calcularQuantidadeLiberadaDestino()` para usar disponibilidade de fluxo já abatida do realizado. O teste `preserva liberação herdada para sucessores sem reabrir etapa concluída no carry-over` foi adicionado em `lib/utils/fluxo-paralelo-turno.test.ts`, falhou antes da correção porque a leitura descartava a liberação persistida de Frente/Costa e reabria Preparação, e passou após o fluxo paralelo considerar `quantidadeLiberadaSetor` persistida como carry-over válido e tratar etapa herdada `concluida` como não executável. `hidratarProgressoCarryOverDaOp()` passou a marcar a demanda destino como `concluida` quando o setor já estava completo na origem, sem gravar produção herdada em `quantidade_realizada`. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 36/36; `npx tsc --noEmit` e `git diff --check` passaram sem erros. Com aprovação explícita do usuário, aplicado patch de dados no turno aberto para a OP `13089`, demanda `a38ac71b-0f79-4ff3-8df9-5ec2003f1639`: `Preparação.quantidade_liberada_setor` foi de `792` para `0` e `status` de `aberta` para `concluida`; consulta read-only posterior confirmou `Frente = 792`, `Costa = 792`, `Montagem = 0`, `Finalização = 0`, `Qualidade = 0`, todos com `quantidade_realizada = 0` no turno novo. A HU permanece aberta até validar novo ciclo real após deploy.
 
+- [x] **HU 49.7 — Como produto, quero separar explicitamente progresso herdado, produção do turno e liberação executável, para que o carry-over preserve a continuidade real sem contaminar os KPIs do turno novo.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Contexto:
+  - antes da Sprint 42, o sistema parecia correto porque copiava progresso anterior para `quantidade_realizada` no turno novo; isso preservava a leitura visual, mas fazia o turno novo nascer com produção que não aconteceu nele
+  - a Sprint 42 separou a liberação operacional em `quantidade_liberada_setor`, corrigindo parte do problema, mas deixou sem representação explícita o progresso já produzido em turnos anteriores
+  - a regressão atual aparece quando o turno novo precisa saber que uma OP já passou parcialmente por Preparação, Frente, Costa, Montagem ou Finalização, mas não pode registrar esse histórico como produção do turno recém-aberto
+
+  Decisão de domínio:
+  - `quantidade_realizada` representa somente produção executada no turno atual
+  - `quantidade_herdada_setor` representa progresso acumulado de turnos anteriores naquele setor
+  - `quantidade_liberada_setor` representa somente o saldo executável agora naquele setor
+  - progresso operacional do setor = `quantidade_herdada_setor + quantidade_realizada`
+  - saldo executável do próprio setor = `MAX(quantidade_planejada - progresso_operacional_setor, 0)` quando o setor tem liberação/aceite operacional
+  - liberação de sucessores usa progresso operacional acumulado das predecessoras, não apenas a produção do turno atual
+  - no fluxo paralelo `Frente + Costa -> Montagem`, a liberação de Montagem deve usar `MIN(progresso_frente, progresso_costa) - progresso_montagem`
+  - KPIs de turno, eficiência e "concluído no turno" continuam usando apenas `quantidade_realizada`
+
+  Tarefas:
+  - adicionar o campo `turno_setor_demandas.quantidade_herdada_setor` com default `0`
+  - atualizar contratos TypeScript, queries e scanner para carregar `quantidade_herdada_setor`
+  - ajustar `normalizarDemandasCarryOverEntreTurnos()` para gravar progresso herdado no destino e manter `quantidade_realizada = 0`
+  - ajustar o fluxo paralelo para calcular liberação por progresso operacional acumulado
+  - ajustar a hidratação de capacidade para calcular backlog operacional por progresso herdado + realizado, sem alterar produção do turno
+  - cobrir por testes o snapshot real da OP `13089` no turno `4f78ad77-d333-41dc-8df1-b6b96ebdeb64`
+
+  Regras:
+  - não voltar a copiar produção herdada para `quantidade_realizada`
+  - não apagar apontamentos já feitos no turno atual
+  - não usar `quantidade_liberada_setor` como histórico produzido
+  - não bloquear exceções reais do supervisor; se Finalização tiver progresso maior que Montagem, o sistema deve preservar o fato e deixar a inconsistência visível em vez de zerar o histórico
+  - a migration deve ser aditiva e compatível com dados existentes
+
+  Critérios de aceite:
+  - no próximo turno, OP `13089` deve nascer com `quantidade_realizada = 0` em todos os setores
+  - Preparação, Frente, Costa, Montagem e Finalização devem carregar seu progresso anterior em `quantidade_herdada_setor`
+  - Qualidade deve receber liberação executável a partir do progresso operacional acumulado de Finalização quando houver revisão pendente
+  - OP `207675`, que está zerada no turno atual, deve continuar zerada no carry-over
+  - testes focados de carry-over, fluxo paralelo e hidratação de capacidade devem passar
+  - `npx tsc --noEmit` deve passar sem erros
+
+  **Evidência esperada:** documentação da HU 49.7 registrada em `docs/TASKS.md` e `docs/BACKLOG.md`; migration aditiva criada; código passa a separar `quantidade_herdada_setor`, `quantidade_realizada` e `quantidade_liberada_setor`; testes automatizados provam que o fechamento e a abertura do turno preservam progresso herdado sem reiniciar OP nem inflar produção do turno novo.
+
+  **Evidência:** HU 49.7 documentada em `docs/TASKS.md` e `docs/BACKLOG.md` em `2026-05-11`, formalizando o contrato de domínio: `quantidade_herdada_setor` guarda progresso acumulado de turnos anteriores, `quantidade_realizada` guarda somente produção do turno atual e `quantidade_liberada_setor` guarda saldo executável imediato. Criado o script aditivo `scripts/sprint49_quantidade_herdada_setor.sql` e aplicada a migration via Supabase Management API no projeto `jsuufbgdcqxogimmocof`; validação read-only confirmou `quantidade_herdada_setor integer NOT NULL DEFAULT 0`. `normalizarDemandasCarryOverEntreTurnos()` passou a gerar `quantidadeHerdadaDestino` e manter `quantidadeRealizadaDestino = 0`; `hidratarProgressoCarryOverDaOp()` passou a persistir `quantidade_herdada_setor` no destino; fluxo sequencial/paralelo e hidratação de capacidade passaram a calcular backlog/liberação por progresso operacional acumulado sem contaminar KPIs do turno. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo sequencial, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 42/42; `npx tsc --noEmit` e `git diff --check` passaram sem erros. A HU 49.6 permanece aberta para homologação real após deploy, fechamento e abertura de novo turno.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

@@ -10,6 +10,7 @@ import type {
 } from '@/types'
 import { criarPosicaoFilaSetor, resolverPosicaoAtualFluxoOpLote } from './capacidade-setor.ts'
 import {
+  calcularProgressoOperacionalSetor,
   criarSnapshotParcelamentoDemandaTurno,
   enriquecerDemandasComFluxoSequencial,
 } from './fluxo-sequencial-turno.ts'
@@ -124,20 +125,27 @@ function obterQuantidadeLiberadaPersistida(
   return 0
 }
 
+function calcularQuantidadeLiberadaTotalComPersistida(
+  demanda: DemandaFluxoSequencialBase
+): number {
+  return Math.min(
+    normalizarInteiroNaoNegativo(demanda.quantidadePlanejada),
+    calcularProgressoOperacionalSetor(demanda) + obterQuantidadeLiberadaPersistida(demanda)
+  )
+}
+
 function calcularLiberacaoEtapaSemPredecessora(
   demanda: DemandaFluxoSequencialBase
 ): number {
-  const quantidadeLiberadaPersistida = obterQuantidadeLiberadaPersistida(demanda)
+  const progressoOperacional = calcularProgressoOperacionalSetor(demanda)
+  const quantidadeLiberadaTotalPersistida = calcularQuantidadeLiberadaTotalComPersistida(demanda)
 
   if (demanda.status === 'concluida') {
-    return Math.max(
-      normalizarInteiroNaoNegativo(demanda.quantidadeRealizada),
-      quantidadeLiberadaPersistida
-    )
+    return Math.max(progressoOperacional, quantidadeLiberadaTotalPersistida)
   }
 
-  if (quantidadeLiberadaPersistida > 0) {
-    return quantidadeLiberadaPersistida
+  if (quantidadeLiberadaTotalPersistida > progressoOperacional) {
+    return quantidadeLiberadaTotalPersistida
   }
 
   return demanda.quantidadePlanejada
@@ -149,7 +157,7 @@ function calcularLiberacaoEtapaComCarryOver(
 ): number {
   return Math.max(
     normalizarInteiroNaoNegativo(quantidadeLiberadaFluxo),
-    obterQuantidadeLiberadaPersistida(demanda)
+    calcularQuantidadeLiberadaTotalComPersistida(demanda)
   )
 }
 
@@ -218,19 +226,19 @@ function criarDiagnosticoFluxoSemFila(input: {
 }): DiagnosticoFluxoBaseSemFilaV2 {
   const quantidadePendenteSetor = calcularQuantidadePendente(
     input.demanda.quantidadePlanejada,
-    input.demanda.quantidadeRealizada
+    calcularProgressoOperacionalSetor(input.demanda)
   )
   const quantidadeLiberadaSetor = Math.min(
     normalizarInteiroNaoNegativo(input.demanda.quantidadePlanejada),
     normalizarInteiroNaoNegativo(input.quantidadeLiberadaSetor)
   )
   const quantidadeDisponivelApontamento = Math.max(
-    quantidadeLiberadaSetor - normalizarInteiroNaoNegativo(input.demanda.quantidadeRealizada),
+    quantidadeLiberadaSetor - calcularProgressoOperacionalSetor(input.demanda),
     0
   )
   const snapshotParcelamento = criarSnapshotParcelamentoDemandaTurno({
     quantidadePlanejada: input.demanda.quantidadePlanejada,
-    quantidadeRealizadaAtual: input.demanda.quantidadeRealizada,
+    quantidadeRealizadaAtual: calcularProgressoOperacionalSetor(input.demanda),
     quantidadeDisponivelApontamento,
   })
 
@@ -522,23 +530,23 @@ export function enriquecerDemandasComFluxoParalelo<
     const liberacaoPreparacao = criarLiberacaoEtapa({
       quantidadePlanejada: etapasCanonicas.preparacao.quantidadePlanejada,
       quantidadeLiberada: calcularLiberacaoEtapaSemPredecessora(etapasCanonicas.preparacao),
-      quantidadeRealizada: etapasCanonicas.preparacao.quantidadeRealizada,
+      quantidadeRealizada: calcularProgressoOperacionalSetor(etapasCanonicas.preparacao),
     })
     const liberacaoFrente = criarLiberacaoEtapa({
       quantidadePlanejada: etapasCanonicas.frente.quantidadePlanejada,
       quantidadeLiberada: calcularLiberacaoEtapaComCarryOver(
-        etapasCanonicas.preparacao.quantidadeRealizada,
+        calcularProgressoOperacionalSetor(etapasCanonicas.preparacao),
         etapasCanonicas.frente
       ),
-      quantidadeRealizada: etapasCanonicas.frente.quantidadeRealizada,
+      quantidadeRealizada: calcularProgressoOperacionalSetor(etapasCanonicas.frente),
     })
     const liberacaoCosta = criarLiberacaoEtapa({
       quantidadePlanejada: etapasCanonicas.costa.quantidadePlanejada,
       quantidadeLiberada: calcularLiberacaoEtapaComCarryOver(
-        etapasCanonicas.preparacao.quantidadeRealizada,
+        calcularProgressoOperacionalSetor(etapasCanonicas.preparacao),
         etapasCanonicas.costa
       ),
-      quantidadeRealizada: etapasCanonicas.costa.quantidadeRealizada,
+      quantidadeRealizada: calcularProgressoOperacionalSetor(etapasCanonicas.costa),
     })
 
     diagnosticosPorDemandaId.set(
@@ -575,9 +583,11 @@ export function enriquecerDemandasComFluxoParalelo<
     if (etapasCanonicas.montagem) {
       const sincronizacaoMontagem = calcularSincronizacaoParcialMontagem({
         quantidadePlanejada: etapasCanonicas.montagem.quantidadePlanejada,
-        quantidadeConcluidaFrente: etapasCanonicas.frente.quantidadeRealizada,
-        quantidadeConcluidaCosta: etapasCanonicas.costa.quantidadeRealizada,
-        quantidadeRealizadaMontagem: etapasCanonicas.montagem.quantidadeRealizada,
+        quantidadeConcluidaFrente: calcularProgressoOperacionalSetor(etapasCanonicas.frente),
+        quantidadeConcluidaCosta: calcularProgressoOperacionalSetor(etapasCanonicas.costa),
+        quantidadeRealizadaMontagem: calcularProgressoOperacionalSetor(
+          etapasCanonicas.montagem
+        ),
       })
       const quantidadeLiberadaMontagem = calcularLiberacaoEtapaComCarryOver(
         sincronizacaoMontagem.quantidadeSincronizadaMontagem,
@@ -601,10 +611,10 @@ export function enriquecerDemandasComFluxoParalelo<
         const liberacaoFinal = criarLiberacaoEtapa({
           quantidadePlanejada: etapasCanonicas.final.quantidadePlanejada,
           quantidadeLiberada: calcularLiberacaoEtapaComCarryOver(
-            etapasCanonicas.montagem.quantidadeRealizada,
+            calcularProgressoOperacionalSetor(etapasCanonicas.montagem),
             etapasCanonicas.final
           ),
-          quantidadeRealizada: etapasCanonicas.final.quantidadeRealizada,
+          quantidadeRealizada: calcularProgressoOperacionalSetor(etapasCanonicas.final),
         })
 
         diagnosticosPorDemandaId.set(
@@ -647,13 +657,13 @@ export function enriquecerDemandasComFluxoParalelo<
       diagnostico?.quantidadeDisponivelApontamento ?? 0
     const snapshotParcelamento = criarSnapshotParcelamentoDemandaTurno({
       quantidadePlanejada: demanda.quantidadePlanejada,
-      quantidadeRealizadaAtual: demanda.quantidadeRealizada,
+      quantidadeRealizadaAtual: calcularProgressoOperacionalSetor(demanda),
       quantidadeDisponivelApontamento,
     })
     const posicaoFila = demanda.encerradoEm ? null : (posicoesPorDemandaId.get(demanda.id) ?? null)
     const fila = criarPosicaoFilaSetor({
       quantidadePlanejada: demanda.quantidadePlanejada,
-      quantidadeConcluida: demanda.quantidadeRealizada,
+      quantidadeConcluida: calcularProgressoOperacionalSetor(demanda),
       quantidadeDisponivelApontamento,
       posicaoFila,
       iniciadoEm: demanda.iniciadoEm,

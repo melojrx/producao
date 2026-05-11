@@ -469,6 +469,90 @@ test('preserva liberação herdada para sucessores sem reabrir etapa concluída 
   )
 })
 
+test('usa progresso herdado para liberar sucessores sem contar como produção do turno', () => {
+  const demandas = enriquecerDemandasComFluxoParalelo([
+    {
+      id: 'prep-herdada',
+      turnoOpId: 'op-herdada',
+      setorId: 'setor-preparacao',
+      setorCodigo: 10,
+      setorNome: 'Preparação',
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      quantidadeHerdadaSetor: 80,
+      quantidadeLiberadaSetor: 20,
+      status: 'em_andamento',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'frente-herdada',
+      turnoOpId: 'op-herdada',
+      setorId: 'setor-frente',
+      setorCodigo: 20,
+      setorNome: 'Frente',
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      quantidadeHerdadaSetor: 80,
+      quantidadeLiberadaSetor: 20,
+      status: 'em_andamento',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'costa-herdada',
+      turnoOpId: 'op-herdada',
+      setorId: 'setor-costa',
+      setorCodigo: 30,
+      setorNome: 'Costa',
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      quantidadeHerdadaSetor: 60,
+      quantidadeLiberadaSetor: 40,
+      status: 'em_andamento',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'montagem-herdada',
+      turnoOpId: 'op-herdada',
+      setorId: 'setor-montagem',
+      setorCodigo: 40,
+      setorNome: 'Montagem',
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      quantidadeHerdadaSetor: 25,
+      quantidadeLiberadaSetor: 0,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+    {
+      id: 'final-herdada',
+      turnoOpId: 'op-herdada',
+      setorId: 'setor-final',
+      setorCodigo: 50,
+      setorNome: 'Finalização',
+      quantidadePlanejada: 100,
+      quantidadeRealizada: 0,
+      quantidadeHerdadaSetor: 0,
+      quantidadeLiberadaSetor: 0,
+      status: 'aberta',
+      iniciadoEm: null,
+      encerradoEm: null,
+    },
+  ])
+
+  const montagem = demandas.find((demanda) => demanda.id === 'montagem-herdada')
+  const final = demandas.find((demanda) => demanda.id === 'final-herdada')
+
+  assert.equal(montagem?.quantidadeLiberadaSetor, 60)
+  assert.equal(montagem?.quantidadeDisponivelApontamento, 35)
+  assert.equal(montagem?.quantidadeRealizada, 0)
+  assert.equal(final?.quantidadeLiberadaSetor, 25)
+  assert.equal(final?.quantidadeDisponivelApontamento, 25)
+})
+
 test('resume a OP com múltiplas posições ativas e mantém um resumo compatível para a UI atual', () => {
   const resumo = resolverResumoFluxoOpParalelo([
     {

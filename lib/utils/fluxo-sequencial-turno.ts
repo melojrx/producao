@@ -13,6 +13,7 @@ export interface DemandaFluxoSequencialBase {
   setorNome: string
   quantidadePlanejada: number
   quantidadeRealizada: number
+  quantidadeHerdadaSetor?: number
   status: TurnoSetorDemandaStatusV2
   iniciadoEm: string | null
   encerradoEm: string | null
@@ -39,6 +40,19 @@ function normalizarInteiroNaoNegativo(valor: number): number {
   }
 
   return Math.floor(valor)
+}
+
+export function calcularProgressoOperacionalSetor(
+  demanda: Pick<
+    DemandaFluxoSequencialBase,
+    'quantidadePlanejada' | 'quantidadeRealizada' | 'quantidadeHerdadaSetor'
+  >
+): number {
+  return Math.min(
+    normalizarInteiroNaoNegativo(demanda.quantidadePlanejada),
+    normalizarInteiroNaoNegativo(demanda.quantidadeRealizada) +
+      normalizarInteiroNaoNegativo(demanda.quantidadeHerdadaSetor ?? 0)
+  )
 }
 
 function compararDemandasPorFluxo(
@@ -124,24 +138,27 @@ export function enriquecerDemandasComFluxoSequencial<T extends DemandaFluxoSeque
 
     demandasOrdenadas.forEach((demandaAtual, indiceAtual) => {
       const demandaAnterior = indiceAtual > 0 ? demandasOrdenadas[indiceAtual - 1] : null
+      const progressoOperacionalAtual = calcularProgressoOperacionalSetor(demandaAtual)
+      const progressoOperacionalAnterior = demandaAnterior
+        ? calcularProgressoOperacionalSetor(demandaAnterior)
+        : null
       const quantidadePendenteSetor = Math.max(
         normalizarInteiroNaoNegativo(demandaAtual.quantidadePlanejada) -
-          normalizarInteiroNaoNegativo(demandaAtual.quantidadeRealizada),
+          progressoOperacionalAtual,
         0
       )
       const quantidadeLiberadaSetor = calcularQuantidadeLiberadaSetor(
         demandaAtual.quantidadePlanejada,
-        demandaAnterior?.quantidadeRealizada ?? null
+        progressoOperacionalAnterior
       )
-      const quantidadeDisponivelApontamento = calcularQuantidadeDisponivelApontamento(
-        demandaAtual.quantidadePlanejada,
-        demandaAtual.quantidadeRealizada,
-        demandaAnterior?.quantidadeRealizada ?? null
+      const quantidadeDisponivelApontamento = Math.max(
+        quantidadeLiberadaSetor - progressoOperacionalAtual,
+        0
       )
 
       const snapshotParcelamento = criarSnapshotParcelamentoDemandaTurno({
         quantidadePlanejada: demandaAtual.quantidadePlanejada,
-        quantidadeRealizadaAtual: demandaAtual.quantidadeRealizada,
+        quantidadeRealizadaAtual: progressoOperacionalAtual,
         quantidadeDisponivelApontamento,
       })
 
@@ -186,15 +203,16 @@ export function enriquecerDemandasComFluxoSequencial<T extends DemandaFluxoSeque
     const diagnostico = diagnosticosPorDemandaId.get(demanda.id)
     const quantidadePendenteSetor = diagnostico?.quantidadePendenteSetor ?? 0
     const quantidadeDisponivelApontamento = diagnostico?.quantidadeDisponivelApontamento ?? 0
+    const progressoOperacionalAtual = calcularProgressoOperacionalSetor(demanda)
     const snapshotParcelamento = criarSnapshotParcelamentoDemandaTurno({
       quantidadePlanejada: demanda.quantidadePlanejada,
-      quantidadeRealizadaAtual: demanda.quantidadeRealizada,
+      quantidadeRealizadaAtual: progressoOperacionalAtual,
       quantidadeDisponivelApontamento,
     })
     const posicaoFila = demanda.encerradoEm ? null : (posicoesPorDemandaId.get(demanda.id) ?? null)
     const fila = criarPosicaoFilaSetor({
       quantidadePlanejada: demanda.quantidadePlanejada,
-      quantidadeConcluida: demanda.quantidadeRealizada,
+      quantidadeConcluida: progressoOperacionalAtual,
       quantidadeDisponivelApontamento,
       posicaoFila,
       iniciadoEm: demanda.iniciadoEm,

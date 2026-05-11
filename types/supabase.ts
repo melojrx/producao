@@ -284,6 +284,7 @@ export type Database = {
           id: string
           iniciado_em: string | null
           produto_id: string
+          quantidade_herdada_setor: number
           quantidade_liberada_setor: number
           quantidade_planejada: number
           quantidade_realizada: number
@@ -301,6 +302,7 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           produto_id: string
+          quantidade_herdada_setor?: number
           quantidade_liberada_setor?: number
           quantidade_planejada: number
           quantidade_realizada?: number
@@ -318,6 +320,7 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           produto_id?: string
+          quantidade_herdada_setor?: number
           quantidade_liberada_setor?: number
           quantidade_planejada?: number
           quantidade_realizada?: number

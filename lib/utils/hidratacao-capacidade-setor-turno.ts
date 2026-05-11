@@ -53,6 +53,17 @@ function calcularQuantidadeConcluidaDemanda(demanda: TurnoSetorDemandaV2): numbe
   return normalizarNumeroPositivo(demanda.quantidadeConcluida ?? demanda.quantidadeRealizada)
 }
 
+function calcularQuantidadeHerdadaDemanda(demanda: TurnoSetorDemandaV2): number {
+  return normalizarNumeroPositivo(demanda.quantidadeHerdadaSetor ?? 0)
+}
+
+function calcularProgressoOperacionalDemanda(demanda: TurnoSetorDemandaV2): number {
+  return Math.min(
+    normalizarNumeroPositivo(demanda.quantidadePlanejada),
+    calcularQuantidadeHerdadaDemanda(demanda) + normalizarNumeroPositivo(demanda.quantidadeRealizada)
+  )
+}
+
 function calcularQuantidadeConcluidaDemandaNoTurnoAtual(
   demanda: TurnoSetorDemandaV2,
   operacoesSecao: TurnoSetorOperacaoApontamentoV2[],
@@ -159,7 +170,7 @@ function calcularBacklogDemanda(demanda: TurnoSetorDemandaV2): number {
   return (
     demanda.quantidadeBacklogSetor ??
     demanda.quantidadePendenteSetor ??
-    Math.max(demanda.quantidadePlanejada - demanda.quantidadeConcluida, 0)
+    Math.max(demanda.quantidadePlanejada - calcularProgressoOperacionalDemanda(demanda), 0)
   )
 }
 
@@ -237,6 +248,7 @@ function calcularQuantidadeEntradaAcumuladaSetor(input: {
   demanda: TurnoSetorDemandaV2
   quantidadeConcluidaDemandaNoTurnoAtual: number
 }): number {
+  const quantidadeHerdadaSetor = calcularQuantidadeHerdadaDemanda(input.demanda)
   const quantidadeLiberadaSetor = normalizarNumeroPositivo(
     input.demanda.quantidadeLiberadaSetor ?? 0
   )
@@ -247,6 +259,7 @@ function calcularQuantidadeEntradaAcumuladaSetor(input: {
 
   return (
     calcularDisponibilidadeExecucaoDemanda(input.demanda) +
+    quantidadeHerdadaSetor +
     normalizarNumeroPositivo(input.quantidadeConcluidaDemandaNoTurnoAtual)
   )
 }
@@ -414,7 +427,9 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
         quantidadeEntradaAcumuladaSetor:
           demanda.quantidadeEntradaAcumuladaSetor ??
           demanda.quantidadeLiberadaSetor ??
-          calcularElegivelFluxoDemanda(demanda) + calcularQuantidadeConcluidaDemanda(demanda),
+          calcularElegivelFluxoDemanda(demanda) +
+            calcularQuantidadeHerdadaDemanda(demanda) +
+            calcularQuantidadeConcluidaDemanda(demanda),
         quantidadeAceitaAcumuladaSetor: calcularQuantidadeConcluidaDemanda(demanda),
         quantidadeDisponivelApontamento: 0,
         saldoManualPermitido: 0,

@@ -665,12 +665,16 @@
 
 ## SPRINT 49 — Correção do carry-over setorial repetido entre turnos
 **Objetivo:** corrigir a regressão em que OPs carregadas por carry-over voltam para o estado inicial ao abrir um novo turno, preservando continuidade setorial, liberação herdada e saldo pendente real sem contaminar `quantidade_realizada` do turno novo.
-**Entregável:** testes de regressão para carry-over repetido, correção da hidratação de `quantidade_liberada_setor`, cálculo confiável do saldo remanescente no fechamento, plano seguro de reconciliação dos dados atuais e homologação ponta a ponta.
+**Entregável:** testes de regressão para carry-over repetido, correção da hidratação de `quantidade_liberada_setor`, contrato explícito de `quantidade_herdada_setor`, cálculo confiável do saldo remanescente no fechamento, plano seguro de reconciliação dos dados atuais e homologação ponta a ponta.
 **Status:** 🔄 Aberta
 
 - Reproduzir em teste o caso `quantidade_liberada_setor > 0` com `quantidade_realizada = 0` no turno intermediário
 - Corrigir `hidratarProgressoCarryOverDaOp()` para carregar e propagar `quantidade_liberada_setor`
 - Ajustar `normalizarDemandasCarryOverEntreTurnos()` para preservar liberação herdada sem gravar produção herdada como realizada
+- Adicionar `quantidade_herdada_setor` como contrato explícito para progresso acumulado de turnos anteriores
+- Manter `quantidade_realizada` exclusiva para produção feita no turno atual
+- Calcular liberação de sucessores pelo progresso operacional acumulado (`quantidade_herdada_setor + quantidade_realizada`)
+- Calcular KPIs de turno, eficiência e produção do dia somente por `quantidade_realizada`
 - Revisar o cálculo de saldo remanescente no fechamento para não depender de demanda setorial defasada quando houver produção atômica
 - Reconciliar os dados do turno atual somente com consulta read-only, plano por OP/setor e aprovação explícita antes de qualquer SQL remoto
 - Homologar o ciclo turno A -> turno B -> turno C sem reinício artificial de OPs em andamento
@@ -680,6 +684,10 @@
 **Implementação parcial em `2026-05-11`:** HUs 49.2, 49.3, 49.4 e 49.5 concluídas. O teste de regressão cobre carry-over repetido com liberação herdada sem apontamento novo, a abertura do turno passa a persistir `quantidade_liberada_setor` no destino sem contaminar `quantidade_realizada`, e o saldo remanescente passa a consolidar a camada atômica `turno_setor_operacoes` quando `turno_setor_demandas` estiver defasada. A reconciliação read-only do turno real impactado concluiu que não há patch SQL direto recomendado para o turno atual: a OP `13089` já recebeu apontamentos no turno novo e a OP `207675` não tinha liberação herdada positiva a restaurar. Pendente: homologação ponta a ponta antes de fechar a sprint.
 
 **Correção complementar em `2026-05-11`:** a homologação real do ciclo posterior revelou que a primeira correção preservava liberação, mas ainda reabria o mesmo setor já produzido quando a origem tinha `quantidade_realizada > 0`. A regra foi refinada: `quantidade_liberada_setor` do destino é saldo executável do próprio setor, não produção já feita; a produção concluída libera apenas os setores sucessores. O teste de carry-over foi ampliado para impedir que Preparação/Frente/Costa já concluídas voltem como disponíveis no mesmo setor, preservando Montagem quando a sincronização real permitir. A leitura do fluxo paralelo também foi corrigida para respeitar `quantidadeLiberadaSetor` persistida no carry-over e não recalcular a liberação apenas por `quantidade_realizada` do turno novo. Com aprovação explícita, o turno aberto `4f78ad77-d333-41dc-8df1-b6b96ebdeb64` recebeu patch mínimo na OP `13089`: Preparação foi marcada como `concluida` e sua liberação executável foi zerada, mantendo Frente e Costa liberadas com `792`.
+
+**Abertura da HU 49.7 em `2026-05-11`:** a análise do ciclo real mostrou que o modelo ainda estava incompleto. A solução correta é separar três conceitos: `quantidade_herdada_setor` para progresso acumulado anterior, `quantidade_realizada` para produção do turno atual e `quantidade_liberada_setor` para saldo executável agora. Com isso, a abertura do novo turno preserva o estado real da OP sem fazer os KPIs nascerem inflados e sem perder a liberação de sucessores como Montagem, Finalização e Qualidade.
+
+**Implementação da HU 49.7 em `2026-05-11`:** adicionada a coluna `turno_setor_demandas.quantidade_herdada_setor` por migration aditiva aplicada no Supabase de produção, com default `0`. O carry-over agora grava o progresso acumulado no campo herdado e mantém `quantidade_realizada = 0` no turno novo. Fluxo sequencial, fluxo paralelo, scanner, queries de turno e hidratação de capacidade passaram a considerar `quantidade_herdada_setor + quantidade_realizada` para continuidade operacional, preservando KPIs do turno pela produção atual. Validação local: suíte operacional focada passou 42/42, `npx tsc --noEmit` e `git diff --check` sem erros. Pendente: homologação real da HU 49.6 fechando e abrindo um novo turno após deploy.
 
 ---
 
