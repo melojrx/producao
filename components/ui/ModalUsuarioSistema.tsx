@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { ShieldCheck, X } from 'lucide-react'
 import { criarUsuarioSistema, editarUsuarioSistema } from '@/lib/actions/usuarios-sistema'
 import type { FormActionState, UsuarioSistemaListItem } from '@/types'
 
@@ -122,6 +122,29 @@ export function ModalUsuarioSistema({ usuario, aoFechar }: ModalUsuarioSistemaPr
                 : 'A senha inicial deve ter pelo menos 6 caracteres.'}
             </p>
           </div>
+
+          <label
+            htmlFor="pode_revisar_qualidade"
+            className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+          >
+            <input
+              id="pode_revisar_qualidade"
+              name="pode_revisar_qualidade"
+              type="checkbox"
+              value="true"
+              defaultChecked={usuario?.pode_revisar_qualidade === true}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="flex-1">
+              <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                <ShieldCheck size={16} className="text-blue-600" />
+                Pode registrar revisões de qualidade
+              </span>
+              <span className="mt-1 block text-xs text-gray-500">
+                Libera apontamentos no setor Qualidade pelo scanner e pela tela administrativa.
+              </span>
+            </span>
+          </label>
 
           {modoEdicao ? (
             <>

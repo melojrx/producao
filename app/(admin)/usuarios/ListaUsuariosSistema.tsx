@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Pencil, Plus, Search, UserMinus } from 'lucide-react'
+import { Pencil, Plus, Search, ShieldCheck, UserMinus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ModalUsuarioSistema } from '@/components/ui/ModalUsuarioSistema'
 import { inativarUsuarioSistema } from '@/lib/actions/usuarios-sistema'
@@ -23,7 +23,8 @@ export function ListaUsuariosSistema({ usuariosIniciais }: ListaUsuariosSistemaP
     return (
       usuario.nome.toLowerCase().includes(termo) ||
       usuario.email.toLowerCase().includes(termo) ||
-      usuario.papel.toLowerCase().includes(termo)
+      usuario.papel.toLowerCase().includes(termo) ||
+      (usuario.pode_revisar_qualidade && 'qualidade'.includes(termo))
     )
   })
 
@@ -72,7 +73,7 @@ export function ListaUsuariosSistema({ usuariosIniciais }: ListaUsuariosSistemaP
             type="search"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar por nome, email ou papel..."
+            placeholder="Buscar por nome, email, papel ou qualidade..."
             aria-label="Buscar usuários do sistema"
             className="w-full rounded-lg border border-gray-300 py-2 pr-3 pl-9 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -97,6 +98,7 @@ export function ListaUsuariosSistema({ usuariosIniciais }: ListaUsuariosSistemaP
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Nome</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Papel</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Qualidade</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-600">Ações</th>
               </tr>
@@ -104,7 +106,7 @@ export function ListaUsuariosSistema({ usuariosIniciais }: ListaUsuariosSistemaP
             <tbody>
               {usuariosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-400">
+                  <td colSpan={6} className="py-12 text-center text-gray-400">
                     Nenhum usuário encontrado
                   </td>
                 </tr>
@@ -114,6 +116,18 @@ export function ListaUsuariosSistema({ usuariosIniciais }: ListaUsuariosSistemaP
                     <td className="px-4 py-3 font-medium text-gray-900">{usuario.nome}</td>
                     <td className="px-4 py-3 text-gray-600">{usuario.email}</td>
                     <td className="px-4 py-3 text-gray-600">{usuario.papel}</td>
+                    <td className="px-4 py-3">
+                      {usuario.pode_revisar_qualidade ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                          <ShieldCheck size={13} />
+                          Revisor
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                          Sem acesso
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${

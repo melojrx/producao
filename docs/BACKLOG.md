@@ -650,6 +650,19 @@
 
 **Fechamento em `2026-05-07`:** a aba `Operadores` da dashboard recebeu ordenação local nas três tabelas de eficiência operacional, reaproveitando o comportamento visual de cabeçalho clicável com ícone de direção já homologado nos relatórios. A ordenação é feita por função pura, antes da paginação, com estado independente por tabela e sem alteração em queries, banco ou métricas. Validação executada com teste focado de ordenação, suíte relacionada de eficiência operacional com loader de alias, `npx tsc --noEmit` e `git diff --check`, sem erros.
 
+## SPRINT 48 — Permissão administrativa para revisão de qualidade
+**Objetivo:** permitir que o admin atribua pela interface a permissão operacional necessária para revisar Qualidade, usando o campo já existente `usuarios_sistema.pode_revisar_qualidade`.
+**Entregável:** CRUD `/admin/usuarios` com checkbox de revisão de qualidade na criação/edição, persistência da flag nas Server Actions, badge de acesso na listagem e teste de regressão para normalização do formulário.
+**Status:** ✅ Concluída
+
+- Manter `admin | supervisor` como papéis administrativos
+- Tratar revisão de qualidade como permissão operacional separada
+- Persistir `pode_revisar_qualidade` em criação e edição de usuários
+- Exibir na listagem quais usuários possuem acesso de revisor de qualidade
+- Preservar o bloqueio server-side existente no fluxo de Qualidade
+
+**Fechamento em `2026-05-07`:** o CRUD de usuários passou a permitir que o admin marque `Pode registrar revisões de qualidade`, salvando a flag `pode_revisar_qualidade` sem alterar schema, RPCs ou papéis administrativos. A listagem mostra a coluna `Qualidade` com badge `Revisor` ou `Sem acesso`, e o fluxo de scanner/apontamentos continua usando a validação server-side já homologada. Validação executada com `node --test --experimental-strip-types lib/utils/usuarios-sistema-permissoes.test.ts`, `npx tsc --noEmit` e `git diff --check`, sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

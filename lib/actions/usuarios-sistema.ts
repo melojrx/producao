@@ -7,6 +7,7 @@ import {
 } from '@/lib/auth/require-admin-user'
 import { isAdminRole } from '@/lib/auth/roles'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { obterPermissaoRevisarQualidade } from '@/lib/utils/usuarios-sistema-permissoes'
 import type { FormActionState } from '@/types'
 
 function obterTexto(formData: FormData, campo: string): string {
@@ -42,6 +43,7 @@ export async function criarUsuarioSistema(
   const email = obterTexto(formData, 'email').toLowerCase()
   const senha = obterTexto(formData, 'senha')
   const papel = obterTexto(formData, 'papel')
+  const podeRevisarQualidade = obterPermissaoRevisarQualidade(formData)
 
   if (!nome || !email || !senha || !isAdminRole(papel)) {
     return { erro: 'Nome, email, senha e papel válidos são obrigatórios.' }
@@ -78,6 +80,7 @@ export async function criarUsuarioSistema(
     nome,
     email,
     papel,
+    pode_revisar_qualidade: podeRevisarQualidade,
     ativo: true,
   })
 
@@ -110,6 +113,7 @@ export async function editarUsuarioSistema(
   const senha = obterTexto(formData, 'senha')
   const papel = obterTexto(formData, 'papel')
   const ativo = obterAtivo(formData)
+  const podeRevisarQualidade = obterPermissaoRevisarQualidade(formData)
 
   if (!nome || !email || !isAdminRole(papel)) {
     return { erro: 'Nome, email e papel válidos são obrigatórios.' }
@@ -174,6 +178,7 @@ export async function editarUsuarioSistema(
       nome,
       email,
       papel,
+      pode_revisar_qualidade: podeRevisarQualidade,
       ativo,
       updated_at: new Date().toISOString(),
     })

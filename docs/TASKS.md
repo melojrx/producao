@@ -4760,6 +4760,41 @@ Escopo futuro previsto:
 
 ---
 
+## SPRINT 48 — Permissão administrativa para revisão de qualidade
+**Status:** ✅ Concluída
+**Pré-requisito:** Sprint 47 concluída e fluxo de Qualidade já bloqueando usuários sem `pode_revisar_qualidade`.
+**Objetivo:** permitir que o admin atribua pela interface a permissão operacional necessária para usar o scanner e os apontamentos do setor Qualidade, sem criar novo papel administrativo nem alterar schema.
+
+**Contexto da correção:**
+- o banco e os tipos já possuem `usuarios_sistema.pode_revisar_qualidade`
+- `registrarRevisaoQualidade()` já bloqueia usuários sem essa permissão
+- scanner e `/admin/apontamentos` já consultam essa flag
+- a falha estava no CRUD `/admin/usuarios`, que não exibia nem persistia a permissão
+
+- [x] **HU 48.1 — Como admin, quero marcar quais usuários podem revisar Qualidade, para liberar o uso do scanner e dos apontamentos desse setor.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - manter `papel` restrito a `admin | supervisor`
+  - tratar revisão de qualidade como permissão separada, usando `pode_revisar_qualidade`
+  - expor a permissão no modal de criação/edição de usuários
+  - persistir a permissão em `criarUsuarioSistema()` e `editarUsuarioSistema()`
+  - exibir na listagem quais usuários possuem acesso de revisor de qualidade
+  - cobrir a normalização do campo de formulário por teste automatizado
+
+  Regras:
+  - não criar novo papel `qualidade`
+  - não alterar banco, RPCs ou contratos Supabase
+  - não instalar bibliotecas
+  - preservar o bloqueio server-side já existente em `registrarRevisaoQualidade()`
+
+  **Evidência esperada:** admin consegue criar ou editar usuário com a permissão `Pode registrar revisões de qualidade`; o campo `pode_revisar_qualidade` é salvo; usuários com a permissão conseguem usar Qualidade e usuários sem a permissão continuam bloqueados pelo fluxo existente; `npx tsc --noEmit` passa sem erros.
+
+  **Evidência:** `components/ui/ModalUsuarioSistema.tsx` passou a exibir o checkbox `Pode registrar revisões de qualidade`, `lib/actions/usuarios-sistema.ts` passou a persistir `pode_revisar_qualidade` na criação e edição, e `app/(admin)/usuarios/ListaUsuariosSistema.tsx` passou a mostrar a coluna `Qualidade` com badge `Revisor` ou `Sem acesso`. Criado o utilitário `lib/utils/usuarios-sistema-permissoes.ts` e o teste `lib/utils/usuarios-sistema-permissoes.test.ts`, validando que a permissão só é concedida quando o formulário envia `pode_revisar_qualidade=true`. Validação em `2026-05-07`: `node --test --experimental-strip-types lib/utils/usuarios-sistema-permissoes.test.ts` passou 3/3; `npx tsc --noEmit` e `git diff --check` passaram sem erros.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4774,6 +4809,7 @@ Sprint 43 ──► Sprint 44
 Sprint 44 ──► Sprint 45
 Sprint 45 ──► Sprint 46
 Sprint 46 ──► Sprint 47
+Sprint 47 ──► Sprint 48
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
