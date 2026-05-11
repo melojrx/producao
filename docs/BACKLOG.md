@@ -663,6 +663,22 @@
 
 **Fechamento em `2026-05-07`:** o CRUD de usuários passou a permitir que o admin marque `Pode registrar revisões de qualidade`, salvando a flag `pode_revisar_qualidade` sem alterar schema, RPCs ou papéis administrativos. A listagem mostra a coluna `Qualidade` com badge `Revisor` ou `Sem acesso`, e o fluxo de scanner/apontamentos continua usando a validação server-side já homologada. Validação executada com `node --test --experimental-strip-types lib/utils/usuarios-sistema-permissoes.test.ts`, `npx tsc --noEmit` e `git diff --check`, sem erros.
 
+## SPRINT 49 — Correção do carry-over setorial repetido entre turnos
+**Objetivo:** corrigir a regressão em que OPs carregadas por carry-over voltam para o estado inicial ao abrir um novo turno, preservando continuidade setorial, liberação herdada e saldo pendente real sem contaminar `quantidade_realizada` do turno novo.
+**Entregável:** testes de regressão para carry-over repetido, correção da hidratação de `quantidade_liberada_setor`, cálculo confiável do saldo remanescente no fechamento, plano seguro de reconciliação dos dados atuais e homologação ponta a ponta.
+**Status:** 🔄 Aberta
+
+- Reproduzir em teste o caso `quantidade_liberada_setor > 0` com `quantidade_realizada = 0` no turno intermediário
+- Corrigir `hidratarProgressoCarryOverDaOp()` para carregar e propagar `quantidade_liberada_setor`
+- Ajustar `normalizarDemandasCarryOverEntreTurnos()` para preservar liberação herdada sem gravar produção herdada como realizada
+- Revisar o cálculo de saldo remanescente no fechamento para não depender de demanda setorial defasada quando houver produção atômica
+- Reconciliar os dados do turno atual somente com consulta read-only, plano por OP/setor e aprovação explícita antes de qualquer SQL remoto
+- Homologar o ciclo turno A -> turno B -> turno C sem reinício artificial de OPs em andamento
+
+**Abertura em `2026-05-11`:** regressão identificada no turno aberto `655fe974-a09a-4051-b4ad-60a2f0965bc2`. A OP `13089` veio do turno `8289f704-bd52-4b6c-82cd-b150f4d8705d` com `turno_op_origem_id`, mas a liberação herdada observada no turno anterior (`Preparação = 291`, `Costa = 187`) não foi preservada no destino, que nasceu com `quantidade_liberada_setor = 0`. A causa raiz documentada é que a hidratação de carry-over não seleciona nem propaga `quantidade_liberada_setor`, e a normalização trata o campo ausente como zero. A sprint é P0 e bloqueia novas frentes operacionais até correção e homologação.
+
+**Implementação parcial em `2026-05-11`:** HUs 49.2, 49.3, 49.4 e 49.5 concluídas. O teste de regressão cobre carry-over repetido com liberação herdada sem apontamento novo, a abertura do turno passa a persistir `quantidade_liberada_setor` no destino sem contaminar `quantidade_realizada`, e o saldo remanescente passa a consolidar a camada atômica `turno_setor_operacoes` quando `turno_setor_demandas` estiver defasada. A reconciliação read-only do turno real impactado concluiu que não há patch SQL direto recomendado para o turno atual: a OP `13089` já recebeu apontamentos no turno novo e a OP `207675` não tinha liberação herdada positiva a restaurar. Pendente: homologação ponta a ponta antes de fechar a sprint.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -679,6 +695,8 @@ Sprint 43 ──► Sprint 44
 Sprint 44 ──► Sprint 45
 Sprint 45 ──► Sprint 46
 Sprint 46 ──► Sprint 47
+Sprint 47 ──► Sprint 48
+Sprint 48 ──► Sprint 49
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

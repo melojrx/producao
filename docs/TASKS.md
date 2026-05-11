@@ -4795,6 +4795,147 @@ Escopo futuro previsto:
 
 ---
 
+## SPRINT 49 — Correção do carry-over setorial repetido entre turnos
+**Status:** 🔄 Aberta
+**Pré-requisito:** Sprint 48 concluída e regressão real identificada no turno aberto `655fe974-a09a-4051-b4ad-60a2f0965bc2`.
+**Objetivo:** corrigir a regressão em que OPs carregadas por carry-over voltam para o estado inicial ao abrir um novo turno, preservando a continuidade setorial, a liberação herdada e o saldo pendente real sem contaminar `quantidade_realizada` do turno novo.
+
+**Contexto da regressão:**
+- o PRD define que a produção nunca reinicia do zero e que o carry-over setorial preserva o que não foi aceito por falta de capacidade e o que foi aceito mas não concluído
+- o turno novo `655fe974-a09a-4051-b4ad-60a2f0965bc2`, aberto em `2026-05-11`, carregou OPs do turno anterior com `turno_op_origem_id`, mas demandas do destino nasceram com `quantidade_liberada_setor = 0`
+- a OP `13089` tinha no turno anterior `8289f704-bd52-4b6c-82cd-b150f4d8705d` liberação herdada em `Preparação = 291` e `Costa = 187`, mas essa liberação não foi preservada no turno novo
+- a OP `207675` também foi carregada para o turno novo como pendência, mas suas demandas nasceram sem continuidade setorial visível
+- a regressão não vem da Sprint 48; o commit de revisão de qualidade não altera turnos, carry-over, queries operacionais ou RPCs
+
+**Causa técnica diagnosticada:**
+- `hidratarProgressoCarryOverDaOp()` em `lib/actions/turnos.ts` busca as demandas de origem sem selecionar `quantidade_liberada_setor`
+- o objeto enviado para `normalizarDemandasCarryOverEntreTurnos()` não carrega `quantidadeLiberadaSetor`
+- `normalizarDemandasCarryOverEntreTurnos()` calcula a liberação destino usando também `quantidadeLiberadaSetor`; quando o campo chega ausente, a normalização trata como `0`
+- a Sprint 42 separou corretamente carry-over liberado de `quantidade_realizada`, mas o carry-over repetido ficou sem teste para o caso `quantidade_liberada_setor > 0` e `quantidade_realizada = 0`
+- o fechamento do turno ainda calcula saldo de OP a partir de `turno_setor_demandas.quantidade_realizada`, o que é frágil quando o consolidado setorial não acompanha a camada atômica `turno_setor_operacoes`
+
+- [x] **HU 49.1 — Como produto, quero formalizar a regressão real e o contrato de correção do carry-over repetido, para impedir novas correções pontuais sem preservar a regra de continuidade entre turnos.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Tarefas:
+  - registrar no `TASKS.md` a regressão observada no turno real `655fe974-a09a-4051-b4ad-60a2f0965bc2`
+  - registrar no `BACKLOG.md` a sprint de correção como prioridade ativa
+  - explicitar que a correção deve preservar `quantidade_realizada = 0` no turno novo
+  - explicitar que a continuidade deve ser carregada por `quantidade_liberada_setor` ou contrato equivalente
+  - registrar a necessidade de teste para carry-over repetido com liberação herdada e sem apontamento novo no turno intermediário
+
+  Regras:
+  - não tratar a correção como ajuste visual de dashboard
+  - não voltar a gravar produção herdada em `quantidade_realizada` do turno novo
+  - não alterar schema sem necessidade comprovada
+  - não executar reparo de dados de produção sem plano explícito de reconciliação por OP
+
+  **Evidência esperada:** `docs/TASKS.md` e `docs/BACKLOG.md` registram a Sprint 49 como sprint aberta, com causa raiz, regras de negócio, HUs técnicas pendentes e evidência do turno real analisado.
+
+  **Evidência:** Sprint 49 aberta em `docs/TASKS.md` e `docs/BACKLOG.md` em `2026-05-11`, documentando a regressão real do turno `655fe974-a09a-4051-b4ad-60a2f0965bc2`, a perda de `quantidade_liberada_setor` no carry-over repetido, a separação obrigatória entre liberação herdada e `quantidade_realizada`, e a necessidade de teste/regra para o caso `quantidade_liberada_setor > 0` com `quantidade_realizada = 0`.
+
+- [x] **HU 49.2 — Como mantenedor, quero reproduzir a regressão em teste automatizado antes de corrigir, para provar que o carry-over repetido preserva liberação herdada mesmo sem apontamento novo no turno intermediário.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - criar ou ampliar teste em `lib/utils/carry-over-turno.test.ts`
+  - montar cenário com turno origem tendo `quantidade_liberada_setor > 0` e `quantidade_realizada = 0`
+  - validar que a normalização atual falha por retornar `quantidadeRealizadaDestino = 0` ou liberação destino `0`
+  - cobrir também o caso em que há produção real no setor, usando o maior valor operacional entre realizado e liberação herdada
+  - rodar o teste focado e registrar a falha antes da correção
+
+  Regras:
+  - teste deve usar função pura antes de tocar em Supabase
+  - teste não pode depender dos IDs reais de produção
+  - teste deve deixar explícito que `quantidade_realizada` do turno novo continua `0`
+
+  **Evidência esperada:** teste focado falha antes da correção reproduzindo que a liberação herdada some quando `quantidade_liberada_setor > 0` e `quantidade_realizada = 0`.
+
+  **Evidência:** `lib/utils/carry-over-turno.test.ts` passou a cobrir o cenário de carry-over repetido em que o turno intermediário tem `quantidade_liberada_setor > 0` e `quantidade_realizada = 0`, validando que a liberação herdada de Preparação e Costa não some no turno seguinte e que `quantidade_realizada` do destino permanece separada da disponibilidade operacional.
+
+- [x] **HU 49.3 — Como sistema, quero preservar `quantidade_liberada_setor` ao carregar pendências entre turnos, para que a OP reabra exatamente no estado operacional pendente.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - incluir `quantidade_liberada_setor` no carregamento das demandas de origem em `hidratarProgressoCarryOverDaOp()`
+  - incluir `quantidadeLiberadaSetor` no objeto enviado para `normalizarDemandasCarryOverEntreTurnos()`
+  - ajustar `normalizarDemandasCarryOverEntreTurnos()` para calcular a liberação destino sem depender exclusivamente de `quantidade_realizada`
+  - persistir no destino apenas `quantidade_liberada_setor`, sem atualizar `quantidade_realizada`
+  - garantir que setores já concluídos não sejam reabertos como produção do turno novo
+
+  Regras:
+  - `quantidade_realizada` e `quantidade_concluida` do turno novo devem nascer zeradas
+  - a liberação herdada deve representar disponibilidade operacional, não produção do turno novo
+  - o destino deve limitar a liberação à `quantidadePlanejadaDestino`
+  - o fluxo paralelo `Frente + Costa -> Montagem` deve continuar respeitando interseção real
+
+  **Evidência esperada:** teste de `carry-over-turno` passa; abrir novo turno por carry-over preserva `quantidade_liberada_setor` em demandas de destino sem contaminar produção do turno novo.
+
+  **Evidência:** `hidratarProgressoCarryOverDaOp()` em `lib/actions/turnos.ts` passou a selecionar `quantidade_liberada_setor`, propagar `quantidadeLiberadaSetor` para a normalização e persistir no destino apenas `turno_setor_demandas.quantidade_liberada_setor`. `normalizarDemandasCarryOverEntreTurnos()` passou a retornar `quantidadeLiberadaDestino`, preservando liberação herdada sem gravar produção herdada em `quantidade_realizada`. Validação em `2026-05-11`: `node --test --experimental-strip-types lib/utils/carry-over-turno.test.ts` passou 8/8 e `npx tsc --noEmit` passou sem erros.
+
+- [x] **HU 49.4 — Como sistema, quero recalcular o saldo remanescente de fechamento usando a camada atômica quando necessário, para evitar que demandas setoriais defasadas façam a OP voltar cheia.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - revisar `listarTurnoOpsCarryOver()` e `atualizarSaldosTurnoOps()` em `lib/actions/turnos.ts`
+  - comparar `turno_setor_demandas.quantidade_realizada` com o consolidado de `turno_setor_operacoes`
+  - usar função pura ou helper compartilhado para consolidar o realizado setorial por menor realizado das operações obrigatórias
+  - garantir que `quantidade_planejada_remanescente` não volte ao total original quando houve produção atômica registrada
+  - cobrir por teste cenário em que `turno_setor_operacoes` tem produção e `turno_setor_demandas` está defasada
+
+  Regras:
+  - não apagar histórico do turno encerrado
+  - não recalcular dados antigos de forma destrutiva durante abertura sem transação ou plano explícito
+  - manter o saldo remanescente da OP separado da disponibilidade imediata do setor
+
+  **Evidência esperada:** fechamento de turno com produção atômica calcula saldo remanescente real mesmo se o consolidado de demanda estiver defasado.
+
+  **Evidência:** criado o helper `consolidarDemandasCarryOverComOperacoes()` em `lib/utils/carry-over-turno.ts`, usado por `listarTurnoOpsCarryOver()` e por `hidratarProgressoCarryOverDaOp()` para reconciliar `turno_setor_demandas.quantidade_realizada` com `turno_setor_operacoes.quantidade_realizada` pelo menor realizado das operações do setor. O teste cobre demanda setorial defasada, operações atômicas vinculadas e operações legadas por `turno_op_id + setor_id`. Validação em `2026-05-11`: `node --test --experimental-strip-types lib/utils/carry-over-turno.test.ts` passou 8/8; suíte focada de fluxo contínuo, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 26/26; `npx tsc --noEmit` e `git diff --check` passaram sem erros.
+
+- [x] **HU 49.5 — Como mantenedor, quero reconciliar com segurança os dados do turno atual impactado, para restaurar a operação sem duplicar produção já reapontada.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Tarefas:
+  - gerar consulta read-only comparando os turnos `8289f704-bd52-4b6c-82cd-b150f4d8705d` e `655fe974-a09a-4051-b4ad-60a2f0965bc2`
+  - identificar OPs já reapontadas no turno novo, como `13089`, antes de qualquer update
+  - identificar OPs ainda sem reapontamento operacional no turno novo, como candidatas a reparo direto de `quantidade_liberada_setor`
+  - propor patch SQL específico por OP/setor, com antes/depois e rollback lógico
+  - só aplicar SQL remoto após confirmação explícita do usuário
+
+  Regras:
+  - não executar update em produção nesta HU sem aprovação explícita
+  - não sobrescrever setores já produzidos no turno novo
+  - não duplicar produção atômica já lançada
+  - usar Supabase Management API para SQL remoto administrativo
+
+  **Evidência esperada:** relatório de reconciliação lista OP, setor, liberação esperada, valor atual, risco de duplicidade e ação recomendada antes de qualquer escrita.
+
+  **Evidência:** criado e executado o script read-only `scripts/sprint49_readonly_reconciliation.mjs` via Supabase Management API (`/database/query/read-only`) em `2026-05-11`, comparando o turno origem `8289f704-bd52-4b6c-82cd-b150f4d8705d` com o turno destino `655fe974-a09a-4051-b4ad-60a2f0965bc2`. O relatório confirmou que o destino mantém duas OPs de carry-over (`13089` e `207675`) e que o vínculo aponta para a OP raiz, não para a linha do turno imediatamente anterior. Para a OP `13089`, Preparação, Frente e Costa já possuem apontamentos no turno novo, então não há update direto seguro de `quantidade_liberada_setor` sem risco de duplicar/alterar operação reapontada. Para a OP `207675`, a origem não tinha `quantidade_liberada_setor` positiva a restaurar. Conclusão: nenhum patch SQL de produção recomendado para o turno atual; a correção deve seguir pelo código para as próximas aberturas.
+
+- [ ] **HU 49.6 — Como produto, quero homologar o carry-over repetido ponta a ponta, para confiar que fechar e abrir turnos sucessivos não reinicia OPs em andamento.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Tarefas:
+  - validar com teste automatizado o ciclo turno A -> turno B -> turno C
+  - validar caso com `Preparação`, `Frente`, `Costa`, `Montagem`, `Finalização` e `Qualidade`
+  - validar caso em que o turno intermediário recebe liberação herdada mas não recebe apontamento novo
+  - validar caso com apontamento parcial novo no turno intermediário
+  - rodar suíte focada de carry-over, fluxo contínuo, fluxo paralelo, kanban, apontamento supervisor e TypeScript
+
+  Regras:
+  - não concluir a sprint sem evidência em teste automatizado e, se possível, consulta read-only no Supabase real
+  - não avançar para Sprint 45 ou outra frente antes de fechar esta regressão P0
+
+  **Evidência esperada:** `node --test --experimental-strip-types` nas suítes focadas passa sem falhas; `npx tsc --noEmit` passa; consulta read-only no turno real confirma que novas aberturas preservam continuidade por setor.
+
+---
+
 ## DEPENDÊNCIAS ENTRE SPRINTS
 
 ```
@@ -4810,6 +4951,7 @@ Sprint 44 ──► Sprint 45
 Sprint 45 ──► Sprint 46
 Sprint 46 ──► Sprint 47
 Sprint 47 ──► Sprint 48
+Sprint 48 ──► Sprint 49
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

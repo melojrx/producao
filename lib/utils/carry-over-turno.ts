@@ -15,7 +15,9 @@ type DemandaCarryOverOrigem = Pick<
   | 'status'
   | 'iniciadoEm'
   | 'encerradoEm'
->
+> & {
+  quantidadeLiberadaSetor?: number
+}
 
 export interface SnapshotCarryOverSetorialV2 {
   setorId: string
@@ -25,8 +27,24 @@ export interface SnapshotCarryOverSetorialV2 {
   quantidadePlanejadaDestino: number
   quantidadeRealizadaOrigem: number
   quantidadeRealizadaDestino: number
+  quantidadeLiberadaDestino: number
   quantidadePendenteDestino: number
   quantidadeLiberadaOrigem: number
+}
+
+interface DemandaCarryOverConsolidavel {
+  id: string
+  turnoOpId: string
+  setorId: string
+  quantidadePlanejada: number
+  quantidadeRealizada: number
+}
+
+interface OperacaoCarryOverConsolidavel {
+  turnoOpId: string
+  turnoSetorDemandaId: string | null
+  setorId: string
+  quantidadeRealizada: number
 }
 
 function normalizarInteiroNaoNegativo(valor: number): number {
@@ -46,6 +64,116 @@ function compararDemandasCarryOver(
   }
 
   return primeiraDemanda.setorId.localeCompare(segundaDemanda.setorId)
+}
+
+function criarChaveDemandaSetor(turnoOpId: string, setorId: string): string {
+  return `${turnoOpId}:${setorId}`
+}
+
+function mapearOperacoesPorDemanda(
+  operacoes: OperacaoCarryOverConsolidavel[]
+): Map<string, OperacaoCarryOverConsolidavel[]> {
+  const operacoesPorDemanda = new Map<string, OperacaoCarryOverConsolidavel[]>()
+
+  for (const operacao of operacoes) {
+    const chaves = [
+      operacao.turnoSetorDemandaId,
+      criarChaveDemandaSetor(operacao.turnoOpId, operacao.setorId),
+    ].filter((chave): chave is string => Boolean(chave))
+
+    for (const chave of chaves) {
+      const operacoesAtuais = operacoesPorDemanda.get(chave) ?? []
+      operacoesAtuais.push(operacao)
+      operacoesPorDemanda.set(chave, operacoesAtuais)
+    }
+  }
+
+  return operacoesPorDemanda
+}
+
+function obterOperacoesDaDemanda(
+  operacoesPorDemanda: Map<string, OperacaoCarryOverConsolidavel[]>,
+  demanda: DemandaCarryOverConsolidavel
+): OperacaoCarryOverConsolidavel[] {
+  const operacoesVinculadas = operacoesPorDemanda.get(demanda.id) ?? []
+  const operacoesDoSetor =
+    operacoesPorDemanda.get(criarChaveDemandaSetor(demanda.turnoOpId, demanda.setorId)) ?? []
+
+  return [...new Set([...operacoesVinculadas, ...operacoesDoSetor])]
+}
+
+function calcularQuantidadeLiberadaDestino(input: {
+  quantidadePlanejadaDestino: number
+  quantidadeRealizadaOrigem: number
+  quantidadeLiberadaPersistidaOrigem: number
+  quantidadeLiberadaFluxoOrigem: number
+  usarLiberacaoFluxo: boolean
+}): number {
+  const quantidadePlanejadaDestino = normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino)
+  const quantidadeRealizadaOrigem = normalizarInteiroNaoNegativo(input.quantidadeRealizadaOrigem)
+  const quantidadeLiberadaPersistidaOrigem = normalizarInteiroNaoNegativo(
+    input.quantidadeLiberadaPersistidaOrigem
+  )
+  const quantidadeLiberadaFluxoOrigem = normalizarInteiroNaoNegativo(
+    input.quantidadeLiberadaFluxoOrigem
+  )
+  const quantidadeOperacionalOrigem = Math.max(
+    quantidadeRealizadaOrigem,
+    quantidadeLiberadaPersistidaOrigem
+  )
+  const quantidadeLiberadaOperacional = input.usarLiberacaoFluxo
+    ? Math.max(quantidadeLiberadaFluxoOrigem, quantidadeLiberadaPersistidaOrigem)
+    : quantidadeOperacionalOrigem
+
+  return Math.min(quantidadePlanejadaDestino, quantidadeLiberadaOperacional)
+}
+
+function calcularQuantidadeRealizadaDestino(input: {
+  quantidadePlanejadaDestino: number
+  quantidadeRealizadaOrigem: number
+  quantidadeLiberadaFluxoOrigem: number
+}): number {
+  return Math.min(
+    normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino),
+    normalizarInteiroNaoNegativo(input.quantidadeRealizadaOrigem),
+    normalizarInteiroNaoNegativo(input.quantidadeLiberadaFluxoOrigem)
+  )
+}
+
+export function consolidarDemandasCarryOverComOperacoes<
+  TDemanda extends DemandaCarryOverConsolidavel
+>(
+  demandas: TDemanda[],
+  operacoes: OperacaoCarryOverConsolidavel[]
+): TDemanda[] {
+  if (operacoes.length === 0) {
+    return demandas
+  }
+
+  const operacoesPorDemanda = mapearOperacoesPorDemanda(operacoes)
+
+  return demandas.map((demanda) => {
+    const operacoesDaDemanda = obterOperacoesDaDemanda(operacoesPorDemanda, demanda)
+
+    if (operacoesDaDemanda.length === 0) {
+      return demanda
+    }
+
+    const quantidadeRealizadaOperacoes = Math.min(
+      normalizarInteiroNaoNegativo(demanda.quantidadePlanejada),
+      ...operacoesDaDemanda.map((operacao) =>
+        normalizarInteiroNaoNegativo(operacao.quantidadeRealizada)
+      )
+    )
+
+    return {
+      ...demanda,
+      quantidadeRealizada: Math.max(
+        normalizarInteiroNaoNegativo(demanda.quantidadeRealizada),
+        quantidadeRealizadaOperacoes
+      ),
+    }
+  })
 }
 
 export function calcularQuantidadePlanejadaRemanescenteCarryOver(input: {
@@ -77,16 +205,31 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
   demandasOrigem: DemandaCarryOverOrigem[]
 }): SnapshotCarryOverSetorialV2[] {
   const quantidadePlanejadaDestino = normalizarInteiroNaoNegativo(input.quantidadePlanejadaDestino)
+  const demandasOrigemPorId = new Map(input.demandasOrigem.map((demanda) => [demanda.id, demanda]))
 
   return enriquecerDemandasComFluxoParalelo(input.demandasOrigem)
     .sort(compararDemandasCarryOver)
     .map((demanda) => {
+      const demandaOrigem = demandasOrigemPorId.get(demanda.id)
       const quantidadeRealizadaOrigem = normalizarInteiroNaoNegativo(demanda.quantidadeRealizada)
-      const quantidadeRealizadaDestino = Math.min(
+      const quantidadeLiberadaPersistidaOrigem = normalizarInteiroNaoNegativo(
+        demandaOrigem?.quantidadeLiberadaSetor ?? 0
+      )
+      const quantidadeRealizadaDestino = calcularQuantidadeRealizadaDestino({
         quantidadePlanejadaDestino,
         quantidadeRealizadaOrigem,
-        normalizarInteiroNaoNegativo(demanda.quantidadeLiberadaSetor)
-      )
+        quantidadeLiberadaFluxoOrigem: demanda.quantidadeLiberadaSetor,
+      })
+      const quantidadeLiberadaDestino = calcularQuantidadeLiberadaDestino({
+        quantidadePlanejadaDestino,
+        quantidadeRealizadaOrigem,
+        quantidadeLiberadaPersistidaOrigem,
+        quantidadeLiberadaFluxoOrigem: demanda.quantidadeLiberadaSetor,
+        usarLiberacaoFluxo:
+          demanda.setorAnteriorId !== null ||
+          demanda.etapaFluxoChave === 'montagem' ||
+          demanda.etapaFluxoChave === 'final',
+      })
 
       return {
         setorId: demanda.setorId,
@@ -96,6 +239,7 @@ export function normalizarDemandasCarryOverEntreTurnos(input: {
         quantidadePlanejadaDestino,
         quantidadeRealizadaOrigem,
         quantidadeRealizadaDestino,
+        quantidadeLiberadaDestino,
         quantidadePendenteDestino: Math.max(
           quantidadePlanejadaDestino - quantidadeRealizadaDestino,
           0

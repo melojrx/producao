@@ -10,6 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ABRIR_TURNO_FORM_FIELDS } from '@/lib/utils/turno-formulario'
 import {
   calcularQuantidadePlanejadaRemanescenteCarryOver,
+  consolidarDemandasCarryOverComOperacoes,
   normalizarDemandasCarryOverEntreTurnos,
 } from '@/lib/utils/carry-over-turno'
 import type {
@@ -78,6 +79,7 @@ interface TurnoSetorDemandaCarryOverFluxoRow {
   setor_id: string
   quantidade_planejada: number
   quantidade_realizada: number
+  quantidade_liberada_setor: number
   status: TurnoSetorDemandaRow['status']
   iniciado_em: string | null
   encerrado_em: string | null
@@ -91,6 +93,19 @@ interface TurnoSetorDemandaCarryOverFluxoRow {
         nome: string
       }[]
     | null
+}
+
+interface TurnoSetorOperacaoCarryOverRow {
+  turno_op_id: string
+  turno_setor_demanda_id: string | null
+  setor_id: string
+  quantidade_realizada: number
+}
+
+interface DemandaCarryOverSaldo {
+  turno_op_id: string
+  quantidade_planejada: number
+  quantidade_realizada: number
 }
 
 function extrairRegistroUnico<T>(valor: T | T[] | null | undefined): T | null {
@@ -400,10 +415,13 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
 
   const { data: demandas, error: demandasError } = await supabase
     .from('turno_setor_demandas')
-    .select('turno_op_id, quantidade_planejada, quantidade_realizada')
+    .select('id, turno_op_id, setor_id, quantidade_planejada, quantidade_realizada')
     .eq('turno_id', turnoId)
     .returns<
-      Pick<TurnoSetorDemandaRow, 'turno_op_id' | 'quantidade_planejada' | 'quantidade_realizada'>[]
+      Pick<
+        TurnoSetorDemandaRow,
+        'id' | 'turno_op_id' | 'setor_id' | 'quantidade_planejada' | 'quantidade_realizada'
+      >[]
     >()
 
   if (demandasError) {
@@ -412,12 +430,43 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
     }
   }
 
-  const demandasPorTurnoOpId = new Map<string, TurnoSetorDemandaRow[]>()
+  const { data: operacoes, error: operacoesError } = await supabase
+    .from('turno_setor_operacoes')
+    .select('turno_op_id, turno_setor_demanda_id, setor_id, quantidade_realizada')
+    .eq('turno_id', turnoId)
+    .returns<TurnoSetorOperacaoCarryOverRow[]>()
 
-  for (const demanda of demandas ?? []) {
-    const demandasTurnoOp = demandasPorTurnoOpId.get(demanda.turno_op_id) ?? []
-    demandasTurnoOp.push(demanda as TurnoSetorDemandaRow)
-    demandasPorTurnoOpId.set(demanda.turno_op_id, demandasTurnoOp)
+  if (operacoesError) {
+    return {
+      erro: `Erro ao consolidar operações setoriais para carry-over: ${operacoesError.message}`,
+    }
+  }
+
+  const demandasConsolidadas = consolidarDemandasCarryOverComOperacoes(
+    (demandas ?? []).map((demanda) => ({
+      id: demanda.id,
+      turnoOpId: demanda.turno_op_id,
+      setorId: demanda.setor_id,
+      quantidadePlanejada: demanda.quantidade_planejada,
+      quantidadeRealizada: demanda.quantidade_realizada,
+    })),
+    (operacoes ?? []).map((operacao) => ({
+      turnoOpId: operacao.turno_op_id,
+      turnoSetorDemandaId: operacao.turno_setor_demanda_id,
+      setorId: operacao.setor_id,
+      quantidadeRealizada: operacao.quantidade_realizada,
+    }))
+  )
+  const demandasPorTurnoOpId = new Map<string, DemandaCarryOverSaldo[]>()
+
+  for (const demanda of demandasConsolidadas) {
+    const demandasTurnoOp = demandasPorTurnoOpId.get(demanda.turnoOpId) ?? []
+    demandasTurnoOp.push({
+      turno_op_id: demanda.turnoOpId,
+      quantidade_planejada: demanda.quantidadePlanejada,
+      quantidade_realizada: demanda.quantidadeRealizada,
+    })
+    demandasPorTurnoOpId.set(demanda.turnoOpId, demandasTurnoOp)
   }
 
   return {
@@ -653,6 +702,7 @@ async function hidratarProgressoCarryOverDaOp(
         setor_id,
         quantidade_planejada,
         quantidade_realizada,
+        quantidade_liberada_setor,
         status,
         iniciado_em,
         encerrado_em,
@@ -676,61 +726,86 @@ async function hidratarProgressoCarryOverDaOp(
     return {}
   }
 
+  const { data: operacoesOrigem, error: operacoesOrigemError } = await supabase
+    .from('turno_setor_operacoes')
+    .select('turno_op_id, turno_setor_demanda_id, setor_id, quantidade_realizada')
+    .eq('turno_op_id', turnoOpOrigemId)
+    .returns<TurnoSetorOperacaoCarryOverRow[]>()
+
+  if (operacoesOrigemError) {
+    return {
+      erro: `Erro ao carregar operações do turno anterior para carry-over: ${operacoesOrigemError.message}`,
+    }
+  }
+
+  const demandasOrigemNormalizadas = (demandasOrigem ?? [])
+    .map((demanda) => {
+      const setor = extrairRegistroUnico(demanda.setores)
+
+      if (!setor) {
+        return null
+      }
+
+      return {
+        id: demanda.id,
+        turnoOpId: demanda.turno_op_id,
+        setorId: demanda.setor_id,
+        setorCodigo: setor.codigo,
+        setorNome: setor.nome,
+        quantidadePlanejada: demanda.quantidade_planejada,
+        quantidadeRealizada: demanda.quantidade_realizada,
+        quantidadeLiberadaSetor: demanda.quantidade_liberada_setor,
+        status: demanda.status as TurnoSetorDemandaStatusV2,
+        iniciadoEm: demanda.iniciado_em,
+        encerradoEm: demanda.encerrado_em,
+      }
+    })
+    .filter(
+      (
+        demanda
+      ): demanda is {
+        id: string
+        turnoOpId: string
+        setorId: string
+        setorCodigo: number
+        setorNome: string
+        quantidadePlanejada: number
+        quantidadeRealizada: number
+        quantidadeLiberadaSetor: number
+        status: TurnoSetorDemandaStatusV2
+        iniciadoEm: string | null
+        encerradoEm: string | null
+      } => Boolean(demanda)
+    )
+  const demandasOrigemConsolidadas = consolidarDemandasCarryOverComOperacoes(
+    demandasOrigemNormalizadas,
+    (operacoesOrigem ?? []).map((operacao) => ({
+      turnoOpId: operacao.turno_op_id,
+      turnoSetorDemandaId: operacao.turno_setor_demanda_id,
+      setorId: operacao.setor_id,
+      quantidadeRealizada: operacao.quantidade_realizada,
+    }))
+  )
+
   const snapshotsCarryOverPorSetorId = new Map(
     normalizarDemandasCarryOverEntreTurnos({
       quantidadePlanejadaDestino,
-      demandasOrigem: (demandasOrigem ?? [])
-        .map((demanda) => {
-          const setor = extrairRegistroUnico(demanda.setores)
-
-          if (!setor) {
-            return null
-          }
-
-          return {
-            id: demanda.id,
-            turnoOpId: demanda.turno_op_id,
-            setorId: demanda.setor_id,
-            setorCodigo: setor.codigo,
-            setorNome: setor.nome,
-            quantidadePlanejada: demanda.quantidade_planejada,
-            quantidadeRealizada: demanda.quantidade_realizada,
-            status: demanda.status as TurnoSetorDemandaStatusV2,
-            iniciadoEm: demanda.iniciado_em,
-            encerradoEm: demanda.encerrado_em,
-          }
-        })
-        .filter(
-          (
-            demanda
-          ): demanda is {
-            id: string
-            turnoOpId: string
-            setorId: string
-            setorCodigo: number
-            setorNome: string
-            quantidadePlanejada: number
-            quantidadeRealizada: number
-            status: TurnoSetorDemandaStatusV2
-            iniciadoEm: string | null
-            encerradoEm: string | null
-          } => Boolean(demanda)
-        ),
+      demandasOrigem: demandasOrigemConsolidadas,
     }).map((snapshot) => [snapshot.setorId, snapshot] as const)
   )
 
-  const setoesComLiberacao = [...snapshotsCarryOverPorSetorId.entries()].filter(
-    ([, snapshot]) => snapshot.quantidadeRealizadaDestino > 0
+  const setoresComLiberacao = [...snapshotsCarryOverPorSetorId.entries()].filter(
+    ([, snapshot]) => snapshot.quantidadeLiberadaDestino > 0
   )
 
-  if (setoesComLiberacao.length === 0) {
+  if (setoresComLiberacao.length === 0) {
     return {}
   }
 
-  for (const [setorId, snapshot] of setoesComLiberacao) {
+  for (const [setorId, snapshot] of setoresComLiberacao) {
     const { error: updateDemandaError } = await supabase
       .from('turno_setor_demandas')
-      .update({ quantidade_liberada_setor: snapshot.quantidadeRealizadaDestino })
+      .update({ quantidade_liberada_setor: snapshot.quantidadeLiberadaDestino })
       .eq('turno_op_id', turnoOpDestinoId)
       .eq('setor_id', setorId)
 
