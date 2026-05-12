@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { createSupabaseFetch } from '@/lib/supabase/fetch'
 import type { Database } from '@/types/supabase'
 
 export async function createClient() {
@@ -22,6 +23,9 @@ export async function createClient() {
             // Ignorado em Server Components (apenas Server Actions podem setar cookies)
           }
         },
+      },
+      global: {
+        fetch: createSupabaseFetch(),
       },
     }
   )

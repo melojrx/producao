@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createSupabaseFetch } from '@/lib/supabase/fetch'
 import type { Database } from '@/types/supabase'
 
 export function createAdminClient() {
@@ -13,6 +14,9 @@ export function createAdminClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+    },
+    global: {
+      fetch: createSupabaseFetch(),
     },
   })
 }

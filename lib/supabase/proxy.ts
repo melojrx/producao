@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
+import { createSupabaseFetch } from '@/lib/supabase/fetch'
 import type { Database } from '@/types/supabase'
 
 function redirecionarParaLogin(request: NextRequest, erro?: 'auth' | 'permissao') {
@@ -36,6 +37,9 @@ export async function updateSession(request: NextRequest) {
             supabaseResponse.cookies.set(name, value, options)
           )
         },
+      },
+      global: {
+        fetch: createSupabaseFetch(),
       },
     }
   )
