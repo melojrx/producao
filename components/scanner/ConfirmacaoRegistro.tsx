@@ -16,6 +16,10 @@ import {
 } from 'lucide-react'
 import type { ResultadoScannerAction } from '@/hooks'
 import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
+import {
+  calcularSaldoFisicoRestanteOperacao,
+  validarConsumoSaldoFisicoOperacao,
+} from '@/lib/utils/saldo-fisico-op'
 import type {
   OperadorScaneado,
   TurnoSetorDemandaScaneada,
@@ -134,6 +138,18 @@ export function ConfirmacaoRegistro({
     demandaSelecionada,
     operacaoSelecionada
   )
+  const saldoFisicoOperacao = calcularSaldoFisicoRestanteOperacao({
+    quantidadePlanejadaOp: operacaoSelecionada.quantidadePlanejada,
+    quantidadeProduzidaAcumuladaOperacao:
+      operacaoSelecionada.quantidadeConsumidaFisica ??
+      demandaSelecionada.quantidadeHerdadaSetor ??
+      0,
+    quantidadeRealizadaTurnoOperacao: operacaoSelecionada.quantidadeRealizada,
+  })
+  const quantidadeSugerida = Math.min(
+    disponibilidadeImediataOperacao > 0 ? disponibilidadeImediataOperacao : saldoFisicoOperacao,
+    saldoFisicoOperacao
+  )
   const disponibilidadeImediataDemanda =
     demandaSelecionada.quantidadeDisponivelApontamento ??
     demandaSelecionada.quantidadeAceitaTurno ??
@@ -150,12 +166,10 @@ export function ConfirmacaoRegistro({
   })
 
   useEffect(() => {
-    setQuantidadeDigitada(
-      disponibilidadeImediataOperacao > 0 ? String(disponibilidadeImediataOperacao) : '1'
-    )
+    setQuantidadeDigitada(quantidadeSugerida > 0 ? String(quantidadeSugerida) : '0')
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
-  }, [demandaSelecionada.id, disponibilidadeImediataOperacao, operacaoSelecionada.id, operador.id, setor.id])
+  }, [demandaSelecionada.id, operacaoSelecionada.id, operador.id, quantidadeSugerida, setor.id])
 
   function ajustarQuantidade(valor: number) {
     setQuantidadeDigitada((quantidadeAtualTexto) =>
@@ -166,6 +180,22 @@ export function ConfirmacaoRegistro({
   async function handleRegistrar() {
     if (quantidadeAtual <= 0) {
       onErro('Informe uma quantidade maior que zero antes de registrar.')
+      return
+    }
+
+    const validacaoSaldoFisico = validarConsumoSaldoFisicoOperacao({
+      numeroOp: demandaSelecionada.numeroOp,
+      quantidadePlanejadaOp: operacaoSelecionada.quantidadePlanejada,
+      quantidadeProduzidaAcumuladaOperacao:
+        operacaoSelecionada.quantidadeConsumidaFisica ??
+        demandaSelecionada.quantidadeHerdadaSetor ??
+        0,
+      quantidadeRealizadaTurnoOperacao: operacaoSelecionada.quantidadeRealizada,
+      quantidadeSolicitada: quantidadeAtual,
+    })
+
+    if (!validacaoSaldoFisico.permitido) {
+      onErro(validacaoSaldoFisico.mensagem ?? 'A OP não possui saldo físico nesta operação.')
       return
     }
 
@@ -181,18 +211,14 @@ export function ConfirmacaoRegistro({
     }
 
     setUltimaQuantidadeRegistrada(quantidadeAtual)
-    setQuantidadeDigitada(
-      disponibilidadeImediataOperacao > 0 ? String(disponibilidadeImediataOperacao) : '1'
-    )
+    setQuantidadeDigitada(quantidadeSugerida > 0 ? String(quantidadeSugerida) : '0')
     setExibindoSucesso(true)
   }
 
   function handleNovaQuantidade() {
     setExibindoSucesso(false)
     setUltimaQuantidadeRegistrada(null)
-    setQuantidadeDigitada(
-      disponibilidadeImediataOperacao > 0 ? String(disponibilidadeImediataOperacao) : '1'
-    )
+    setQuantidadeDigitada(quantidadeSugerida > 0 ? String(quantidadeSugerida) : '0')
     onNovaQuantidade()
   }
 
@@ -373,11 +399,9 @@ export function ConfirmacaoRegistro({
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
-                  Disponível na operação
+                  Saldo físico operação
                 </p>
-                <p className="mt-2 text-xl font-semibold text-white">
-                  {disponibilidadeImediataOperacao}
-                </p>
+                <p className="mt-2 text-xl font-semibold text-white">{saldoFisicoOperacao}</p>
               </div>
               <div className="rounded-2xl bg-slate-950/35 px-3 py-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">
@@ -438,6 +462,7 @@ export function ConfirmacaoRegistro({
                 id="quantidade-producao"
                 type="number"
                 min={0}
+                max={saldoFisicoOperacao > 0 ? saldoFisicoOperacao : undefined}
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={quantidadeDigitada}
@@ -455,7 +480,7 @@ export function ConfirmacaoRegistro({
                 type="button"
                 onClick={() => ajustarQuantidade(1)}
                 aria-label="Aumentar quantidade"
-                disabled={estaRegistrando}
+                disabled={estaRegistrando || quantidadeAtual >= saldoFisicoOperacao}
                 className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-slate-900 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus size={22} />
@@ -464,8 +489,8 @@ export function ConfirmacaoRegistro({
 
             <p className="mt-2 text-xs text-slate-400">
               Digite a quantidade desejada ou ajuste pelos botões. O campo pode voltar para `0`
-              antes do registro. Disponível para a operação: {disponibilidadeImediataOperacao}
-              , apenas como informação.
+              antes do registro. Saldo físico da OP nesta operação: {saldoFisicoOperacao}.
+              Disponível automático: {disponibilidadeImediataOperacao}, apenas como informação.
             </p>
           </div>
 
@@ -474,7 +499,12 @@ export function ConfirmacaoRegistro({
             onClick={() => {
               void handleRegistrar()
             }}
-            disabled={estaRegistrando || quantidadeAtual <= 0}
+            disabled={
+              estaRegistrando ||
+              quantidadeAtual <= 0 ||
+              saldoFisicoOperacao <= 0 ||
+              quantidadeAtual > saldoFisicoOperacao
+            }
             className="flex min-h-14 w-full items-center justify-center rounded-3xl bg-emerald-500 px-4 py-4 text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {estaRegistrando ? 'Registrando...' : 'Registrar quantidade'}

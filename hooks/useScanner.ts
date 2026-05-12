@@ -9,6 +9,10 @@ import {
   buscarTurnoSetorScaneadoPorToken,
 } from '@/lib/queries/scanner'
 import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
+import {
+  calcularSaldoFisicoRestanteOperacao,
+  validarConsumoSaldoFisicoOperacao,
+} from '@/lib/utils/saldo-fisico-op'
 import type {
   OrigemApontamentoProducaoV2,
   OperadorScaneado,
@@ -229,6 +233,18 @@ function calcularSaldoDisponivelSequencialOperacao(
     Math.min(operacao.quantidadePlanejada, quantidadeExpostaDemanda) - operacao.quantidadeRealizada,
     0
   )
+}
+
+function calcularSaldoFisicoOperacaoScanner(
+  demanda: TurnoSetorDemandaScaneada,
+  operacao: TurnoSetorOperacaoApontamentoV2
+): number {
+  return calcularSaldoFisicoRestanteOperacao({
+    quantidadePlanejadaOp: operacao.quantidadePlanejada,
+    quantidadeProduzidaAcumuladaOperacao:
+      operacao.quantidadeConsumidaFisica ?? demanda.quantidadeHerdadaSetor ?? 0,
+    quantidadeRealizadaTurnoOperacao: operacao.quantidadeRealizada,
+  })
 }
 
 function derivarStatusDemanda(
@@ -696,7 +712,9 @@ export function useScanner(options: UseScannerOptions = {}) {
       }
 
       const operacoesDisponiveis = operacoes.filter(
-        (operacao) => operacao.status !== 'encerrada_manualmente'
+        (operacao) =>
+          operacao.status !== 'encerrada_manualmente' &&
+          calcularSaldoFisicoOperacaoScanner(demandaSelecionada, operacao) > 0
       )
 
       if (operacoesDisponiveis.length === 0) {
@@ -731,6 +749,24 @@ export function useScanner(options: UseScannerOptions = {}) {
 
     if (!Number.isInteger(quantidade) || quantidade < 1) {
       const mensagem = 'A quantidade deve ser um número inteiro maior ou igual a 1.'
+      setErro(mensagem)
+      return { sucesso: false, erro: mensagem }
+    }
+
+    const validacaoSaldoFisico = validarConsumoSaldoFisicoOperacao({
+      numeroOp: estado.demandaSelecionada.numeroOp,
+      quantidadePlanejadaOp: estado.operacaoSelecionada.quantidadePlanejada,
+      quantidadeProduzidaAcumuladaOperacao:
+        estado.operacaoSelecionada.quantidadeConsumidaFisica ??
+        estado.demandaSelecionada.quantidadeHerdadaSetor ??
+        0,
+      quantidadeRealizadaTurnoOperacao: estado.operacaoSelecionada.quantidadeRealizada,
+      quantidadeSolicitada: quantidade,
+    })
+
+    if (!validacaoSaldoFisico.permitido) {
+      const mensagem =
+        validacaoSaldoFisico.mensagem ?? 'A OP não possui saldo físico para esta operação.'
       setErro(mensagem)
       return { sucesso: false, erro: mensagem }
     }

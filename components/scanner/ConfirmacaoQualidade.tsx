@@ -13,6 +13,10 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import type { RegistroQualidadeDefeitoInput, ResultadoScannerAction } from '@/hooks'
+import {
+  calcularSaldoFisicoRestanteOperacao,
+  validarConsumoSaldoFisicoOperacao,
+} from '@/lib/utils/saldo-fisico-op'
 import type { TurnoSetorDemandaScaneada, TurnoSetorOperacaoApontamentoV2, TurnoSetorScaneado } from '@/types'
 
 interface ConfirmacaoQualidadeProps {
@@ -46,8 +50,16 @@ function criarIdLocal(): string {
   return `defeito-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function saldoRestanteOperacao(operacao: TurnoSetorOperacaoApontamentoV2): number {
-  return Math.max(operacao.quantidadePlanejada - operacao.quantidadeRealizada, 0)
+function saldoRestanteOperacao(
+  demanda: TurnoSetorDemandaScaneada,
+  operacao: TurnoSetorOperacaoApontamentoV2
+): number {
+  return calcularSaldoFisicoRestanteOperacao({
+    quantidadePlanejadaOp: operacao.quantidadePlanejada,
+    quantidadeProduzidaAcumuladaOperacao:
+      operacao.quantidadeConsumidaFisica ?? demanda.quantidadeHerdadaSetor ?? 0,
+    quantidadeRealizadaTurnoOperacao: operacao.quantidadeRealizada,
+  })
 }
 
 function normalizarQuantidadeNaoNegativa(valor: string): string {
@@ -104,7 +116,7 @@ export function ConfirmacaoQualidade({
     reprovadas: number
   } | null>(null)
 
-  const saldoDisponivel = saldoRestanteOperacao(operacaoQualidade)
+  const saldoDisponivel = saldoRestanteOperacao(demandaSelecionada, operacaoQualidade)
   const aprovadas = quantidadeNumero(quantidadeAprovada)
   const reprovadas = quantidadeNumero(quantidadeReprovada)
   const quantidadeRevisada = aprovadas + reprovadas
@@ -152,6 +164,22 @@ export function ConfirmacaoQualidade({
   async function handleRegistrar() {
     if (quantidadeRevisada <= 0) {
       onErro('Informe ao menos uma peça aprovada ou reprovada.')
+      return
+    }
+
+    const validacaoSaldoFisico = validarConsumoSaldoFisicoOperacao({
+      numeroOp: demandaSelecionada.numeroOp,
+      quantidadePlanejadaOp: operacaoQualidade.quantidadePlanejada,
+      quantidadeProduzidaAcumuladaOperacao:
+        operacaoQualidade.quantidadeConsumidaFisica ??
+        demandaSelecionada.quantidadeHerdadaSetor ??
+        0,
+      quantidadeRealizadaTurnoOperacao: operacaoQualidade.quantidadeRealizada,
+      quantidadeSolicitada: quantidadeRevisada,
+    })
+
+    if (!validacaoSaldoFisico.permitido) {
+      onErro(validacaoSaldoFisico.mensagem ?? 'A OP não possui saldo físico para revisão.')
       return
     }
 

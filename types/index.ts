@@ -910,6 +910,8 @@ export interface TurnoSetorOperacaoApontamentoV2 extends TurnoSetorOperacaoV2 {
   operacaoDescricao: string
   maquinaCodigo: string | null
   maquinaModelo: string | null
+  quantidadeConsumidaFisica?: number
+  saldoFisicoRestante?: number
 }
 
 export interface PlanejamentoTurnoV2 {

@@ -22,6 +22,10 @@ import {
   supervisorDependeDeExcecaoManual,
 } from '@/lib/utils/apontamento-supervisor'
 import { resumirPlanoDiarioTurno } from '@/lib/utils/plano-diario-turno'
+import {
+  calcularSaldoFisicoRestanteOperacao,
+  validarConsumoSaldoFisicoOperacao,
+} from '@/lib/utils/saldo-fisico-op'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
 import type {
   EtapaFluxoChaveV2,
@@ -48,6 +52,7 @@ interface SecaoComContexto extends TurnoSetorOpV2 {
   quantidadeBacklogTotal: number
   quantidadePlanoDoDia: number
   quantidadeAceitaTurno: number
+  quantidadeHerdadaSetor: number
   quantidadeExcedenteTurno: number
   quantidadeDisponivelApontamento: number
   saldoManualPermitido: number
@@ -80,15 +85,35 @@ function saldoRestanteOperacao(operacao: TurnoSetorOperacaoApontamentoV2): numbe
   return Math.max(operacao.quantidadePlanejada - operacao.quantidadeRealizada, 0)
 }
 
+function saldoFisicoRestanteOperacao(
+  operacao: TurnoSetorOperacaoApontamentoV2,
+  secao: Pick<SecaoComContexto, 'quantidadeHerdadaSetor'>
+): number {
+  if (typeof operacao.saldoFisicoRestante === 'number') {
+    return Math.max(operacao.saldoFisicoRestante, 0)
+  }
+
+  return calcularSaldoFisicoRestanteOperacao({
+    quantidadePlanejadaOp: operacao.quantidadePlanejada,
+    quantidadeProduzidaAcumuladaOperacao: secao.quantidadeHerdadaSetor,
+    quantidadeRealizadaTurnoOperacao: operacao.quantidadeRealizada,
+  })
+}
+
 function saldoMaximoLancamentoSecao(secao: SecaoComContexto): number {
   return Math.max(saldoRestanteSecao(secao), saldoManualSecao(secao))
 }
 
 function saldoMaximoLancamentoOperacao(
   operacao: TurnoSetorOperacaoApontamentoV2,
+  secao: SecaoComContexto,
   saldoMaximoSecao: number
 ): number {
-  return Math.min(saldoRestanteOperacao(operacao), Math.max(saldoMaximoSecao, 0))
+  return Math.min(
+    saldoRestanteOperacao(operacao),
+    saldoFisicoRestanteOperacao(operacao, secao),
+    Math.max(saldoMaximoSecao, 0)
+  )
 }
 
 function statusPermiteApontamento(
@@ -157,6 +182,7 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
           demanda?.quantidadeAceitaTurno ??
           secao.quantidadePlanejada,
         quantidadeAceitaTurno: demanda?.quantidadeAceitaTurno ?? secao.quantidadePlanejada,
+        quantidadeHerdadaSetor: demanda?.quantidadeHerdadaSetor ?? 0,
         quantidadeExcedenteTurno: demanda?.quantidadeExcedenteTurno ?? 0,
         quantidadeDisponivelApontamento:
           demanda?.quantidadeDisponivelApontamento ??
@@ -180,11 +206,12 @@ function montarSecoesComContexto(planejamento: PlanejamentoTurnoV2): SecaoComCon
 function criarLancamentoDraft(
   operadores: TurnoOperadorV2[],
   operacoes: TurnoSetorOperacaoApontamentoV2[],
+  secao: SecaoComContexto,
   saldoMaximoSecao: number
 ): LancamentoDraft {
   const operacaoInicial = operacoes[0]
   const saldoMaximoOperacao = operacaoInicial
-    ? saldoMaximoLancamentoOperacao(operacaoInicial, saldoMaximoSecao)
+    ? saldoMaximoLancamentoOperacao(operacaoInicial, secao, saldoMaximoSecao)
     : 0
 
   return {
@@ -198,6 +225,7 @@ function criarLancamentoDraft(
 function obterQuantidadeSugerida(
   turnoSetorOperacaoId: string,
   operacoes: TurnoSetorOperacaoApontamentoV2[],
+  secao: SecaoComContexto,
   saldoMaximoSecao: number
 ): string {
   const operacaoSelecionada = operacoes.find((operacao) => operacao.id === turnoSetorOperacaoId)
@@ -208,6 +236,7 @@ function obterQuantidadeSugerida(
 
   const saldoMaximoOperacao = saldoMaximoLancamentoOperacao(
     operacaoSelecionada,
+    secao,
     saldoMaximoSecao
   )
 
@@ -345,7 +374,9 @@ export function PainelApontamentosSupervisor({
       secaoSelecionada
         ? operacoesTurno.filter(
             (operacao) =>
-              operacao.turnoSetorOpId === secaoSelecionada.id && operacaoEstaAcionavel(operacao)
+              operacao.turnoSetorOpId === secaoSelecionada.id &&
+              operacaoEstaAcionavel(operacao) &&
+              saldoFisicoRestanteOperacao(operacao, secaoSelecionada) > 0
           )
         : [],
     [operacoesTurno, secaoSelecionada]
@@ -521,6 +552,7 @@ export function PainelApontamentosSupervisor({
               ? obterQuantidadeSugerida(
                   turnoSetorOperacaoId,
                   operacoesDaSecao,
+                  secaoSelecionada,
                   saldoMaximoSecaoSelecionada
                 )
               : normalizarQuantidadeSupervisorInput(lancamento.quantidade)
@@ -547,7 +579,14 @@ export function PainelApontamentosSupervisor({
         return []
       }
 
-      return [criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao, saldoMaximoSecaoSelecionada)]
+      return [
+        criarLancamentoDraft(
+          operadoresDaSecao,
+          operacoesDaSecao,
+          secaoSelecionada,
+          saldoMaximoSecaoSelecionada
+        ),
+      ]
     })
   }, [operacoesDaSecao, operadoresDaSecao, saldoMaximoSecaoSelecionada, secaoSelecionada])
 
@@ -579,7 +618,16 @@ export function PainelApontamentosSupervisor({
   function adicionarLancamento(): void {
     setLancamentos((estadoAtual) => [
       ...estadoAtual,
-      criarLancamentoDraft(operadoresDaSecao, operacoesDaSecao, saldoMaximoSecaoSelecionada),
+      ...(secaoSelecionada
+        ? [
+            criarLancamentoDraft(
+              operadoresDaSecao,
+              operacoesDaSecao,
+              secaoSelecionada,
+              saldoMaximoSecaoSelecionada
+            ),
+          ]
+        : []),
     ])
   }
 
@@ -631,6 +679,36 @@ export function PainelApontamentosSupervisor({
 
     if (possuiLancamentoInvalido) {
       return 'Preencha operador, operação e quantidade válida.'
+    }
+
+    const quantidadePorOperacao = new Map<string, number>()
+
+    for (const lancamento of lancamentos) {
+      const quantidade = Number.parseInt(lancamento.quantidade, 10)
+      quantidadePorOperacao.set(
+        lancamento.turnoSetorOperacaoId,
+        (quantidadePorOperacao.get(lancamento.turnoSetorOperacaoId) ?? 0) + quantidade
+      )
+    }
+
+    for (const [turnoSetorOperacaoId, quantidadeSolicitada] of quantidadePorOperacao.entries()) {
+      const operacaoSelecionada = operacoesDaSecaoPorId.get(turnoSetorOperacaoId)
+
+      if (!operacaoSelecionada) {
+        return 'Uma das operações selecionadas não foi encontrada no contexto atual.'
+      }
+
+      const validacaoSaldoFisico = validarConsumoSaldoFisicoOperacao({
+        numeroOp: secaoSelecionada.numeroOp,
+        quantidadePlanejadaOp: operacaoSelecionada.quantidadePlanejada,
+        quantidadeProduzidaAcumuladaOperacao: secaoSelecionada.quantidadeHerdadaSetor,
+        quantidadeRealizadaTurnoOperacao: operacaoSelecionada.quantidadeRealizada,
+        quantidadeSolicitada,
+      })
+
+      if (!validacaoSaldoFisico.permitido) {
+        return validacaoSaldoFisico.mensagem ?? 'A OP não possui saldo físico para este lançamento.'
+      }
     }
 
     return null
@@ -995,6 +1073,13 @@ export function PainelApontamentosSupervisor({
 
                   <div className="space-y-3">
                     {lancamentos.map((lancamento, index) => {
+                      const operacaoSelecionada = operacoesDaSecaoPorId.get(
+                        lancamento.turnoSetorOperacaoId
+                      )
+                      const saldoFisicoOperacao = operacaoSelecionada
+                        ? saldoFisicoRestanteOperacao(operacaoSelecionada, secaoSelecionada)
+                        : 0
+
                       return (
                         <div
                           key={lancamento.id}
@@ -1050,6 +1135,7 @@ export function PainelApontamentosSupervisor({
                                       quantidadeSugerida: obterQuantidadeSugerida(
                                         turnoSetorOperacaoId,
                                         operacoesDaSecao,
+                                        secaoSelecionada,
                                         saldoMaximoSecaoSelecionada
                                       ),
                                     }),
@@ -1073,6 +1159,7 @@ export function PainelApontamentosSupervisor({
                               <input
                                 type="number"
                                 min={1}
+                                max={saldoFisicoOperacao > 0 ? saldoFisicoOperacao : undefined}
                                 step={1}
                                 value={lancamento.quantidade}
                                 onChange={(event) =>
@@ -1085,7 +1172,8 @@ export function PainelApontamentosSupervisor({
                                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                               <p className="text-xs text-slate-500">
-                                Sugestão automática informativa; o lançamento não é bloqueado por saldo visual.
+                                Saldo físico da OP nesta operação: {saldoFisicoOperacao}. Capacidade
+                                e disponível continuam informativos.
                               </p>
                             </div>
                           </div>

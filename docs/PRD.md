@@ -760,6 +760,18 @@ Regras obrigatórias do vocabulário:
 - **Manual supervisor é exceção separada:** `saldoManualPermitido` permite lançamento supervisório dentro do saldo aceito do dia, mas não altera o card `Disponível` e não reclassifica saldo de turno futuro como capacidade do dia.
 - **Scanner e apontamentos não bloqueiam por saldo visual:** `Capacidade`, `Disponível`, `saldoManualPermitido`, peças da OP, saldo e saldo de operação são leituras informativas para o supervisor/operador. Scanner, apontamentos do supervisor e qualidade só podem bloquear dados estruturalmente inválidos, turno fechado/inexistente, usuário sem permissão, operador inválido, máquina inválida ou contexto encerrado manualmente; nunca podem bloquear porque a quantidade ultrapassou disponibilidade automática, capacidade, saldo visual ou FIFO.
 
+Controle físico da OP:
+- a OP é um container físico finito de peças; `turno_ops.quantidade_planejada` define quantas peças existem para aquela ordem produtiva
+- capacidade operacional, disponibilidade imediata, FIFO, plano do dia e exceção manual são leituras de gestão e podem ser flexibilizadas pelo supervisor
+- o único limite estrutural da produção é o saldo físico da OP
+- nenhuma operação, setor, apontamento administrativo, scanner ou revisão de qualidade pode produzir acumulado físico superior à quantidade total da OP
+- o saldo físico restante de uma operação é `MAX(quantidade total da OP - produção física acumulada naquela operação, 0)`
+- a produção física acumulada da operação considera a continuidade da OP entre turnos, incluindo apontamentos anteriores da mesma linhagem de carry-over e o progresso herdado quando ele for a melhor representação disponível
+- quando o saldo físico de uma operação chega a `0`, aquela operação está naturalmente concluída para a OP e deixa de ser contexto operacional acionável
+- quando todas as operações obrigatórias da OP chegam ao saldo físico `0`, a OP está concluída; não existe mais trabalho operacional a executar nela
+- esse comportamento não deve ser comunicado como uma trava administrativa; a mensagem correta é que a OP não possui mais saldo físico para aquela operação e a próxima produção deve ser registrada em outra OP
+- o sistema pode avisar que o lançamento ultrapassa capacidade, disponível ou FIFO; esses avisos não impedem a operação. Somente a ausência de saldo físico da OP impede novo consumo naquela OP.
+
 Estado operacional `Em Produção`:
 - `Em Produção` é um estado/status operacional da demanda, setor ou fila, não um sexto card numérico canônico
 - pode ser usado para indicar que há trabalho em curso, carga ativa, apontamento recente, demanda em execução ou continuidade operacional acompanhada pela supervisão

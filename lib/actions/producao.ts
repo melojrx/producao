@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validarConsumoSaldoFisicoOperacoesComClient } from '@/lib/queries/saldo-fisico-op'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 
 export interface RegistrarProducaoInput {
@@ -226,6 +227,19 @@ export async function registrarProducaoOperacao(
       : input.usuarioSistemaId
 
   const supabase = createAdminClient()
+  const validacaoSaldoFisico = await validarConsumoSaldoFisicoOperacoesComClient(supabase, [
+    {
+      turnoSetorOperacaoId: input.turnoSetorOperacaoId,
+      quantidadeSolicitada: input.quantidade,
+    },
+  ])
+
+  if (validacaoSaldoFisico.erro) {
+    return {
+      sucesso: false,
+      erro: validacaoSaldoFisico.erro,
+    }
+  }
 
   const { data, error } = await supabase.rpc('registrar_producao_turno_setor_operacao', {
     p_operador_id: input.operadorId,
@@ -316,6 +330,20 @@ export async function registrarApontamentosSupervisor(
     turno_setor_operacao_id: lancamento.turnoSetorOperacaoId,
     quantidade: lancamento.quantidade,
   }))
+  const validacaoSaldoFisico = await validarConsumoSaldoFisicoOperacoesComClient(
+    supabase,
+    parsedLancamentos.data.map((lancamento) => ({
+      turnoSetorOperacaoId: lancamento.turnoSetorOperacaoId,
+      quantidadeSolicitada: lancamento.quantidade,
+    }))
+  )
+
+  if (validacaoSaldoFisico.erro) {
+    return {
+      sucesso: false,
+      erro: validacaoSaldoFisico.erro,
+    }
+  }
 
   const { data, error } = await supabase.rpc('registrar_producao_supervisor_em_lote', {
     p_usuario_sistema_id: usuarioSistema.id,

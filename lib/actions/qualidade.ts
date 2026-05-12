@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { validarConsumoSaldoFisicoOperacoesComClient } from '@/lib/queries/saldo-fisico-op'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 import type { OrigemLancamentoQualidade } from '@/types'
 
@@ -176,6 +177,20 @@ export async function registrarRevisaoQualidade(
   }
 
   const supabase = createAdminClient()
+  const validacaoSaldoFisico = await validarConsumoSaldoFisicoOperacoesComClient(supabase, [
+    {
+      turnoSetorOperacaoId: input.turnoSetorOperacaoIdQualidade,
+      quantidadeSolicitada: quantidadeRevisada,
+    },
+  ])
+
+  if (validacaoSaldoFisico.erro) {
+    return {
+      sucesso: false,
+      erro: validacaoSaldoFisico.erro,
+    }
+  }
+
   const { data, error } = await supabase.rpc('registrar_revisao_qualidade_turno_setor_operacao', {
     p_turno_setor_operacao_id_qualidade: input.turnoSetorOperacaoIdQualidade,
     p_revisor_usuario_id: revisor.id,

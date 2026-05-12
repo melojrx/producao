@@ -4796,7 +4796,7 @@ Escopo futuro previsto:
 ---
 
 ## SPRINT 49 — Correção do carry-over setorial repetido entre turnos
-**Status:** 🔄 Aberta
+**Status:** ✅ Concluída
 **Pré-requisito:** Sprint 48 concluída e regressão real identificada no turno aberto `655fe974-a09a-4051-b4ad-60a2f0965bc2`.
 **Objetivo:** corrigir a regressão em que OPs carregadas por carry-over voltam para o estado inicial ao abrir um novo turno, preservando a continuidade setorial, a liberação herdada e o saldo pendente real sem contaminar `quantidade_realizada` do turno novo.
 
@@ -4922,7 +4922,7 @@ Escopo futuro previsto:
 
   **Evidência:** criado e executado o script read-only `scripts/sprint49_readonly_reconciliation.mjs` via Supabase Management API (`/database/query/read-only`) em `2026-05-11`, comparando o turno origem `8289f704-bd52-4b6c-82cd-b150f4d8705d` com o turno destino `655fe974-a09a-4051-b4ad-60a2f0965bc2`. O relatório confirmou que o destino mantém duas OPs de carry-over (`13089` e `207675`) e que o vínculo aponta para a OP raiz, não para a linha do turno imediatamente anterior. Para a OP `13089`, Preparação, Frente e Costa já possuem apontamentos no turno novo, então não há update direto seguro de `quantidade_liberada_setor` sem risco de duplicar/alterar operação reapontada. Para a OP `207675`, a origem não tinha `quantidade_liberada_setor` positiva a restaurar. Conclusão: nenhum patch SQL de produção recomendado para o turno atual; a correção deve seguir pelo código para as próximas aberturas.
 
-- [ ] **HU 49.6 — Como produto, quero homologar o carry-over repetido ponta a ponta, para confiar que fechar e abrir turnos sucessivos não reinicia OPs em andamento.**
+- [x] **HU 49.6 — Como produto, quero homologar o carry-over repetido ponta a ponta, para confiar que fechar e abrir turnos sucessivos não reinicia OPs em andamento.**
   **Prioridade:** P0
   **Risco:** Médio
 
@@ -4939,7 +4939,7 @@ Escopo futuro previsto:
 
   **Evidência esperada:** `node --test --experimental-strip-types` nas suítes focadas passa sem falhas; `npx tsc --noEmit` passa; consulta read-only no turno real confirma que novas aberturas preservam continuidade por setor.
 
-  **Evidência parcial:** homologação real do turno `4f78ad77-d333-41dc-8df1-b6b96ebdeb64` revelou que a primeira correção ainda reabria o mesmo setor já produzido quando `quantidade_realizada` da origem era positiva. O teste `não reabre no mesmo setor a quantidade já produzida no turno anterior` foi adicionado em `lib/utils/carry-over-turno.test.ts`, falhou antes da correção com `Preparação.quantidadeLiberadaDestino = 792` e passou após ajustar `calcularQuantidadeLiberadaDestino()` para usar disponibilidade de fluxo já abatida do realizado. O teste `preserva liberação herdada para sucessores sem reabrir etapa concluída no carry-over` foi adicionado em `lib/utils/fluxo-paralelo-turno.test.ts`, falhou antes da correção porque a leitura descartava a liberação persistida de Frente/Costa e reabria Preparação, e passou após o fluxo paralelo considerar `quantidadeLiberadaSetor` persistida como carry-over válido e tratar etapa herdada `concluida` como não executável. `hidratarProgressoCarryOverDaOp()` passou a marcar a demanda destino como `concluida` quando o setor já estava completo na origem, sem gravar produção herdada em `quantidade_realizada`. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 36/36; `npx tsc --noEmit` e `git diff --check` passaram sem erros. Com aprovação explícita do usuário, aplicado patch de dados no turno aberto para a OP `13089`, demanda `a38ac71b-0f79-4ff3-8df9-5ec2003f1639`: `Preparação.quantidade_liberada_setor` foi de `792` para `0` e `status` de `aberta` para `concluida`; consulta read-only posterior confirmou `Frente = 792`, `Costa = 792`, `Montagem = 0`, `Finalização = 0`, `Qualidade = 0`, todos com `quantidade_realizada = 0` no turno novo. A HU permanece aberta até validar novo ciclo real após deploy.
+  **Evidência:** homologação real do turno `4f78ad77-d333-41dc-8df1-b6b96ebdeb64` revelou que a primeira correção ainda reabria o mesmo setor já produzido quando `quantidade_realizada` da origem era positiva. O teste `não reabre no mesmo setor a quantidade já produzida no turno anterior` foi adicionado em `lib/utils/carry-over-turno.test.ts`, falhou antes da correção com `Preparação.quantidadeLiberadaDestino = 792` e passou após ajustar `calcularQuantidadeLiberadaDestino()` para usar disponibilidade de fluxo já abatida do realizado. O teste `preserva liberação herdada para sucessores sem reabrir etapa concluída no carry-over` foi adicionado em `lib/utils/fluxo-paralelo-turno.test.ts`, falhou antes da correção porque a leitura descartava a liberação persistida de Frente/Costa e reabria Preparação, e passou após o fluxo paralelo considerar `quantidadeLiberadaSetor` persistida como carry-over válido e tratar etapa herdada `concluida` como não executável. `hidratarProgressoCarryOverDaOp()` passou a marcar a demanda destino como `concluida` quando o setor já estava completo na origem, sem gravar produção herdada em `quantidade_realizada`. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 36/36; `npx tsc --noEmit` e `git diff --check` passaram sem erros. Com aprovação explícita do usuário, aplicado patch de dados no turno aberto para a OP `13089`, demanda `a38ac71b-0f79-4ff3-8df9-5ec2003f1639`: `Preparação.quantidade_liberada_setor` foi de `792` para `0` e `status` de `aberta` para `concluida`; consulta read-only posterior confirmou `Frente = 792`, `Costa = 792`, `Montagem = 0`, `Finalização = 0`, `Qualidade = 0`, todos com `quantidade_realizada = 0` no turno novo. Homologação final confirmada pelo usuário em `2026-05-12`, encerrando a HU 49.6 e validando o ciclo de carry-over repetido ponta a ponta sem reinício artificial de OPs em andamento.
 
 - [x] **HU 49.7 — Como produto, quero separar explicitamente progresso herdado, produção do turno e liberação executável, para que o carry-over preserve a continuidade real sem contaminar os KPIs do turno novo.**
   **Prioridade:** P0
@@ -4985,7 +4985,70 @@ Escopo futuro previsto:
 
   **Evidência esperada:** documentação da HU 49.7 registrada em `docs/TASKS.md` e `docs/BACKLOG.md`; migration aditiva criada; código passa a separar `quantidade_herdada_setor`, `quantidade_realizada` e `quantidade_liberada_setor`; testes automatizados provam que o fechamento e a abertura do turno preservam progresso herdado sem reiniciar OP nem inflar produção do turno novo.
 
-  **Evidência:** HU 49.7 documentada em `docs/TASKS.md` e `docs/BACKLOG.md` em `2026-05-11`, formalizando o contrato de domínio: `quantidade_herdada_setor` guarda progresso acumulado de turnos anteriores, `quantidade_realizada` guarda somente produção do turno atual e `quantidade_liberada_setor` guarda saldo executável imediato. Criado o script aditivo `scripts/sprint49_quantidade_herdada_setor.sql` e aplicada a migration via Supabase Management API no projeto `jsuufbgdcqxogimmocof`; validação read-only confirmou `quantidade_herdada_setor integer NOT NULL DEFAULT 0`. `normalizarDemandasCarryOverEntreTurnos()` passou a gerar `quantidadeHerdadaDestino` e manter `quantidadeRealizadaDestino = 0`; `hidratarProgressoCarryOverDaOp()` passou a persistir `quantidade_herdada_setor` no destino; fluxo sequencial/paralelo e hidratação de capacidade passaram a calcular backlog/liberação por progresso operacional acumulado sem contaminar KPIs do turno. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo sequencial, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 42/42; `npx tsc --noEmit` e `git diff --check` passaram sem erros. A HU 49.6 permanece aberta para homologação real após deploy, fechamento e abertura de novo turno.
+  **Evidência:** HU 49.7 documentada em `docs/TASKS.md` e `docs/BACKLOG.md` em `2026-05-11`, formalizando o contrato de domínio: `quantidade_herdada_setor` guarda progresso acumulado de turnos anteriores, `quantidade_realizada` guarda somente produção do turno atual e `quantidade_liberada_setor` guarda saldo executável imediato. Criado o script aditivo `scripts/sprint49_quantidade_herdada_setor.sql` e aplicada a migration via Supabase Management API no projeto `jsuufbgdcqxogimmocof`; validação read-only confirmou `quantidade_herdada_setor integer NOT NULL DEFAULT 0`. `normalizarDemandasCarryOverEntreTurnos()` passou a gerar `quantidadeHerdadaDestino` e manter `quantidadeRealizadaDestino = 0`; `hidratarProgressoCarryOverDaOp()` passou a persistir `quantidade_herdada_setor` no destino; fluxo sequencial/paralelo e hidratação de capacidade passaram a calcular backlog/liberação por progresso operacional acumulado sem contaminar KPIs do turno. Validação local em `2026-05-11`: `node --test --experimental-strip-types` na suíte focada de carry-over, fluxo contínuo, fluxo sequencial, fluxo paralelo, kanban, hidratação de capacidade e apontamento supervisor passou 42/42; `npx tsc --noEmit` e `git diff --check` passaram sem erros. Homologação real confirmada pelo usuário em `2026-05-12` junto ao fechamento da HU 49.6 e da Sprint 49.
+
+## SPRINT 50 — Controle físico de saldo da OP
+**Status:** 🔄 Aberta
+**Objetivo:** formalizar e aplicar a OP como container físico finito de peças, permitindo flexibilidade operacional total sem gerar produção acumulada acima da quantidade real da OP.
+**Pré-requisito:** Sprint 49 concluída.
+
+- [x] **HU 50.1 — Como produto, quero documentar a OP como saldo físico finito, para alinhar PRD, backlog e execução técnica.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Regras:
+  - a OP possui quantidade física finita definida por `turno_ops.quantidade_planejada`
+  - operações e setores consomem esse saldo ao longo da produção
+  - FIFO, capacidade, disponível, plano do dia e exceção manual são flexíveis e informativos
+  - o único limite estrutural é o saldo físico restante da OP naquela operação
+  - quando todas as operações obrigatórias chegam ao saldo físico zero, a OP está concluída e deixa de ter trabalho operacional
+  - a comunicação deve falar em encerramento natural ou ausência de saldo físico, não em trava administrativa
+
+  **Evidência esperada:** `docs/PRD.md`, `docs/TASKS.md` e `docs/BACKLOG.md` registram a Sprint 50 e o contrato de saldo físico da OP.
+
+  **Evidência:** Sprint 50 aberta em `2026-05-12`; `docs/PRD.md` passou a registrar a OP como container físico finito, com capacidade/FIFO/disponível como indicadores flexíveis e saldo físico como único limite estrutural. `docs/TASKS.md` e `docs/BACKLOG.md` registram objetivo, entregável, regras e abertura da sprint.
+
+- [x] **HU 50.2 — Como supervisor, quero que o apontador administrativo respeite o saldo físico da OP, para não registrar produção inexistente.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - o apontador pode permitir exceção de FIFO, capacidade e disponibilidade
+  - a sugestão automática de quantidade não pode ultrapassar o saldo físico restante da operação na OP
+  - envios em lote devem somar lançamentos da mesma operação antes de validar
+  - quando não houver saldo físico, a operação não deve ser contexto acionável
+
+  **Evidência esperada:** teste automatizado cobre saldo físico com progresso herdado; apontador rejeita lote acima do saldo físico e mantém liberdade sobre saldo visual.
+
+  **Evidência:** criado `lib/utils/saldo-fisico-op.ts` com testes em `lib/utils/saldo-fisico-op.test.ts`; o caso OP `13089` com `792` peças e `447` herdadas passa a calcular saldo físico `345` e recusar lançamento de `447`. `components/apontamentos/PainelApontamentosSupervisor.tsx` passou a limitar sugestão, `max` e validação de lote pelo saldo físico agregado por operação, preservando capacidade/disponível como informação.
+
+- [x] **HU 50.3 — Como operador/supervisor no chão, quero que o scanner respeite o saldo físico da OP, para que a operação termine naturalmente ao consumir todas as peças.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - o scanner não deve sugerir quantidade acima do saldo físico restante
+  - o botão de registro deve recusar quantidade maior do que o saldo físico
+  - operações sem saldo físico não devem seguir como opção operacional
+  - o texto deve orientar que a OP não possui mais saldo para aquela operação
+
+  **Evidência esperada:** teste automatizado cobre o cálculo; `hooks/useScanner.ts` e `components/scanner/ConfirmacaoRegistro.tsx` aplicam a regra sem reintroduzir bloqueio por capacidade/FIFO.
+
+  **Evidência:** `hooks/useScanner.ts` filtra operações sem saldo físico e valida quantidade antes da action; `components/scanner/ConfirmacaoRegistro.tsx` sugere e limita quantidade pelo saldo físico; `components/scanner/ConfirmacaoQualidade.tsx` aplica o mesmo conceito na revisão de qualidade. As mensagens indicam ausência de saldo físico da OP, não bloqueio administrativo.
+
+- [x] **HU 50.4 — Como sistema, quero enforcement server-side do saldo físico da OP, para que o limite físico valha mesmo se a UI for contornada.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - Server Actions de produção e qualidade devem validar saldo físico antes da RPC
+  - a validação deve considerar linhagem de carry-over da OP e progresso herdado
+  - script SQL deve atualizar as RPCs para manter o mesmo contrato no banco remoto
+  - quando a operação atingir a quantidade física total da OP, ela deve ficar concluída; quando todas as operações obrigatórias concluírem, a OP fica concluída
+
+  **Evidência esperada:** testes focados passam, `npx tsc --noEmit` passa, script SQL da Sprint 50 criado e validado por `git diff --check`.
+
+  **Evidência:** `lib/queries/saldo-fisico-op.ts` valida server-side a linhagem física da OP antes das RPCs de produção e qualidade; `lib/actions/producao.ts` e `lib/actions/qualidade.ts` chamam essa validação antes de gravar. `scripts/sprint50_saldo_fisico_op.sql` criou função e triggers no Supabase remoto via Management API em `2026-05-12`; consulta read-only em `calcular_saldo_fisico_operacao_op()` confirmou que a operação `P64` da OP `13089` já retorna `saldo_fisico = 0` quando a produção acumulada da linhagem excede a quantidade física da OP. Validação local: `node --test --experimental-strip-types lib/utils/saldo-fisico-op.test.ts lib/utils/apontamento-supervisor.test.ts` passou 8/8 e `npx tsc --noEmit` passou sem erros.
 
 ---
 
@@ -5005,6 +5068,7 @@ Sprint 45 ──► Sprint 46
 Sprint 46 ──► Sprint 47
 Sprint 47 ──► Sprint 48
 Sprint 48 ──► Sprint 49
+Sprint 49 ──► Sprint 50
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
