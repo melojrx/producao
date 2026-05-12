@@ -2,6 +2,8 @@
 
 O sistema deve funcionar em fluxo contínuo de produção e qualidade paralela.
 
+![Fluxo contínuo de qualidade simples e sem travas](./infografico_qualidade.jpeg)
+
 ## Conceito
 
 A produção não espera a OP terminar completamente para iniciar a qualidade.
