@@ -696,7 +696,7 @@
 ## SPRINT 50 — Controle físico de saldo da OP
 **Objetivo:** formalizar a OP como container físico finito de peças e aplicar esse saldo físico no apontador, scanner e backend sem reintroduzir bloqueio por FIFO, capacidade, disponível ou plano visual.
 **Entregável:** PRD atualizado com o contrato de saldo físico da OP, inputs de apontador e scanner limitados pelo saldo físico restante, validação server-side antes das RPCs e script SQL para enforcement transacional no Supabase.
-**Status:** 🔄 Aberta
+**Status:** ✅ Concluída
 
 - Documentar que a OP possui quantidade física finita e que operações/setores apenas consomem esse volume
 - Preservar liberdade operacional para furar FIFO, reorganizar sequência, antecipar produção e ultrapassar capacidade planejada
@@ -714,6 +714,8 @@
 **Correção de homologação em `2026-05-12`:** a OP real `207675` ficou com `1` peça aberta porque a linhagem operacional mais recente foi cadastrada com `quantidade_planejada = 1306`, enquanto o histórico anterior da mesma OP estava em `1305` e os apontamentos da Preparação registraram `1305`. A regra foi refinada: `numero_op` é o identificador do container físico e não pode ser recriada como nova raiz quando já existe no histórico. Continuidade deve usar carry-over da OP existente; OP concluída deve ceder lugar a outra OP.
 
 **Execução remota em `2026-05-13`:** `scripts/sprint50_corrigir_op_207675_quantidade_fisica.sql` foi aplicado no projeto `jsuufbgdcqxogimmocof` via Supabase Management API. A validação antes/depois confirmou que a linhagem da OP `207675` deixou de carregar `quantidade_planejada = 1306` em `turno_ops`, `turno_setor_demandas`, `turno_setor_ops` e `turno_setor_operacoes`, passando para `1305`.
+
+**Fechamento em `2026-05-13`:** Sprint 50 encerrada após conclusão das HUs 50.1 a 50.5, correção remota da OP `207675` e validação local com `npm run lint`, `npx tsc --noEmit`, `git diff --check` e suíte focada 15/15. A OP fica documentada e implementada como container físico finito, com `numero_op` impedido de nascer novamente como raiz física divergente.
 
 ---
 
