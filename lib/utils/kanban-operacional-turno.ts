@@ -9,8 +9,7 @@ import type {
   TurnoSetorV2,
 } from '@/types'
 
-export interface KanbanOperacionalSetorResumo
-  extends Pick<
+export type KanbanOperacionalSetorResumo = Pick<
     TurnoSetorV2,
     | 'setorId'
     | 'setorCodigo'
@@ -21,7 +20,7 @@ export interface KanbanOperacionalSetorResumo
     | 'capacidadeMinutosReservada'
     | 'capacidadeMinutosRestante'
     | 'diagnosticoCapacidade'
-  > {}
+  >
 
 export interface KanbanOperacionalColuna {
   setor: KanbanOperacionalSetorResumo

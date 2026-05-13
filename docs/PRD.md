@@ -762,6 +762,9 @@ Regras obrigatórias do vocabulário:
 
 Controle físico da OP:
 - a OP é um container físico finito de peças; `turno_ops.quantidade_planejada` define quantas peças existem para aquela ordem produtiva
+- `numero_op` identifica o container físico da ordem produtiva; uma mesma OP não pode ser recriada como nova raiz operacional quando já existe no histórico
+- continuidade entre turnos deve acontecer por carry-over da OP existente, preservando a mesma linhagem física e sua quantidade original/remanescente
+- se uma OP já foi concluída, não há mais trabalho operacional nela; produção posterior deve usar outra OP
 - capacidade operacional, disponibilidade imediata, FIFO, plano do dia e exceção manual são leituras de gestão e podem ser flexibilizadas pelo supervisor
 - o único limite estrutural da produção é o saldo físico da OP
 - nenhuma operação, setor, apontamento administrativo, scanner ou revisão de qualidade pode produzir acumulado físico superior à quantidade total da OP

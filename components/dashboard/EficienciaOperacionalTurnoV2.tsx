@@ -30,6 +30,9 @@ interface EficienciaOperacionalTurnoV2Props {
 }
 
 const ITENS_POR_PAGINA_OPERACAO = 10
+const EFICIENCIA_HORA_VAZIA: ResumoEficienciaOperacionalTurnoV2['porHora'] = []
+const EFICIENCIA_DIA_VAZIA: ResumoEficienciaOperacionalTurnoV2['porDia'] = []
+const EFICIENCIA_OPERACAO_VAZIA: ResumoEficienciaOperacionalTurnoV2['porOperacao'] = []
 
 function formatarHora(valor: string): string {
   const data = new Date(valor)
@@ -233,9 +236,9 @@ export function EficienciaOperacionalTurnoV2({
   resumo,
   operadoresDisponiveis,
 }: EficienciaOperacionalTurnoV2Props) {
-  const porHora = resumo?.porHora ?? []
-  const porDia = resumo?.porDia ?? []
-  const porOperacao = resumo?.porOperacao ?? []
+  const porHora = resumo?.porHora ?? EFICIENCIA_HORA_VAZIA
+  const porDia = resumo?.porDia ?? EFICIENCIA_DIA_VAZIA
+  const porOperacao = resumo?.porOperacao ?? EFICIENCIA_OPERACAO_VAZIA
   const itensPorPaginaSuperior = Math.max(1, operadoresDisponiveis)
   const [paginaHora, setPaginaHora] = useState(1)
   const [paginaDia, setPaginaDia] = useState(1)

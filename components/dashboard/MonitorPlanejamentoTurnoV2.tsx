@@ -17,7 +17,6 @@ import { contarOperadoresEnvolvidosNoTurno } from '@/lib/utils/turno-operadores'
 import {
   mapearOpsTurnoParaDashboard,
   mapearSetoresTurnoParaDashboard,
-  type TurnoOpResumoDashboardItem,
 } from '@/lib/utils/turno-setores'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type {

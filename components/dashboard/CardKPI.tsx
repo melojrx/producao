@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { LucideIcon } from 'lucide-react'
 
@@ -35,11 +35,12 @@ export function CardKPI({
   motivoDesabilitado = 'Indisponível no contexto atual.',
 }: CardKPIProps) {
   const [valorAnimado, setValorAnimado] = useState(valor)
+  const valorAnimadoRef = useRef(valor)
   const tooltip = desabilitado ? motivoDesabilitado : descricao
 
   useEffect(() => {
     let frameId = 0
-    const valorInicial = valorAnimado
+    const valorInicial = valorAnimadoRef.current
     const diferenca = valor - valorInicial
     const duracao = 420
     const inicio = performance.now()
@@ -47,8 +48,10 @@ export function CardKPI({
     function animar(agora: number) {
       const progresso = Math.min((agora - inicio) / duracao, 1)
       const suavizado = 1 - Math.pow(1 - progresso, 3)
+      const proximoValor = valorInicial + diferenca * suavizado
 
-      setValorAnimado(valorInicial + diferenca * suavizado)
+      valorAnimadoRef.current = proximoValor
+      setValorAnimado(proximoValor)
 
       if (progresso < 1) {
         frameId = window.requestAnimationFrame(animar)

@@ -181,7 +181,7 @@ export function KanbanOperacionalTurno({
       </div>
 
       <div className="mt-6 overflow-x-auto pb-2">
-        <div className="grid min-w-[84rem] grid-cols-1 gap-4 xl:grid-cols-5">
+        <div className="grid grid-flow-col auto-cols-[minmax(17rem,20rem)] gap-4">
           {colunas.map((coluna) => {
             const capacidadeTotal = normalizarNumero(coluna.setor.capacidadeMinutosTotal)
             const capacidadeConsumida = normalizarNumero(coluna.setor.capacidadeMinutosConsumida)

@@ -223,18 +223,6 @@ function calcularSaldoDisponivelSequencialDemanda(demanda: TurnoSetorDemandaScan
   return demanda.quantidadeDisponivelApontamento ?? demanda.saldoRestante
 }
 
-function calcularSaldoDisponivelSequencialOperacao(
-  demanda: TurnoSetorDemandaScaneada,
-  operacao: TurnoSetorOperacaoApontamentoV2
-): number {
-  const quantidadeExpostaDemanda = calcularQuantidadeExpostaDemanda(demanda)
-
-  return Math.max(
-    Math.min(operacao.quantidadePlanejada, quantidadeExpostaDemanda) - operacao.quantidadeRealizada,
-    0
-  )
-}
-
 function calcularSaldoFisicoOperacaoScanner(
   demanda: TurnoSetorDemandaScaneada,
   operacao: TurnoSetorOperacaoApontamentoV2

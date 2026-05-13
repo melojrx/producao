@@ -180,7 +180,7 @@ export function GaleriaProdutoDetalhe({
                 </div>
               ) : (
                 <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                  Clique em uma vista para alternar a imagem principal e use "Ampliar" para inspecao detalhada.
+                  Clique em uma vista para alternar a imagem principal e use Ampliar para inspecao detalhada.
                 </div>
               )}
             </div>

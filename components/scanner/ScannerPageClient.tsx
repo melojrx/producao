@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Boxes,
   CheckCircle2,
-  ClipboardList,
   Factory,
   IdCard,
   ShieldAlert,

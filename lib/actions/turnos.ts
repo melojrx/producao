@@ -13,6 +13,7 @@ import {
   consolidarDemandasCarryOverComOperacoes,
   normalizarDemandasCarryOverEntreTurnos,
 } from '@/lib/utils/carry-over-turno'
+import { validarNovaOpFisica } from '@/lib/utils/op-fisica'
 import type {
   AdicionarTurnoOpV2Input,
   CarregarPendenciasTurnoAnteriorInput,
@@ -34,8 +35,10 @@ type TurnoOpInsert = TablesInsert<'turno_ops'>
 type TurnoOpUpdate = TablesUpdate<'turno_ops'>
 type TurnoSetorDemandaRow = Tables<'turno_setor_demandas'>
 type TurnoSetorDemandaUpdate = TablesUpdate<'turno_setor_demandas'>
-type TurnoSetorOperacaoRow = Tables<'turno_setor_operacoes'>
-type TurnoSetorOpRow = Tables<'turno_setor_ops'>
+type TurnoOpFisicaRow = Pick<
+  TurnoOpRow,
+  'id' | 'numero_op' | 'status' | 'turno_op_origem_id' | 'quantidade_planejada_remanescente'
+>
 
 type ProdutoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia' | 'ativo'>
 type ProdutoOperacaoRow = Pick<Tables<'produto_operacoes'>, 'operacao_id'>
@@ -230,6 +233,40 @@ function validarPayloadTurnoOp(input: TurnoOpPlanejadaInput): string | null {
   }
 
   return null
+}
+
+async function validarNumeroOpComoContainerFisico(input: {
+  numeroOp: string
+  turnoOpOrigemId?: string | null
+  ignorarTurnoOpId?: string | null
+}): Promise<string | null> {
+  const supabase = createAdminClient()
+  const numeroOp = normalizarTexto(input.numeroOp)
+
+  const { data, error } = await supabase
+    .from('turno_ops')
+    .select('id, numero_op, status, turno_op_origem_id, quantidade_planejada_remanescente')
+    .eq('numero_op', numeroOp)
+    .returns<TurnoOpFisicaRow[]>()
+
+  if (error) {
+    return `Erro ao validar histórico físico da OP: ${error.message}`
+  }
+
+  const validacao = validarNovaOpFisica({
+    numeroOp,
+    turnoOpOrigemId: input.turnoOpOrigemId,
+    ignorarTurnoOpId: input.ignorarTurnoOpId,
+    opsExistentes: (data ?? []).map((op) => ({
+      id: op.id,
+      numeroOp: op.numero_op,
+      status: op.status,
+      turnoOpOrigemId: op.turno_op_origem_id,
+      quantidadePlanejadaRemanescente: op.quantidade_planejada_remanescente,
+    })),
+  })
+
+  return validacao.permitido ? null : validacao.mensagem ?? 'A OP informada já existe.'
 }
 
 async function validarOperadores(turnoId: string, operadorIds: string[]): Promise<string | null> {
@@ -680,6 +717,15 @@ async function inserirTurnoOp(
 
   if (duplicada) {
     return { erro: `A OP ${numeroOp} já está cadastrada neste turno.` }
+  }
+
+  const erroContainerFisico = await validarNumeroOpComoContainerFisico({
+    numeroOp,
+    turnoOpOrigemId: input.turnoOpOrigemId,
+  })
+
+  if (erroContainerFisico) {
+    return { erro: erroContainerFisico }
   }
 
   const payload: TurnoOpInsert = {
@@ -1225,6 +1271,17 @@ export async function editarOpDoTurno(
 
   if (duplicada) {
     return { sucesso: false, erro: `A OP ${numeroOp} já existe neste turno.` }
+  }
+
+  if (mudouNumero) {
+    const erroContainerFisico = await validarNumeroOpComoContainerFisico({
+      numeroOp,
+      ignorarTurnoOpId: input.turnoOpId,
+    })
+
+    if (erroContainerFisico) {
+      return { sucesso: false, erro: erroContainerFisico }
+    }
   }
 
   const payload: TurnoOpUpdate = {

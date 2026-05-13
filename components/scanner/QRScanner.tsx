@@ -1,7 +1,7 @@
 'use client'
 
 import { Camera, ScanLine, ShieldAlert, TriangleAlert } from 'lucide-react'
-import { useEffect, useEffectEvent, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { parseQRCode } from '@/lib/utils/qrcode'
 import type { QRScanResult } from '@/types'
 import type { CameraDevice, Html5Qrcode, Html5QrcodeCameraScanConfig, Html5QrcodeResult } from 'html5-qrcode'
@@ -44,21 +44,6 @@ function extrairMensagemErro(error: unknown): string {
   }
 
   return 'Não foi possível acessar a câmera do dispositivo.'
-}
-
-function obterTextoPermissao(statusPermissao: StatusPermissaoCamera): string {
-  switch (statusPermissao) {
-    case 'prompt':
-      return 'Aguardando autorização do navegador'
-    case 'granted':
-      return 'Permissão concedida'
-    case 'denied':
-      return 'Permissão bloqueada'
-    case 'indisponivel':
-      return 'API de câmera indisponível'
-    default:
-      return 'Permissão ainda não verificada'
-  }
 }
 
 function obterInstrucaoPermissao(statusPermissao: StatusPermissaoCamera): string {
@@ -115,6 +100,9 @@ export function QRScanner({
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null)
   const processandoScanRef = useRef(false)
   const ultimoCodigoInvalidoRef = useRef(0)
+  const onScanRef = useRef(onScan)
+  const onCodigoInvalidoRef = useRef(onCodigoInvalido)
+  const onErroRef = useRef(onErro)
   const [mensagemStatus, setMensagemStatus] = useState(
     'Toque em "Ativar câmera" para iniciar o scanner.'
   )
@@ -123,22 +111,24 @@ export function QRScanner({
     useState<StatusPermissaoCamera>('desconhecido')
   const [estadoInicializacao, setEstadoInicializacao] =
     useState<EstadoInicializacao>('aguardando_acao')
-  const [contextoSeguroAtivo, setContextoSeguroAtivo] = useState(false)
-  const [apiCameraDisponivel, setApiCameraDisponivel] = useState(false)
   const [cameraSelecionada, setCameraSelecionada] = useState<string | null>(null)
   const bloqueioInteracaoRef = useRef(0)
 
-  const handleScan = useEffectEvent(async (resultado: QRScanResult) => {
-    await onScan(resultado)
-  })
+  onScanRef.current = onScan
+  onCodigoInvalidoRef.current = onCodigoInvalido
+  onErroRef.current = onErro
 
-  const handleCodigoInvalido = useEffectEvent((valorLido: string) => {
-    onCodigoInvalido?.(valorLido)
-  })
+  async function handleScan(resultado: QRScanResult) {
+    await onScanRef.current(resultado)
+  }
 
-  const handleErro = useEffectEvent((mensagem: string) => {
-    onErro?.(mensagem)
-  })
+  function handleCodigoInvalido(valorLido: string) {
+    onCodigoInvalidoRef.current?.(valorLido)
+  }
+
+  function handleErro(mensagem: string) {
+    onErroRef.current?.(mensagem)
+  }
 
   async function encerrarScannerAtivo() {
     const scanner = html5QrcodeRef.current
@@ -170,9 +160,6 @@ export function QRScanner({
     async function verificarPermissaoInicial() {
       const possuiContextoSeguro = window.isSecureContext
       const possuiApiCamera = Boolean(navigator.mediaDevices?.getUserMedia)
-
-      setContextoSeguroAtivo(possuiContextoSeguro)
-      setApiCameraDisponivel(possuiApiCamera)
 
       if (!possuiContextoSeguro || !possuiApiCamera) {
         setStatusPermissao('indisponivel')
@@ -226,9 +213,6 @@ export function QRScanner({
 
     const possuiContextoSeguro = window.isSecureContext
     const possuiApiCamera = Boolean(navigator.mediaDevices?.getUserMedia)
-
-    setContextoSeguroAtivo(possuiContextoSeguro)
-    setApiCameraDisponivel(possuiApiCamera)
 
     if (!ativa) {
       setMensagemStatus('A câmera está pausada enquanto a tela processa a etapa atual.')

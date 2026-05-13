@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CalendarClock, PackagePlus, Plus, Trash2, Users, X } from 'lucide-react'
 import { abrirTurnoFormulario } from '@/lib/actions/turnos'
@@ -119,8 +119,9 @@ export function ModalNovoTurnoV2({
   const [ops, setOps] = useState<TurnoOpDraft[]>([criarOpDraft(produtos)])
   const [carregarPendencias, setCarregarPendencias] = useState(false)
   const [turnoOpIdsPendentes, setTurnoOpIdsPendentes] = useState<string[]>([])
-  const pendenciasDisponiveis = (planejamentoAtual?.ops ?? []).filter(
-    (op) => op.quantidadePlanejadaRemanescente > 0
+  const pendenciasDisponiveis = useMemo(
+    () => (planejamentoAtual?.ops ?? []).filter((op) => op.quantidadePlanejadaRemanescente > 0),
+    [planejamentoAtual?.ops]
   )
   const pendenciasDisponiveisKey = pendenciasDisponiveis.map((op) => op.id).join('|')
   const pendenciasSelecionadas = pendenciasDisponiveis.filter((op) =>
@@ -156,7 +157,7 @@ export function ModalNovoTurnoV2({
         pendenciasDisponiveis.some((pendencia) => pendencia.id === turnoOpId)
       )
     )
-  }, [pendenciasDisponiveisKey])
+  }, [pendenciasDisponiveis, pendenciasDisponiveisKey])
 
   function adicionarOp(): void {
     setOps((estadoAtual) => [...estadoAtual, criarOpDraft(produtos)])

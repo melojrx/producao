@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { buscarTurnoAbertoOuUltimoEncerradoClient } from '@/lib/queries/turnos-client'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
@@ -31,24 +31,24 @@ export function useRealtimePlanejamentoTurnoV2(
   const [erro, setErro] = useState<string | null>(null)
   const recargaEmAndamentoRef = useRef<Promise<void> | null>(null)
 
-  const aplicarSnapshot = useEffectEvent((snapshot: PlanejamentoTurnoDashboardV2 | null) => {
+  const aplicarSnapshot = useCallback((snapshot: PlanejamentoTurnoDashboardV2 | null) => {
     startTransition(() => {
       setPlanejamento(snapshot)
       setUltimaAtualizacao(new Date())
       setErro(null)
       setEstaCarregando(false)
     })
-  })
+  }, [])
 
-  const registrarErro = useEffectEvent((mensagem: string) => {
+  const registrarErro = useCallback((mensagem: string) => {
     startTransition(() => {
       setErro(mensagem)
       setStatusConexao('erro')
       setEstaCarregando(false)
     })
-  })
+  }, [])
 
-  const recarregar = useEffectEvent(async () => {
+  const recarregar = useCallback(async () => {
     if (recargaEmAndamentoRef.current) {
       return recargaEmAndamentoRef.current
     }
@@ -72,7 +72,7 @@ export function useRealtimePlanejamentoTurnoV2(
 
     recargaEmAndamentoRef.current = recarga
     return recarga
-  })
+  }, [aplicarSnapshot, registrarErro])
 
   useEffect(() => {
     if (initialPlanning) {

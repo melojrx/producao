@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   buscarConfiguracaoTurnoComBlocosHojeClient,
@@ -85,7 +85,7 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
   const [erro, setErro] = useState<string | null>(null)
   const recargaEmAndamentoRef = useRef<Promise<void> | null>(null)
 
-  const aplicarSnapshot = useEffectEvent((snapshot: SnapshotProducao) => {
+  const aplicarSnapshot = useCallback((snapshot: SnapshotProducao) => {
     startTransition(() => {
       setRegistros(snapshot.registros)
       setProducaoPorHora(snapshot.producaoPorHora)
@@ -96,17 +96,17 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
       setErro(null)
       setEstaCarregando(false)
     })
-  })
+  }, [])
 
-  const registrarErro = useEffectEvent((mensagem: string) => {
+  const registrarErro = useCallback((mensagem: string) => {
     startTransition(() => {
       setErro(mensagem)
       setStatusConexao('erro')
       setEstaCarregando(false)
     })
-  })
+  }, [])
 
-  const recarregar = useEffectEvent(async () => {
+  const recarregar = useCallback(async () => {
     if (recargaEmAndamentoRef.current) {
       return recargaEmAndamentoRef.current
     }
@@ -130,7 +130,7 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
 
     recargaEmAndamentoRef.current = recarga
     return recarga
-  })
+  }, [aplicarSnapshot, registrarErro])
 
   useEffect(() => {
     const supabase = createClient()

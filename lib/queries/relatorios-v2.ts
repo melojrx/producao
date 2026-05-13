@@ -880,7 +880,6 @@ function construirItensRelatorio(base: BaseRelatorioV2): RelatorioRegistroItem[]
   const turnosPorId = new Map(base.turnos.map((turno) => [turno.id, turno]))
   const produtosPorId = new Map(base.produtos.map((produto) => [produto.id, produto]))
   const opsPorId = new Map(base.turnosOps.map((op) => [op.id, op]))
-  const secoesPorId = new Map(base.secoes.map((secao) => [secao.id, secao]))
   const demandasPorId = new Map(base.demandas.map((demanda) => [demanda.id, demanda]))
   const demandasPorSecaoLegadaId = new Map(
     base.demandas

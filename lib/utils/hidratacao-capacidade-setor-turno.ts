@@ -294,13 +294,12 @@ export function aplicarCapacidadeOperacionalDemandas(input: {
     }
   >()
 
-  for (const [setorId, demandasSetor] of demandasPorSetor.entries()) {
+  for (const demandasSetor of demandasPorSetor.values()) {
     let planoRestanteSetorPecas = capacidadeGlobalTurnoPecas
 
     for (const demanda of demandasSetor) {
       const tpTotalSetorProduto = tpTotalPorDemanda.get(demanda.id) ?? 0
       const backlog = calcularBacklogDemanda(demanda)
-      const elegivelFluxo = calcularElegivelFluxoDemanda(demanda)
       const quantidadeConcluidaDemanda = calcularQuantidadeConcluidaDemandaNoTurnoAtual(
         demanda,
         input.operacoesSecao,

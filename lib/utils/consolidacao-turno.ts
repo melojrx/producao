@@ -5,7 +5,6 @@ import type {
   TurnoSetorDemandaStatusV2,
   TurnoSetorDemandaV2,
   TurnoSetorOperacaoApontamentoV2,
-  TurnoSetorOperacaoStatusV2,
   TurnoSetorOpStatusV2,
   TurnoSetorOpV2,
   TurnoSetorScaneado,

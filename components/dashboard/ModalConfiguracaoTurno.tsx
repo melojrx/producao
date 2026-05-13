@@ -157,7 +157,7 @@ export function ModalConfiguracaoTurno({
     estadoInicial
   )
   const [erroLocal, setErroLocal] = useState<string | null>(null)
-  const [funcionariosAtivos, setFuncionariosAtivos] = useState(
+  const [funcionariosAtivos] = useState(
     configuracaoAtual ? String(configuracaoAtual.funcionariosAtivos) : '20'
   )
   const [minutosTurno, setMinutosTurno] = useState(

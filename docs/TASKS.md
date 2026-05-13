@@ -5050,6 +5050,21 @@ Escopo futuro previsto:
 
   **Evidência:** `lib/queries/saldo-fisico-op.ts` valida server-side a linhagem física da OP antes das RPCs de produção e qualidade; `lib/actions/producao.ts` e `lib/actions/qualidade.ts` chamam essa validação antes de gravar. `scripts/sprint50_saldo_fisico_op.sql` criou função e triggers no Supabase remoto via Management API em `2026-05-12`; consulta read-only em `calcular_saldo_fisico_operacao_op()` confirmou que a operação `P64` da OP `13089` já retorna `saldo_fisico = 0` quando a produção acumulada da linhagem excede a quantidade física da OP. Validação local: `node --test --experimental-strip-types lib/utils/saldo-fisico-op.test.ts lib/utils/apontamento-supervisor.test.ts` passou 8/8 e `npx tsc --noEmit` passou sem erros.
 
+- [x] **HU 50.5 — Como sistema, quero impedir duplicação física de `numero_op`, para que uma OP não seja recriada com quantidade divergente.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - `numero_op` identifica o container físico da OP no histórico operacional
+  - uma OP existente com saldo pendente não pode ser cadastrada novamente como nova raiz física
+  - continuidade entre turnos deve usar carry-over da OP existente
+  - uma OP concluída não pode receber nova produção operacional; a produção seguinte deve usar outra OP
+  - a validação deve ocorrer na abertura/edição administrativa, antes da derivação de setores e operações
+
+  **Evidência esperada:** teste automatizado cobre bloqueio de nova raiz física para OP pendente/concluída e permissão de carry-over da mesma linhagem; `lib/actions/turnos.ts` valida histórico por `numero_op`; análise da OP real `207675` documenta que o saldo aberto de 1 peça veio de uma nova linhagem salva com `1306`, enquanto as linhagens anteriores da mesma OP estavam com `1305`.
+
+  **Evidência:** análise read-only no Supabase em `2026-05-12` confirmou que a OP `207675` tinha histórico anterior com `1305`, mas a linhagem aberta às `21:08:24 UTC` nasceu com `quantidade_planejada = 1306`; todas as operações de Preparação do turno aberto estavam com `quantidade_realizada = 1305`, portanto o saldo de `1` era consequência da quantidade física divergente, não de operação sem apontamento. Criado `lib/utils/op-fisica.ts` com testes em `lib/utils/op-fisica.test.ts`; `lib/actions/turnos.ts` passou a recusar nova raiz física para `numero_op` já existente com saldo pendente/concluída e a permitir somente carry-over da linhagem informada. `scripts/sprint50_corrigir_op_207675_quantidade_fisica.sql` foi aplicado remotamente em `2026-05-13` via Supabase Management API no projeto `jsuufbgdcqxogimmocof`, com triggers estruturais de regeneração desabilitados apenas dentro da transação para permitir a reconciliação de OP já produzida. Validação read-only antes/depois confirmou `turno_ops`, `turno_setor_demandas`, `turno_setor_ops` e `turno_setor_operacoes` saindo de `quantidade_planejada = 1306` para `1305` em toda a linhagem consultada. Validação local em `2026-05-13`: suíte focada de OP física, saldo físico, apontamento supervisor e Kanban passou 15/15; `npm run lint`, `npx tsc --noEmit` e `git diff --check` passaram sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

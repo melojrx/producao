@@ -703,12 +703,17 @@
 - Tratar capacidade, disponibilidade, FIFO e plano como alerta ou indicador, não como limite físico
 - Calcular saldo físico restante por operação considerando a quantidade total da OP, produção acumulada da linhagem de carry-over e progresso herdado
 - Impedir que apontador administrativo, scanner ou qualidade registrem produção acumulada acima da quantidade física da OP
+- Impedir que a mesma `numero_op` seja recriada como novo container físico independente quando já existe no histórico operacional
 - Remover operações sem saldo físico restante dos contextos acionáveis
 - Encerrar naturalmente a operação quando seu saldo físico chega a zero e a OP quando todas as operações obrigatórias chegam a zero
 
 **Abertura em `2026-05-12`:** sprint aprovada após análise do turno aberto `9540b3ff-a8a5-4758-9a3a-c66c0b020399`, onde a tela de apontamentos exibia `Peças da OP = 345`, `manual supervisor = 447` e sugeria lançamento de `447` para a operação `P64`. A análise confirmou que `345` era a liberação executável imediata, enquanto a OP `13089` possui `792` peças físicas e progresso herdado de `447` na Preparação. A decisão de domínio é tratar a OP como estoque físico finito: flexibilidade operacional continua total, mas nenhum apontamento pode fabricar saldo físico inexistente.
 
 **Implementação técnica em `2026-05-12`:** `lib/utils/saldo-fisico-op.ts` centraliza o cálculo de saldo físico restante e a mensagem de encerramento natural da OP; apontador administrativo, scanner produtivo e scanner de qualidade passaram a sugerir, limitar e validar quantidade por saldo físico, sem voltar a bloquear por FIFO, capacidade ou disponibilidade visual. `lib/queries/saldo-fisico-op.ts`, `lib/actions/producao.ts` e `lib/actions/qualidade.ts` adicionam validação server-side antes das RPCs. A migration `scripts/sprint50_saldo_fisico_op.sql` foi aplicada no Supabase remoto e criou triggers em `registros_producao` e `qualidade_registros` para impedir INSERT acima do saldo físico da operação na linhagem da OP. A sprint permanece aberta para homologação real do usuário antes do fechamento documental.
+
+**Correção de homologação em `2026-05-12`:** a OP real `207675` ficou com `1` peça aberta porque a linhagem operacional mais recente foi cadastrada com `quantidade_planejada = 1306`, enquanto o histórico anterior da mesma OP estava em `1305` e os apontamentos da Preparação registraram `1305`. A regra foi refinada: `numero_op` é o identificador do container físico e não pode ser recriada como nova raiz quando já existe no histórico. Continuidade deve usar carry-over da OP existente; OP concluída deve ceder lugar a outra OP.
+
+**Execução remota em `2026-05-13`:** `scripts/sprint50_corrigir_op_207675_quantidade_fisica.sql` foi aplicado no projeto `jsuufbgdcqxogimmocof` via Supabase Management API. A validação antes/depois confirmou que a linhagem da OP `207675` deixou de carregar `quantidade_planejada = 1306` em `turno_ops`, `turno_setor_demandas`, `turno_setor_ops` e `turno_setor_operacoes`, passando para `1305`.
 
 ---
 

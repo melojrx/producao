@@ -32,7 +32,6 @@ interface ProdutoValidacaoRow {
   ativo: boolean | null
 }
 
-type ProdutoOperacaoRow = Pick<Tables<'produto_operacoes'>, 'operacao_id'>
 type OperacaoTempoRow = Pick<Tables<'operacoes'>, 'id' | 'tempo_padrao_min'>
 
 function inteiroPositivo(valor: number): boolean {

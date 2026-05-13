@@ -569,13 +569,13 @@ export type RelatorioSortField =
   | 'statusOp'
   | 'ultimaLeituraEm'
 
-export interface SetorOption extends Tables<'setores'> {}
+export type SetorOption = Tables<'setores'>
 
-export interface SetorListItem extends Tables<'setores'> {}
+export type SetorListItem = Tables<'setores'>
 
-export interface QualidadeRegistro extends Tables<'qualidade_registros'> {}
+export type QualidadeRegistro = Tables<'qualidade_registros'>
 
-export interface QualidadeDetalhe extends Tables<'qualidade_detalhes'> {}
+export type QualidadeDetalhe = Tables<'qualidade_detalhes'>
 
 export interface QualidadeOperadorEnvolvidoV2 {
   operadorId: string
@@ -636,14 +636,13 @@ export interface UsuarioSistemaV2 {
   updated_at: string | null
 }
 
-export interface UsuarioSistemaListItem extends UsuarioSistemaV2 {
-}
+export type UsuarioSistemaListItem = UsuarioSistemaV2
 
-export interface MaquinaListItem extends Tables<'maquinas'> {}
+export type MaquinaListItem = Tables<'maquinas'>
 
-export interface MaquinaOption extends Tables<'maquinas'> {}
+export type MaquinaOption = Tables<'maquinas'>
 
-export interface OperadorListItem extends Tables<'operadores'> {}
+export type OperadorListItem = Tables<'operadores'>
 
 export interface OperacaoImagemDados {
   imagem_url: string | null

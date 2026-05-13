@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Activity, Gauge, RefreshCw, Signal, Target, Users } from 'lucide-react'
+import { Activity, Gauge, RefreshCw, Target, Users } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
 import { GraficoProducaoPorHora } from '@/components/dashboard/GraficoProducaoPorHora'
 import { RankingOperadores } from '@/components/dashboard/RankingOperadores'

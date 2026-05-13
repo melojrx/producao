@@ -67,7 +67,7 @@ export function ListaProdutos({
       abrirDuplicar(produtoModelo)
       router.replace('/admin/produtos')
     }
-  }, [produtoDuplicarIdInicial, produtosIniciais, router])
+  }, [produtoModelo, router])
 
   return (
     <>

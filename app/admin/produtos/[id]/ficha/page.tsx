@@ -33,7 +33,7 @@ export default async function ProdutoFichaPage({
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Esta tela renderiza um documento próprio para impressão/PDF. Use o botão de impressão
-            e escolha "Salvar como PDF" no navegador para enviar a ficha ao consultor.
+            e escolha Salvar como PDF no navegador para enviar a ficha ao consultor.
           </p>
         </div>
 

@@ -23,7 +23,7 @@ interface PontoComparativo {
 }
 
 function formatarData(data: string): string {
-  const [ano, mes, dia] = data.split('-')
+  const [_ano, mes, dia] = data.split('-')
   return `${dia}/${mes}`
 }
 
