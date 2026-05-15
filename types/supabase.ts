@@ -883,11 +883,43 @@ export type Database = {
         }
         Relationships: []
       }
+      qualidade_defeitos: {
+        Row: {
+          ativo: boolean
+          classificacao: string
+          created_at: string | null
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          classificacao: string
+          created_at?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          classificacao?: string
+          created_at?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       qualidade_detalhes: {
         Row: {
           created_at: string | null
           id: string
+          observacao: string | null
           operacao_id_origem: string
+          qualidade_defeito_id: string | null
           qualidade_registro_id: string
           quantidade_defeito: number
           setor_id_origem: string
@@ -896,7 +928,9 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          observacao?: string | null
           operacao_id_origem: string
+          qualidade_defeito_id?: string | null
           qualidade_registro_id: string
           quantidade_defeito: number
           setor_id_origem: string
@@ -905,7 +939,9 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          observacao?: string | null
           operacao_id_origem?: string
+          qualidade_defeito_id?: string | null
           qualidade_registro_id?: string
           quantidade_defeito?: number
           setor_id_origem?: string
@@ -917,6 +953,13 @@ export type Database = {
             columns: ["operacao_id_origem"]
             isOneToOne: false
             referencedRelation: "operacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_detalhes_qualidade_defeito_id_fkey"
+            columns: ["qualidade_defeito_id"]
+            isOneToOne: false
+            referencedRelation: "qualidade_defeitos"
             referencedColumns: ["id"]
           },
           {
@@ -942,50 +985,180 @@ export type Database = {
           },
         ]
       }
+      qualidade_lotes: {
+        Row: {
+          cancelado_em: string | null
+          cancelado_por_usuario_id: string | null
+          cancelamento_motivo: string | null
+          created_at: string | null
+          criado_em: string
+          id: string
+          iniciado_em: string | null
+          operacao_id_origem: string
+          produto_id: string | null
+          quantidade_lote: number
+          registro_producao_id: string | null
+          revisado_em: string | null
+          setor_id_origem: string
+          status: string
+          turno_id: string
+          turno_op_id: string
+          turno_setor_operacao_id_origem: string
+          updated_at: string | null
+        }
+        Insert: {
+          cancelado_em?: string | null
+          cancelado_por_usuario_id?: string | null
+          cancelamento_motivo?: string | null
+          created_at?: string | null
+          criado_em?: string
+          id?: string
+          iniciado_em?: string | null
+          operacao_id_origem: string
+          produto_id?: string | null
+          quantidade_lote: number
+          registro_producao_id?: string | null
+          revisado_em?: string | null
+          setor_id_origem: string
+          status?: string
+          turno_id: string
+          turno_op_id: string
+          turno_setor_operacao_id_origem: string
+          updated_at?: string | null
+        }
+        Update: {
+          cancelado_em?: string | null
+          cancelado_por_usuario_id?: string | null
+          cancelamento_motivo?: string | null
+          created_at?: string | null
+          criado_em?: string
+          id?: string
+          iniciado_em?: string | null
+          operacao_id_origem?: string
+          produto_id?: string | null
+          quantidade_lote?: number
+          registro_producao_id?: string | null
+          revisado_em?: string | null
+          setor_id_origem?: string
+          status?: string
+          turno_id?: string
+          turno_op_id?: string
+          turno_setor_operacao_id_origem?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualidade_lotes_cancelado_por_usuario_id_fkey"
+            columns: ["cancelado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios_sistema"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_operacao_id_origem_fkey"
+            columns: ["operacao_id_origem"]
+            isOneToOne: false
+            referencedRelation: "operacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_registro_producao_id_fkey"
+            columns: ["registro_producao_id"]
+            isOneToOne: true
+            referencedRelation: "registros_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_setor_id_origem_fkey"
+            columns: ["setor_id_origem"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_turno_op_id_fkey"
+            columns: ["turno_op_id"]
+            isOneToOne: false
+            referencedRelation: "turno_ops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qualidade_lotes_turno_setor_operacao_id_origem_fkey"
+            columns: ["turno_setor_operacao_id_origem"]
+            isOneToOne: false
+            referencedRelation: "turno_setor_operacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       qualidade_registros: {
         Row: {
           created_at: string | null
           id: string
           origem_lancamento: string
+          qualidade_lote_id: string | null
           quantidade_aprovada: number
           quantidade_reprovada: number
           quantidade_revisada: number
           revisor_usuario_id: string
           turno_id: string
           turno_op_id: string
-          turno_setor_operacao_id_qualidade: string
-          turno_setor_op_id: string
+          turno_setor_operacao_id_qualidade: string | null
+          turno_setor_op_id: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           origem_lancamento: string
+          qualidade_lote_id?: string | null
           quantidade_aprovada?: number
           quantidade_reprovada?: number
           quantidade_revisada: number
           revisor_usuario_id: string
           turno_id: string
           turno_op_id: string
-          turno_setor_operacao_id_qualidade: string
-          turno_setor_op_id: string
+          turno_setor_operacao_id_qualidade?: string | null
+          turno_setor_op_id?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           origem_lancamento?: string
+          qualidade_lote_id?: string | null
           quantidade_aprovada?: number
           quantidade_reprovada?: number
           quantidade_revisada?: number
           revisor_usuario_id?: string
           turno_id?: string
           turno_op_id?: string
-          turno_setor_operacao_id_qualidade?: string
-          turno_setor_op_id?: string
+          turno_setor_operacao_id_qualidade?: string | null
+          turno_setor_op_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "qualidade_registros_qualidade_lote_id_fkey"
+            columns: ["qualidade_lote_id"]
+            isOneToOne: true
+            referencedRelation: "qualidade_lotes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "qualidade_registros_revisor_usuario_id_fkey"
             columns: ["revisor_usuario_id"]
@@ -1386,6 +1559,25 @@ export type Database = {
           status_turno_setor_operacao: string
           total_defeitos: number
           turno_setor_operacao_id: string
+        }[]
+      }
+      registrar_revisao_lote_qualidade: {
+        Args: {
+          p_detalhes?: Json
+          p_origem_lancamento?: string
+          p_qualidade_lote_id: string
+          p_quantidade_aprovada: number
+          p_quantidade_reprovada: number
+          p_revisor_usuario_id: string
+        }
+        Returns: {
+          qualidade_lote_id: string
+          qualidade_registro_id: string
+          quantidade_aprovada: number
+          quantidade_reprovada: number
+          quantidade_revisada: number
+          status_lote: string
+          total_defeitos: number
         }[]
       }
       registrar_producao_supervisor_em_lote: {

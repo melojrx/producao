@@ -169,6 +169,48 @@ Decisão complementar de modelagem:
 - o modo padrão continua sendo o apontamento produtivo já homologado
 - o setor `Qualidade` usa um modo especial de revisão, mas sem deixar de ser setor oficial do fluxo
 
+### 5.1.2 Fluxo contínuo de qualidade por lotes parciais
+
+A Qualidade passa a acompanhar a produção em tempo real por uma fila contínua de lotes de revisão.
+Essa fila não substitui o setor `Qualidade` já homologado; ela adiciona uma camada operacional própria para que a revisão aconteça em paralelo ao chão de fábrica.
+
+Regra central:
+- a produção não espera a OP terminar completamente para iniciar a qualidade
+- quando uma operação produtiva registra um lote parcial concluído, o sistema deve criar automaticamente um lote de revisão para a Qualidade
+- o lote de qualidade representa uma oportunidade de revisão daquele apontamento produtivo, não uma nova produção física
+- a produção continua normalmente enquanto a Qualidade revisa os lotes recebidos
+- a fila de qualidade deve ser simples, rápida, mobile-first e sem workflow interno de retrabalho
+
+Cada lote de qualidade deve preservar:
+- OP
+- produto
+- turno
+- setor de origem
+- operação de origem
+- quantidade do lote
+- horário de criação
+- operadores envolvidos no apontamento produtivo de origem
+- status da revisão
+
+Estados mínimos do lote:
+- `pendente`: lote criado automaticamente e aguardando revisão
+- `em_revisao`: lote aberto por um revisor
+- `revisado`: lote finalizado com aprovadas/reprovadas e defeitos quando houver
+- `cancelado`: lote invalidado por ajuste administrativo excepcional, sem apagar o histórico produtivo
+
+Regras de não regressão:
+- criar lote de qualidade não altera `quantidade_realizada`, `quantidade_herdada_setor`, `quantidade_liberada_setor`, capacidade, disponibilidade, saldo físico ou progresso operacional da OP
+- revisar lote de qualidade não pode fabricar produção, não pode duplicar saldo físico e não pode reabrir setor produtivo automaticamente
+- peças reprovadas retornam fisicamente ao operador fora do sistema; quando voltarem para nova revisão, entram como novo lote de qualidade
+- o retorno da peça corrigida deve ser tratado como novo lote de revisão, como se a peça nunca tivesse sido revisada antes, mas sem duplicar a produção física da OP
+- a Qualidade registra rastreabilidade e indicadores; ela não controla retrabalho operacional interno
+- bloqueios continuam restritos a dados estruturalmente inválidos, turno inexistente/fechado, usuário sem permissão, contexto cancelado ou ausência de saldo físico real quando aplicável
+
+Defeitos devem usar catálogo estruturado:
+- cada defeito possui nome, classificação interna e status ativo/inativo
+- classificações internas válidas: `maquina`, `operador`, `processo`, `materia_prima`
+- os defeitos continuam atribuídos à operação produtiva de origem, nunca à operação de revisão do setor `Qualidade`
+
 ### 5.2 Abertura do turno
 
 ```
@@ -665,6 +707,29 @@ percentual_defeitos_operacao =
 Tratamento obrigatório:
 - se `quantidade_revisada = 0`, os indicadores de qualidade devem aparecer como `sem dados`
 - o sistema pode exibir simultaneamente a leitura de `percentual_reprovacao` e a leitura de `percentual_defeitos_op`, porque elas medem fenômenos diferentes e complementares
+
+### 6.5.2 Semântica dos lotes contínuos de qualidade
+
+O lote contínuo de qualidade é a unidade de fila criada a partir de um apontamento produtivo parcial.
+Ele não substitui `registros_producao` nem `qualidade_registros`.
+
+Papéis das entidades:
+- `registros_producao`: fonte de verdade da produção física executada
+- `qualidade_lotes`: fila operacional de revisão criada a partir da produção parcial
+- `qualidade_registros`: histórico da revisão efetivamente realizada
+- `qualidade_detalhes`: defeitos encontrados na revisão, atribuídos às operações produtivas de origem
+
+Regras:
+- um lote de qualidade nasce a partir de um registro produtivo ou de um agrupamento explícito de registros produtivos de mesma OP/operação/setor quando a implementação permitir
+- nesta fase, o padrão seguro é um lote de qualidade por apontamento produtivo registrado
+- `quantidade_lote` deve ser igual à quantidade produtiva que originou o lote
+- `quantidade_aprovada + quantidade_reprovada` deve ser igual à quantidade revisada do lote quando a revisão for finalizada
+- a revisão parcial do mesmo lote não faz parte do primeiro contrato; se o revisor não revisar tudo, deve manter o lote pendente ou cancelar administrativamente e criar novo lote somente com regra explícita futura
+- o lote revisado permanece no histórico e não volta para a fila
+- peça reprovada corrigida fisicamente volta como novo lote de revisão, sem vínculo obrigatório de retrabalho no sistema
+- indicadores de qualidade podem somar aprovações, reprovações, defeitos e tempo de fila, mas não podem alterar KPIs de produção, peças completas, progresso operacional ou saldo físico da OP
+- a leitura gerencial do fluxo contínuo deve separar fila pendente, lotes revisados, peças aprovadas, peças reprovadas/retrabalho, taxa de aprovação, ranking de defeitos, ranking de operadores e resumo por OP
+- lotes pendentes ou em revisão aparecem como fila de qualidade; não contam como reprovação, defeito ou retrabalho enquanto não houver `qualidade_registros`
 
 ### 6.6 Capacidade e progresso
 

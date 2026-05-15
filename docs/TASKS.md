@@ -5067,6 +5067,95 @@ Escopo futuro previsto:
 
 **Fechamento em `2026-05-13`:** Sprint 50 concluída documentalmente após a HU 50.5 validar a OP como container físico único por `numero_op`, aplicar a correção remota da OP `207675` e passar nas validações locais `npm run lint`, `npx tsc --noEmit`, `git diff --check` e suíte focada 15/15. Todas as HUs da sprint estão marcadas como concluídas e nenhuma pendência operacional foi mantida nesta sprint.
 
+## SPRINT 51 — Fluxo contínuo de qualidade simples, prático e sem travas
+**Status:** 🚧 Em andamento
+**Objetivo:** evoluir Qualidade para uma fila contínua de lotes parciais criados automaticamente a partir da produção, permitindo revisão em paralelo ao chão de fábrica sem travar fluxo, sem controlar retrabalho e sem alterar os KPIs operacionais de produção.
+**Pré-requisito:** Sprint 50 concluída.
+
+Decisão de domínio:
+- Qualidade deixa de ser apenas uma leitura acionável quando o setor final do roteiro recebe saldo; passa a acompanhar cada lote parcial produzido em tempo real.
+- `qualidade_lotes` representa a fila operacional de revisão.
+- `qualidade_registros` continua representando o histórico da revisão realizada.
+- `registros_producao` continua sendo a fonte de verdade da produção física.
+- Criar ou revisar lote de qualidade não altera produção, capacidade, disponibilidade, FIFO, saldo visual, progresso operacional ou saldo físico da OP.
+- Reprovação registra defeito e histórico; não cria workflow interno de retrabalho.
+- A peça reprovada retorna fisicamente ao operador e, depois de corrigida, volta à qualidade como novo lote de revisão, sem duplicar produção física da OP.
+- Defeitos passam a usar catálogo estruturado com classificação interna.
+
+- [x] **HU 51.1 — Como produto, quero formalizar o fluxo contínuo de qualidade por lotes parciais, para garantir que a implementação preserve o chão de fábrica sem regressões operacionais.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - documentar no PRD que Qualidade acompanha a produção por fila contínua de lotes
+  - registrar que o lote nasce de produção parcial e não representa nova produção física
+  - separar papéis de `registros_producao`, `qualidade_lotes`, `qualidade_registros` e `qualidade_detalhes`
+  - registrar o contrato de não bloqueio e de não controle interno de retrabalho
+  - abrir a Sprint 51 no `TASKS.md` e no `BACKLOG.md`
+
+  **Evidência esperada:** `docs/PRD.md`, `docs/TASKS.md` e `docs/BACKLOG.md` documentam a Sprint 51 e o contrato de fluxo contínuo de qualidade.
+
+  **Evidência:** `docs/PRD.md` passou a registrar `Fluxo contínuo de qualidade por lotes parciais` e a semântica de `qualidade_lotes` como fila operacional separada de produção e histórico de revisão. `docs/TASKS.md` e `docs/BACKLOG.md` abriram a Sprint 51 com objetivo, decisão de domínio, guardrails de não regressão, HUs e status em andamento.
+
+- [x] **HU 51.2 — Como sistema, quero criar o contrato técnico aditivo de lotes e catálogo de defeitos, para suportar a fila contínua sem romper o fluxo de Qualidade já homologado.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - criar migration aditiva para `qualidade_lotes` e `qualidade_defeitos`
+  - preservar `qualidade_registros` e `qualidade_detalhes` como histórico da revisão já existente
+  - criar tipos TypeScript de status/classificação sem `any`
+  - cobrir regras puras de status e validação de quantidade por teste automatizado
+  - não aplicar SQL remoto sem aprovação explícita
+
+  **Evidência esperada:** script SQL da Sprint 51 criado; tipos/utilitários/testes locais passam; `npx tsc --noEmit` passa.
+
+  **Evidência:** criado o contrato tipado inicial de lotes contínuos em `types/index.ts` com `QualidadeLoteStatus` e `QualidadeDefeitoClassificacao`. Criado `lib/utils/qualidade-lotes.ts` com validação pura da revisão completa do lote, impedindo revisão parcial no primeiro contrato e nova revisão de lote já finalizado. Criado `lib/utils/qualidade-lotes.test.ts`, cobrindo o exemplo operacional `95 aprovadas + 5 reprovadas` para lote de `100`, recusa de revisão parcial, recusa de lote já revisado e retorno de peça corrigida como novo lote apenas após revisão anterior. Criado `scripts/sprint51_fluxo_continuo_qualidade.sql` com schema aditivo para `qualidade_lotes`, `qualidade_defeitos`, vínculo opcional em `qualidade_registros` e campos opcionais de defeito/observação em `qualidade_detalhes`, sem aplicação remota nesta HU. Validação local em `2026-05-14`: `node --test --experimental-strip-types lib/utils/qualidade-lotes.test.ts` passou 4/4; `npx tsc --noEmit` e `git diff --check` passaram sem erros.
+
+- [x] **HU 51.3 — Como sistema, quero gerar lotes de qualidade automaticamente após apontamentos produtivos, para que cada lote parcial entre na fila de revisão sem ação manual.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - criar lote de qualidade após `registros_producao` produtivo bem-sucedido
+  - o lote deve herdar OP, produto, turno, setor origem, operação origem, quantidade, horário e operadores envolvidos
+  - geração de lote não pode alterar produção, saldo físico, capacidade, disponibilidade ou status operacional da OP
+  - geração deve ser idempotente por origem produtiva para evitar lote duplicado em retry
+  - validar com teste e, depois de aprovado, migration/RPC remota
+
+  **Evidência esperada:** apontamento produtivo cria lote pendente em `qualidade_lotes` sem alterar os consolidados operacionais.
+
+  **Evidência:** a migration `scripts/sprint51_fluxo_continuo_qualidade.sql` foi ampliada com a função `criar_lote_qualidade_de_registro_producao()` e o trigger `trg_registros_producao_criar_lote_qualidade`, criando automaticamente um lote pendente em `qualidade_lotes` após insert produtivo em `registros_producao`, com idempotência por `registro_producao_id`. O contrato puro em `lib/utils/qualidade-lotes.ts` ganhou `montarLoteQualidadePendenteDeApontamento()` e `aplicarLoteQualidadePendenteIdempotente()`, com testes cobrindo geração sem alteração de consolidados operacionais e prevenção de duplicidade por origem produtiva. `types/supabase.ts` foi sincronizado manualmente com `qualidade_lotes`, `qualidade_defeitos` e os vínculos opcionais adicionados a `qualidade_registros`/`qualidade_detalhes`. A migration foi aplicada remotamente no projeto Supabase `jsuufbgdcqxogimmocof` em `2026-05-14` via Management API usando `scripts/sprint51_apply_fluxo_continuo_qualidade.mjs`; validação read-only confirmou `qualidade_lotes_existe = true`, `qualidade_defeitos_existe = true`, `trigger_lote_existe = true`, `funcao_lote_existe = true` e `defeitos_ativos = 8`. A validação funcional remota em `scripts/sprint51_validate_lote_trigger.mjs` inseriu um apontamento produtivo temporário, confirmou `lotes_criados = 1`, `quantidade_lote = 1`, `status_lote = pendente` e removeu o lote/registro temporários (`lotes_removidos = 1`, `registros_removidos = 1`). Validação local em `2026-05-14`: `node --test --experimental-strip-types lib/utils/qualidade-lotes.test.ts` passou 6/6; `npx tsc --noEmit` e `git diff --check` passaram sem erros.
+
+- [x] **HU 51.4 — Como revisor, quero uma fila de lotes pendentes de qualidade, para revisar aprovadas/reprovadas rapidamente por celular, tablet ou painel administrativo.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Regras:
+  - listar lotes pendentes/em revisão por turno, OP, setor origem e horário
+  - permitir abrir lote e registrar aprovadas/reprovadas
+  - exigir defeitos quando houver reprovadas
+  - usar catálogo de defeitos estruturado
+  - preservar permissão `pode_revisar_qualidade`
+
+  **Evidência esperada:** scanner ou painel administrativo revisa um lote pendente e grava `qualidade_registros` vinculado ao lote.
+
+  **Evidência:** o painel administrativo de `/admin/apontamentos` na aba `Qualidade` passou a carregar a fila contínua de lotes pendentes/em revisão por turno, OP, produto, setor origem, operação origem, quantidade e horário, priorizando essa fila antes do painel legado de seção de Qualidade. `lib/queries/qualidade.ts` passou a expor `listarFilaLotesQualidadeTurnoComClient()` e `listarCatalogoDefeitosQualidadeComClient()`. `components/apontamentos/PainelQualidadeSupervisor.tsx` passou a permitir selecionar um lote, registrar aprovadas/reprovadas, exigir defeito catalogado quando houver reprovadas e preservar o bloqueio por `pode_revisar_qualidade`. `lib/actions/qualidade.ts` passou a expor `registrarRevisaoLoteQualidade()`, validando sessão, permissão, fechamento da quantidade do lote e catálogo de defeitos antes da RPC. A migration `scripts/sprint51_fluxo_continuo_qualidade.sql` foi ampliada com a RPC `registrar_revisao_lote_qualidade`, ajuste transacional para `qualidade_registros` vinculado por `qualidade_lote_id`, detalhes com `qualidade_defeito_id` e preservação do trigger legado de saldo para revisões por seção. O SQL foi aplicado remotamente no projeto Supabase `jsuufbgdcqxogimmocof` em `2026-05-14`; validação read-only confirmou `funcao_revisao_lote_existe = true`. A validação funcional remota `scripts/sprint51_validate_lote_review.mjs` inseriu um apontamento produtivo temporário, revisou o lote criado com `1` aprovada e `1` reprovada, confirmou `status_lote = revisado`, `registros_qualidade = 1`, `detalhes = 1`, `detalhes_catalogados = 1` e removeu todos os dados temporários. Validação local em `2026-05-14`: `node --test --experimental-strip-types lib/utils/qualidade-lotes.test.ts` passou 8/8; `npx tsc --noEmit` passou sem erros.
+
+- [x] **HU 51.5 — Como supervisor, quero indicadores de qualidade por lote, OP, defeito e operador, para acompanhar aprovação, reprovação e reincidência sem contaminar produção.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Regras:
+  - expor aprovadas, reprovadas, retrabalho, taxa de aprovação, ranking de defeitos e ranking de operadores
+  - indicadores de qualidade não podem alterar KPIs de produção
+  - registros sem revisão devem aparecer como fila pendente, não como reprovação
+  - histórico por OP deve diferenciar produção, revisão e defeitos
+
+  **Evidência esperada:** dashboard/relatório de qualidade mostra fila e indicadores sem alterar `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo` operacionais.
+
+  **Evidência:** `docs/PRD.md` passou a explicitar que a leitura gerencial do fluxo contínuo separa fila pendente, lotes revisados, aprovadas, reprovadas/retrabalho, taxa de aprovação, ranking de defeitos, ranking de operadores e resumo por OP, mantendo lotes pendentes fora de reprovação/defeito/retrabalho. Criado `lib/utils/qualidade-indicadores.ts` com agregação pura dos indicadores e `lib/utils/qualidade-indicadores.test.ts` cobrindo que lote pendente permanece como fila sem virar reprovação e que aprovação, retrabalho, ranking de defeitos e ranking de operadores derivam apenas de revisões realizadas. `types/index.ts` passou a expor `QualidadeIndicadoresTurnoV2` e contratos de lote pendente, OP, ranking de defeito e ranking de operador. `lib/queries/qualidade.ts` passou a expor `listarIndicadoresQualidadeTurnoComClient()`, agregando `qualidade_lotes`, `qualidade_registros`, `qualidade_detalhes`, catálogo de defeitos, OPs, produtos, apontamento produtivo de origem e operador sem escrever no banco. `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts` passaram a hidratar `indicadoresQualidadeTurno` no planejamento. `components/dashboard/DashboardVisaoOperacionalTab.tsx` passou a exibir o bloco `Qualidade contínua` com fila pendente, lotes revisados, taxa de aprovação, retrabalho, defeitos, peças revisadas, fila por lote, ranking de defeitos, ranking de operadores e resumo por OP, sem alterar os cards produtivos `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo`. Validação local em `2026-05-14`: `node --test --experimental-strip-types lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade-lotes.test.ts` passou 10/10; `npx tsc --noEmit` passou sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -5086,6 +5175,7 @@ Sprint 46 ──► Sprint 47
 Sprint 47 ──► Sprint 48
 Sprint 48 ──► Sprint 49
 Sprint 49 ──► Sprint 50
+Sprint 50 ──► Sprint 51
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

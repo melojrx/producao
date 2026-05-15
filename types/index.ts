@@ -10,6 +10,8 @@ export type UsuarioSistemaPapel = 'admin' | 'supervisor'
 export type UsuarioSistemaStatus = 'ativo' | 'inativo' | 'pendente_ativacao'
 export type SetorModoApontamento = 'producao_padrao' | 'revisao_qualidade'
 export type OrigemLancamentoQualidade = 'scanner_qualidade' | 'manual_qualidade'
+export type QualidadeLoteStatus = 'pendente' | 'em_revisao' | 'revisado' | 'cancelado'
+export type QualidadeDefeitoClassificacao = 'maquina' | 'operador' | 'processo' | 'materia_prima'
 export type TurnoStatusV2 = 'aberto' | 'encerrado'
 export type OrigemPlanejamentoTurnoV2 = 'aberto' | 'ultimo_encerrado'
 export type OrigemApontamentoProducaoV2 =
@@ -577,6 +579,10 @@ export type QualidadeRegistro = Tables<'qualidade_registros'>
 
 export type QualidadeDetalhe = Tables<'qualidade_detalhes'>
 
+export type QualidadeLote = Tables<'qualidade_lotes'>
+
+export type QualidadeDefeito = Tables<'qualidade_defeitos'>
+
 export interface QualidadeOperadorEnvolvidoV2 {
   operadorId: string
   nome: string
@@ -621,6 +627,64 @@ export interface QualidadeResumoTurnoV2 {
   percentualDefeitosOperacionais: number | null
   opsComRevisao: number
   opsComReprovacao: number
+}
+
+export interface QualidadeIndicadorLotePendenteV2 {
+  id: string
+  turnoOpId: string
+  numeroOp: string
+  produtoReferencia: string
+  produtoNome: string
+  quantidadeLote: number
+  status: Extract<QualidadeLoteStatus, 'pendente' | 'em_revisao'>
+  criadoEm: string
+  operadorNome: string | null
+}
+
+export interface QualidadeIndicadorOpV2 {
+  turnoOpId: string
+  numeroOp: string
+  produtoReferencia: string
+  produtoNome: string
+  lotesPendentes: number
+  pecasPendentes: number
+  lotesRevisados: number
+  quantidadeAprovada: number
+  quantidadeReprovada: number
+  quantidadeRevisada: number
+  totalDefeitos: number
+  taxaAprovacao: number | null
+}
+
+export interface QualidadeRankingDefeitoV2 {
+  qualidadeDefeitoId: string | null
+  defeitoNome: string
+  quantidadeDefeitos: number
+  percentualDefeitos: number | null
+}
+
+export interface QualidadeRankingOperadorV2 {
+  operadorId: string
+  operadorNome: string
+  quantidadeReprovada: number
+  quantidadeDefeitos: number
+}
+
+export interface QualidadeIndicadoresTurnoV2 {
+  lotesPendentes: number
+  pecasPendentes: number
+  lotesRevisados: number
+  quantidadeAprovadaTotal: number
+  quantidadeReprovadaTotal: number
+  quantidadeRetrabalhoTotal: number
+  quantidadeRevisadaTotal: number
+  totalDefeitos: number
+  taxaAprovacao: number | null
+  taxaReprovacao: number | null
+  lotesPendentesLista: QualidadeIndicadorLotePendenteV2[]
+  ops: QualidadeIndicadorOpV2[]
+  rankingDefeitos: QualidadeRankingDefeitoV2[]
+  rankingOperadores: QualidadeRankingOperadorV2[]
 }
 
 export interface UsuarioSistemaV2 {
@@ -925,6 +989,7 @@ export interface PlanejamentoTurnoV2 {
   eficienciaOperacional?: ResumoEficienciaOperacionalTurnoV2
   qualidadeResumoOps?: QualidadeResumoOpV2[]
   resumoQualidadeTurno?: QualidadeResumoTurnoV2 | null
+  indicadoresQualidadeTurno?: QualidadeIndicadoresTurnoV2 | null
 }
 
 export interface PlanejamentoTurnoDashboardV2 extends PlanejamentoTurnoV2 {

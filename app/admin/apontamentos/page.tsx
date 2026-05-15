@@ -8,6 +8,10 @@ import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { buscarMetaMensalCompetencia } from '@/lib/queries/metas-mensais'
 import { listarOperadores } from '@/lib/queries/operadores'
 import { listarProdutos } from '@/lib/queries/produtos'
+import {
+  listarCatalogoDefeitosQualidadeComClient,
+  listarFilaLotesQualidadeTurnoComClient,
+} from '@/lib/queries/qualidade'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 import { createClient } from '@/lib/supabase/server'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
@@ -126,7 +130,11 @@ export default async function AdminApontamentosPage(props: {
     )
   }
 
-  const operacoesTurno = await listarTurnoSetorOperacoesDoTurno(planejamento.turno.id)
+  const [operacoesTurno, lotesQualidade, defeitosCatalogo] = await Promise.all([
+    listarTurnoSetorOperacoesDoTurno(planejamento.turno.id),
+    listarFilaLotesQualidadeTurnoComClient(supabase, planejamento.turno.id),
+    listarCatalogoDefeitosQualidadeComClient(supabase),
+  ])
   const precisaFallbackOperadores = planejamento.operadores.length === 0
   const operadoresAtivos = precisaFallbackOperadores ? await listarOperadores() : []
   const planejamentoComOperadores = precisaFallbackOperadores
@@ -163,6 +171,8 @@ export default async function AdminApontamentosPage(props: {
             <PainelQualidadeSupervisor
               planejamento={planejamentoComOperadores}
               operacoesTurno={operacoesTurno}
+              lotesQualidade={lotesQualidade}
+              defeitosCatalogo={defeitosCatalogo}
               podeRevisarQualidade={usuarioSistema?.pode_revisar_qualidade === true}
               revisorNome={usuarioSistema?.nome ?? null}
             />

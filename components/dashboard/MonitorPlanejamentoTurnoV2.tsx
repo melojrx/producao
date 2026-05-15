@@ -297,6 +297,7 @@ export function MonitorPlanejamentoTurnoV2({
           comparativoPorHora={comparativoPorHora}
           estaCarregandoGrafico={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
           resumoQualidade={planejamento.resumoQualidadeTurno ?? null}
+          indicadoresQualidade={planejamento.indicadoresQualidadeTurno ?? null}
           onSelecionarOp={setTurnoOpSelecionadaId}
           onSelecionarSetor={setSetorSelecionadoId}
         />

@@ -55,12 +55,16 @@
 | 43 | Separação entre resumo da OP e métricas setoriais | ✅ Concluída | 1 |
 | 44 | Vocabulário operacional do chão de fábrica e realinhamento documental | ✅ Concluída | 1 |
 | 45 | Arquitetura futura de setores dinâmicos e fluxo configurável | 🧭 Planejada | 5 |
+| 46 | Correção do fork paralelo sem etapa Finalização | ✅ Concluída | 1 |
+| 47 | Ordenação nas tabelas da aba Operadores | ✅ Concluída | 1 |
+| 48 | Permissão administrativa para revisão de qualidade | ✅ Concluída | 1 |
 | 49 | Correção do carry-over setorial repetido entre turnos | ✅ Concluída | 2 |
-| 50 | Controle físico de saldo da OP | 🔄 Aberta | 2 |
+| 50 | Controle físico de saldo da OP | ✅ Concluída | 2 |
+| 51 | Fluxo contínuo de qualidade simples, prático e sem travas | 🚧 Em andamento | 5 |
 
-**Total estimado: 89 dias úteis**
+**Total estimado: 97 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto; as Sprints 34 e 35 consolidaram descrição do produto e imagem única da operação. A Sprint 36 consolidou o setor `Qualidade` como etapa oficial do fluxo. A Sprint 37 foi retomada e concluída em `2026-05-06`; a Sprint 38 entregou a ficha documental do produto; as Sprints 39 e 40 fecharam melhorias administrativas de operações; a Sprint 41 ficou parcialmente concluída por bloqueio externo do plano Supabase; a Sprint 42 corrigiu desvios semânticos do kanban; a Sprint 43 separou métricas setoriais do resumo da OP; a Sprint 44 está aberta para realinhamento documental e linguagem operacional do chão de fábrica; e a Sprint 45 fica planejada como evolução futura de setores dinâmicos e fluxo configurável. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto; as Sprints 34 e 35 consolidaram descrição do produto e imagem única da operação. A Sprint 36 consolidou o setor `Qualidade` como etapa oficial do fluxo. As Sprints 37 a 50 consolidaram vocabulário operacional, relatórios, permissões de qualidade, carry-over e saldo físico da OP. A Sprint 51 está em andamento para evoluir Qualidade para fila contínua de lotes parciais sem travar produção. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -717,6 +721,26 @@
 
 **Fechamento em `2026-05-13`:** Sprint 50 encerrada após conclusão das HUs 50.1 a 50.5, correção remota da OP `207675` e validação local com `npm run lint`, `npx tsc --noEmit`, `git diff --check` e suíte focada 15/15. A OP fica documentada e implementada como container físico finito, com `numero_op` impedido de nascer novamente como raiz física divergente.
 
+## SPRINT 51 — Fluxo contínuo de qualidade simples, prático e sem travas
+**Objetivo:** transformar Qualidade em uma fila contínua de lotes parciais criados automaticamente a partir da produção, para que a revisão acompanhe o chão de fábrica em tempo real sem travar produção, sem criar workflow de retrabalho e sem contaminar KPIs operacionais.
+**Entregável:** PRD e TASKS atualizados com o novo contrato de domínio, migration aditiva para `qualidade_lotes` e `qualidade_defeitos`, geração automática de lotes após apontamento produtivo, revisão de lote por aprovadas/reprovadas/defeitos e indicadores de qualidade separados da produção.
+**Status:** 🚧 Em andamento
+
+- Formalizar Qualidade como fila contínua paralela de lotes de revisão
+- Manter `registros_producao` como fonte de verdade da produção física
+- Adicionar `qualidade_lotes` como fila operacional de revisão
+- Preservar `qualidade_registros` e `qualidade_detalhes` como histórico de revisão e defeitos
+- Criar catálogo estruturado de defeitos com classificação `maquina`, `operador`, `processo` ou `materia_prima`
+- Criar lotes automaticamente após apontamentos produtivos parciais
+- Revisar lote com aprovadas, reprovadas e defeitos por operação de origem
+- Não controlar retrabalho interno; peça corrigida volta como novo lote de revisão
+- Garantir que qualidade não altere produção, capacidade, disponibilidade, FIFO, saldo físico, progresso operacional ou KPIs do turno
+- Expor indicadores de qualidade sem contaminar `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo`
+
+**Abertura em `2026-05-14`:** sprint aprovada após releitura de `docs/qualidade.md`, do infográfico de fluxo contínuo e das decisões de conversa. A decisão central é que cada lote parcial produzido deve entrar automaticamente na fila de revisão da Qualidade. A Sprint 51 é aditiva em relação à Sprint 36: o setor `Qualidade` e o modo `revisao_qualidade` continuam válidos, mas a revisão passa a operar sobre uma fila de lotes gerados pela produção parcial, sem criar produção física extra nem fluxo interno de retrabalho.
+
+**Implementação parcial em `2026-05-14`:** HUs 51.1, 51.2, 51.3, 51.4 e 51.5 concluídas. O PRD/TASKS/BACKLOG formalizam o fluxo contínuo, `qualidade_lotes` foi criado como fila operacional e `qualidade_defeitos` como catálogo estruturado. A migration remota da Sprint 51 foi aplicada via Supabase Management API e passou na validação funcional de criação e revisão de lote: um apontamento produtivo temporário criou lote pendente automaticamente, a RPC `registrar_revisao_lote_qualidade` gravou `qualidade_registros` vinculado ao lote e `qualidade_detalhes` com defeito catalogado, e o script removeu todos os dados de teste ao final. O dashboard operacional passou a exibir indicadores de qualidade contínua por fila/lote, OP, defeito e operador, mantendo lotes pendentes fora de reprovação/retrabalho e sem alterar KPIs produtivos. Sprint pronta para homologação funcional do usuário antes de fechamento.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -735,6 +759,8 @@ Sprint 45 ──► Sprint 46
 Sprint 46 ──► Sprint 47
 Sprint 47 ──► Sprint 48
 Sprint 48 ──► Sprint 49
+Sprint 49 ──► Sprint 50
+Sprint 50 ──► Sprint 51
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

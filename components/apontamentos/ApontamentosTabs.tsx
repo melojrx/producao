@@ -42,7 +42,7 @@ export function ApontamentosTabs({
     {
       id: 'qualidade_turno',
       titulo: 'Qualidade',
-      descricao: 'Revisão de aprovadas, reprovadas e defeitos por operação de origem.',
+      descricao: 'Fila contínua de lotes, aprovadas, reprovadas e defeitos catalogados.',
       icone: ClipboardCheck,
     },
   ]

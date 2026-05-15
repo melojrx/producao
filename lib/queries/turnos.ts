@@ -1,5 +1,8 @@
 import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
-import { listarResumoQualidadeTurnoComClient } from '@/lib/queries/qualidade'
+import {
+  listarIndicadoresQualidadeTurnoComClient,
+  listarResumoQualidadeTurnoComClient,
+} from '@/lib/queries/qualidade'
 import { createClient } from '@/lib/supabase/server'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
 import { listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient } from '@/lib/queries/turno-capacidade-atual-base'
@@ -735,6 +738,10 @@ export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<Pla
     secoesSetorOp,
     operacoesSecao
   )
+  const indicadoresQualidadeTurno = await listarIndicadoresQualidadeTurnoComClient(
+    supabase,
+    turno.id
+  )
 
   const demandasSetorBrutas = await listarTurnoSetorDemandas(turno.id, ops)
   const demandasSetorFluxo = enriquecerDemandasSetorComFila(
@@ -780,6 +787,7 @@ export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<Pla
     eficienciaOperacional,
     qualidadeResumoOps: qualidadeTurno.resumoOps,
     resumoQualidadeTurno: qualidadeTurno.resumoTurno,
+    indicadoresQualidadeTurno,
   }
 }
 
