@@ -14,6 +14,7 @@ export interface RegistrarDefeitoQualidadeInput {
 }
 
 export interface RegistrarDefeitoLoteQualidadeInput {
+  turnoSetorOperacaoIdOrigem: string
   qualidadeDefeitoId: string
   quantidadeDefeito: number
   observacao?: string
@@ -225,6 +226,7 @@ export async function registrarRevisaoLoteQualidade(
     quantidadeReprovada: input.quantidadeReprovada,
     statusAtual: normalizarStatusLote(lote.status),
     defeitos: input.defeitos.map((defeito) => ({
+      turnoSetorOperacaoIdOrigem: defeito.turnoSetorOperacaoIdOrigem,
       qualidadeDefeitoId: defeito.qualidadeDefeitoId,
       quantidadeDefeito: defeito.quantidadeDefeito,
       observacao: defeito.observacao,
@@ -247,6 +249,7 @@ export async function registrarRevisaoLoteQualidade(
     p_quantidade_reprovada: input.quantidadeReprovada,
     p_origem_lancamento: input.origemLancamento,
     p_detalhes: input.defeitos.map((defeito) => ({
+      turno_setor_operacao_id_origem: defeito.turnoSetorOperacaoIdOrigem,
       qualidade_defeito_id: defeito.qualidadeDefeitoId,
       quantidade_defeito: defeito.quantidadeDefeito,
       observacao: defeito.observacao?.trim() ? defeito.observacao.trim() : null,

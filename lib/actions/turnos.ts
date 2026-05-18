@@ -14,6 +14,7 @@ import {
   normalizarDemandasCarryOverEntreTurnos,
 } from '@/lib/utils/carry-over-turno'
 import { validarNovaOpFisica } from '@/lib/utils/op-fisica'
+import { setorParticipaFluxoProdutivoAtivo } from '@/lib/utils/qualidade'
 import type {
   AdicionarTurnoOpV2Input,
   CarregarPendenciasTurnoAnteriorInput,
@@ -43,6 +44,7 @@ type TurnoOpFisicaRow = Pick<
 type ProdutoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia' | 'ativo'>
 type ProdutoOperacaoRow = Pick<Tables<'produto_operacoes'>, 'operacao_id'>
 type OperacaoSetorRow = Pick<Tables<'operacoes'>, 'id' | 'setor_id'>
+type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'nome' | 'modo_apontamento'>
 type OperadorRow = Pick<Tables<'operadores'>, 'id' | 'status'>
 
 interface ProdutoValidado {
@@ -88,14 +90,16 @@ interface TurnoSetorDemandaCarryOverFluxoRow {
   status: TurnoSetorDemandaRow['status']
   iniciado_em: string | null
   encerrado_em: string | null
-  setores:
+        setores:
     | {
         codigo: number
         nome: string
+        modo_apontamento: string
       }
     | {
         codigo: number
         nome: string
+        modo_apontamento: string
       }[]
     | null
 }
@@ -375,6 +379,37 @@ async function validarProdutoPlanejado(
     }
   }
 
+  const setorIds = Array.from(
+    new Set(operacoes.map((operacao) => operacao.setor_id).filter((setorId): setorId is string => Boolean(setorId)))
+  )
+  const { data: setores, error: setoresError } = await supabase
+    .from('setores')
+    .select('id, nome, modo_apontamento')
+    .in('id', setorIds)
+    .returns<SetorResumoRow[]>()
+
+  if (setoresError) {
+    return { erro: `Erro ao validar setores do produto: ${setoresError.message}` }
+  }
+
+  const setoresPorId = new Map((setores ?? []).map((setor) => [setor.id, setor]))
+  const possuiOperacaoProdutivaAtiva = operacoes.some((operacao) => {
+    if (!operacao.setor_id) {
+      return false
+    }
+
+    const setor = setoresPorId.get(operacao.setor_id)
+    return Boolean(
+      setor && setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento)
+    )
+  })
+
+  if (!possuiOperacaoProdutivaAtiva) {
+    return {
+      erro: `O produto ${produto.nome} precisa possuir ao menos uma operação produtiva ativa no roteiro. Qualidade legado não compõe mais o fluxo do turno.`,
+    }
+  }
+
   return {
     produto: {
       id: produto.id,
@@ -489,8 +524,38 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
     }
   }
 
+  const setorIds = Array.from(
+    new Set([
+      ...(demandas ?? []).map((demanda) => demanda.setor_id),
+      ...(operacoes ?? []).map((operacao) => operacao.setor_id),
+    ].filter((setorId): setorId is string => Boolean(setorId)))
+  )
+  const { data: setores, error: setoresError } = setorIds.length
+    ? await supabase
+        .from('setores')
+        .select('id, nome, modo_apontamento')
+        .in('id', setorIds)
+        .returns<SetorResumoRow[]>()
+    : { data: [], error: null }
+
+  if (setoresError) {
+    return {
+      erro: `Erro ao carregar setores para carry-over: ${setoresError.message}`,
+    }
+  }
+
+  const setoresPorId = new Map((setores ?? []).map((setor) => [setor.id, setor]))
+  const demandasProdutivas = (demandas ?? []).filter((demanda) => {
+    const setor = setoresPorId.get(demanda.setor_id)
+    return Boolean(setor && setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento))
+  })
+  const operacoesProdutivas = (operacoes ?? []).filter((operacao) => {
+    const setor = setoresPorId.get(operacao.setor_id)
+    return Boolean(setor && setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento))
+  })
+
   const demandasConsolidadas = consolidarDemandasCarryOverComOperacoes(
-    (demandas ?? []).map((demanda) => ({
+    demandasProdutivas.map((demanda) => ({
       id: demanda.id,
       turnoOpId: demanda.turno_op_id,
       setorId: demanda.setor_id,
@@ -498,7 +563,7 @@ async function listarTurnoOpsCarryOver(turnoId: string): Promise<{
       quantidadeHerdadaSetor: demanda.quantidade_herdada_setor,
       quantidadeRealizada: demanda.quantidade_realizada,
     })),
-    (operacoes ?? []).map((operacao) => ({
+    operacoesProdutivas.map((operacao) => ({
       turnoOpId: operacao.turno_op_id,
       turnoSetorDemandaId: operacao.turno_setor_demanda_id,
       setorId: operacao.setor_id,
@@ -777,7 +842,8 @@ async function hidratarProgressoCarryOverDaOp(
         encerrado_em,
         setores!inner (
           codigo,
-          nome
+          nome,
+          modo_apontamento
         )
       `
     )
@@ -812,6 +878,10 @@ async function hidratarProgressoCarryOverDaOp(
       const setor = extrairRegistroUnico(demanda.setores)
 
       if (!setor) {
+        return null
+      }
+
+      if (!setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento)) {
         return null
       }
 

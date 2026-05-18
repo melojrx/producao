@@ -22,7 +22,6 @@ import { registrarProducaoOperacao } from '@/lib/actions/producao'
 import { registrarRevisaoQualidade } from '@/lib/actions/qualidade'
 import { listarOperadoresAtivosScanner } from '@/lib/queries/scanner'
 import { isScannerV2Enabled } from '@/lib/utils/feature-flags'
-import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
 import { descreverTipoQRCode } from '@/lib/utils/qrcode'
 import type { OperadorScaneado, QRScanResult, QRTipo } from '@/types'
 
@@ -244,9 +243,7 @@ export function ScannerPageClient({
 
   const setorAtual = 'setor' in estado ? estado.setor : null
   const demandaAtual = 'demandaSelecionada' in estado ? estado.demandaSelecionada : null
-  const usaFluxoQualidade = Boolean(
-    setorAtual && setorUsaRevisaoQualidade(setorAtual.setorNome, setorAtual.modoApontamento)
-  )
+  const usaFluxoQualidade = false
 
   async function handleScan(resultado: QRScanResult) {
     setMensagemTela(null)
@@ -445,7 +442,7 @@ export function ScannerPageClient({
               <p className="mt-2 font-semibold text-white">{etapaAtual.titulo}</p>
               <p className="mt-2">
                 {estado.etapa === 'scan_setor'
-                  ? 'Aponte a câmera para o QR temporário do setor do turno. O scanner identifica automaticamente se o setor está em produção padrão ou em revisão de qualidade.'
+                  ? 'Aponte a câmera para o QR temporário do setor produtivo do turno.'
                   : 'Com o setor aberto, leia o QR do operador que executou esta produção. O scanner avança sozinho para a escolha da OP/produto.'}
               </p>
             </div>

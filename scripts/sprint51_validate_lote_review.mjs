@@ -163,7 +163,7 @@ returning id;
 function montarSqlRevisarLote(registroId) {
   return `
 with lote as (
-  select id
+  select id, turno_setor_operacao_id_origem
   from public.qualidade_lotes
   where registro_producao_id = '${registroId}'
   limit 1
@@ -176,12 +176,14 @@ revisor as (
   order by created_at asc nulls last
   limit 1
 ),
-defeito as (
-  select id
+defeitos as (
+  select
+    id,
+    row_number() over (order by ordem asc, nome asc) as posicao
   from public.qualidade_defeitos
   where ativo = true
   order by ordem asc, nome asc
-  limit 1
+  limit 2
 )
 select *
 from public.registrar_revisao_lote_qualidade(
@@ -192,9 +194,16 @@ from public.registrar_revisao_lote_qualidade(
   'manual_qualidade',
   jsonb_build_array(
     jsonb_build_object(
-      'qualidade_defeito_id', (select id from defeito),
-      'quantidade_defeito', 1,
-      'observacao', 'validacao automatica HU 51.4'
+      'turno_setor_operacao_id_origem', (select turno_setor_operacao_id_origem from lote),
+      'qualidade_defeito_id', (select id from defeitos where posicao = 1),
+      'quantidade_defeito', 2,
+      'observacao', 'validacao automatica HU 51.6 - ocorrencia 1'
+    ),
+    jsonb_build_object(
+      'turno_setor_operacao_id_origem', (select turno_setor_operacao_id_origem from lote),
+      'qualidade_defeito_id', (select id from defeitos where posicao = 2),
+      'quantidade_defeito', 2,
+      'observacao', 'validacao automatica HU 51.6 - ocorrencia 2'
     )
   )
 );
@@ -224,6 +233,8 @@ select
   (select count(*)::integer from registro_qualidade) as registros_qualidade,
   (select max(quantidade_aprovada)::integer from registro_qualidade) as quantidade_aprovada,
   (select max(quantidade_reprovada)::integer from registro_qualidade) as quantidade_reprovada,
+  (select coalesce(sum(quantidade_defeito), 0)::integer from detalhes) as total_defeitos,
+  (select count(distinct turno_setor_operacao_id_origem)::integer from detalhes) as operacoes_com_defeito,
   (select count(*)::integer from detalhes) as detalhes,
   (select count(*)::integer from detalhes where qualidade_defeito_id is not null) as detalhes_catalogados;
 `

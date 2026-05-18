@@ -14,6 +14,7 @@ import {
 } from '@/lib/utils/consolidacao-turno'
 import { calcularPercentualOperacional } from '@/lib/utils/progresso-operacional'
 import { compararSetoresPorOrdem } from '@/lib/utils/setor-ordem'
+import { setorParticipaFluxoProdutivoAtivo } from '@/lib/utils/qualidade'
 import {
   enriquecerDemandasComFluxoParalelo,
   resolverResumoFluxoOpParalelo,
@@ -51,7 +52,7 @@ type OperadorResumoRow = Pick<
   'id' | 'nome' | 'matricula' | 'funcao' | 'carga_horaria_min'
 >
 type ProdutoResumoRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia' | 'tp_produto_min'>
-type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'codigo' | 'nome'>
+type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'codigo' | 'nome' | 'modo_apontamento'>
 type RegistroResumoSetorRow = Pick<
   Tables<'registros_producao'>,
   'operador_id' | 'turno_setor_op_id' | 'quantidade' | 'created_at'
@@ -429,7 +430,7 @@ async function listarTurnoSetorOps(turnoId: string): Promise<TurnoSetorOpV2[]> {
 
   const { data: setores, error: setoresError } = await supabase
     .from('setores')
-    .select('id, codigo, nome')
+    .select('id, codigo, nome, modo_apontamento')
     .in('id', setorIds)
     .returns<SetorResumoRow[]>()
 
@@ -442,7 +443,7 @@ async function listarTurnoSetorOps(turnoId: string): Promise<TurnoSetorOpV2[]> {
   return (secoes ?? [])
     .map((secao) => {
       const setor = setoresPorId.get(secao.setor_id)
-      if (!setor) {
+      if (!setor || !setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento)) {
         return null
       }
 
@@ -501,7 +502,7 @@ async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
 
   const { data: setores, error: setoresError } = await supabase
     .from('setores')
-    .select('id, codigo, nome')
+    .select('id, codigo, nome, modo_apontamento')
     .in('id', setorIds)
     .returns<SetorResumoRow[]>()
 
@@ -514,7 +515,7 @@ async function listarTurnoSetores(turnoId: string): Promise<TurnoSetorV2[]> {
   return (setoresTurno ?? [])
     .map((setorTurno) => {
       const setor = setoresPorId.get(setorTurno.setor_id)
-      if (!setor) {
+      if (!setor || !setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento)) {
         return null
       }
 
@@ -573,7 +574,7 @@ async function listarTurnoSetorDemandas(
 
   const { data: setores, error: setoresError } = await supabase
     .from('setores')
-    .select('id, codigo, nome')
+    .select('id, codigo, nome, modo_apontamento')
     .in('id', setorIds)
     .returns<SetorResumoRow[]>()
 
@@ -589,7 +590,11 @@ async function listarTurnoSetorDemandas(
       const setor = setoresPorId.get(demanda.setor_id)
       const op = opsPorId.get(demanda.turno_op_id)
 
-      if (!setor || !op) {
+      if (
+        !setor ||
+        !op ||
+        !setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento)
+      ) {
         return null
       }
 

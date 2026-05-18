@@ -33,6 +33,7 @@ const navLinks = [
   { href: '/admin/maquinas', label: 'Máquinas', icon: Settings2 },
   { href: '/admin/operacoes', label: 'Operações', icon: Wrench },
   { href: '/admin/produtos', label: 'Produtos', icon: Package },
+  { href: '/admin/tipos-defeito', label: 'Defeitos', icon: ShieldCheck },
   { href: '/admin/qrcodes', label: 'QR Codes', icon: QrCode },
   { href: '/admin/relatorios', label: 'Relatórios', icon: FileBarChart2 },
   { href: '/admin/usuarios', label: 'Usuários', icon: ShieldUser, adminOnly: true },

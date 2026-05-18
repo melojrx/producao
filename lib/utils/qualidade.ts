@@ -1,5 +1,23 @@
 import type { SetorModoApontamento } from '@/types'
 
+function normalizarNomeSetor(setorNome: string): string {
+  return setorNome.trim().toLocaleLowerCase('pt-BR')
+}
+
+export function setorEhQualidadeLegado(
+  setorNome: string,
+  modoApontamento?: SetorModoApontamento | string | null
+): boolean {
+  return modoApontamento === 'revisao_qualidade' || normalizarNomeSetor(setorNome) === 'qualidade'
+}
+
+export function setorParticipaFluxoProdutivoAtivo(
+  setorNome: string,
+  modoApontamento?: SetorModoApontamento | string | null
+): boolean {
+  return !setorEhQualidadeLegado(setorNome, modoApontamento)
+}
+
 export function inferirModoApontamentoSetor(
   setorNome: string,
   modoApontamento?: SetorModoApontamento | null
@@ -8,7 +26,7 @@ export function inferirModoApontamentoSetor(
     return modoApontamento
   }
 
-  return setorNome.trim().toLowerCase() === 'qualidade'
+  return normalizarNomeSetor(setorNome) === 'qualidade'
     ? 'revisao_qualidade'
     : 'producao_padrao'
 }

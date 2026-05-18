@@ -1,11 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { calcularSaldoFisicoRestanteOperacao } from '@/lib/utils/saldo-fisico-op'
+import { setorParticipaFluxoProdutivoAtivo } from '@/lib/utils/qualidade'
 import type { Database, Tables } from '@/types/supabase'
 import type { TurnoSetorOperacaoApontamentoV2 } from '@/types'
 
 type TurnoSetorOperacaoRow = Tables<'turno_setor_operacoes'>
 type OperacaoResumoRow = Pick<Tables<'operacoes'>, 'id' | 'codigo' | 'descricao' | 'maquina_id'>
 type MaquinaResumoRow = Pick<Tables<'maquinas'>, 'id' | 'codigo' | 'modelo'>
+type SetorResumoRow = Pick<Tables<'setores'>, 'id' | 'nome' | 'modo_apontamento'>
 type TurnoOpRelacaoRow = Pick<Tables<'turno_ops'>, 'id' | 'turno_op_origem_id'>
 type RegistroProducaoOperacaoRow = Pick<
   Tables<'registros_producao'>,
@@ -224,8 +226,29 @@ async function listarOperacoesBase(
     )
   }
 
+  const setorIds = Array.from(
+    new Set((operacoesSecao ?? []).map((operacao) => operacao.setor_id).filter(Boolean))
+  )
+  const { data: setores, error: setoresError } = setorIds.length
+    ? await supabase
+        .from('setores')
+        .select('id, nome, modo_apontamento')
+        .in('id', setorIds)
+        .returns<SetorResumoRow[]>()
+    : { data: [], error: null }
+
+  if (setoresError) {
+    throw new Error(`Erro ao carregar setores das operações do turno: ${setoresError.message}`)
+  }
+
+  const setoresPorId = new Map((setores ?? []).map((setor) => [setor.id, setor]))
+  const operacoesSecaoAtivas = (operacoesSecao ?? []).filter((operacao) => {
+    const setor = setoresPorId.get(operacao.setor_id)
+    return Boolean(setor && setorParticipaFluxoProdutivoAtivo(setor.nome, setor.modo_apontamento))
+  })
+
   const operacaoIds = Array.from(
-    new Set((operacoesSecao ?? []).map((operacao) => operacao.operacao_id).filter(Boolean))
+    new Set(operacoesSecaoAtivas.map((operacao) => operacao.operacao_id).filter(Boolean))
   )
 
   if (operacaoIds.length === 0) {
@@ -264,11 +287,11 @@ async function listarOperacoesBase(
 
   const saldoFisicoPorOperacaoId = await carregarSaldoFisicoOperacoes(
     supabase,
-    operacoesSecao ?? []
+    operacoesSecaoAtivas
   )
 
   return mapearOperacoesSecao(
-    operacoesSecao ?? [],
+    operacoesSecaoAtivas,
     operacoes ?? [],
     maquinas ?? [],
     saldoFisicoPorOperacaoId

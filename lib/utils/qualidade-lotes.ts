@@ -38,6 +38,7 @@ export interface ValidarRevisaoLoteQualidadeInput {
 }
 
 export interface DefeitoRevisaoLoteQualidade {
+  turnoSetorOperacaoIdOrigem?: string
   qualidadeDefeitoId: string
   quantidadeDefeito: number
   observacao?: string
@@ -188,6 +189,14 @@ export function validarRevisaoLoteComDefeitosQualidade(
   }
 
   for (const defeito of input.defeitos) {
+    if (!defeito.turnoSetorOperacaoIdOrigem) {
+      return {
+        permitido: false,
+        quantidadeRevisada: resultadoRevisao.quantidadeRevisada,
+        mensagem: 'Cada defeito precisa informar a operação produtiva analisada.',
+      }
+    }
+
     if (!defeito.qualidadeDefeitoId) {
       return {
         permitido: false,
@@ -202,19 +211,6 @@ export function validarRevisaoLoteComDefeitosQualidade(
         quantidadeRevisada: resultadoRevisao.quantidadeRevisada,
         mensagem: 'Cada defeito precisa informar uma quantidade inteira maior que zero.',
       }
-    }
-  }
-
-  const totalDefeitos = input.defeitos.reduce(
-    (soma, defeito) => soma + defeito.quantidadeDefeito,
-    0
-  )
-
-  if (totalDefeitos !== input.quantidadeReprovada) {
-    return {
-      permitido: false,
-      quantidadeRevisada: resultadoRevisao.quantidadeRevisada,
-      mensagem: 'A soma dos defeitos precisa fechar exatamente a quantidade reprovada do lote.',
     }
   }
 

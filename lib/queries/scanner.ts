@@ -13,7 +13,7 @@ import {
   aplicarCapacidadeOperacionalDemandas,
   limitarOperacoesTurnoAoAceiteDemandas,
 } from '@/lib/utils/hidratacao-capacidade-setor-turno'
-import { inferirModoApontamentoSetor } from '@/lib/utils/qualidade'
+import { inferirModoApontamentoSetor, setorParticipaFluxoProdutivoAtivo } from '@/lib/utils/qualidade'
 import { calcularMetaGrupoTurnoV2 } from '@/lib/utils/meta-grupo-turno'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
@@ -259,6 +259,7 @@ interface TurnoSetorScannerRow {
   turno_iniciado_em: string
   setor_id: string
   setor_nome: string
+  setor_modo_apontamento: string
   quantidade_planejada: number
   quantidade_realizada: number
   qr_code_token: string
@@ -286,7 +287,8 @@ export async function buscarTurnoSetorScaneadoPorToken(
           status
         ),
         setores!inner (
-          nome
+          nome,
+          modo_apontamento
         )
       `
     )
@@ -311,6 +313,7 @@ export async function buscarTurnoSetorScaneadoPorToken(
     turno_iniciado_em: turno.iniciado_em,
     setor_id: data.setor_id,
     setor_nome: setor.nome,
+    setor_modo_apontamento: setor.modo_apontamento,
     quantidade_planejada: data.quantidade_planejada,
     quantidade_realizada: data.quantidade_realizada,
     qr_code_token: data.qr_code_token,
@@ -323,7 +326,12 @@ export async function buscarTurnoSetorScaneadoPorToken(
     turnoIniciadoEm: turnoSetor.turno_iniciado_em,
     setorId: turnoSetor.setor_id,
     setorNome: turnoSetor.setor_nome,
-    modoApontamento: inferirModoApontamentoSetor(turnoSetor.setor_nome),
+    modoApontamento: inferirModoApontamentoSetor(
+      turnoSetor.setor_nome,
+      turnoSetor.setor_modo_apontamento === 'revisao_qualidade'
+        ? 'revisao_qualidade'
+        : 'producao_padrao'
+    ),
     quantidadePlanejada: turnoSetor.quantidade_planejada,
     quantidadeRealizada: turnoSetor.quantidade_realizada,
     quantidadeConcluida: turnoSetor.quantidade_realizada,
@@ -336,6 +344,12 @@ export async function buscarTurnoSetorScaneadoPorToken(
     ),
     qrCodeToken: turnoSetor.qr_code_token,
     status: turnoSetor.status as TurnoSetorScaneado['status'],
+  }
+
+  if (
+    !setorParticipaFluxoProdutivoAtivo(setorBase.setorNome, setorBase.modoApontamento)
+  ) {
+    return setorBase
   }
 
   const demandasNormalizadas = await buscarDemandasScaneadasPorTurnoSetor(setorBase.id)

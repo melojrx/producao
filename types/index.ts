@@ -583,6 +583,17 @@ export type QualidadeLote = Tables<'qualidade_lotes'>
 
 export type QualidadeDefeito = Tables<'qualidade_defeitos'>
 
+export type QualidadeTipoDefeitoListItem = Tables<'qualidade_defeitos'> & {
+  totalVinculosHistoricos: number
+}
+
+export type QualidadeTipoDefeitoStatusFiltro = 'todos' | 'ativos' | 'inativos'
+
+export interface QualidadeTiposDefeitoListagemParams {
+  busca: string
+  status: QualidadeTipoDefeitoStatusFiltro
+}
+
 export interface QualidadeOperadorEnvolvidoV2 {
   operadorId: string
   nome: string

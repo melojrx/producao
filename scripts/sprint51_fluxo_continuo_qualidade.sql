@@ -284,7 +284,9 @@ AS $$
 DECLARE
   v_lote RECORD;
   v_usuario RECORD;
+  v_operacao_origem RECORD;
   v_detalhe JSONB;
+  v_turno_setor_operacao_id_origem UUID;
   v_qualidade_defeito_id UUID;
   v_quantidade_defeito INTEGER;
   v_observacao TEXT;
@@ -367,8 +369,28 @@ BEGIN
     SELECT value
     FROM jsonb_array_elements(COALESCE(p_detalhes, '[]'::JSONB))
   LOOP
+    v_turno_setor_operacao_id_origem := NULLIF(v_detalhe->>'turno_setor_operacao_id_origem', '')::UUID;
     v_qualidade_defeito_id := NULLIF(v_detalhe->>'qualidade_defeito_id', '')::UUID;
     v_quantidade_defeito := COALESCE((v_detalhe->>'quantidade_defeito')::INTEGER, 0);
+
+    IF v_turno_setor_operacao_id_origem IS NULL THEN
+      RAISE EXCEPTION 'Cada defeito precisa informar a operação produtiva analisada.'
+        USING ERRCODE = 'P0001';
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.turno_setor_operacoes AS origem
+      JOIN public.setores AS setor_origem
+        ON setor_origem.id = origem.setor_id
+      WHERE origem.id = v_turno_setor_operacao_id_origem
+        AND origem.turno_id = v_lote.turno_id
+        AND origem.turno_op_id = v_lote.turno_op_id
+        AND COALESCE(setor_origem.modo_apontamento, 'producao_padrao') = 'producao_padrao'
+    ) THEN
+      RAISE EXCEPTION 'A operação do defeito precisa pertencer à OP do lote e ser produtiva.'
+        USING ERRCODE = 'P0001';
+    END IF;
 
     IF v_qualidade_defeito_id IS NULL THEN
       RAISE EXCEPTION 'Cada defeito precisa estar vinculado ao catálogo de defeitos.'
@@ -392,11 +414,6 @@ BEGIN
 
     v_total_defeitos := v_total_defeitos + v_quantidade_defeito;
   END LOOP;
-
-  IF v_total_defeitos <> p_quantidade_reprovada THEN
-    RAISE EXCEPTION 'A soma dos defeitos precisa fechar exatamente a quantidade reprovada do lote.'
-      USING ERRCODE = 'P0001';
-  END IF;
 
   INSERT INTO public.qualidade_registros (
     turno_id,
@@ -428,9 +445,23 @@ BEGIN
     SELECT value
     FROM jsonb_array_elements(COALESCE(p_detalhes, '[]'::JSONB))
   LOOP
+    v_turno_setor_operacao_id_origem := NULLIF(v_detalhe->>'turno_setor_operacao_id_origem', '')::UUID;
     v_qualidade_defeito_id := NULLIF(v_detalhe->>'qualidade_defeito_id', '')::UUID;
     v_quantidade_defeito := COALESCE((v_detalhe->>'quantidade_defeito')::INTEGER, 0);
     v_observacao := NULLIF(BTRIM(COALESCE(v_detalhe->>'observacao', '')), '');
+
+    SELECT
+      origem.id AS turno_setor_operacao_id_origem,
+      origem.operacao_id AS operacao_id_origem,
+      origem.setor_id AS setor_id_origem
+    INTO v_operacao_origem
+    FROM public.turno_setor_operacoes AS origem
+    JOIN public.setores AS setor_origem
+      ON setor_origem.id = origem.setor_id
+    WHERE origem.id = v_turno_setor_operacao_id_origem
+      AND origem.turno_id = v_lote.turno_id
+      AND origem.turno_op_id = v_lote.turno_op_id
+      AND COALESCE(setor_origem.modo_apontamento, 'producao_padrao') = 'producao_padrao';
 
     INSERT INTO public.qualidade_detalhes (
       qualidade_registro_id,
@@ -443,9 +474,9 @@ BEGIN
     )
     VALUES (
       v_registro_id,
-      v_lote.turno_setor_operacao_id_origem,
-      v_lote.operacao_id_origem,
-      v_lote.setor_id_origem,
+      v_operacao_origem.turno_setor_operacao_id_origem,
+      v_operacao_origem.operacao_id_origem,
+      v_operacao_origem.setor_id_origem,
       v_quantidade_defeito,
       v_qualidade_defeito_id,
       v_observacao

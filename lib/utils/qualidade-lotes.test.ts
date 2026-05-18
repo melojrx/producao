@@ -139,6 +139,7 @@ test('exige defeito catalogado quando lote possui reprovadas', () => {
       statusAtual: 'pendente',
       defeitos: [
         {
+          turnoSetorOperacaoIdOrigem: 'operacao-rebatimento-lateral',
           qualidadeDefeitoId: 'defeito-1',
           quantidadeDefeito: 5,
         },
@@ -148,6 +149,56 @@ test('exige defeito catalogado quando lote possui reprovadas', () => {
       permitido: true,
       quantidadeRevisada: 100,
       proximoStatus: 'revisado',
+    }
+  )
+})
+
+test('permite multiplas ocorrencias de defeito acima da quantidade reprovada', () => {
+  assert.deepEqual(
+    validarRevisaoLoteComDefeitosQualidade({
+      quantidadeLote: 10,
+      quantidadeAprovada: 9,
+      quantidadeReprovada: 1,
+      statusAtual: 'pendente',
+      defeitos: [
+        {
+          turnoSetorOperacaoIdOrigem: 'operacao-rebatimento-lateral',
+          qualidadeDefeitoId: 'defeito-ponto-falho',
+          quantidadeDefeito: 2,
+        },
+        {
+          turnoSetorOperacaoIdOrigem: 'operacao-rebatimento-lateral',
+          qualidadeDefeitoId: 'defeito-borda-larga',
+          quantidadeDefeito: 2,
+        },
+      ],
+    }),
+    {
+      permitido: true,
+      quantidadeRevisada: 10,
+      proximoStatus: 'revisado',
+    }
+  )
+})
+
+test('exige operacao produtiva em cada defeito registrado no lote', () => {
+  assert.deepEqual(
+    validarRevisaoLoteComDefeitosQualidade({
+      quantidadeLote: 10,
+      quantidadeAprovada: 9,
+      quantidadeReprovada: 1,
+      statusAtual: 'pendente',
+      defeitos: [
+        {
+          qualidadeDefeitoId: 'defeito-ponto-falho',
+          quantidadeDefeito: 1,
+        },
+      ],
+    }),
+    {
+      permitido: false,
+      quantidadeRevisada: 10,
+      mensagem: 'Cada defeito precisa informar a operação produtiva analisada.',
     }
   )
 })
