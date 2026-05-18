@@ -5082,6 +5082,15 @@ Decisão de domínio:
 - A peça reprovada retorna fisicamente ao operador e, depois de corrigida, volta à qualidade como novo lote de revisão, sem duplicar produção física da OP.
 - Defeitos passam a usar catálogo estruturado com classificação interna.
 
+Realinhamento de homologação em `2026-05-18`:
+- o fluxo correto de qualidade é a fila contínua por lotes, conforme o infográfico validado pelo usuário
+- o setor `Qualidade` legado deixa de fazer parte do fluxo ativo de turno, QR, scanner, saldo, capacidade e encerramento de OP
+- a revisão deve registrar defeitos por `Operação + Tipo de defeito + Quantidade + Observação`
+- uma operação pode ter vários tipos de defeito no mesmo lote
+- uma peça reprovada pode concentrar múltiplos defeitos; portanto a soma de defeitos não pode ser limitada à quantidade reprovada
+- tipos de defeito precisam ser cadastro mestre administrável para suportar KPIs confiáveis
+- os KPIs de qualidade devem sair da `Visão Operacional` produtiva e migrar para aba própria da dashboard
+
 - [x] **HU 51.1 — Como produto, quero formalizar o fluxo contínuo de qualidade por lotes parciais, para garantir que a implementação preserve o chão de fábrica sem regressões operacionais.**
   **Prioridade:** P0
   **Risco:** Alto
@@ -5155,6 +5164,86 @@ Decisão de domínio:
   **Evidência esperada:** dashboard/relatório de qualidade mostra fila e indicadores sem alterar `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo` operacionais.
 
   **Evidência:** `docs/PRD.md` passou a explicitar que a leitura gerencial do fluxo contínuo separa fila pendente, lotes revisados, aprovadas, reprovadas/retrabalho, taxa de aprovação, ranking de defeitos, ranking de operadores e resumo por OP, mantendo lotes pendentes fora de reprovação/defeito/retrabalho. Criado `lib/utils/qualidade-indicadores.ts` com agregação pura dos indicadores e `lib/utils/qualidade-indicadores.test.ts` cobrindo que lote pendente permanece como fila sem virar reprovação e que aprovação, retrabalho, ranking de defeitos e ranking de operadores derivam apenas de revisões realizadas. `types/index.ts` passou a expor `QualidadeIndicadoresTurnoV2` e contratos de lote pendente, OP, ranking de defeito e ranking de operador. `lib/queries/qualidade.ts` passou a expor `listarIndicadoresQualidadeTurnoComClient()`, agregando `qualidade_lotes`, `qualidade_registros`, `qualidade_detalhes`, catálogo de defeitos, OPs, produtos, apontamento produtivo de origem e operador sem escrever no banco. `lib/queries/turnos.ts` e `lib/queries/turnos-client.ts` passaram a hidratar `indicadoresQualidadeTurno` no planejamento. `components/dashboard/DashboardVisaoOperacionalTab.tsx` passou a exibir o bloco `Qualidade contínua` com fila pendente, lotes revisados, taxa de aprovação, retrabalho, defeitos, peças revisadas, fila por lote, ranking de defeitos, ranking de operadores e resumo por OP, sem alterar os cards produtivos `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo`. Validação local em `2026-05-14`: `node --test --experimental-strip-types lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade-lotes.test.ts` passou 10/10; `npx tsc --noEmit` passou sem erros.
+
+- [ ] **HU 51.6 — Como revisor, quero registrar múltiplos defeitos por operação no mesmo lote, para refletir a realidade da análise de qualidade sem limitar defeito à quantidade de peças reprovadas.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - uma peça reprovada pode ter mais de um defeito
+  - uma operação pode concentrar vários tipos de defeito no mesmo lote, como `ponto falho`, `borda larga`, `costura caindo` e `costura que não foi até o final`
+  - `quantidade_defeito` representa ocorrência operacional do defeito, não peça única
+  - quando `quantidade_reprovada > 0`, exigir ao menos um defeito catalogado
+  - remover qualquer validação que force `sum(quantidade_defeito) = quantidade_reprovada`
+  - permitir `sum(quantidade_defeito) > quantidade_reprovada`
+  - não usar a soma de defeitos para alterar produção, saldo físico, capacidade, disponibilidade, FIFO ou progresso operacional
+
+  **Evidência esperada:** revisar um lote com `1` peça reprovada e `4` ocorrências de defeito na mesma operação grava a revisão sem erro, preserva `quantidade_reprovada = 1`, grava `total_defeitos = 4` e não altera nenhum KPI produtivo.
+
+- [ ] **HU 51.7 — Como revisor, quero que o input de revisão tenha Operação, Tipo de Defeito, Quantidade e Observação, para registrar defeitos com contexto operacional completo.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - o formulário de revisão de lote deve permitir múltiplas linhas de defeito
+  - cada linha deve conter:
+    - `Operação`
+    - `Tipo de defeito`
+    - `Quantidade`
+    - `Observação`
+  - `Observação` é opcional, mas deve ser persistida quando preenchida
+  - `Operação` deve apontar para uma operação produtiva da OP/lote, nunca para operação de revisão de qualidade
+  - quando o lote nasce de uma operação específica, essa operação deve vir pré-selecionada sem impedir correção explícita pelo revisor quando a ocorrência pertencer a outra operação produtiva da mesma OP
+  - o scanner ou painel mobile do revisor deve ser simples, com botões grandes e leitura rápida do lote, operação e quantidades
+
+  **Evidência esperada:** no apontamento de revisão, o revisor registra `Operação = Rebatimento lateral`, `Tipo de defeito = Ponto falho`, `Quantidade = 2`, `Observação = linha arrebentando na lateral`, adiciona outra linha para `Borda larga`, salva a revisão e consulta posterior mostra as duas ocorrências vinculadas ao lote.
+
+- [ ] **HU 51.8 — Como administrador, quero um CRUD completo de tipos de defeito, para padronizar a coleta e gerar KPIs confiáveis de qualidade.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Regras:
+  - manter `qualidade_defeitos` como cadastro mestre dos tipos de defeito
+  - criar CRUD administrativo completo para tipos de defeito
+  - o CRUD deve permitir listar, buscar/filtrar, criar, editar, inativar e reativar tipos de defeito
+  - campos mínimos: nome, classificação interna, ordem e status ativo/inativo
+  - classificações internas válidas: `maquina`, `operador`, `processo`, `materia_prima`
+  - não excluir fisicamente tipo de defeito que já tenha histórico; apenas inativar
+  - exclusão física só pode ser permitida para tipo de defeito sem nenhum vínculo histórico, se isso não contrariar o padrão de CRUDs do projeto
+  - edição de nome/classificação deve preservar relatórios históricos de revisões já registradas
+  - o formulário de revisão deve listar somente defeitos ativos
+  - os KPIs devem usar o cadastro como dimensão oficial para ranking e agrupamento
+
+  **Evidência esperada:** admin lista, busca, cria, edita, inativa e reativa um tipo de defeito; o revisor consegue selecionar somente tipos ativos em uma revisão de lote; o ranking de defeitos agrupa a ocorrência pelo cadastro; e a inativação impede novos usos sem apagar histórico.
+
+- [ ] **HU 51.9 — Como produto, quero remover totalmente o setor `Qualidade` legado do fluxo ativo, para que Qualidade opere apenas como fila contínua paralela por lotes.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - novos turnos não devem derivar setor, demanda, seção, QR ou operação planejada de `Qualidade`
+  - produtos novos ou editados não devem depender de operação de revisão no roteiro produtivo
+  - scanner e `/admin/apontamentos` não devem usar o fallback legado de seção de Qualidade
+  - a revisão de qualidade deve acontecer somente a partir de `qualidade_lotes`
+  - dados históricos do setor `Qualidade` podem permanecer para auditoria, mas não devem aparecer no fluxo ativo
+  - remover ou isolar queries, componentes e triggers que consumam saldo operacional por seção de `Qualidade`
+  - revisar lote não pode fechar setor, avançar OP, consumir capacidade ou alterar andamento produtivo
+
+  **Evidência esperada:** abrir um turno para produto que antes possuía `Qualidade` no roteiro não cria setor/QR/seção de Qualidade; após apontamento produtivo, o lote aparece na fila de qualidade e pode ser revisado sem alterar status, saldo ou progresso produtivo da OP.
+
+- [ ] **HU 51.10 — Como supervisor, quero os KPIs de qualidade em uma aba própria da dashboard, para analisar qualidade sem misturar com a visão operacional de produção.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Regras:
+  - mover os indicadores de qualidade contínua para uma aba/seção própria chamada `Qualidade`
+  - remover o bloco de qualidade da `Visão Operacional` produtiva
+  - a aba de qualidade deve exibir fila pendente, lotes em revisão, lotes revisados, aprovadas, reprovadas, taxa de aprovação, taxa de reprovação, total de defeitos, ranking de defeitos, ranking de operadores, ranking por operação e resumo por OP
+  - a aba deve diferenciar claramente peças reprovadas de ocorrências de defeito
+  - a aba deve permitir análise por turno aberto ou último turno encerrado, seguindo o comportamento da dashboard atual
+  - os KPIs produtivos `Peças completas`, `Produzido`, `Capacidade`, `Disponível` e `Saldo` não podem ser recalculados por dados de qualidade
+
+  **Evidência esperada:** dashboard possui aba `Qualidade`; a `Visão Operacional` não exibe mais o bloco de qualidade; a aba `Qualidade` mostra peças reprovadas separadas de ocorrências de defeito e os KPIs produtivos permanecem idênticos antes/depois de revisar um lote.
 
 ---
 

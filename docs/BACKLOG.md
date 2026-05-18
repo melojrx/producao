@@ -723,7 +723,7 @@
 
 ## SPRINT 51 — Fluxo contínuo de qualidade simples, prático e sem travas
 **Objetivo:** transformar Qualidade em uma fila contínua de lotes parciais criados automaticamente a partir da produção, para que a revisão acompanhe o chão de fábrica em tempo real sem travar produção, sem criar workflow de retrabalho e sem contaminar KPIs operacionais.
-**Entregável:** PRD e TASKS atualizados com o novo contrato de domínio, migration aditiva para `qualidade_lotes` e `qualidade_defeitos`, geração automática de lotes após apontamento produtivo, revisão de lote por aprovadas/reprovadas/defeitos e indicadores de qualidade separados da produção.
+**Entregável:** PRD e TASKS atualizados com o novo contrato de domínio, migration aditiva para `qualidade_lotes` e `qualidade_defeitos`, geração automática de lotes após apontamento produtivo, revisão de lote por aprovadas/reprovadas/defeitos, CRUD completo de tipos de defeito, retirada do setor `Qualidade` legado do fluxo ativo e indicadores de qualidade em aba própria da dashboard.
 **Status:** 🚧 Em andamento
 
 - Formalizar Qualidade como fila contínua paralela de lotes de revisão
@@ -733,13 +733,19 @@
 - Criar catálogo estruturado de defeitos com classificação `maquina`, `operador`, `processo` ou `materia_prima`
 - Criar lotes automaticamente após apontamentos produtivos parciais
 - Revisar lote com aprovadas, reprovadas e defeitos por operação de origem
+- Permitir múltiplas ocorrências de defeito por operação e por peça reprovada
+- Registrar no input do revisor: operação, tipo de defeito, quantidade e observação opcional
+- Tornar tipos de defeito um CRUD administrativo completo
+- Remover o setor `Qualidade` legado do fluxo ativo de turno, scanner, QRs, saldo e progresso operacional
 - Não controlar retrabalho interno; peça corrigida volta como novo lote de revisão
 - Garantir que qualidade não altere produção, capacidade, disponibilidade, FIFO, saldo físico, progresso operacional ou KPIs do turno
-- Expor indicadores de qualidade sem contaminar `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo`
+- Expor indicadores de qualidade em aba própria sem contaminar `Peças completas`, `Produzido`, `Capacidade`, `Disponível` ou `Saldo`
 
-**Abertura em `2026-05-14`:** sprint aprovada após releitura de `docs/qualidade.md`, do infográfico de fluxo contínuo e das decisões de conversa. A decisão central é que cada lote parcial produzido deve entrar automaticamente na fila de revisão da Qualidade. A Sprint 51 é aditiva em relação à Sprint 36: o setor `Qualidade` e o modo `revisao_qualidade` continuam válidos, mas a revisão passa a operar sobre uma fila de lotes gerados pela produção parcial, sem criar produção física extra nem fluxo interno de retrabalho.
+**Abertura em `2026-05-14`:** sprint aprovada após releitura de `docs/qualidade.md`, do infográfico de fluxo contínuo e das decisões de conversa. A decisão central é que cada lote parcial produzido deve entrar automaticamente na fila de revisão da Qualidade. A Sprint 51 iniciou como evolução aditiva em relação à Sprint 36, preservando temporariamente o setor `Qualidade` e o modo `revisao_qualidade` enquanto a fila por lotes estabilizava.
 
 **Implementação parcial em `2026-05-14`:** HUs 51.1, 51.2, 51.3, 51.4 e 51.5 concluídas. O PRD/TASKS/BACKLOG formalizam o fluxo contínuo, `qualidade_lotes` foi criado como fila operacional e `qualidade_defeitos` como catálogo estruturado. A migration remota da Sprint 51 foi aplicada via Supabase Management API e passou na validação funcional de criação e revisão de lote: um apontamento produtivo temporário criou lote pendente automaticamente, a RPC `registrar_revisao_lote_qualidade` gravou `qualidade_registros` vinculado ao lote e `qualidade_detalhes` com defeito catalogado, e o script removeu todos os dados de teste ao final. O dashboard operacional passou a exibir indicadores de qualidade contínua por fila/lote, OP, defeito e operador, mantendo lotes pendentes fora de reprovação/retrabalho e sem alterar KPIs produtivos. Sprint pronta para homologação funcional do usuário antes de fechamento.
+
+**Realinhamento de homologação em `2026-05-18`:** análise do fluxo correto de qualidade confirmou que a revisão deve operar como fila paralela por lotes e não mais como setor operacional. Foram adicionadas as HUs 51.6 a 51.10 para corrigir a semântica de múltiplos defeitos por operação, ajustar o input do revisor, tornar o cadastro de tipos de defeito administrável, remover totalmente o setor `Qualidade` legado do fluxo ativo e migrar os KPIs de qualidade para aba própria da dashboard.
 
 ---
 
