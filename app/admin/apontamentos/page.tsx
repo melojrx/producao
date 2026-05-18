@@ -169,7 +169,6 @@ export default async function AdminApontamentosPage(props: {
           <section className="space-y-4" aria-label="Área de qualidade nos apontamentos">
             <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
             <PainelQualidadeSupervisor
-              planejamento={planejamentoComOperadores}
               operacoesTurno={operacoesTurno}
               lotesQualidade={lotesQualidade}
               defeitosCatalogo={defeitosCatalogo}

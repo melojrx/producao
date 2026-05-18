@@ -20,6 +20,12 @@ export function ApontamentosTabs({
   abaInicial = 'gestao_mensal',
 }: ApontamentosTabsProps) {
   const [abaAtiva, setAbaAtiva] = useState<ApontamentosTabId>(abaInicial)
+  const conteudoAtivo =
+    abaAtiva === 'gestao_mensal'
+      ? gestaoMensal
+      : abaAtiva === 'operacao_turno'
+        ? operacaoTurno
+        : qualidadeTurno
 
   const abas: Array<{
     id: ApontamentosTabId
@@ -93,11 +99,9 @@ export function ApontamentosTabs({
         </div>
       </section>
 
-      {abaAtiva === 'gestao_mensal'
-        ? gestaoMensal
-        : abaAtiva === 'operacao_turno'
-          ? operacaoTurno
-          : qualidadeTurno}
+      <div key={abaAtiva} className="contents">
+        {conteudoAtivo}
+      </div>
     </section>
   )
 }

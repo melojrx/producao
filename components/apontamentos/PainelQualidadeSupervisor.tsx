@@ -4,14 +4,13 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Minus, Plus, ShieldAlert } from 'lucide-react'
 import { registrarRevisaoLoteQualidade } from '@/lib/actions/qualidade'
-import type { PlanejamentoTurnoV2, TurnoSetorOperacaoApontamentoV2 } from '@/types'
+import type { TurnoSetorOperacaoApontamentoV2 } from '@/types'
 import type {
   QualidadeDefeitoCatalogoItem,
   QualidadeLoteFilaItem,
 } from '@/lib/queries/qualidade'
 
 interface PainelQualidadeSupervisorProps {
-  planejamento: PlanejamentoTurnoV2
   operacoesTurno: TurnoSetorOperacaoApontamentoV2[]
   lotesQualidade: QualidadeLoteFilaItem[]
   defeitosCatalogo: QualidadeDefeitoCatalogoItem[]
@@ -82,7 +81,6 @@ function formatarHorario(valor: string): string {
 }
 
 export function PainelQualidadeSupervisor({
-  planejamento,
   operacoesTurno,
   lotesQualidade,
   defeitosCatalogo,
