@@ -6,6 +6,7 @@ import {
   type DashboardTabId,
 } from '@/components/dashboard/DashboardTabs'
 import { DashboardOperadoresTab } from '@/components/dashboard/DashboardOperadoresTab'
+import { DashboardQualidadeTab } from '@/components/dashboard/DashboardQualidadeTab'
 import { ModalDetalhesSetorTurno } from '@/components/dashboard/ModalDetalhesSetorTurno'
 import { DashboardVisaoGeralTab } from '@/components/dashboard/DashboardVisaoGeralTab'
 import { DashboardVisaoOperacionalTab } from '@/components/dashboard/DashboardVisaoOperacionalTab'
@@ -296,10 +297,14 @@ export function MonitorPlanejamentoTurnoV2({
           erroMetaGrupo={erroMetaGrupo}
           comparativoPorHora={comparativoPorHora}
           estaCarregandoGrafico={turnoAberto && (estaCarregando || estaCarregandoMetaGrupo)}
-          resumoQualidade={planejamento.resumoQualidadeTurno ?? null}
-          indicadoresQualidade={planejamento.indicadoresQualidadeTurno ?? null}
           onSelecionarOp={setTurnoOpSelecionadaId}
           onSelecionarSetor={setSetorSelecionadoId}
+        />
+      ) : abaAtiva === 'qualidade' && planejamento ? (
+        <DashboardQualidadeTab
+          resumoQualidade={planejamento.resumoQualidadeTurno ?? null}
+          indicadoresQualidade={planejamento.indicadoresQualidadeTurno ?? null}
+          qualidadeResumoOps={planejamento.qualidadeResumoOps ?? []}
         />
       ) : abaAtiva === 'operadores' && planejamento ? (
         <DashboardOperadoresTab

@@ -1,8 +1,9 @@
 'use client'
 
-import { Factory, LayoutGrid, Users } from 'lucide-react'
+import { Factory, LayoutGrid, ShieldCheck, Users } from 'lucide-react'
+import { obterDashboardTabs, type DashboardTabId } from '@/lib/utils/dashboard-tabs'
 
-export type DashboardTabId = 'visao_geral' | 'visao_operacional' | 'operadores'
+export type { DashboardTabId }
 
 interface DashboardTabsProps {
   abaAtiva: DashboardTabId
@@ -10,38 +11,19 @@ interface DashboardTabsProps {
 }
 
 export function DashboardTabs({ abaAtiva, onChange }: DashboardTabsProps) {
-  const abas: Array<{
-    id: DashboardTabId
-    titulo: string
-    descricao: string
-    icone: typeof LayoutGrid
-  }> = [
-    {
-      id: 'visao_geral',
-      titulo: 'Visão Geral',
-      descricao: 'Meta mensal, alcançado, saldo e leitura gerencial da competência.',
-      icone: LayoutGrid,
-    },
-    {
-      id: 'visao_operacional',
-      titulo: 'Visão Operacional',
-      descricao: 'Monitor do turno, OPs, setores, capacidade e progresso operacional.',
-      icone: Factory,
-    },
-    {
-      id: 'operadores',
-      titulo: 'Operadores',
-      descricao:
-        'Eficiência por hora, eficiência do dia por operador e detalhamento por operação.',
-      icone: Users,
-    },
-  ]
+  const iconesPorAba: Record<DashboardTabId, typeof LayoutGrid> = {
+    visao_geral: LayoutGrid,
+    visao_operacional: Factory,
+    qualidade: ShieldCheck,
+    operadores: Users,
+  }
+  const abas = obterDashboardTabs()
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         {abas.map((aba) => {
-          const Icone = aba.icone
+          const Icone = iconesPorAba[aba.id]
           const ativa = aba.id === abaAtiva
 
           return (
