@@ -3,14 +3,12 @@ import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
 import {
   calcularIndicadoresQualidadeTurno,
   type QualidadeDetalheIndicadorEntrada,
-  type QualidadeLoteIndicadorEntrada,
   type QualidadeRegistroIndicadorEntrada,
 } from '@/lib/utils/qualidade-indicadores'
 import type {
   QualidadeDefeitoClassificacao,
   QualidadeIndicadoresTurnoV2,
   QualidadeIndicadorOperacaoV2,
-  QualidadeLoteStatus,
   QualidadeOperadorEnvolvidoV2,
   QualidadeResumoOpV2,
   QualidadeResumoTurnoV2,
@@ -33,11 +31,11 @@ type QualidadeRegistroResumoRow = Pick<
 type QualidadeRegistroIndicadorRow = Pick<
   Tables<'qualidade_registros'>,
   | 'id'
-  | 'qualidade_lote_id'
   | 'quantidade_aprovada'
   | 'quantidade_reprovada'
   | 'quantidade_revisada'
   | 'turno_op_id'
+  | 'turno_setor_operacao_id_qualidade'
 >
 type QualidadeDetalheResumoRow = Pick<
   Tables<'qualidade_detalhes'>,
@@ -51,34 +49,8 @@ type QualidadeDetalheIndicadorRow = Pick<
   Tables<'qualidade_detalhes'>,
   'qualidade_defeito_id' | 'qualidade_registro_id' | 'quantidade_defeito'
 >
-type QualidadeLoteFilaRow = Pick<
-  Tables<'qualidade_lotes'>,
-  | 'id'
-  | 'turno_id'
-  | 'turno_op_id'
-  | 'produto_id'
-  | 'turno_setor_operacao_id_origem'
-  | 'operacao_id_origem'
-  | 'setor_id_origem'
-  | 'quantidade_lote'
-  | 'status'
-  | 'criado_em'
-  | 'iniciado_em'
->
-type QualidadeLoteIndicadorRow = Pick<
-  Tables<'qualidade_lotes'>,
-  | 'id'
-  | 'turno_op_id'
-  | 'produto_id'
-  | 'quantidade_lote'
-  | 'status'
-  | 'criado_em'
-  | 'registro_producao_id'
->
 type TurnoOpFilaRow = Pick<Tables<'turno_ops'>, 'id' | 'numero_op' | 'produto_id'>
 type ProdutoFilaRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia'>
-type SetorFilaRow = Pick<Tables<'setores'>, 'id' | 'nome'>
-type OperacaoFilaRow = Pick<Tables<'operacoes'>, 'id' | 'codigo' | 'descricao'>
 type RegistroProducaoIndicadorRow = Pick<Tables<'registros_producao'>, 'id' | 'operador_id'>
 type OperadorIndicadorRow = Pick<Tables<'operadores'>, 'id' | 'nome'>
 type QualidadeDefeitoCatalogoRow = Pick<
@@ -110,26 +82,6 @@ export interface QualidadeDefeitoCatalogoItem {
   nome: string
   classificacao: QualidadeDefeitoClassificacao
   ordem: number
-}
-
-export interface QualidadeLoteFilaItem {
-  id: string
-  turnoId: string
-  turnoOpId: string
-  numeroOp: string
-  produtoId: string | null
-  produtoNome: string
-  produtoReferencia: string
-  turnoSetorOperacaoIdOrigem: string
-  operacaoIdOrigem: string
-  operacaoCodigoOrigem: string
-  operacaoDescricaoOrigem: string
-  setorIdOrigem: string
-  setorNomeOrigem: string
-  quantidadeLote: number
-  status: Extract<QualidadeLoteStatus, 'pendente' | 'em_revisao'>
-  criadoEm: string
-  iniciadoEm: string | null
 }
 
 interface QueryErrorLike {
@@ -187,20 +139,6 @@ function isSchemaQualidadeIndisponivel(error: unknown): boolean {
   )
 }
 
-function normalizarStatusFilaQualidade(
-  status: string
-): Extract<QualidadeLoteStatus, 'pendente' | 'em_revisao'> {
-  return status === 'em_revisao' ? 'em_revisao' : 'pendente'
-}
-
-function normalizarStatusQualidade(status: string): QualidadeLoteStatus {
-  if (status === 'pendente' || status === 'em_revisao' || status === 'revisado' || status === 'cancelado') {
-    return status
-  }
-
-  return 'pendente'
-}
-
 function normalizarClassificacaoDefeito(classificacao: string): QualidadeDefeitoClassificacao {
   if (
     classificacao === 'maquina' ||
@@ -212,10 +150,6 @@ function normalizarClassificacaoDefeito(classificacao: string): QualidadeDefeito
   }
 
   return 'processo'
-}
-
-function produtosPorIdTemId(produtos: ProdutoFilaRow[], produtoId: string): boolean {
-  return produtos.some((produto) => produto.id === produtoId)
 }
 
 export async function listarCatalogoDefeitosQualidadeComClient(
@@ -245,120 +179,6 @@ export async function listarCatalogoDefeitosQualidadeComClient(
   }))
 }
 
-export async function listarFilaLotesQualidadeTurnoComClient(
-  supabase: SupabaseClient<Database>,
-  turnoId: string
-): Promise<QualidadeLoteFilaItem[]> {
-  if (!turnoId) {
-    return []
-  }
-
-  const { data: lotes, error: lotesError } = await supabase
-    .from('qualidade_lotes')
-    .select(
-      'id, turno_id, turno_op_id, produto_id, turno_setor_operacao_id_origem, operacao_id_origem, setor_id_origem, quantidade_lote, status, criado_em, iniciado_em'
-    )
-    .eq('turno_id', turnoId)
-    .in('status', ['pendente', 'em_revisao'])
-    .order('criado_em', { ascending: true })
-    .returns<QualidadeLoteFilaRow[]>()
-
-  if (lotesError) {
-    if (isSchemaQualidadeIndisponivel(lotesError)) {
-      return []
-    }
-
-    throw new Error(`Erro ao listar lotes pendentes da qualidade: ${lotesError.message}`)
-  }
-
-  const lotesFila = lotes ?? []
-
-  if (lotesFila.length === 0) {
-    return []
-  }
-
-  const turnoOpIds = Array.from(new Set(lotesFila.map((lote) => lote.turno_op_id)))
-  const produtoIds = Array.from(
-    new Set(lotesFila.map((lote) => lote.produto_id).filter((id): id is string => Boolean(id)))
-  )
-  const setorIds = Array.from(new Set(lotesFila.map((lote) => lote.setor_id_origem)))
-  const operacaoIds = Array.from(new Set(lotesFila.map((lote) => lote.operacao_id_origem)))
-
-  const [
-    { data: turnoOps, error: turnoOpsError },
-    { data: produtos, error: produtosError },
-    { data: setores, error: setoresError },
-    { data: operacoes, error: operacoesError },
-  ] = await Promise.all([
-    supabase
-      .from('turno_ops')
-      .select('id, numero_op, produto_id')
-      .in('id', turnoOpIds)
-      .returns<TurnoOpFilaRow[]>(),
-    produtoIds.length > 0
-      ? supabase
-          .from('produtos')
-          .select('id, nome, referencia')
-          .in('id', produtoIds)
-          .returns<ProdutoFilaRow[]>()
-      : Promise.resolve({ data: [] as ProdutoFilaRow[], error: null }),
-    supabase.from('setores').select('id, nome').in('id', setorIds).returns<SetorFilaRow[]>(),
-    supabase
-      .from('operacoes')
-      .select('id, codigo, descricao')
-      .in('id', operacaoIds)
-      .returns<OperacaoFilaRow[]>(),
-  ])
-
-  if (turnoOpsError) {
-    throw new Error(`Erro ao carregar OPs dos lotes de qualidade: ${turnoOpsError.message}`)
-  }
-
-  if (produtosError) {
-    throw new Error(`Erro ao carregar produtos dos lotes de qualidade: ${produtosError.message}`)
-  }
-
-  if (setoresError) {
-    throw new Error(`Erro ao carregar setores dos lotes de qualidade: ${setoresError.message}`)
-  }
-
-  if (operacoesError) {
-    throw new Error(`Erro ao carregar operações dos lotes de qualidade: ${operacoesError.message}`)
-  }
-
-  const turnoOpsPorId = new Map((turnoOps ?? []).map((turnoOp) => [turnoOp.id, turnoOp]))
-  const produtosPorId = new Map((produtos ?? []).map((produto) => [produto.id, produto]))
-  const setoresPorId = new Map((setores ?? []).map((setor) => [setor.id, setor]))
-  const operacoesPorId = new Map((operacoes ?? []).map((operacao) => [operacao.id, operacao]))
-
-  return lotesFila.map((lote) => {
-    const turnoOp = turnoOpsPorId.get(lote.turno_op_id) ?? null
-    const produto = lote.produto_id ? produtosPorId.get(lote.produto_id) ?? null : null
-    const setor = setoresPorId.get(lote.setor_id_origem) ?? null
-    const operacao = operacoesPorId.get(lote.operacao_id_origem) ?? null
-
-    return {
-      id: lote.id,
-      turnoId: lote.turno_id,
-      turnoOpId: lote.turno_op_id,
-      numeroOp: turnoOp?.numero_op ?? lote.turno_op_id,
-      produtoId: lote.produto_id,
-      produtoNome: produto?.nome ?? 'Produto não identificado',
-      produtoReferencia: produto?.referencia ?? 'Sem referência',
-      turnoSetorOperacaoIdOrigem: lote.turno_setor_operacao_id_origem,
-      operacaoIdOrigem: lote.operacao_id_origem,
-      operacaoCodigoOrigem: operacao?.codigo ?? '—',
-      operacaoDescricaoOrigem: operacao?.descricao ?? 'Operação não identificada',
-      setorIdOrigem: lote.setor_id_origem,
-      setorNomeOrigem: setor?.nome ?? 'Setor não identificado',
-      quantidadeLote: lote.quantidade_lote,
-      status: normalizarStatusFilaQualidade(lote.status),
-      criadoEm: lote.criado_em,
-      iniciadoEm: lote.iniciado_em,
-    }
-  })
-}
-
 export async function listarIndicadoresQualidadeTurnoComClient(
   supabase: SupabaseClient<Database>,
   turnoId: string
@@ -367,31 +187,13 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     return null
   }
 
-  const [
-    { data: lotes, error: lotesError },
-    { data: registros, error: registrosError },
-  ] = await Promise.all([
-    supabase
-      .from('qualidade_lotes')
-      .select('id, turno_op_id, produto_id, quantidade_lote, status, criado_em, registro_producao_id')
-      .eq('turno_id', turnoId)
-      .returns<QualidadeLoteIndicadorRow[]>(),
-    supabase
-      .from('qualidade_registros')
-      .select(
-        'id, qualidade_lote_id, quantidade_aprovada, quantidade_reprovada, quantidade_revisada, turno_op_id'
-      )
-      .eq('turno_id', turnoId)
-      .returns<QualidadeRegistroIndicadorRow[]>(),
-  ])
-
-  if (lotesError) {
-    if (isSchemaQualidadeIndisponivel(lotesError)) {
-      return null
-    }
-
-    throw new Error(`Erro ao listar lotes para indicadores de qualidade: ${lotesError.message}`)
-  }
+  const { data: registros, error: registrosError } = await supabase
+    .from('qualidade_registros')
+    .select(
+      'id, quantidade_aprovada, quantidade_reprovada, quantidade_revisada, turno_op_id, turno_setor_operacao_id_qualidade'
+    )
+    .eq('turno_id', turnoId)
+    .returns<QualidadeRegistroIndicadorRow[]>()
 
   if (registrosError) {
     if (isSchemaQualidadeIndisponivel(registrosError)) {
@@ -403,27 +205,20 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     )
   }
 
-  const lotesQualidade = lotes ?? []
   const registrosQualidade = registros ?? []
 
-  if (lotesQualidade.length === 0 && registrosQualidade.length === 0) {
+  if (registrosQualidade.length === 0) {
     return null
   }
 
   const registroQualidadeIds = registrosQualidade.map((registro) => registro.id)
   const turnoOpIds = Array.from(
-    new Set([
-      ...lotesQualidade.map((lote) => lote.turno_op_id),
-      ...registrosQualidade.map((registro) => registro.turno_op_id),
-    ])
+    new Set(registrosQualidade.map((registro) => registro.turno_op_id))
   )
-  const produtoIds = Array.from(
-    new Set(lotesQualidade.map((lote) => lote.produto_id).filter((id): id is string => Boolean(id)))
-  )
-  const registroProducaoIds = Array.from(
+  const turnoSetorOperacaoIds = Array.from(
     new Set(
-      lotesQualidade
-        .map((lote) => lote.registro_producao_id)
+      registrosQualidade
+        .map((registro) => registro.turno_setor_operacao_id_qualidade)
         .filter((id): id is string => Boolean(id))
     )
   )
@@ -431,7 +226,6 @@ export async function listarIndicadoresQualidadeTurnoComClient(
   const [
     { data: detalhes, error: detalhesError },
     { data: turnoOps, error: turnoOpsError },
-    { data: produtos, error: produtosError },
     { data: registrosProducao, error: registrosProducaoError },
   ] = await Promise.all([
     registroQualidadeIds.length > 0
@@ -448,18 +242,11 @@ export async function listarIndicadoresQualidadeTurnoComClient(
           .in('id', turnoOpIds)
           .returns<TurnoOpFilaRow[]>()
       : Promise.resolve({ data: [] as TurnoOpFilaRow[], error: null }),
-    produtoIds.length > 0
-      ? supabase
-          .from('produtos')
-          .select('id, nome, referencia')
-          .in('id', produtoIds)
-          .returns<ProdutoFilaRow[]>()
-      : Promise.resolve({ data: [] as ProdutoFilaRow[], error: null }),
-    registroProducaoIds.length > 0
+    turnoSetorOperacaoIds.length > 0
       ? supabase
           .from('registros_producao')
           .select('id, operador_id')
-          .in('id', registroProducaoIds)
+          .in('turno_setor_operacao_id', turnoSetorOperacaoIds)
           .returns<RegistroProducaoIndicadorRow[]>()
       : Promise.resolve({ data: [] as RegistroProducaoIndicadorRow[], error: null }),
   ])
@@ -478,39 +265,35 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     throw new Error(`Erro ao carregar OPs dos indicadores de qualidade: ${turnoOpsError.message}`)
   }
 
-  if (produtosError) {
-    throw new Error(`Erro ao carregar produtos dos indicadores de qualidade: ${produtosError.message}`)
-  }
-
   if (registrosProducaoError) {
     throw new Error(
       `Erro ao carregar apontamentos de origem dos indicadores de qualidade: ${registrosProducaoError.message}`
     )
   }
 
-  let produtosIndicadores = produtos ?? []
-  const produtoIdsComplementares = Array.from(
+  const turnoOpsPorId = new Map((turnoOps ?? []).map((turnoOp) => [turnoOp.id, turnoOp]))
+  const produtoIdsFromOps = Array.from(
     new Set(
       (turnoOps ?? [])
         .map((turnoOp) => turnoOp.produto_id)
-        .filter((id): id is string => Boolean(id) && !produtosPorIdTemId(produtosIndicadores, id))
+        .filter((id): id is string => Boolean(id))
     )
   )
 
-  if (produtoIdsComplementares.length > 0) {
-    const { data: produtosComplementares, error: produtosComplementaresError } = await supabase
+  let produtosIndicadores: ProdutoFilaRow[] = []
+
+  if (produtoIdsFromOps.length > 0) {
+    const { data: produtos, error: produtosError } = await supabase
       .from('produtos')
       .select('id, nome, referencia')
-      .in('id', produtoIdsComplementares)
+      .in('id', produtoIdsFromOps)
       .returns<ProdutoFilaRow[]>()
 
-    if (produtosComplementaresError) {
-      throw new Error(
-        `Erro ao carregar produtos complementares dos indicadores de qualidade: ${produtosComplementaresError.message}`
-      )
+    if (produtosError) {
+      throw new Error(`Erro ao carregar produtos dos indicadores de qualidade: ${produtosError.message}`)
     }
 
-    produtosIndicadores = [...produtosIndicadores, ...(produtosComplementares ?? [])]
+    produtosIndicadores = produtos ?? []
   }
 
   const detalhesQualidade = detalhes ?? []
@@ -561,19 +344,23 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     )
   }
 
-  const turnoOpsPorId = new Map((turnoOps ?? []).map((turnoOp) => [turnoOp.id, turnoOp]))
   const produtosPorId = new Map(produtosIndicadores.map((produto) => [produto.id, produto]))
-  const registrosProducaoPorId = new Map(
-    (registrosProducao ?? []).map((registro) => [registro.id, registro])
-  )
   const operadoresPorId = new Map((operadores ?? []).map((operador) => [operador.id, operador]))
   const defeitosPorId = new Map((defeitosCatalogo ?? []).map((defeito) => [defeito.id, defeito]))
 
-  function resolverProduto(turnoOpId: string, produtoId: string | null) {
+  const operadorPorTurnoSetorOperacao = new Map<string, { id: string; nome: string }>()
+  for (const registro of registrosProducao ?? []) {
+    if (registro.operador_id) {
+      const operador = operadoresPorId.get(registro.operador_id)
+      if (operador) {
+        operadorPorTurnoSetorOperacao.set(registro.id, operador)
+      }
+    }
+  }
+
+  function resolverProduto(turnoOpId: string) {
     const turnoOp = turnoOpsPorId.get(turnoOpId) ?? null
-    const produto =
-      (produtoId ? produtosPorId.get(produtoId) ?? null : null) ??
-      (turnoOp?.produto_id ? produtosPorId.get(turnoOp.produto_id) ?? null : null)
+    const produto = turnoOp?.produto_id ? produtosPorId.get(turnoOp.produto_id) ?? null : null
 
     return {
       numeroOp: turnoOp?.numero_op ?? turnoOpId,
@@ -582,36 +369,21 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     }
   }
 
-  const lotesEntrada: QualidadeLoteIndicadorEntrada[] = lotesQualidade.map((lote) => {
-    const origemProducao = lote.registro_producao_id
-      ? registrosProducaoPorId.get(lote.registro_producao_id) ?? null
-      : null
-    const operador = origemProducao ? operadoresPorId.get(origemProducao.operador_id) ?? null : null
-    const produto = resolverProduto(lote.turno_op_id, lote.produto_id)
-
-    return {
-      id: lote.id,
-      turnoOpId: lote.turno_op_id,
-      numeroOp: produto.numeroOp,
-      produtoReferencia: produto.produtoReferencia,
-      produtoNome: produto.produtoNome,
-      status: normalizarStatusQualidade(lote.status),
-      quantidadeLote: lote.quantidade_lote,
-      criadoEm: lote.criado_em,
-      operadorId: operador?.id ?? null,
-      operadorNome: operador?.nome ?? null,
+  function resolverOperadorRevisor(turnoSetorOperacaoId: string | null): { id: string | null; nome: string | null } {
+    if (!turnoSetorOperacaoId || operadorIds.length === 0) {
+      return { id: null, nome: null }
     }
-  })
+
+    const primeiroOperador = operadoresPorId.values().next().value
+    return primeiroOperador ? { id: primeiroOperador.id, nome: primeiroOperador.nome } : { id: null, nome: null }
+  }
 
   const registrosEntrada: QualidadeRegistroIndicadorEntrada[] = registrosQualidade.map((registro) => {
-    const lote = registro.qualidade_lote_id
-      ? lotesQualidade.find((item) => item.id === registro.qualidade_lote_id) ?? null
-      : null
-    const produto = resolverProduto(registro.turno_op_id, lote?.produto_id ?? null)
+    const produto = resolverProduto(registro.turno_op_id)
+    const operador = resolverOperadorRevisor(registro.turno_setor_operacao_id_qualidade)
 
     return {
       id: registro.id,
-      qualidadeLoteId: registro.qualidade_lote_id,
       turnoOpId: registro.turno_op_id,
       numeroOp: produto.numeroOp,
       produtoReferencia: produto.produtoReferencia,
@@ -619,6 +391,8 @@ export async function listarIndicadoresQualidadeTurnoComClient(
       quantidadeAprovada: registro.quantidade_aprovada,
       quantidadeReprovada: registro.quantidade_reprovada,
       quantidadeRevisada: registro.quantidade_revisada,
+      operadorId: operador.id,
+      operadorNome: operador.nome,
     }
   })
 
@@ -636,7 +410,6 @@ export async function listarIndicadoresQualidadeTurnoComClient(
   })
 
   return calcularIndicadoresQualidadeTurno({
-    lotes: lotesEntrada,
     registros: registrosEntrada,
     detalhes: detalhesEntrada,
   })

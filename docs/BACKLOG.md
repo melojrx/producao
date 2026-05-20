@@ -60,7 +60,7 @@
 | 48 | Permissão administrativa para revisão de qualidade | ✅ Concluída | 1 |
 | 49 | Correção do carry-over setorial repetido entre turnos | ✅ Concluída | 2 |
 | 50 | Controle físico de saldo da OP | ✅ Concluída | 2 |
-| 51 | Fluxo contínuo de qualidade simples, prático e sem travas | ✅ Concluída | 5 |
+| 51 | Fluxo contínuo de qualidade simples, prático e sem travas | 🚧 Em correção de homologação (HU 51.12) | 5 |
 
 **Total estimado: 97 dias úteis**
 
@@ -750,6 +750,8 @@
 **Conclusão em `2026-05-18`:** HUs 51.6 a 51.10 concluídas. O fluxo ativo deixou de derivar setor/QR/seção/demanda/operação de `Qualidade` legado; a revisão acontece pela fila `qualidade_lotes`; o revisor registra operação produtiva, tipo de defeito, quantidade e observação; tipos de defeito possuem CRUD administrativo completo; e a dashboard separa os indicadores de qualidade em aba própria, preservando a Visão Operacional sem KPIs de qualidade.
 
 **Conclusão corrigida em `2026-05-20`:** a HU 51.11 restaurou `Qualidade` como etapa final operacional após `Finalização`, reaproveitando o fluxo legado homologado da Sprint 36 e preservando as melhorias válidas da Sprint 51: CRUD de tipos de defeito, catálogo estruturado, input do revisor com `Operação`, `Tipo de defeito`, `Quantidade` e `Observação`, múltiplos defeitos e indicadores em aba própria. A migration corretiva foi aplicada no Supabase remoto via Management API; a validação temporária confirmou derivação de Finalização e Qualidade, apontamento de `100` peças na Finalização, revisão de `95` aprovadas e `5` reprovadas na Qualidade, defeito catalogado com observação, `lotes_criados_por_trigger = 0` e limpeza dos dados de teste.
+
+**Correção de homologação em `2026-05-20`:** análise profunda revelou que a HU 51.11 restaurou o fluxo operacional correto mas não removeu a infraestrutura do fluxo paralelo por lotes (HUs 51.1–51.10). Os dois fluxos coexistem: `PainelQualidadeSupervisor` mescla itens operacionais com lotes de `qualidade_lotes` na mesma fila via `origemFluxo`; `DashboardQualidadeTab` depende de `listarIndicadoresQualidadeTurnoComClient` que consulta `qualidade_lotes` (vazia após remoção do trigger) e retorna `null` silenciosamente, bloqueando a aba inteira mesmo com dados reais em `qualidade_registros`; duas RPCs de registro coexistem (`registrar_revisao_lote_qualidade` e `registrar_revisao_qualidade_turno_setor_operacao`). A HU 51.12 foi criada para remoção cirúrgica do fluxo paralelo por lotes.
 
 ---
 

@@ -1,26 +1,11 @@
 import type {
   QualidadeIndicadoresTurnoV2,
-  QualidadeLoteStatus,
   QualidadeRankingDefeitoV2,
   QualidadeRankingOperadorV2,
 } from '@/types'
 
-export interface QualidadeLoteIndicadorEntrada {
-  id: string
-  turnoOpId: string
-  numeroOp: string
-  produtoReferencia: string
-  produtoNome: string
-  status: QualidadeLoteStatus
-  quantidadeLote: number
-  criadoEm: string
-  operadorId: string | null
-  operadorNome: string | null
-}
-
 export interface QualidadeRegistroIndicadorEntrada {
   id: string
-  qualidadeLoteId: string | null
   turnoOpId: string
   numeroOp: string
   produtoReferencia: string
@@ -28,6 +13,8 @@ export interface QualidadeRegistroIndicadorEntrada {
   quantidadeAprovada: number
   quantidadeReprovada: number
   quantidadeRevisada: number
+  operadorId: string | null
+  operadorNome: string | null
 }
 
 export interface QualidadeDetalheIndicadorEntrada {
@@ -38,7 +25,6 @@ export interface QualidadeDetalheIndicadorEntrada {
 }
 
 export interface CalcularIndicadoresQualidadeInput {
-  lotes: QualidadeLoteIndicadorEntrada[]
   registros: QualidadeRegistroIndicadorEntrada[]
   detalhes: QualidadeDetalheIndicadorEntrada[]
 }
@@ -49,14 +35,6 @@ function calcularPercentual(numerador: number, denominador: number): number | nu
   }
 
   return (numerador / denominador) * 100
-}
-
-function loteEstaPendente(
-  lote: QualidadeLoteIndicadorEntrada
-): lote is QualidadeLoteIndicadorEntrada & {
-  status: Extract<QualidadeLoteStatus, 'pendente' | 'em_revisao'>
-} {
-  return lote.status === 'pendente' || lote.status === 'em_revisao'
 }
 
 function incrementarRankingDefeito(
@@ -97,7 +75,6 @@ function incrementarRankingOperador(
 export function calcularIndicadoresQualidadeTurno(
   input: CalcularIndicadoresQualidadeInput
 ): QualidadeIndicadoresTurnoV2 {
-  const lotesPorId = new Map(input.lotes.map((lote) => [lote.id, lote]))
   const detalhesPorRegistroId = new Map<string, QualidadeDetalheIndicadorEntrada[]>()
 
   for (const detalhe of input.detalhes) {
@@ -149,10 +126,7 @@ export function calcularIndicadoresQualidadeTurno(
     opAtual.quantidadeReprovada += registro.quantidadeReprovada
     opAtual.quantidadeRevisada += registro.quantidadeRevisada
     opAtual.totalDefeitos += totalDefeitosRegistro
-
-    if (registro.qualidadeLoteId) {
-      opAtual.lotesRevisados += 1
-    }
+    opAtual.lotesRevisados += 1
 
     ops.set(registro.turnoOpId, opAtual)
 
@@ -160,40 +134,15 @@ export function calcularIndicadoresQualidadeTurno(
       incrementarRankingDefeito(rankingDefeitos, detalhe)
     }
 
-    const lote = registro.qualidadeLoteId ? lotesPorId.get(registro.qualidadeLoteId) ?? null : null
-
-    if (lote?.operadorId && lote.operadorNome) {
+    if (registro.operadorId && registro.operadorNome) {
       incrementarRankingOperador(
         rankingOperadores,
-        lote.operadorId,
-        lote.operadorNome,
+        registro.operadorId,
+        registro.operadorNome,
         registro.quantidadeReprovada,
         totalDefeitosRegistro
       )
     }
-  }
-
-  const lotesPendentes = input.lotes.filter(loteEstaPendente)
-
-  for (const lote of lotesPendentes) {
-    const opAtual = ops.get(lote.turnoOpId) ?? {
-      turnoOpId: lote.turnoOpId,
-      numeroOp: lote.numeroOp,
-      produtoReferencia: lote.produtoReferencia,
-      produtoNome: lote.produtoNome,
-      lotesPendentes: 0,
-      pecasPendentes: 0,
-      lotesRevisados: 0,
-      quantidadeAprovada: 0,
-      quantidadeReprovada: 0,
-      quantidadeRevisada: 0,
-      totalDefeitos: 0,
-      taxaAprovacao: null,
-    }
-
-    opAtual.lotesPendentes += 1
-    opAtual.pecasPendentes += lote.quantidadeLote
-    ops.set(lote.turnoOpId, opAtual)
   }
 
   const percentualDefeitosBase =
@@ -209,18 +158,12 @@ export function calcularIndicadoresQualidadeTurno(
       ...op,
       taxaAprovacao: calcularPercentual(op.quantidadeAprovada, op.quantidadeRevisada),
     }))
-    .sort((opA, opB) => {
-      if (opA.lotesPendentes !== opB.lotesPendentes) {
-        return opB.lotesPendentes - opA.lotesPendentes
-      }
-
-      return opA.numeroOp.localeCompare(opB.numeroOp, 'pt-BR', { numeric: true })
-    })
+    .sort((opA, opB) => opA.numeroOp.localeCompare(opB.numeroOp, 'pt-BR', { numeric: true }))
 
   return {
-    lotesPendentes: lotesPendentes.length,
-    pecasPendentes: lotesPendentes.reduce((soma, lote) => soma + lote.quantidadeLote, 0),
-    lotesRevisados: input.registros.filter((registro) => Boolean(registro.qualidadeLoteId)).length,
+    lotesPendentes: 0,
+    pecasPendentes: 0,
+    lotesRevisados: input.registros.length,
     quantidadeAprovadaTotal,
     quantidadeReprovadaTotal,
     quantidadeRetrabalhoTotal: quantidadeReprovadaTotal,
@@ -228,20 +171,7 @@ export function calcularIndicadoresQualidadeTurno(
     totalDefeitos,
     taxaAprovacao: calcularPercentual(quantidadeAprovadaTotal, quantidadeRevisadaTotal),
     taxaReprovacao: calcularPercentual(quantidadeReprovadaTotal, quantidadeRevisadaTotal),
-    lotesPendentesLista: lotesPendentes
-      .slice()
-      .sort((loteA, loteB) => loteA.criadoEm.localeCompare(loteB.criadoEm))
-      .map((lote) => ({
-        id: lote.id,
-        turnoOpId: lote.turnoOpId,
-        numeroOp: lote.numeroOp,
-        produtoReferencia: lote.produtoReferencia,
-        produtoNome: lote.produtoNome,
-        quantidadeLote: lote.quantidadeLote,
-        status: lote.status,
-        criadoEm: lote.criadoEm,
-        operadorNome: lote.operadorNome,
-      })),
+    lotesPendentesLista: [],
     ops: opsOrdenadas,
     rankingDefeitos: percentualDefeitosBase.sort((defeitoA, defeitoB) => {
       if (defeitoA.quantidadeDefeitos !== defeitoB.quantidadeDefeitos) {

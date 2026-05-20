@@ -5292,6 +5292,42 @@ Correção de interpretação em `2026-05-20`:
 
   **Evidência:** `docs/PRD.md`, `docs/TASKS.md` e `docs/BACKLOG.md` foram corrigidos para registrar que `Qualidade` volta a ser etapa final operacional após `Finalização`, preservando o CRUD de tipos de defeito, catálogo estruturado, múltiplos defeitos, input do revisor com `Operação`, `Tipo de defeito`, `Quantidade` e `Observação`, e indicadores em aba própria. `lib/utils/qualidade.ts` voltou a manter `Qualidade` no fluxo ativo; `hooks/useScanner.ts`, `app/(operador)/scanner/page.tsx`, `components/scanner/ScannerPageClient.tsx` e `components/scanner/ConfirmacaoQualidade.tsx` restauraram o scanner de revisão operacional com catálogo de defeitos. `/admin/apontamentos`, via `components/apontamentos/PainelQualidadeSupervisor.tsx`, passou a montar a fila operacional da etapa `Qualidade` usando `lib/utils/qualidade-operacional.ts`, mantendo compatibilidade com lotes históricos. `lib/actions/qualidade.ts` e `scripts/sprint51_restaurar_qualidade_operacional.sql` atualizaram a RPC operacional para gravar defeito catalogado e observação, e removeram o trigger `trg_registros_producao_criar_lote_qualidade` para impedir lote automático por qualquer apontamento intermediário. Validação remota em `2026-05-20` no Supabase `jsuufbgdcqxogimmocof` com `scripts/sprint51_apply_restaurar_qualidade_operacional.mjs`: produto temporário com `Finalização` e `Qualidade` derivou `secoes_qualidade = 1`, `operacoes_qualidade = 1` e `demandas_qualidade = 1`; apontamento de `100` peças na Finalização registrou `quantidade_realizada_operacao = 100`; revisão operacional registrou `95` aprovadas, `5` reprovadas, `100` revisadas, `total_defeitos = 5`, `detalhes_catalogados = 1`, `detalhes_com_observacao = 1`; e a validação confirmou `lotes_criados_por_trigger = 0`, com limpeza dos dados temporários. Validação local em `2026-05-20`: `node --test --experimental-strip-types lib/utils/qualidade.test.ts lib/utils/qualidade-lotes.test.ts lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade-defeitos.test.ts` passou 21/21; `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram sem erros, com `npm run build` executado fora do sandbox por limitação do Turbopack.
 
+- [x] **HU 51.12 — Como produto, quero remover cirurgicamente a infraestrutura do fluxo paralelo de qualidade por lotes, para que o sistema opere exclusivamente com o fluxo operacional correto e a dashboard/apontamentos voltem a funcionar.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Contexto:
+  - a HU 51.11 restaurou Qualidade como etapa operacional final mas não removeu a infraestrutura do fluxo por lotes (HUs 51.1–51.10)
+  - os dois fluxos coexistem: `PainelQualidadeSupervisor` mescla itens operacionais com lotes via `origemFluxo`; `DashboardQualidadeTab` depende de `qualidade_lotes` (vazia) e mostra "Sem indicadores" mesmo com dados reais em `qualidade_registros`
+  - duas RPCs de registro coexistem no banco e no código (`registrar_revisao_lote_qualidade` + `registrar_revisao_qualidade_turno_setor_operacao`)
+  - o trigger `trg_registros_producao_criar_lote_qualidade` já foi removido, mas a tabela `qualidade_lotes` e toda a lógica de leitura/exibição permanecem
+
+  Regras:
+  - remover tabela `qualidade_lotes` do banco (migration SQL via Management API)
+  - remover RPC `registrar_revisao_lote_qualidade` do banco
+  - remover ou tornar nullable a coluna `qualidade_lote_id` de `qualidade_registros`
+  - reescrever `listarIndicadoresQualidadeTurnoComClient` para depender exclusivamente de `qualidade_registros` e `qualidade_detalhes`
+  - remover `listarFilaLotesQualidadeTurnoComClient` (query de fila por lotes)
+  - ajustar `DashboardQualidadeTab` para não depender de `indicadoresQualidade` baseado em lotes; usar `resumoQualidade` como fonte primária ou unificar queries
+  - remover prop `lotesQualidade` e lógica de `origemFluxo` do `PainelQualidadeSupervisor`; manter apenas fluxo operacional
+  - remover `registrarRevisaoLoteQualidade` de `lib/actions/qualidade.ts`
+  - remover chamada a `listarFilaLotesQualidadeTurnoComClient` da página `/admin/apontamentos`
+  - remover types mortos: `QualidadeLoteFilaItem`, `QualidadeLoteFilaRow`, `QualidadeLoteIndicadorRow`, `QualidadeLoteIndicadorEntrada`
+  - preservar integralmente: CRUD de tipos de defeito, catálogo estruturado, input do revisor, múltiplos defeitos, RPC operacional, permissão de revisor, indicadores em aba própria
+  - garantir que `qualidade_registros` + `qualidade_detalhes` continuem como fonte de verdade para revisões e defeitos
+  - validar dashboard (aba Qualidade exibe dados reais) e apontamentos (fila operacional funciona sem bifurcação)
+
+  Ordem de execução:
+  1. Migration SQL: dropar `qualidade_lotes`, dropar RPC `registrar_revisao_lote_qualidade`, remover coluna `qualidade_lote_id` de `qualidade_registros`
+  2. Ajustar queries (`lib/queries/qualidade.ts`): reescrever indicadores para fonte única `qualidade_registros`
+  3. Ajustar componentes: `DashboardQualidadeTab`, `PainelQualidadeSupervisor`, página de apontamentos
+  4. Remover código morto: actions, types, funções utilitárias de lotes
+  5. Validar: `npx tsc --noEmit`, `npm run lint`, `npm run build`, testes focados, validação remota com dados reais
+
+  **Evidência esperada:** aba Qualidade da dashboard exibe indicadores reais baseados em `qualidade_registros`; `/admin/apontamentos` mostra apenas fila operacional sem referência a lotes; `PainelQualidadeSupervisor` não possui lógica de `origemFluxo`; RPC `registrar_revisao_lote_qualidade` não existe no banco; tabela `qualidade_lotes` não existe no banco; `npx tsc --noEmit`, `npm run lint` e `npm run build` passam sem erros.
+
+  **Evidência:** migration remota aplicada em `2026-05-20` no Supabase `jsuufbgdcqxogimmocof` via `scripts/sprint51_apply_remover_fluxo_lotes.mjs`: validação pré-migration confirmou `tabela_qualidade_lotes_existe = true`, `rpc_lote_existe = true`, `coluna_qualidade_lote_id_existe = true`, `lotes_existentes = 89`; após aplicação do DDL (`scripts/sprint51_remover_fluxo_lotes_qualidade.sql`), validação pós-migration confirmou `tabela_removida = true`, `coluna_removida = true`, `rpc_lote_removida = true`, `rpc_operacional_preservada = true`, `tabela_registros_preservada = true`, `tabela_detalhes_preservada = true`, `tabela_defeitos_preservada = true`. Código ajustado: `listarIndicadoresQualidadeTurnoComClient` reescrita para consultar apenas `qualidade_registros` + `qualidade_detalhes`; `listarFilaLotesQualidadeTurnoComClient` removida; `PainelQualidadeSupervisor` opera exclusivamente com fila operacional (sem `origemFluxo`, sem `lotesQualidade`); `registrarRevisaoLoteQualidade` removida de `lib/actions/qualidade.ts`; `calcularIndicadoresQualidadeTurno` simplificada para interface sem lotes. Validação local em `2026-05-20`: `npx tsc --noEmit` passou sem erros; `npm run lint` passou sem erros; `node --test --experimental-strip-types lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade.test.ts lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-defeitos.test.ts` passou 10/10; `npm run build` passou sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

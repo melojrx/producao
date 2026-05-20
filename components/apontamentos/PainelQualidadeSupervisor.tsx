@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Minus, Plus, ShieldAlert } from 'lucide-react'
-import { registrarRevisaoLoteQualidade, registrarRevisaoQualidade } from '@/lib/actions/qualidade'
+import { registrarRevisaoQualidade } from '@/lib/actions/qualidade'
 import { montarFilaQualidadeOperacional } from '@/lib/utils/qualidade-operacional'
 import type {
   PlanejamentoTurnoDashboardV2,
@@ -11,20 +11,29 @@ import type {
 } from '@/types'
 import type {
   QualidadeDefeitoCatalogoItem,
-  QualidadeLoteFilaItem,
 } from '@/lib/queries/qualidade'
 
 interface PainelQualidadeSupervisorProps {
   planejamento: PlanejamentoTurnoDashboardV2
   operacoesTurno: TurnoSetorOperacaoApontamentoV2[]
-  lotesQualidade: QualidadeLoteFilaItem[]
   defeitosCatalogo: QualidadeDefeitoCatalogoItem[]
   podeRevisarQualidade: boolean
   revisorNome: string | null
 }
 
-type QualidadeFilaRevisaoItem = QualidadeLoteFilaItem & {
-  origemFluxo: 'lote' | 'operacional'
+interface QualidadeFilaRevisaoItem {
+  id: string
+  turnoId: string
+  turnoOpId: string
+  numeroOp: string
+  produtoNome: string
+  produtoReferencia: string
+  turnoSetorOperacaoIdOrigem: string
+  operacaoCodigoOrigem: string
+  operacaoDescricaoOrigem: string
+  setorNomeOrigem: string
+  quantidadeLote: number
+  criadoEm: string
 }
 
 interface DefeitoLoteDraft {
@@ -76,12 +85,6 @@ function normalizarQuantidadePositiva(valor: string): string {
   return String(quantidade)
 }
 
-function statusLoteTema(status: QualidadeLoteFilaItem['status']): string {
-  return status === 'em_revisao'
-    ? 'bg-blue-100 text-blue-700'
-    : 'bg-amber-100 text-amber-700'
-}
-
 function formatarHorario(valor: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     hour: '2-digit',
@@ -92,7 +95,6 @@ function formatarHorario(valor: string): string {
 export function PainelQualidadeSupervisor({
   planejamento,
   operacoesTurno,
-  lotesQualidade,
   defeitosCatalogo,
   podeRevisarQualidade,
   revisorNome,
@@ -115,43 +117,30 @@ export function PainelQualidadeSupervisor({
       }),
     [operacoesTurno, planejamento.demandasSetor, planejamento.ops]
   )
-  const lotesOperacionais = useMemo<QualidadeFilaRevisaoItem[]>(
+  const itensRevisao = useMemo<QualidadeFilaRevisaoItem[]>(
     () =>
       itensQualidadeOperacional.map((item) => ({
         id: `operacional:${item.operacaoQualidade.id}`,
         turnoId: item.demandaQualidade.turnoId,
         turnoOpId: item.turnoOpId,
         numeroOp: item.numeroOp,
-        produtoId: item.demandaQualidade.produtoId,
         produtoNome: item.produtoNome,
         produtoReferencia: item.produtoReferencia,
         turnoSetorOperacaoIdOrigem: item.operacaoQualidade.id,
-        operacaoIdOrigem: item.operacaoQualidade.operacaoId,
         operacaoCodigoOrigem: item.operacaoQualidade.operacaoCodigo,
         operacaoDescricaoOrigem: item.operacaoQualidade.operacaoDescricao,
-        setorIdOrigem: item.operacaoQualidade.setorId,
         setorNomeOrigem: item.demandaQualidade.setorNome,
         quantidadeLote: item.quantidadeDisponivelRevisao,
-        status: 'pendente',
         criadoEm:
           item.operacaoQualidade.iniciadoEm ??
           item.demandaQualidade.iniciadoEm ??
           planejamento.turno.iniciadoEm,
-        iniciadoEm: item.operacaoQualidade.iniciadoEm,
-        origemFluxo: 'operacional',
       })),
     [itensQualidadeOperacional, planejamento.turno.iniciadoEm]
   )
-  const itensRevisao = useMemo<QualidadeFilaRevisaoItem[]>(
-    () => [
-      ...lotesQualidade.map((lote) => ({ ...lote, origemFluxo: 'lote' as const })),
-      ...lotesOperacionais,
-    ],
-    [lotesOperacionais, lotesQualidade]
-  )
   const loteSelecionado =
     itensRevisao.find((lote) => lote.id === loteSelecionadoId) ?? itensRevisao[0] ?? null
-  const itemOperacionalSelecionado = loteSelecionado?.origemFluxo === 'operacional'
+  const itemOperacionalSelecionado = loteSelecionado
     ? itensQualidadeOperacional.find(
         (item) => `operacional:${item.operacaoQualidade.id}` === loteSelecionado.id
       ) ?? null
@@ -292,22 +281,13 @@ export function PainelQualidadeSupervisor({
     setMensagem(null)
 
     startTransition(async () => {
-      const resultado =
-        loteSelecionado.origemFluxo === 'operacional'
-          ? await registrarRevisaoQualidade({
-              turnoSetorOperacaoIdQualidade: loteSelecionado.turnoSetorOperacaoIdOrigem,
-              quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
-              quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
-              origemLancamento: 'manual_qualidade',
-              defeitos: formularioValido.defeitosNormalizados,
-            })
-          : await registrarRevisaoLoteQualidade({
-              qualidadeLoteId: loteSelecionado.id,
-              quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
-              quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
-              origemLancamento: 'manual_qualidade',
-              defeitos: formularioValido.defeitosNormalizados,
-            })
+      const resultado = await registrarRevisaoQualidade({
+        turnoSetorOperacaoIdQualidade: loteSelecionado.turnoSetorOperacaoIdOrigem,
+        quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
+        quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
+        origemLancamento: 'manual_qualidade',
+        defeitos: formularioValido.defeitosNormalizados,
+      })
 
       if (!resultado.sucesso) {
         setErro(resultado.erro ?? 'Não foi possível registrar a revisão do lote de qualidade.')
@@ -405,13 +385,9 @@ export function PainelQualidadeSupervisor({
                       </p>
                     </div>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusLoteTema(lote.status)}`}
+                      className="rounded-full px-2.5 py-1 text-xs font-semibold bg-amber-100 text-amber-700"
                     >
-                      {lote.origemFluxo === 'operacional'
-                        ? 'operacional'
-                        : lote.status === 'em_revisao'
-                          ? 'em revisão'
-                          : 'pendente'}
+                      pendente
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -425,7 +401,7 @@ export function PainelQualidadeSupervisor({
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-600">
-                  {lote.origemFluxo === 'operacional' ? 'Etapa Qualidade' : lote.setorNomeOrigem} · {lote.operacaoCodigoOrigem} ·{' '}
+                  Etapa Qualidade · {lote.operacaoCodigoOrigem} ·{' '}
                     {lote.operacaoDescricaoOrigem}
                   </p>
                 </button>
@@ -437,9 +413,7 @@ export function PainelQualidadeSupervisor({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-blue-700">
-                  {loteSelecionado.origemFluxo === 'operacional'
-                    ? 'Revisão da etapa Qualidade'
-                    : 'Revisão do lote'}
+                  Revisão da etapa Qualidade
                 </p>
                 <h3 className="mt-1 text-lg font-semibold text-slate-900">
                   {loteSelecionado.numeroOp} · {loteSelecionado.operacaoCodigoOrigem}
@@ -451,7 +425,7 @@ export function PainelQualidadeSupervisor({
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  {loteSelecionado.origemFluxo === 'operacional' ? 'Disponível' : 'Lote'}
+                  Disponível
                 </p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">
                   {loteSelecionado.quantidadeLote}
