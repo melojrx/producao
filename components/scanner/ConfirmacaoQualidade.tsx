@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import type { RegistroQualidadeDefeitoInput, ResultadoScannerAction } from '@/hooks'
+import type { QualidadeDefeitoCatalogoItem } from '@/lib/queries/qualidade'
 import {
   calcularSaldoFisicoRestanteOperacao,
   validarConsumoSaldoFisicoOperacao,
@@ -23,6 +24,7 @@ interface ConfirmacaoQualidadeProps {
   demandaSelecionada: TurnoSetorDemandaScaneada
   operacaoQualidade: TurnoSetorOperacaoApontamentoV2
   operacoesOrigem: TurnoSetorOperacaoApontamentoV2[]
+  defeitosCatalogo: QualidadeDefeitoCatalogoItem[]
   setor: TurnoSetorScaneado
   revisorNome: string | null
   estaRegistrando: boolean
@@ -39,7 +41,9 @@ interface ConfirmacaoQualidadeProps {
 interface DefeitoDraft {
   id: string
   turnoSetorOperacaoIdOrigem: string
+  qualidadeDefeitoId: string
   quantidadeDefeito: string
+  observacao: string
 }
 
 function criarIdLocal(): string {
@@ -99,6 +103,7 @@ export function ConfirmacaoQualidade({
   demandaSelecionada,
   operacaoQualidade,
   operacoesOrigem,
+  defeitosCatalogo,
   setor,
   revisorNome,
   estaRegistrando,
@@ -146,7 +151,9 @@ export function ConfirmacaoQualidade({
       {
         id: criarIdLocal(),
         turnoSetorOperacaoIdOrigem: operacoesOrigem[0]?.id ?? '',
+        qualidadeDefeitoId: defeitosCatalogo[0]?.id ?? '',
         quantidadeDefeito: '1',
+        observacao: '',
       },
     ])
   }
@@ -188,7 +195,7 @@ export function ConfirmacaoQualidade({
       return
     }
 
-    const ids = new Set<string>()
+    const chavesDefeito = new Set<string>()
     const defeitosNormalizados: RegistroQualidadeDefeitoInput[] = []
 
     for (const defeito of defeitos) {
@@ -197,8 +204,8 @@ export function ConfirmacaoQualidade({
         return
       }
 
-      if (ids.has(defeito.turnoSetorOperacaoIdOrigem)) {
-        onErro('Cada operação de origem pode aparecer apenas uma vez por revisão.')
+      if (!defeito.qualidadeDefeitoId) {
+        onErro('Cada defeito precisa informar um tipo do catálogo.')
         return
       }
 
@@ -209,10 +216,19 @@ export function ConfirmacaoQualidade({
         return
       }
 
-      ids.add(defeito.turnoSetorOperacaoIdOrigem)
+      const chaveDefeito = `${defeito.turnoSetorOperacaoIdOrigem}:${defeito.qualidadeDefeitoId}`
+
+      if (chavesDefeito.has(chaveDefeito)) {
+        onErro('Cada combinação de operação e tipo de defeito pode aparecer apenas uma vez.')
+        return
+      }
+
+      chavesDefeito.add(chaveDefeito)
       defeitosNormalizados.push({
         turnoSetorOperacaoIdOrigem: defeito.turnoSetorOperacaoIdOrigem,
+        qualidadeDefeitoId: defeito.qualidadeDefeitoId,
         quantidadeDefeito,
+        observacao: defeito.observacao.trim() || undefined,
       })
     }
 
@@ -373,7 +389,9 @@ export function ConfirmacaoQualidade({
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-50">
                   <div className="flex items-start gap-2">
                     <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                    <p>As peças reprovadas exigem ao menos uma operação de origem com defeito.</p>
+                    <p>
+                      As peças reprovadas exigem ao menos uma linha com operação, tipo de defeito e quantidade.
+                    </p>
                   </div>
                 </div>
               ) : null}
@@ -393,7 +411,7 @@ export function ConfirmacaoQualidade({
                       </button>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <div className="flex flex-col gap-1">
                         <label className="text-sm font-medium text-slate-200">Operação de origem</label>
                         <select
@@ -415,7 +433,29 @@ export function ConfirmacaoQualidade({
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-slate-200">Defeitos</label>
+                        <label className="text-sm font-medium text-slate-200">Tipo de defeito</label>
+                        <select
+                          value={defeito.qualidadeDefeitoId}
+                          onChange={(event) =>
+                            atualizarDefeito(defeito.id, {
+                              qualidadeDefeitoId: event.target.value,
+                            })
+                          }
+                          className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                        >
+                          <option value="">Selecione</option>
+                          {defeitosCatalogo.map((tipoDefeito) => (
+                            <option key={tipoDefeito.id} value={tipoDefeito.id}>
+                              {tipoDefeito.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-3 sm:grid-cols-[140px_1fr]">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-slate-200">Quantidade</label>
                         <input
                           type="number"
                           min={1}
@@ -427,6 +467,21 @@ export function ConfirmacaoQualidade({
                             })
                           }
                           className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium text-slate-200">Observação opcional</label>
+                        <input
+                          type="text"
+                          value={defeito.observacao}
+                          onChange={(event) =>
+                            atualizarDefeito(defeito.id, {
+                              observacao: event.target.value,
+                            })
+                          }
+                          placeholder="Ex.: linha arrebentando na lateral"
+                          className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                         />
                       </div>
                     </div>

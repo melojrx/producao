@@ -10,7 +10,9 @@ import type { OrigemLancamentoQualidade, QualidadeLoteStatus } from '@/types'
 
 export interface RegistrarDefeitoQualidadeInput {
   turnoSetorOperacaoIdOrigem: string
+  qualidadeDefeitoId: string
   quantidadeDefeito: number
+  observacao?: string
 }
 
 export interface RegistrarDefeitoLoteQualidadeInput {
@@ -106,22 +108,28 @@ function validarDefeitos(
     return 'Informe ao menos uma operação de origem para as peças reprovadas.'
   }
 
-  const ids = new Set<string>()
+  const chavesDefeito = new Set<string>()
 
   for (const defeito of defeitos) {
     if (!defeito.turnoSetorOperacaoIdOrigem) {
       return 'Cada defeito precisa informar a operação de origem.'
     }
 
+    if (!defeito.qualidadeDefeitoId) {
+      return 'Cada defeito precisa informar um tipo do catálogo.'
+    }
+
     if (!quantidadeInteiraNaoNegativa(defeito.quantidadeDefeito) || defeito.quantidadeDefeito === 0) {
       return 'Cada defeito precisa informar uma quantidade inteira maior que zero.'
     }
 
-    if (ids.has(defeito.turnoSetorOperacaoIdOrigem)) {
-      return 'Cada operação de origem pode aparecer apenas uma vez por revisão.'
+    const chaveDefeito = `${defeito.turnoSetorOperacaoIdOrigem}:${defeito.qualidadeDefeitoId}`
+
+    if (chavesDefeito.has(chaveDefeito)) {
+      return 'Cada combinação de operação e tipo de defeito pode aparecer apenas uma vez por revisão.'
     }
 
-    ids.add(defeito.turnoSetorOperacaoIdOrigem)
+    chavesDefeito.add(chaveDefeito)
   }
 
   return null
@@ -362,7 +370,9 @@ export async function registrarRevisaoQualidade(
     p_origem_lancamento: input.origemLancamento,
     p_detalhes: input.defeitos.map((defeito) => ({
       turno_setor_operacao_id_origem: defeito.turnoSetorOperacaoIdOrigem,
+      qualidade_defeito_id: defeito.qualidadeDefeitoId,
       quantidade_defeito: defeito.quantidadeDefeito,
+      observacao: defeito.observacao?.trim() ? defeito.observacao.trim() : null,
     })),
   })
 

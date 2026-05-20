@@ -9,6 +9,7 @@ export interface ApontamentoProdutivoParaLoteQualidade {
   operacaoIdOrigem: string
   setorIdOrigem: string
   quantidade: number
+  entregaParaQualidade: boolean
   criadoEm: string
 }
 
@@ -66,6 +67,12 @@ export function calcularQuantidadeRevisadaLoteQualidade(
 export function montarLoteQualidadePendenteDeApontamento(
   apontamento: ApontamentoProdutivoParaLoteQualidade
 ): LoteQualidadePendente {
+  if (!apontamento.entregaParaQualidade) {
+    throw new Error(
+      'O lote de qualidade só pode nascer de uma entrega final para a Qualidade.'
+    )
+  }
+
   if (!Number.isInteger(apontamento.quantidade) || apontamento.quantidade <= 0) {
     throw new Error('O lote de qualidade precisa nascer de uma quantidade produtiva maior que zero.')
   }

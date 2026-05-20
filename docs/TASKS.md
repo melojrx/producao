@@ -5073,23 +5073,33 @@ Escopo futuro previsto:
 **Pré-requisito:** Sprint 50 concluída.
 
 Decisão de domínio:
-- Qualidade deixa de ser apenas uma leitura acionável quando o setor final do roteiro recebe saldo; passa a acompanhar cada lote parcial produzido em tempo real.
+- Qualidade permanece como etapa final operacional do roteiro quando o produto possuir esse setor.
+- A fila de qualidade deve ser alimentada por lotes recebidos da etapa final produtiva, normalmente `Finalização`, não por qualquer apontamento produtivo intermediário.
 - `qualidade_lotes` representa a fila operacional de revisão.
 - `qualidade_registros` continua representando o histórico da revisão realizada.
 - `registros_producao` continua sendo a fonte de verdade da produção física.
-- Criar ou revisar lote de qualidade não altera produção, capacidade, disponibilidade, FIFO, saldo visual, progresso operacional ou saldo físico da OP.
+- Criar ou revisar lote de qualidade não pode duplicar produção, ultrapassar saldo físico da OP ou fabricar saldo inexistente.
 - Reprovação registra defeito e histórico; não cria workflow interno de retrabalho.
 - A peça reprovada retorna fisicamente ao operador e, depois de corrigida, volta à qualidade como novo lote de revisão, sem duplicar produção física da OP.
 - Defeitos passam a usar catálogo estruturado com classificação interna.
 
-Realinhamento de homologação em `2026-05-18`:
-- o fluxo correto de qualidade é a fila contínua por lotes, conforme o infográfico validado pelo usuário
-- o setor `Qualidade` legado deixa de fazer parte do fluxo ativo de turno, QR, scanner, saldo, capacidade e encerramento de OP
-- a revisão deve registrar defeitos por `Operação + Tipo de defeito + Quantidade + Observação`
-- uma operação pode ter vários tipos de defeito no mesmo lote
-- uma peça reprovada pode concentrar múltiplos defeitos; portanto a soma de defeitos não pode ser limitada à quantidade reprovada
-- tipos de defeito precisam ser cadastro mestre administrável para suportar KPIs confiáveis
-- os KPIs de qualidade devem sair da `Visão Operacional` produtiva e migrar para aba própria da dashboard
+Realinhamento de homologação em `2026-05-18` — posteriormente corrigido pela HU 51.11:
+- a interpretação daquele momento tratou Qualidade como fila contínua paralela por lotes
+- essa interpretação removeu incorretamente o setor `Qualidade` do fluxo ativo de turno, QR, scanner, saldo, capacidade e encerramento de OP
+- permanecem válidas as decisões de registrar defeitos por `Operação + Tipo de defeito + Quantidade + Observação`
+- permanece válida a regra de que uma operação pode ter vários tipos de defeito no mesmo lote
+- permanece válida a regra de que uma peça reprovada pode concentrar múltiplos defeitos; portanto a soma de defeitos não pode ser limitada à quantidade reprovada
+- permanece válido que tipos de defeito precisam ser cadastro mestre administrável para suportar KPIs confiáveis
+- permanece válido que os KPIs de qualidade devem sair da `Visão Operacional` produtiva e migrar para aba própria da dashboard
+
+Correção de interpretação em `2026-05-20`:
+- a imagem de referência anterior induziu uma leitura incorreta: Qualidade não deve virar auditoria paralela de qualquer apontamento produtivo
+- o código legado da Sprint 36 estava conceitualmente mais próximo do fluxo correto e deve ser restaurado/adaptado
+- Qualidade deve permanecer como etapa final operacional após `Finalização`, recebendo peças prontas para revisão
+- aprovadas na Qualidade seguem para expedição/produção final liberada
+- reprovadas registram defeitos e retornam fisicamente para correção; quando corrigidas, voltam à fila da Qualidade como nova revisão
+- as entregas corretas da Sprint 51 que devem ser preservadas são: CRUD de tipos de defeito, catálogo estruturado, múltiplos defeitos, input do revisor com `Operação`, `Tipo de defeito`, `Quantidade`, `Observação` e indicadores de qualidade
+- as entregas que devem ser revertidas/corrigidas são: remoção do setor `Qualidade` do fluxo ativo e criação automática de lotes a partir de qualquer apontamento produtivo
 
 - [x] **HU 51.1 — Como produto, quero formalizar o fluxo contínuo de qualidade por lotes parciais, para garantir que a implementação preserve o chão de fábrica sem regressões operacionais.**
   **Prioridade:** P0
@@ -5223,6 +5233,7 @@ Realinhamento de homologação em `2026-05-18`:
   **Evidência:** criado o CRUD administrativo de tipos de defeito em `/admin/tipos-defeito`, com item de menu `Defeitos`, listagem com busca por nome/classificação, filtro `Todos/Ativos/Inativos`, criação, edição, inativação, reativação e exclusão física apenas quando o tipo não possui vínculo histórico. `lib/queries/qualidade-defeitos.ts` lista `qualidade_defeitos` com contagem de vínculos em `qualidade_detalhes`; `lib/actions/qualidade-defeitos.ts` centraliza as mutações via Server Actions autenticadas, preservando histórico ao inativar tipos já usados; `components/ui/ModalTipoDefeito.tsx` e `app/(admin)/tipos-defeito/ListaTiposDefeito.tsx` implementam o fluxo administrativo. Criado `lib/utils/qualidade-defeitos.ts` com validação pura de nome, classificação, ordem e status, coberta por `lib/utils/qualidade-defeitos.test.ts`. O formulário de revisão continua usando `listarCatalogoDefeitosQualidadeComClient()`, que filtra somente `ativo = true`, e os rankings continuam agrupando por `qualidade_defeito_id` como dimensão oficial. Validação remota em `2026-05-18` com `scripts/sprint51_validate_defect_types_crud.mjs` no Supabase `jsuufbgdcqxogimmocof`: criou `VALIDACAO HU 51.8 TIPO DEFEITO`, busca retornou `busca_total = 1`, editou para classificação `operador` e ordem `9101`, inativou com `catalogo_ativo = 0`, reativou com `ativo = true`, excluiu o temporário sem histórico e terminou com `limpezaDepois = []`. Validação local em `2026-05-18`: `node --test --experimental-strip-types lib/utils/qualidade-defeitos.test.ts lib/utils/qualidade-lotes.test.ts lib/utils/qualidade-indicadores.test.ts` passou 16/16; `npx tsc --noEmit` passou sem erros.
 
 - [x] **HU 51.9 — Como produto, quero remover totalmente o setor `Qualidade` legado do fluxo ativo, para que Qualidade opere apenas como fila contínua paralela por lotes.**
+  **Nota posterior:** esta HU permanece como registro histórico da interpretação aplicada em `2026-05-18`, mas seu contrato funcional foi supersedido pela `HU 51.11`.
   **Prioridade:** P0
   **Risco:** Alto
 
@@ -5254,6 +5265,32 @@ Realinhamento de homologação em `2026-05-18`:
   **Evidência esperada:** dashboard possui aba `Qualidade`; a `Visão Operacional` não exibe mais o bloco de qualidade; a aba `Qualidade` mostra peças reprovadas separadas de ocorrências de defeito e os KPIs produtivos permanecem idênticos antes/depois de revisar um lote.
 
   **Evidência:** criada a aba `Qualidade` na navegação da dashboard por meio do contrato puro `lib/utils/dashboard-tabs.ts`, coberto por `lib/utils/dashboard-tabs.test.ts`, mantendo as abas `Visão Geral`, `Visão Operacional` e `Operadores`. O componente `components/dashboard/DashboardVisaoOperacionalTab.tsx` deixou de receber e renderizar `resumoQualidade`/`indicadoresQualidade`, preservando apenas KPIs produtivos, capacidade, OPs, setores, kanban e gráfico operacional. Criado `components/dashboard/DashboardQualidadeTab.tsx`, acionado em `components/dashboard/MonitorPlanejamentoTurnoV2.tsx` quando a aba ativa é `qualidade`, exibindo fila pendente, lotes revisados, peças revisadas, aprovadas, peças reprovadas, taxa de aprovação, taxa de reprovação, ocorrências de defeito, ranking de defeitos, ranking de operadores, ranking por operação e resumo por OP. Criado `lib/utils/dashboard-qualidade.ts` com `montarRankingOperacoesQualidade()`, coberto por `lib/utils/dashboard-qualidade.test.ts`, para somar ocorrências por operação produtiva e ordenar o ranking. A separação visual diferencia explicitamente `Peças reprovadas` de `Ocorrências de defeito`, sem alterar os cálculos produtivos já usados em `resumo`. Validação local em `2026-05-18`: `node --test --experimental-strip-types lib/utils/dashboard-tabs.test.ts lib/utils/dashboard-qualidade.test.ts lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade-lotes.test.ts lib/utils/qualidade-defeitos.test.ts lib/utils/qualidade.test.ts` passou 21/21; `npx tsc --noEmit` passou sem erros; `git diff --check` passou; `npm run build` passou após rerun com permissão elevada por bloqueio de sandbox do Turbopack.
+
+- [x] **HU 51.11 — Como produto, quero corrigir a interpretação da Sprint 51 restaurando Qualidade como etapa final operacional, para que a revisão aconteça sobre peças recebidas da Finalização e preserve as melhorias de defeitos/input.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Contexto:
+  - a conclusão anterior da Sprint 51 removeu `Qualidade` do fluxo ativo por interpretação incorreta da imagem de referência
+  - o fluxo correto é o legado homologado da Sprint 36, com Qualidade como etapa final da OP, agora enriquecido pelos novos recursos da Sprint 51
+  - a fila da Qualidade deve receber peças físicas concluídas pela `Finalização`, não lotes de qualquer operação intermediária
+
+  Regras:
+  - reverter/corrigir a regra que impede derivação de `Qualidade` como setor/etapa operacional do turno
+  - restaurar o scanner e `/admin/apontamentos` de Qualidade sobre o fluxo operacional da etapa `Qualidade`
+  - impedir que `trg_registros_producao_criar_lote_qualidade` gere lote de qualidade a partir de qualquer apontamento produtivo
+  - criar lote/fila de Qualidade somente quando a etapa anterior, normalmente `Finalização`, entregar peças prontas para revisão
+  - preservar o CRUD administrativo de tipos de defeito criado em `/admin/tipos-defeito`
+  - preservar o input do revisor com múltiplas linhas contendo `Operação`, `Tipo de defeito`, `Quantidade` e `Observação`
+  - permitir múltiplos defeitos por peça e por operação, sem limitar soma de defeitos à quantidade reprovada
+  - peças aprovadas na Qualidade devem seguir como produção final liberada/expedição
+  - peças reprovadas devem registrar defeitos e retornar fisicamente para correção; quando corrigidas, voltam à fila de Qualidade como nova revisão
+  - a revisão não pode duplicar produção física nem ultrapassar a quantidade física da OP
+  - indicadores de qualidade devem continuar em aba própria e refletir aprovadas, reprovadas, defeitos, operadores, operações e OPs sem contaminar KPIs produtivos
+
+  **Evidência esperada:** abrir turno com produto que possui `Finalização` e `Qualidade` deriva novamente a etapa de Qualidade; apontar `100` peças na Finalização cria/disponibiliza `100` peças para revisão de Qualidade; revisar `95` aprovadas e `5` reprovadas grava defeitos com operação, tipo, quantidade e observação; as `95` aprovadas seguem como produção final liberada, as `5` reprovadas ficam rastreadas para correção e podem retornar como novo lote de revisão sem duplicar saldo físico; `npx tsc --noEmit`, testes focados de qualidade/fluxo e validação remota passam sem regressão.
+
+  **Evidência:** `docs/PRD.md`, `docs/TASKS.md` e `docs/BACKLOG.md` foram corrigidos para registrar que `Qualidade` volta a ser etapa final operacional após `Finalização`, preservando o CRUD de tipos de defeito, catálogo estruturado, múltiplos defeitos, input do revisor com `Operação`, `Tipo de defeito`, `Quantidade` e `Observação`, e indicadores em aba própria. `lib/utils/qualidade.ts` voltou a manter `Qualidade` no fluxo ativo; `hooks/useScanner.ts`, `app/(operador)/scanner/page.tsx`, `components/scanner/ScannerPageClient.tsx` e `components/scanner/ConfirmacaoQualidade.tsx` restauraram o scanner de revisão operacional com catálogo de defeitos. `/admin/apontamentos`, via `components/apontamentos/PainelQualidadeSupervisor.tsx`, passou a montar a fila operacional da etapa `Qualidade` usando `lib/utils/qualidade-operacional.ts`, mantendo compatibilidade com lotes históricos. `lib/actions/qualidade.ts` e `scripts/sprint51_restaurar_qualidade_operacional.sql` atualizaram a RPC operacional para gravar defeito catalogado e observação, e removeram o trigger `trg_registros_producao_criar_lote_qualidade` para impedir lote automático por qualquer apontamento intermediário. Validação remota em `2026-05-20` no Supabase `jsuufbgdcqxogimmocof` com `scripts/sprint51_apply_restaurar_qualidade_operacional.mjs`: produto temporário com `Finalização` e `Qualidade` derivou `secoes_qualidade = 1`, `operacoes_qualidade = 1` e `demandas_qualidade = 1`; apontamento de `100` peças na Finalização registrou `quantidade_realizada_operacao = 100`; revisão operacional registrou `95` aprovadas, `5` reprovadas, `100` revisadas, `total_defeitos = 5`, `detalhes_catalogados = 1`, `detalhes_com_observacao = 1`; e a validação confirmou `lotes_criados_por_trigger = 0`, com limpeza dos dados temporários. Validação local em `2026-05-20`: `node --test --experimental-strip-types lib/utils/qualidade.test.ts lib/utils/qualidade-lotes.test.ts lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade-defeitos.test.ts` passou 21/21; `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram sem erros, com `npm run build` executado fora do sandbox por limitação do Turbopack.
 
 ---
 

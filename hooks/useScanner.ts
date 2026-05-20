@@ -8,7 +8,7 @@ import {
   buscarOperadorScaneadoPorToken,
   buscarTurnoSetorScaneadoPorToken,
 } from '@/lib/queries/scanner'
-import { setorEhQualidadeLegado } from '@/lib/utils/qualidade'
+import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
 import {
   calcularSaldoFisicoRestanteOperacao,
   validarConsumoSaldoFisicoOperacao,
@@ -94,7 +94,9 @@ export interface RegistroProducaoInput {
 
 export interface RegistroQualidadeDefeitoInput {
   turnoSetorOperacaoIdOrigem: string
+  qualidadeDefeitoId: string
   quantidadeDefeito: number
+  observacao?: string
 }
 
 export interface RegistroQualidadeInput {
@@ -561,11 +563,24 @@ export function useScanner(options: UseScannerOptions = {}) {
         return { sucesso: false, erro: mensagem }
       }
 
-      if (setorEhQualidadeLegado(setor.setorNome, setor.modoApontamento)) {
-        const mensagem =
-          'O setor Qualidade legado não recebe mais apontamentos pelo scanner. Revise os lotes na aba Qualidade dos apontamentos.'
-        setErro(mensagem)
-        return { sucesso: false, erro: mensagem }
+      if (setorUsaRevisaoQualidade(setor.setorNome, setor.modoApontamento)) {
+        if (options.podeRegistrarQualidade !== true) {
+          const mensagem = 'Seu usuário não possui permissão para registrar revisões de qualidade.'
+          setErro(mensagem)
+          return { sucesso: false, erro: mensagem }
+        }
+
+        const demandasAtivas = await carregarDemandasAtivas(setor.id)
+
+        if (demandasAtivas.length === 0) {
+          const mensagem =
+            'O setor Qualidade não possui OPs/produtos disponíveis para revisão no scanner.'
+          setErro(mensagem)
+          return { sucesso: false, erro: mensagem }
+        }
+
+        dispatch({ type: 'SETOR_QUALIDADE_IDENTIFICADO', setor, demandas: demandasAtivas })
+        return { sucesso: true }
       }
 
       dispatch({ type: 'SETOR_IDENTIFICADO', setor })

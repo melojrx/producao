@@ -64,7 +64,7 @@ test('permite que peca corrigida retorne como novo lote somente apos revisao ant
   assert.equal(podeCriarNovoLoteQualidadeParaRetorno('revisado'), true)
 })
 
-test('monta lote pendente a partir de apontamento produtivo sem alterar consolidados operacionais', () => {
+test('monta lote pendente apenas quando apontamento entrega pecas para qualidade', () => {
   assert.deepEqual(
     montarLoteQualidadePendenteDeApontamento({
       registroProducaoId: 'registro-1',
@@ -75,6 +75,7 @@ test('monta lote pendente a partir de apontamento produtivo sem alterar consolid
       operacaoIdOrigem: 'operacao-1',
       setorIdOrigem: 'setor-1',
       quantidade: 100,
+      entregaParaQualidade: true,
       criadoEm: '2026-05-14T10:00:00.000Z',
     }),
     {
@@ -92,6 +93,25 @@ test('monta lote pendente a partir de apontamento produtivo sem alterar consolid
   )
 })
 
+test('recusa lote de qualidade gerado por apontamento produtivo intermediario', () => {
+  assert.throws(
+    () =>
+      montarLoteQualidadePendenteDeApontamento({
+        registroProducaoId: 'registro-1',
+        turnoId: 'turno-1',
+        turnoOpId: 'turno-op-1',
+        produtoId: 'produto-1',
+        turnoSetorOperacaoIdOrigem: 'operacao-turno-1',
+        operacaoIdOrigem: 'operacao-1',
+        setorIdOrigem: 'setor-1',
+        quantidade: 100,
+        entregaParaQualidade: false,
+        criadoEm: '2026-05-14T10:00:00.000Z',
+      }),
+    /entrega final para a Qualidade/
+  )
+})
+
 test('aplica lote de qualidade de forma idempotente por registro produtivo de origem', () => {
   const lote = montarLoteQualidadePendenteDeApontamento({
     registroProducaoId: 'registro-1',
@@ -102,6 +122,7 @@ test('aplica lote de qualidade de forma idempotente por registro produtivo de or
     operacaoIdOrigem: 'operacao-1',
     setorIdOrigem: 'setor-1',
     quantidade: 100,
+    entregaParaQualidade: true,
     criadoEm: '2026-05-14T10:00:00.000Z',
   })
 

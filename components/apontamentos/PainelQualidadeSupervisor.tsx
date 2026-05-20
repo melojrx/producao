@@ -3,19 +3,28 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Minus, Plus, ShieldAlert } from 'lucide-react'
-import { registrarRevisaoLoteQualidade } from '@/lib/actions/qualidade'
-import type { TurnoSetorOperacaoApontamentoV2 } from '@/types'
+import { registrarRevisaoLoteQualidade, registrarRevisaoQualidade } from '@/lib/actions/qualidade'
+import { montarFilaQualidadeOperacional } from '@/lib/utils/qualidade-operacional'
+import type {
+  PlanejamentoTurnoDashboardV2,
+  TurnoSetorOperacaoApontamentoV2,
+} from '@/types'
 import type {
   QualidadeDefeitoCatalogoItem,
   QualidadeLoteFilaItem,
 } from '@/lib/queries/qualidade'
 
 interface PainelQualidadeSupervisorProps {
+  planejamento: PlanejamentoTurnoDashboardV2
   operacoesTurno: TurnoSetorOperacaoApontamentoV2[]
   lotesQualidade: QualidadeLoteFilaItem[]
   defeitosCatalogo: QualidadeDefeitoCatalogoItem[]
   podeRevisarQualidade: boolean
   revisorNome: string | null
+}
+
+type QualidadeFilaRevisaoItem = QualidadeLoteFilaItem & {
+  origemFluxo: 'lote' | 'operacional'
 }
 
 interface DefeitoLoteDraft {
@@ -81,6 +90,7 @@ function formatarHorario(valor: string): string {
 }
 
 export function PainelQualidadeSupervisor({
+  planejamento,
   operacoesTurno,
   lotesQualidade,
   defeitosCatalogo,
@@ -96,11 +106,61 @@ export function PainelQualidadeSupervisor({
   const [loteSelecionadoId, setLoteSelecionadoId] = useState('')
   const [defeitosLote, setDefeitosLote] = useState<DefeitoLoteDraft[]>([])
 
+  const itensQualidadeOperacional = useMemo(
+    () =>
+      montarFilaQualidadeOperacional({
+        ops: planejamento.ops,
+        demandasSetor: planejamento.demandasSetor ?? [],
+        operacoesTurno,
+      }),
+    [operacoesTurno, planejamento.demandasSetor, planejamento.ops]
+  )
+  const lotesOperacionais = useMemo<QualidadeFilaRevisaoItem[]>(
+    () =>
+      itensQualidadeOperacional.map((item) => ({
+        id: `operacional:${item.operacaoQualidade.id}`,
+        turnoId: item.demandaQualidade.turnoId,
+        turnoOpId: item.turnoOpId,
+        numeroOp: item.numeroOp,
+        produtoId: item.demandaQualidade.produtoId,
+        produtoNome: item.produtoNome,
+        produtoReferencia: item.produtoReferencia,
+        turnoSetorOperacaoIdOrigem: item.operacaoQualidade.id,
+        operacaoIdOrigem: item.operacaoQualidade.operacaoId,
+        operacaoCodigoOrigem: item.operacaoQualidade.operacaoCodigo,
+        operacaoDescricaoOrigem: item.operacaoQualidade.operacaoDescricao,
+        setorIdOrigem: item.operacaoQualidade.setorId,
+        setorNomeOrigem: item.demandaQualidade.setorNome,
+        quantidadeLote: item.quantidadeDisponivelRevisao,
+        status: 'pendente',
+        criadoEm:
+          item.operacaoQualidade.iniciadoEm ??
+          item.demandaQualidade.iniciadoEm ??
+          planejamento.turno.iniciadoEm,
+        iniciadoEm: item.operacaoQualidade.iniciadoEm,
+        origemFluxo: 'operacional',
+      })),
+    [itensQualidadeOperacional, planejamento.turno.iniciadoEm]
+  )
+  const itensRevisao = useMemo<QualidadeFilaRevisaoItem[]>(
+    () => [
+      ...lotesQualidade.map((lote) => ({ ...lote, origemFluxo: 'lote' as const })),
+      ...lotesOperacionais,
+    ],
+    [lotesOperacionais, lotesQualidade]
+  )
   const loteSelecionado =
-    lotesQualidade.find((lote) => lote.id === loteSelecionadoId) ?? lotesQualidade[0] ?? null
+    itensRevisao.find((lote) => lote.id === loteSelecionadoId) ?? itensRevisao[0] ?? null
+  const itemOperacionalSelecionado = loteSelecionado?.origemFluxo === 'operacional'
+    ? itensQualidadeOperacional.find(
+        (item) => `operacional:${item.operacaoQualidade.id}` === loteSelecionado.id
+      ) ?? null
+    : null
   const operacoesOrigemLote = useMemo(
     () =>
-      loteSelecionado
+      itemOperacionalSelecionado
+        ? itemOperacionalSelecionado.operacoesOrigem
+        : loteSelecionado
         ? operacoesTurno
             .filter(
               (operacao) =>
@@ -108,7 +168,7 @@ export function PainelQualidadeSupervisor({
             )
             .sort((operacaoA, operacaoB) => operacaoA.sequencia - operacaoB.sequencia)
         : [],
-    [loteSelecionado, operacoesTurno]
+    [itemOperacionalSelecionado, loteSelecionado, operacoesTurno]
   )
 
   const quantidadeRevisada = quantidadeNumero(quantidadeAprovada) + quantidadeNumero(quantidadeReprovada)
@@ -232,13 +292,22 @@ export function PainelQualidadeSupervisor({
     setMensagem(null)
 
     startTransition(async () => {
-      const resultado = await registrarRevisaoLoteQualidade({
-        qualidadeLoteId: loteSelecionado.id,
-        quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
-        quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
-        origemLancamento: 'manual_qualidade',
-        defeitos: formularioValido.defeitosNormalizados,
-      })
+      const resultado =
+        loteSelecionado.origemFluxo === 'operacional'
+          ? await registrarRevisaoQualidade({
+              turnoSetorOperacaoIdQualidade: loteSelecionado.turnoSetorOperacaoIdOrigem,
+              quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
+              quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
+              origemLancamento: 'manual_qualidade',
+              defeitos: formularioValido.defeitosNormalizados,
+            })
+          : await registrarRevisaoLoteQualidade({
+              qualidadeLoteId: loteSelecionado.id,
+              quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
+              quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
+              origemLancamento: 'manual_qualidade',
+              defeitos: formularioValido.defeitosNormalizados,
+            })
 
       if (!resultado.sucesso) {
         setErro(resultado.erro ?? 'Não foi possível registrar a revisão do lote de qualidade.')
@@ -280,7 +349,7 @@ export function PainelQualidadeSupervisor({
             <div>
               <p className="text-sm font-semibold text-blue-700">Fila contínua de qualidade</p>
               <h2 className="mt-1 text-xl font-semibold text-slate-900">
-                {lotesQualidade.length} lote(s) pendente(s) para revisão
+                {itensRevisao.length} item(ns) pendente(s) para revisão
               </h2>
               <p className="text-sm text-slate-600">
                 Revisor {revisorNome ?? 'habilitado'} · aprovação libera o fluxo, reprovação exige
@@ -290,12 +359,12 @@ export function PainelQualidadeSupervisor({
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Lotes</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{lotesQualidade.length}</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{itensRevisao.length}</p>
               </div>
               <div className="rounded-2xl bg-amber-50 px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Peças</p>
                 <p className="mt-1 text-2xl font-semibold text-amber-900">
-                  {lotesQualidade.reduce((soma, lote) => soma + lote.quantidadeLote, 0)}
+                  {itensRevisao.reduce((soma, lote) => soma + lote.quantidadeLote, 0)}
                 </p>
               </div>
               <div className="rounded-2xl bg-blue-50 px-4 py-3">
@@ -308,7 +377,7 @@ export function PainelQualidadeSupervisor({
 
         <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
           <div className="space-y-3">
-            {lotesQualidade.map((lote) => {
+            {itensRevisao.map((lote) => {
               const ativo = lote.id === loteSelecionado.id
 
               return (
@@ -338,7 +407,11 @@ export function PainelQualidadeSupervisor({
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusLoteTema(lote.status)}`}
                     >
-                      {lote.status === 'em_revisao' ? 'em revisão' : 'pendente'}
+                      {lote.origemFluxo === 'operacional'
+                        ? 'operacional'
+                        : lote.status === 'em_revisao'
+                          ? 'em revisão'
+                          : 'pendente'}
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -352,7 +425,7 @@ export function PainelQualidadeSupervisor({
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-600">
-                    {lote.setorNomeOrigem} · {lote.operacaoCodigoOrigem} ·{' '}
+                  {lote.origemFluxo === 'operacional' ? 'Etapa Qualidade' : lote.setorNomeOrigem} · {lote.operacaoCodigoOrigem} ·{' '}
                     {lote.operacaoDescricaoOrigem}
                   </p>
                 </button>
@@ -363,7 +436,11 @@ export function PainelQualidadeSupervisor({
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-blue-700">Revisão do lote</p>
+                <p className="text-sm font-semibold text-blue-700">
+                  {loteSelecionado.origemFluxo === 'operacional'
+                    ? 'Revisão da etapa Qualidade'
+                    : 'Revisão do lote'}
+                </p>
                 <h3 className="mt-1 text-lg font-semibold text-slate-900">
                   {loteSelecionado.numeroOp} · {loteSelecionado.operacaoCodigoOrigem}
                 </h3>
@@ -373,7 +450,9 @@ export function PainelQualidadeSupervisor({
                 </p>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Lote</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {loteSelecionado.origemFluxo === 'operacional' ? 'Disponível' : 'Lote'}
+                </p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">
                   {loteSelecionado.quantidadeLote}
                 </p>
@@ -565,7 +644,7 @@ export function PainelQualidadeSupervisor({
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <ClipboardCheck size={16} />
-                {pendente ? 'Registrando...' : 'Registrar revisão do lote'}
+                {pendente ? 'Registrando...' : 'Registrar revisão'}
               </button>
             </div>
           </section>
@@ -581,9 +660,9 @@ export function PainelQualidadeSupervisor({
           <ClipboardCheck size={20} />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Qualidade sem lotes pendentes</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Qualidade sem itens pendentes</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Não há lotes na fila contínua de qualidade para revisão neste turno.
+            Não há peças disponíveis na etapa Qualidade para revisão neste turno.
           </p>
         </div>
       </div>

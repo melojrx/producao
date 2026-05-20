@@ -148,28 +148,32 @@ O ponto central é este:
 - cada **operação** pertence a um **setor**
 - então o roteiro do produto informa automaticamente **quais setores precisam atuar**
 
-### 5.1.1 Retirada do setor `Qualidade` legado do fluxo operacional
+### 5.1.1 Correção de homologação — Qualidade como etapa final operacional
 
-A decisão final da Sprint 51 substitui o modelo anterior em que `Qualidade` podia existir como setor oficial do roteiro.
-Qualidade deixa de ser etapa derivada do turno, deixa de gerar QR operacional próprio e deixa de consumir saldo como setor produtivo.
+A correção de homologação da Sprint 51 restabelece a leitura correta: `Qualidade` permanece como etapa final operacional do fluxo da OP.
+O erro de interpretação anterior foi tratar Qualidade como auditoria paralela criada a partir de qualquer apontamento produtivo.
+O comportamento correto é que a fila de qualidade nasce quando a etapa final produtiva, normalmente `Finalização`, entrega peças para revisão.
 
 Regras obrigatórias:
-- `Qualidade` não deve mais ser derivada como `turno + setor`, `turno_setor_op`, demanda setorial, operação planejada ou QR operacional
-- novos produtos e novos turnos não devem depender de setor, operação ou `modo_apontamento` de qualidade no roteiro produtivo
-- o scanner e o apontamento administrativo de qualidade devem operar sobre a fila `qualidade_lotes`, não sobre uma seção operacional de `Qualidade`
-- revisar lote não pode alterar capacidade, disponibilidade, FIFO, saldo físico, saldo visual, progresso operacional ou status produtivo da OP
-- dados históricos do modelo legado de qualidade podem permanecer para auditoria e leitura, mas não devem orientar o fluxo novo
-- qualquer UI, query, trigger ou fallback que ainda trate `Qualidade` como setor operacional deve ser removido ou isolado como histórico, sem aparecer no fluxo ativo do chão de fábrica
+- `Qualidade` deve continuar sendo derivada como etapa/setor operacional quando fizer parte do roteiro do produto
+- o fluxo padrão da OP é `Preparação -> Frente/Costa -> Montagem -> Finalização -> Qualidade`, respeitando roteiros e variações já homologadas
+- a fila da Qualidade deve ser alimentada pelo saldo recebido da etapa anterior, não por qualquer apontamento produtivo intermediário
+- peças aprovadas na Qualidade são liberadas como produção final/expedição
+- peças reprovadas registram defeitos e retornam fisicamente para correção fora do sistema
+- após correção física, as peças retornam para a fila da Qualidade como nova revisão, sem duplicar produção física da OP
+- o código legado de Qualidade da Sprint 36 era conceitualmente correto como base do fluxo e deve ser restaurado/adaptado, não removido
+- as melhorias da Sprint 51 que devem permanecer são: CRUD de tipos de defeito, catálogo estruturado, múltiplos defeitos por revisão, input do revisor com `Operação`, `Tipo de defeito`, `Quantidade` e `Observação`, e indicadores de qualidade
+- revisar Qualidade não pode fabricar saldo físico inexistente nem ultrapassar a quantidade física da OP
 
 ### 5.1.2 Fluxo contínuo de qualidade por lotes parciais
 
-A Qualidade passa a acompanhar a produção em tempo real por uma fila contínua de lotes de revisão.
-Essa fila substitui o fluxo operacional legado baseado em setor `Qualidade` e permite que a revisão aconteça em paralelo ao chão de fábrica.
+A Qualidade acompanha a produção em tempo real por uma fila contínua de lotes de revisão recebidos da etapa final produtiva.
+Essa fila complementa o fluxo operacional baseado em setor `Qualidade`, permitindo que a revisão aconteça de forma contínua sem travar a fábrica.
 
 Regra central:
-- a produção não espera a OP terminar completamente para iniciar a qualidade
-- quando uma operação produtiva registra um lote parcial concluído, o sistema deve criar automaticamente um lote de revisão para a Qualidade
-- o lote de qualidade representa uma oportunidade de revisão daquele apontamento produtivo, não uma nova produção física
+- a produção não precisa esperar a OP inteira terminar para iniciar a qualidade
+- quando a `Finalização` ou a última etapa produtiva equivalente conclui um lote parcial, o sistema deve disponibilizar esse lote na fila da Qualidade
+- o lote de qualidade representa peças físicas recebidas para revisão final, não uma nova produção física
 - a produção continua normalmente enquanto a Qualidade revisa os lotes recebidos
 - a fila de qualidade deve ser simples, rápida, mobile-first e sem workflow interno de retrabalho
 
@@ -191,8 +195,8 @@ Estados mínimos do lote:
 - `cancelado`: lote invalidado por ajuste administrativo excepcional, sem apagar o histórico produtivo
 
 Regras de não regressão:
-- criar lote de qualidade não altera `quantidade_realizada`, `quantidade_herdada_setor`, `quantidade_liberada_setor`, capacidade, disponibilidade, saldo físico ou progresso operacional da OP
-- revisar lote de qualidade não pode fabricar produção, não pode duplicar saldo físico e não pode reabrir setor produtivo automaticamente
+- criar lote de qualidade não pode nascer de etapa produtiva intermediária que ainda não entregou peça pronta para revisão final
+- revisar lote de qualidade não pode duplicar produção física nem ultrapassar a quantidade física da OP
 - peças reprovadas retornam fisicamente ao operador fora do sistema; quando voltarem para nova revisão, entram como novo lote de qualidade
 - o retorno da peça corrigida deve ser tratado como novo lote de revisão, como se a peça nunca tivesse sido revisada antes, mas sem duplicar a produção física da OP
 - a Qualidade registra rastreabilidade e indicadores; ela não controla retrabalho operacional interno
@@ -246,9 +250,10 @@ Resultado:
 - após salvar um novo turno, a navegação deve levar o supervisor para o relatório operacional de QR Codes do turno recém-aberto, onde ele escolhe como imprimir os QRs antes de voltar ao monitoramento da dashboard
 
 Tratamento da qualidade na abertura do turno:
-- produtos e turnos novos não devem derivar `Qualidade` como setor operacional
-- se existir histórico ou cadastro antigo com setor/operação de `Qualidade`, esse dado deve ser ignorado na derivação ativa do turno e tratado apenas como legado/auditoria
-- a revisão de qualidade nasce depois do apontamento produtivo, pela fila `qualidade_lotes`, sem QR operacional de setor e sem consumir capacidade do turno
+- produtos e turnos novos devem derivar `Qualidade` como etapa operacional quando ela fizer parte do roteiro do produto
+- `Qualidade` deve receber saldo somente após a etapa anterior entregar peças para revisão final
+- a revisão de qualidade usa o fluxo operacional já homologado, enriquecido pelo catálogo de defeitos e pelos novos campos de input do revisor
+- a fila de qualidade não deve ser alimentada por apontamentos intermediários que ainda não representam peças prontas para revisão final
 
 ### 5.2.1 Prévia de pessoas por setor
 
@@ -467,14 +472,16 @@ Supervisor ou operador abre o scanner no celular
           → se o setor estiver em modo produtivo padrão:
             - supervisor escolhe qual operação será apontada
             - sistema mostra realizado e saldo da operação
-          → a revisão de qualidade não acontece dentro do QR operacional do setor
-          → lotes produzidos entram automaticamente na fila `qualidade_lotes`
+          → se o setor for `Qualidade`:
+            - o revisor trabalha a fila de peças recebidas da `Finalização`
+            - o sistema mostra quantidade recebida, revisada, aprovada, reprovada e saldo pendente de revisão
+          → lotes concluídos pela `Finalização` entram na fila da Qualidade
 
 [Passo 4] Supervisor informa os dados do lançamento
           → no modo produtivo padrão:
             - quantidade concluída pelo operador naquela operação
             - lançamento sempre incremental, nunca total acumulado
-          → para revisão de qualidade, o revisor abre um lote da fila e informa:
+          → para revisão de qualidade, o revisor abre um lote recebido da Finalização e informa:
             - quantidade_aprovada
             - quantidade_reprovada
             - linhas de defeito com operação, tipo de defeito, quantidade e observação opcional
@@ -487,7 +494,7 @@ Supervisor ou operador abre o scanner no celular
             - setor do turno
             - quantidade incremental
             - autoria do lançamento (`supervisor_manual` ou `operador_qr`)
-          → no fluxo de qualidade por lote, cada revisão identifica:
+          → no fluxo de qualidade, cada revisão identifica:
             - lote de qualidade
             - OP/produto do lote
             - revisor responsável

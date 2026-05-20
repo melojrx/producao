@@ -15,7 +15,7 @@ export function setorParticipaFluxoProdutivoAtivo(
   setorNome: string,
   modoApontamento?: SetorModoApontamento | string | null
 ): boolean {
-  return !setorEhQualidadeLegado(setorNome, modoApontamento)
+  return Boolean(setorNome.trim() || modoApontamento)
 }
 
 export function inferirModoApontamentoSetor(

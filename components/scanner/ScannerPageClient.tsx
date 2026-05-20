@@ -21,6 +21,7 @@ import { useScanner } from '@/hooks'
 import { registrarProducaoOperacao } from '@/lib/actions/producao'
 import { registrarRevisaoQualidade } from '@/lib/actions/qualidade'
 import { listarOperadoresAtivosScanner } from '@/lib/queries/scanner'
+import type { QualidadeDefeitoCatalogoItem } from '@/lib/queries/qualidade'
 import { isScannerV2Enabled } from '@/lib/utils/feature-flags'
 import { descreverTipoQRCode } from '@/lib/utils/qrcode'
 import type { OperadorScaneado, QRScanResult, QRTipo } from '@/types'
@@ -28,6 +29,7 @@ import type { OperadorScaneado, QRScanResult, QRTipo } from '@/types'
 interface ScannerPageClientProps {
   podeRegistrarQualidade: boolean
   revisorNome: string | null
+  defeitosCatalogo: QualidadeDefeitoCatalogoItem[]
 }
 
 const ETAPAS_FLUXO_PRODUCAO = [
@@ -160,6 +162,7 @@ function IndicadorFluxoScanner({
 export function ScannerPageClient({
   podeRegistrarQualidade,
   revisorNome,
+  defeitosCatalogo,
 }: ScannerPageClientProps) {
   const scannerV2Habilitado = isScannerV2Enabled()
   const [mensagemTela, setMensagemTela] = useState<string | null>(null)
@@ -243,7 +246,10 @@ export function ScannerPageClient({
 
   const setorAtual = 'setor' in estado ? estado.setor : null
   const demandaAtual = 'demandaSelecionada' in estado ? estado.demandaSelecionada : null
-  const usaFluxoQualidade = false
+  const usaFluxoQualidade =
+    estado.etapa === 'selecionar_demanda_qualidade' ||
+    estado.etapa === 'informar_qualidade' ||
+    estado.etapa === 'registrar_qualidade'
 
   async function handleScan(resultado: QRScanResult) {
     setMensagemTela(null)
@@ -541,6 +547,7 @@ export function ScannerPageClient({
             demandaSelecionada={estado.demandaSelecionada}
             operacaoQualidade={estado.operacaoQualidade}
             operacoesOrigem={estado.operacoesOrigem}
+            defeitosCatalogo={defeitosCatalogo}
             setor={estado.setor}
             revisorNome={revisorNome}
             estaRegistrando={estaCarregando}
