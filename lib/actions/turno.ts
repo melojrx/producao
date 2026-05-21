@@ -63,7 +63,11 @@ async function carregarOperacoesDoProduto(
     { data: roteiro, error: roteiroError },
   ] = await Promise.all([
     supabase.from('produtos').select('id, ativo').eq('id', produtoId).single<ProdutoValidacaoRow>(),
-    supabase.from('produto_operacoes').select('operacao_id').eq('produto_id', produtoId),
+    supabase
+      .from('produto_operacoes')
+      .select('operacao_id')
+      .eq('produto_id', produtoId)
+      .eq('vigente', true),
   ])
 
   if (produtoError || !produto) {

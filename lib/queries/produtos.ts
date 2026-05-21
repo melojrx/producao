@@ -88,7 +88,7 @@ export async function listarProdutos(): Promise<ProdutoListItem[]> {
   ] =
     await Promise.all([
       supabase.from('produtos').select('*').order('nome'),
-      supabase.from('produto_operacoes').select('*').order('sequencia'),
+      supabase.from('produto_operacoes').select('*').eq('vigente', true).order('sequencia'),
       supabase.from('operacoes').select('*').order('codigo'),
       supabase.from('maquinas').select('*').order('modelo').order('codigo'),
       supabase.from('setores').select('*').order('codigo'),
@@ -123,7 +123,12 @@ export async function buscarProdutoComRoteiro(id: string): Promise<ProdutoListIt
   const [{ data: produto, error: produtoError }, { data: produtoOperacoes, error: produtoOpsError }] =
     await Promise.all([
       supabase.from('produtos').select('*').eq('id', id).single(),
-      supabase.from('produto_operacoes').select('*').eq('produto_id', id).order('sequencia'),
+      supabase
+        .from('produto_operacoes')
+        .select('*')
+        .eq('produto_id', id)
+        .eq('vigente', true)
+        .order('sequencia'),
     ])
 
   if (produtoError || !produto) {

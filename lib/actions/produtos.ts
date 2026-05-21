@@ -12,6 +12,11 @@ import {
 } from '@/lib/auth/require-admin-user'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularTpProduto } from '@/lib/utils/producao'
+import {
+  obterProximaVersaoRoteiro,
+  roteiroVigenteFoiAlterado,
+  type RoteiroVersionadoItem,
+} from '@/lib/utils/produto-roteiro-versionamento'
 import type { FormActionState } from '@/types'
 import type { Tables } from '@/types/supabase'
 
@@ -95,10 +100,6 @@ function obterMensagemProdutoEmUso(): string {
 
 function obterMensagemHistoricoProduto(): string {
   return 'Este produto já possui histórico operacional ou de planejamento e não pode ser excluído permanentemente. Use arquivar/desativar para preservar o histórico.'
-}
-
-function obterMensagemRoteiroComHistorico(): string {
-  return 'Este produto já possui histórico operacional ou de planejamento e o roteiro não pode mais ser alterado. Atualize apenas dados cadastrais/imagens ou duplique o produto para criar uma nova versão.'
 }
 
 function produtoTemHistorico(dependencias: DependenciasProduto): boolean {
@@ -534,47 +535,36 @@ function operacoesSemSetor(operacoes: OperacaoRow[]): boolean {
   return operacoes.some((operacao) => !operacao.setor_id)
 }
 
-async function carregarRoteiroAtualProduto(produtoId: string): Promise<RoteiroPayloadItem[]> {
+async function carregarRoteirosProduto(produtoId: string): Promise<RoteiroVersionadoItem[]> {
   const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('produto_operacoes')
-    .select('operacao_id, sequencia')
+    .select('operacao_id, sequencia, versao_roteiro, vigente')
     .eq('produto_id', produtoId)
+    .order('versao_roteiro')
     .order('sequencia')
 
   if (error) {
-    throw new Error(`Erro ao carregar roteiro atual do produto: ${error.message}`)
+    throw new Error(`Erro ao carregar roteiros do produto: ${error.message}`)
   }
 
   return data
     .filter(
-      (item): item is Pick<ProdutoOperacaoRow, 'operacao_id' | 'sequencia'> & { operacao_id: string } =>
+      (
+        item
+      ): item is Pick<
+        ProdutoOperacaoRow,
+        'operacao_id' | 'sequencia' | 'versao_roteiro' | 'vigente'
+      > & { operacao_id: string } =>
         Boolean(item.operacao_id)
     )
     .map((item) => ({
       operacaoId: item.operacao_id,
       sequencia: item.sequencia,
+      versaoRoteiro: item.versao_roteiro,
+      vigente: item.vigente,
     }))
-}
-
-function roteiroFoiAlterado(
-  roteiroAtual: RoteiroPayloadItem[],
-  roteiroNovo: RoteiroPayloadItem[]
-): boolean {
-  if (roteiroAtual.length !== roteiroNovo.length) {
-    return true
-  }
-
-  return roteiroAtual.some((item, index) => {
-    const itemNovo = roteiroNovo[index]
-
-    if (!itemNovo) {
-      return true
-    }
-
-    return item.operacaoId !== itemNovo.operacaoId || item.sequencia !== itemNovo.sequencia
-  })
 }
 
 async function substituirRoteiro(
@@ -582,23 +572,26 @@ async function substituirRoteiro(
   roteiro: RoteiroPayloadItem[]
 ): Promise<FormActionState> {
   const supabase = createAdminClient()
-  const roteiroAtual = await carregarRoteiroAtualProduto(produtoId)
+  const roteirosAtuais = await carregarRoteirosProduto(produtoId)
 
-  if (!roteiroFoiAlterado(roteiroAtual, roteiro)) {
+  if (!roteiroVigenteFoiAlterado(roteirosAtuais, roteiro)) {
     return { sucesso: true }
   }
 
-  const { error: deleteError } = await supabase
+  const agora = new Date().toISOString()
+  const proximaVersao = obterProximaVersaoRoteiro(roteirosAtuais)
+
+  const { error: updateError } = await supabase
     .from('produto_operacoes')
-    .delete()
+    .update({
+      vigente: false,
+      substituido_em: agora,
+    })
     .eq('produto_id', produtoId)
+    .eq('vigente', true)
 
-  if (deleteError) {
-    if (deleteError.code === '23503') {
-      return { erro: obterMensagemRoteiroComHistorico() }
-    }
-
-    return { erro: `Erro ao atualizar roteiro: ${deleteError.message}` }
+  if (updateError) {
+    return { erro: `Erro ao substituir roteiro vigente: ${updateError.message}` }
   }
 
   const { error: insertError } = await supabase.from('produto_operacoes').insert(
@@ -606,6 +599,9 @@ async function substituirRoteiro(
       produto_id: produtoId,
       operacao_id: item.operacaoId,
       sequencia: item.sequencia,
+      versao_roteiro: proximaVersao,
+      vigente: true,
+      substituido_em: null,
     }))
   )
 
@@ -770,16 +766,8 @@ export async function editarProduto(
       return { erro: 'Todas as operações do roteiro precisam ter setor definido para a V2.' }
     }
 
-    const roteiroAtual = await carregarRoteiroAtualProduto(id)
-    const houveAlteracaoRoteiro = roteiroFoiAlterado(roteiroAtual, roteiro)
-
-    if (houveAlteracaoRoteiro) {
-      const dependencias = await carregarDependenciasProduto(id)
-
-      if (dependencias.emTurnoAberto || produtoTemHistorico(dependencias)) {
-        return { erro: obterMensagemRoteiroComHistorico() }
-      }
-    }
+    const roteirosAtuais = await carregarRoteirosProduto(id)
+    const houveAlteracaoRoteiro = roteiroVigenteFoiAlterado(roteirosAtuais, roteiro)
 
     const imagensPersistidas = await carregarImagensProdutoAtual(supabase, id)
 

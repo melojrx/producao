@@ -61,10 +61,11 @@
 | 49 | Correção do carry-over setorial repetido entre turnos | ✅ Concluída | 2 |
 | 50 | Controle físico de saldo da OP | ✅ Concluída | 2 |
 | 51 | Fluxo contínuo de qualidade simples, prático e sem travas | 🚧 Em correção de homologação (HU 51.12) | 5 |
+| 52 | Versionamento de roteiro de produto para novos turnos | ✅ Concluída | 2 |
 
-**Total estimado: 97 dias úteis**
+**Total estimado: 99 dias úteis**
 
-**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto; as Sprints 34 e 35 consolidaram descrição do produto e imagem única da operação. A Sprint 36 consolidou o setor `Qualidade` como etapa oficial do fluxo. As Sprints 37 a 50 consolidaram vocabulário operacional, relatórios, permissões de qualidade, carry-over e saldo físico da OP. A Sprint 51 foi concluída após a HU 51.11 restaurar Qualidade como etapa final operacional após `Finalização`, preservando as melhorias válidas de tipos de defeito, input do revisor e indicadores em aba própria. O detalhamento técnico oficial está em `TASKS.md`.
+**Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto; as Sprints 34 e 35 consolidaram descrição do produto e imagem única da operação. A Sprint 36 consolidou o setor `Qualidade` como etapa oficial do fluxo. As Sprints 37 a 50 consolidaram vocabulário operacional, relatórios, permissões de qualidade, carry-over e saldo físico da OP. A Sprint 51 foi concluída após a HU 51.11 restaurar Qualidade como etapa final operacional após `Finalização`, preservando as melhorias válidas de tipos de defeito, input do revisor e indicadores em aba própria. A Sprint 52 foi concluída com versionamento seguro do roteiro do produto, mantendo turnos ativos e históricos congelados e aplicando alterações apenas a novos turnos. O detalhamento técnico oficial está em `TASKS.md`.
 
 ---
 
@@ -620,7 +621,7 @@
 ## SPRINT 45 — Arquitetura futura de setores dinâmicos e fluxo configurável
 **Objetivo:** evoluir a arquitetura para que o fluxo produtivo seja orientado por roteiro, dependências e configuração, sem depender de nomes fixos ou quantidade fixa de setores.
 **Entregável:** plano arquitetural e futura implementação de fluxo produtivo configurável, com suporte a setores dinâmicos, fluxos lineares, paralelos e híbridos, reentrada, suboperações, setores simultâneos e setores opcionais.
-**Status:** 🧭 Planejada
+**Status:** ✅ Concluída
 
 - Modelar fluxo produtivo como grafo configurável
 - Configurar dependências entre setores/etapas a partir do roteiro produtivo
@@ -753,6 +754,25 @@
 
 **Correção de homologação em `2026-05-20`:** análise profunda revelou que a HU 51.11 restaurou o fluxo operacional correto mas não removeu a infraestrutura do fluxo paralelo por lotes (HUs 51.1–51.10). Os dois fluxos coexistem: `PainelQualidadeSupervisor` mescla itens operacionais com lotes de `qualidade_lotes` na mesma fila via `origemFluxo`; `DashboardQualidadeTab` depende de `listarIndicadoresQualidadeTurnoComClient` que consulta `qualidade_lotes` (vazia após remoção do trigger) e retorna `null` silenciosamente, bloqueando a aba inteira mesmo com dados reais em `qualidade_registros`; duas RPCs de registro coexistem (`registrar_revisao_lote_qualidade` e `registrar_revisao_qualidade_turno_setor_operacao`). A HU 51.12 foi criada para remoção cirúrgica do fluxo paralelo por lotes.
 
+## SPRINT 52 — Versionamento de roteiro de produto para novos turnos
+**Objetivo:** permitir que o admin altere o roteiro de um produto já usado operacionalmente, inclusive quando houver turno aberto, sem alterar turnos ativos, turnos encerrados, histórico, scanner, dashboard ou relatórios já derivados.
+**Entregável:** roteiro de produto versionado internamente; edição do roteiro liberada no CRUD de produtos com aviso explícito; novo roteiro aplicado apenas a novos turnos/OPs; roteiro anterior preservado para vínculos históricos; validações locais e remotas sem regressão.
+**Status:** ✅ Concluída
+
+- Formalizar que alteração de roteiro é melhoria operacional futura, não reescrita do fluxo histórico do produto
+- Criar versionamento interno em `produto_operacoes` para preservar roteiros antigos e definir um roteiro vigente
+- Permitir alterar roteiro com histórico e com turno aberto, desde que a alteração valha apenas para novos turnos
+- Manter `turno_ops`, `turno_setor_ops`, `turno_setor_operacoes`, demandas, QRs, scanner, apontamentos, qualidade, dashboard e relatórios existentes congelados
+- Fazer abertura/edição futura de turno usar apenas o roteiro vigente do produto
+- Atualizar `produtos.tp_produto_min` para refletir o roteiro vigente, sem recalcular snapshots já derivados
+- Ajustar o modal de produto para trocar bloqueio por aviso claro sobre vigência futura
+- Garantir que ficha/PDF, duplicação de produto e detalhe administrativo usem o roteiro vigente
+- Validar que o roteiro antigo permanece acessível por FKs históricas e que novos turnos usam somente a versão nova
+
+**Abertura planejada em `2026-05-20`:** sprint criada a partir da necessidade de melhorar o roteiro operacional de produtos existentes sem duplicar produto visível. A decisão de domínio é permitir inclusão, remoção ou reorganização de operações como melhoria futura do produto, preservando integralmente o turno ativo e todo histórico já derivado.
+
+**Fechamento em `2026-05-20`:** Sprint 52 concluída com versionamento interno em `produto_operacoes`, edição de roteiro liberada para produto com histórico ou turno aberto, preservação de turnos já derivados e uso exclusivo do roteiro vigente em novos turnos. Migration e validação remota executadas via Supabase Management API no projeto `jsuufbgdcqxogimmocof`; validações locais `node --test`, `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -773,6 +793,7 @@ Sprint 47 ──► Sprint 48
 Sprint 48 ──► Sprint 49
 Sprint 49 ──► Sprint 50
 Sprint 50 ──► Sprint 51
+Sprint 51 ──► Sprint 52
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

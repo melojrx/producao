@@ -140,6 +140,7 @@ async function carregarProdutoComTp(
       .from('produto_operacoes')
       .select('operacao_id')
       .eq('produto_id', produtoId)
+      .eq('vigente', true)
       .returns<ProdutoOperacaoRow[]>(),
   ])
 

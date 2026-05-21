@@ -453,6 +453,14 @@ export function ModalProduto({
             </div>
           ) : null}
 
+          {modoEdicao ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Se este produto possuir histórico ou estiver em turno aberto, alterações no roteiro
+              valerão apenas para novos turnos. Turnos já abertos ou encerrados permanecem com o
+              roteiro planejado originalmente.
+            </div>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-12 md:items-start">
             <div className="flex flex-col gap-1 md:col-span-3">
               <label htmlFor="referencia" className="text-sm font-medium text-gray-700">

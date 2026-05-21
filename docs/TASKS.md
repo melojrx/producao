@@ -5328,6 +5328,109 @@ Correção de interpretação em `2026-05-20`:
 
   **Evidência:** migration remota aplicada em `2026-05-20` no Supabase `jsuufbgdcqxogimmocof` via `scripts/sprint51_apply_remover_fluxo_lotes.mjs`: validação pré-migration confirmou `tabela_qualidade_lotes_existe = true`, `rpc_lote_existe = true`, `coluna_qualidade_lote_id_existe = true`, `lotes_existentes = 89`; após aplicação do DDL (`scripts/sprint51_remover_fluxo_lotes_qualidade.sql`), validação pós-migration confirmou `tabela_removida = true`, `coluna_removida = true`, `rpc_lote_removida = true`, `rpc_operacional_preservada = true`, `tabela_registros_preservada = true`, `tabela_detalhes_preservada = true`, `tabela_defeitos_preservada = true`. Código ajustado: `listarIndicadoresQualidadeTurnoComClient` reescrita para consultar apenas `qualidade_registros` + `qualidade_detalhes`; `listarFilaLotesQualidadeTurnoComClient` removida; `PainelQualidadeSupervisor` opera exclusivamente com fila operacional (sem `origemFluxo`, sem `lotesQualidade`); `registrarRevisaoLoteQualidade` removida de `lib/actions/qualidade.ts`; `calcularIndicadoresQualidadeTurno` simplificada para interface sem lotes. Validação local em `2026-05-20`: `npx tsc --noEmit` passou sem erros; `npm run lint` passou sem erros; `node --test --experimental-strip-types lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade.test.ts lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-defeitos.test.ts` passou 10/10; `npm run build` passou sem erros.
 
+## SPRINT 52 — Versionamento de roteiro de produto para novos turnos
+**Status:** ✅ Concluída
+**Objetivo:** permitir alteração segura do roteiro de produtos já usados, inclusive com turno aberto, aplicando a mudança apenas a novos turnos e preservando integralmente histórico, turno ativo e vínculos operacionais já derivados.
+**Pré-requisito:** Sprint 51 com homologação funcional mantida; confirmação explícita do usuário para iniciar a Sprint 52.
+
+Decisão de domínio:
+- a edição de roteiro é uma melhoria operacional futura do produto, não uma correção retroativa do fluxo histórico
+- produto usado em turno aberto pode ter roteiro editado, desde que o turno aberto continue congelado com o roteiro já planejado
+- turnos encerrados, registros de produção, revisões de qualidade, relatórios, dashboards históricos e QRs já gerados não podem ser recalculados por edição de roteiro
+- o roteiro antigo deve permanecer preservado internamente para FKs, rastreabilidade e auditoria
+- o roteiro novo passa a ser o roteiro vigente do produto apenas para novos turnos/OPs
+- `produtos.tp_produto_min` deve representar o roteiro vigente atual, sem alterar snapshots persistidos em turnos/configurações já existentes
+
+- [x] **HU 52.1 — Como produto, quero formalizar o versionamento de roteiro no PRD/TASKS/BACKLOG, para que a alteração de roteiro seja tratada como vigência futura e não como reescrita histórica.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Regras:
+  - documentar que edição de roteiro pode acontecer com histórico e com turno aberto
+  - documentar que a alteração vale somente para novos turnos
+  - documentar que turno ativo e histórico permanecem congelados
+  - manter Sprint 51 sem fechamento automático até homologação do usuário
+
+  **Evidência esperada:** `docs/PRD.md`, `docs/TASKS.md` e `docs/BACKLOG.md` registram a Sprint 52, a regra de vigência futura e a preservação de turnos/histórico.
+
+  **Evidência:** `docs/PRD.md` passou a registrar o contrato de versionamento do roteiro, permitindo edição de produto com histórico ou turno aberto como melhoria operacional futura. `docs/TASKS.md` abriu a Sprint 52 com decisão de domínio, HUs e evidências esperadas. `docs/BACKLOG.md` incluiu a Sprint 52, preservando a Sprint 51 sem fechamento automático.
+
+- [x] **HU 52.2 — Como sistema, quero versionar `produto_operacoes`, para preservar roteiros antigos e identificar o roteiro vigente sem quebrar vínculos históricos.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - criar migration idempotente para adicionar campos de versionamento/vigência em `produto_operacoes`
+  - preservar IDs antigos de `produto_operacoes` usados por `turno_setor_operacoes`
+  - remover ou substituir a unicidade que impede múltiplas versões por produto e sequência
+  - garantir que apenas uma versão de roteiro esteja vigente por produto
+  - não apagar roteiro antigo ao salvar nova versão
+  - aplicar SQL remoto somente via Supabase Management API
+
+  **Evidência esperada:** banco remoto preserva roteiros antigos, aceita nova versão de roteiro para produto com histórico e mantém FKs históricas válidas.
+
+  **Evidência:** criado `scripts/sprint52_versionamento_roteiro_produto.sql` adicionando `versao_roteiro`, `vigente` e `substituido_em` em `produto_operacoes`, substituindo a unicidade antiga por índices de versão/vigência e atualizando as funções remotas de derivação para usar apenas `produto_operacao.vigente = true`. `types/supabase.ts` foi atualizado com os novos campos. `scripts/sprint52_apply_versionamento_roteiro_produto.mjs` aplicou a migration no Supabase remoto `jsuufbgdcqxogimmocof` via Management API em `2026-05-20`; validação pós-migration confirmou `coluna_versao_existe = true`, `coluna_vigente_existe = true`, `coluna_substituido_existe = true`, `indice_versao_existe = true`, `indice_vigente_existe = true`, `funcao_setores_filtra_vigente = true` e `funcao_operacoes_filtra_vigente = true`. Validação local: `node --test --experimental-strip-types lib/utils/produto-roteiro-versionamento.test.ts` passou 3/3; `npx tsc --noEmit` passou sem erros.
+
+- [x] **HU 52.3 — Como admin, quero editar roteiro de produto com histórico ou turno aberto, para melhorar a performance operacional futura sem duplicar produto visível.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - remover o bloqueio backend que impede alteração de roteiro quando há histórico
+  - trocar o bloqueio por criação de nova versão de roteiro
+  - manter validação de operações válidas e com setor definido
+  - recalcular `produtos.tp_produto_min` com base no roteiro vigente
+  - preservar edição normal de referência, nome, descrição, imagens e situação
+  - manter erro claro se o roteiro novo for inválido
+
+  **Evidência esperada:** editar produto com `turno_ops`/`registros_producao` existentes salva novo roteiro vigente sem apagar linhas antigas de `produto_operacoes`.
+
+  **Evidência:** `lib/actions/produtos.ts` deixou de bloquear alteração de roteiro quando há histórico ou turno aberto. A edição agora compara apenas o roteiro vigente, desativa as linhas vigentes antigas com `vigente = false` e `substituido_em`, insere nova versão com `versao_roteiro` incrementada e recalcula `produtos.tp_produto_min` para o roteiro vigente. As linhas antigas de `produto_operacoes` não são apagadas, preservando vínculos históricos. Criado `lib/utils/produto-roteiro-versionamento.ts` e teste focado `lib/utils/produto-roteiro-versionamento.test.ts`.
+
+- [x] **HU 52.4 — Como sistema, quero que novos turnos usem somente o roteiro vigente, para que melhorias do produto entrem no planejamento futuro sem alterar turnos já derivados.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - ajustar queries/actions de abertura de turno para ler apenas roteiro vigente
+  - ajustar duplicação, ficha/PDF, detalhe e listagem de produtos para exibir roteiro vigente
+  - garantir que `turno_setor_operacoes` já existentes continuem apontando para a versão antiga quando aplicável
+  - garantir que QRs, scanner, apontamentos, qualidade, dashboard e relatórios de turno aberto não sejam recalculados após edição do produto
+
+  **Evidência esperada:** produto com turno aberto pode receber novo roteiro; o turno aberto preserva operações antigas, e um novo turno aberto depois da edição deriva apenas as operações da versão nova.
+
+  **Evidência:** `lib/queries/produtos.ts`, `lib/actions/turnos.ts`, `lib/actions/turno.ts` e `lib/actions/turno-blocos.ts` passaram a ler apenas `produto_operacoes.vigente = true` para cadastro, ficha, duplicação e planejamento futuro. As funções SQL `sincronizar_turno_setor_ops` e `sincronizar_turno_setor_operacoes` foram atualizadas para derivar apenas linhas vigentes. Validação remota com `scripts/sprint52_validate_roteiro_versionado.mjs` confirmou: turno já derivado manteve operações `HU52RV-OP-A` e `HU52RV-OP-B` com `versao_roteiro = 1` após a troca de versão; novo turno derivou `HU52RV-OP-A` e `HU52RV-OP-C` com `versao_roteiro = 2`; dados temporários foram removidos ao final.
+
+- [x] **HU 52.5 — Como admin, quero aviso explícito no modal de produto, para entender que alterações de roteiro com histórico valem apenas para novos turnos.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Regras:
+  - substituir a mensagem bloqueante atual por aviso de vigência futura
+  - comunicar quando houver histórico ou turno aberto
+  - manter opção de duplicar produto como alternativa, mas não como única saída
+  - não criar fluxo visual complexo de auditoria de versões nesta primeira entrega
+
+  **Evidência esperada:** modal permite salvar alteração de roteiro e mostra mensagem clara de que turnos já abertos/encerrados permanecem com o roteiro planejado originalmente.
+
+  **Evidência:** `components/ui/ModalProduto.tsx` passou a exibir aviso não bloqueante em edição: se o produto possuir histórico ou estiver em turno aberto, alterações no roteiro valerão apenas para novos turnos; turnos já abertos ou encerrados permanecem com o roteiro planejado originalmente. O bloqueio backend antigo foi removido e a opção de duplicação permanece como alternativa administrativa, não como obrigação.
+
+- [x] **HU 52.6 — Como produto, quero homologar o versionamento de roteiro ponta a ponta, para confiar que a edição melhora novos turnos sem corromper histórico.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - validar cenário com produto que possui histórico e turno aberto
+  - editar roteiro incluindo ou removendo operação
+  - confirmar que turno aberto não muda
+  - abrir novo turno e confirmar que usa roteiro novo
+  - validar `npx tsc --noEmit`, `npm run lint`, `npm run build` e testes focados
+  - registrar evidência no `TASKS.md` antes de considerar a sprint concluída
+
+  **Evidência esperada:** validação local e remota confirma preservação do turno ativo/histórico, novo turno com roteiro vigente e checks técnicos passando.
+
+  **Evidência:** validação remota em `2026-05-20` no Supabase `jsuufbgdcqxogimmocof` com `scripts/sprint52_validate_roteiro_versionado.mjs`: produto temporário nasceu com roteiro v1 (`HU52RV-OP-A`, `HU52RV-OP-B`), um turno temporário derivou v1, o roteiro foi versionado para v2 (`HU52RV-OP-A`, `HU52RV-OP-C`), o turno já derivado permaneceu com v1 e o novo turno derivou v2. Limpeza final removeu `4` `turno_setor_operacoes`, `4` demandas, `4` seções, `2` turno_ops, `2` turnos, `4` produto_operacoes, `3` operações, `1` produto e `2` setores temporários. Validação local: `node --test --experimental-strip-types lib/utils/produto-roteiro-versionamento.test.ts` passou 3/3; `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram sem erros. O primeiro `npm run build` falhou apenas por limitação de sandbox do Turbopack (`binding to a port`); rerun fora do sandbox passou.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -5348,6 +5451,7 @@ Sprint 47 ──► Sprint 48
 Sprint 48 ──► Sprint 49
 Sprint 49 ──► Sprint 50
 Sprint 50 ──► Sprint 51
+Sprint 51 ──► Sprint 52
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

@@ -811,18 +811,27 @@ export type Database = {
           operacao_id: string | null
           produto_id: string | null
           sequencia: number
+          substituido_em: string | null
+          versao_roteiro: number
+          vigente: boolean
         }
         Insert: {
           id?: string
           operacao_id?: string | null
           produto_id?: string | null
           sequencia: number
+          substituido_em?: string | null
+          versao_roteiro?: number
+          vigente?: boolean
         }
         Update: {
           id?: string
           operacao_id?: string | null
           produto_id?: string | null
           sequencia?: number
+          substituido_em?: string | null
+          versao_roteiro?: number
+          vigente?: boolean
         }
         Relationships: [
           {

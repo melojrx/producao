@@ -1421,6 +1421,17 @@ Regras:
 - a busca e a seleção de operações devem respeitar o vínculo estrutural existente entre `operação` e `setor`
 - a duplicação deve exigir revisão da `referência`, porque o novo cadastro não pode reutilizar a referência original
 
+Contrato de versionamento do roteiro:
+- editar o roteiro de um produto com histórico operacional ou planejamento deve ser permitido como melhoria operacional futura do cadastro
+- essa edição pode acontecer mesmo quando existir turno aberto usando o produto, desde que o turno aberto permaneça integralmente congelado com o roteiro derivado no momento da abertura
+- alteração de roteiro nunca recalcula nem reescreve `turno_ops`, `turno_setor_ops`, `turno_setor_operacoes`, demandas, QRs, scanner, apontamentos, qualidade, dashboard ou relatórios de turnos já abertos ou encerrados
+- a alteração de roteiro vale exclusivamente para novos turnos/OPs criados após o salvamento
+- o roteiro anterior deve permanecer preservado internamente para histórico, rastreabilidade e vínculos existentes
+- o roteiro novo passa a ser o roteiro vigente do produto para abertura de novos turnos, ficha administrativa, duplicação futura e cálculo atual de `produtos.tp_produto_min`
+- a edição não deve duplicar visualmente o produto nem exigir criação manual de uma nova referência quando a intenção for apenas incluir, remover ou reorganizar operações para melhorar a performance operacional futura daquele mesmo produto
+- o modal de produto deve comunicar explicitamente quando houver histórico ou turno aberto: alterações no roteiro valerão apenas para novos turnos, e o turno atual continuará usando o roteiro já planejado
+- excluir permanentemente produto ou apagar histórico continua proibido quando houver uso operacional; o versionamento do roteiro é apenas uma troca de vigência futura, não uma remoção de histórico
+
 Contrato de imagens do produto:
 - o cadastro do produto passa a suportar duas imagens independentes:
   - `Frente`
