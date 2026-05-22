@@ -601,6 +601,22 @@ Com edição de turno aberto, a dashboard também precisa:
 - destacar visualmente as OPs recém-adicionadas até a primeira produção
 - expor novos QRs apenas para setores novos; setores já existentes devem ser reaproveitados
 
+### 5.5.1 Painel TV dedicado
+
+O painel `/tv` é uma superfície pública de acompanhamento contínuo no chão de fábrica, distinta da dashboard administrativa `/admin/dashboard`.
+Ele deve funcionar bem quando aberto diretamente no navegador nativo de uma TV, não apenas quando o computador espelha a tela para a TV.
+
+Regra de layout:
+- o painel TV deve priorizar uma única visão geral sem rolagem vertical em telas 16:9
+- a composição deve manter metas, atingimento mensal/diário, eficiência por hora e eficiência do dia visíveis ao mesmo tempo sempre que houver espaço físico de TV
+- o layout da TV não deve depender dos breakpoints responsivos normais do admin, porque navegadores de TV podem expor um viewport CSS menor que a resolução física da tela
+- o painel deve usar um palco visual próprio com proporção 16:9 e escala para caber em `100vw x 100dvh`
+- as tabelas podem paginar/rotacionar internamente para preservar leitura de longe sem exigir rolagem da página
+- dividir o painel em telas separadas só deve ser considerado como modo secundário de carrossel, não como comportamento padrão
+
+Critério de sucesso:
+- ao abrir `/tv` diretamente no navegador da TV, o supervisor deve enxergar metas e os dois quadros de eficiência sem precisar rolar a página
+
 ---
 
 ## 6. PLANEJAMENTO E MÉTRICAS

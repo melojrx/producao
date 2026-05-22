@@ -111,7 +111,7 @@ export function TabelaEficienciaTv({
   return (
     <section
       aria-label={titulo}
-      className={`flex flex-col rounded-2xl border ${t.tabelaBorda} ${t.tabelaFundo} overflow-hidden`}
+      className={`flex min-h-0 flex-col rounded-2xl border ${t.tabelaBorda} ${t.tabelaFundo} overflow-hidden`}
       onMouseEnter={() => setPausado(true)}
       onMouseLeave={() => setPausado(false)}
     >
@@ -131,7 +131,7 @@ export function TabelaEficienciaTv({
           {semDados}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="min-h-0 overflow-hidden">
           <table className="min-w-full text-base">
             <thead>
               <tr className={`border-b ${t.tabelaLinhaBorda} ${t.tabelaHeaderFundo}`}>

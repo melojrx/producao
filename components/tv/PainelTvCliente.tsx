@@ -8,6 +8,11 @@ import { TabelaEficienciaTv, badgeEficiencia } from '@/components/tv/TabelaEfici
 import type { ColunaTabelaTv } from '@/components/tv/TabelaEficienciaTv'
 import { TOKENS, type TemaTV } from '@/components/tv/tema-tv'
 import { useRealtimePlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
+import {
+  ALTURA_BASE_PAINEL_TV,
+  LARGURA_BASE_PAINEL_TV,
+  calcularEscalaPainelTv,
+} from '@/lib/utils/painel-tv-layout'
 import type {
   EficienciaOperacionalDiaRegistroV2,
   EficienciaOperacionalHoraRegistroV2,
@@ -22,6 +27,20 @@ interface PainelTvClienteProps {
 
 const CHAVE_STORAGE = 'tv-tema'
 const FUSO = 'America/Fortaleza'
+
+interface ViewportPainelTv {
+  readonly larguraViewport: number
+  readonly alturaViewport: number
+}
+
+function medirViewportPainelTv(): ViewportPainelTv {
+  const viewportVisual = globalThis.visualViewport
+
+  return {
+    larguraViewport: Math.floor(viewportVisual?.width ?? globalThis.innerWidth),
+    alturaViewport: Math.floor(viewportVisual?.height ?? globalThis.innerHeight),
+  }
+}
 
 function formatarHoraCompleta(data: Date): string {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -186,6 +205,7 @@ function construirColunasDia(textoPrimario: string): ColunaTabelaTv[] {
 export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvClienteProps) {
   const [agora, setAgora] = useState<Date | null>(null)
   const [tema, setTema] = useState<TemaTV>('dark')
+  const [viewportPainel, setViewportPainel] = useState<ViewportPainelTv | null>(null)
   const { planejamento, statusConexao } = useRealtimePlanejamentoTurnoV2(initialPlanning)
   const t = TOKENS[tema]
 
@@ -198,6 +218,21 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
     setAgora(new Date())
     const id = globalThis.setInterval(() => setAgora(new Date()), 1000)
     return () => globalThis.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    function atualizarViewport() {
+      setViewportPainel(medirViewportPainelTv())
+    }
+
+    atualizarViewport()
+    globalThis.addEventListener('resize', atualizarViewport)
+    globalThis.visualViewport?.addEventListener('resize', atualizarViewport)
+
+    return () => {
+      globalThis.removeEventListener('resize', atualizarViewport)
+      globalThis.visualViewport?.removeEventListener('resize', atualizarViewport)
+    }
   }, [])
 
   function alternarTema() {
@@ -246,11 +281,32 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
   const labelGaugeDiario = resolverLabelGaugeDiario(ultimoDiaComProducao?.data ?? null, hojeStr)
 
   const statusDot = classeStatusDot(statusConexao)
+  const escalaPainel = calcularEscalaPainelTv(
+    viewportPainel ?? { larguraViewport: 0, alturaViewport: 0 }
+  )
 
   return (
-    <div className={`flex min-h-screen flex-col ${t.pagina} px-6 py-5 xl:px-10`}>
+    <div className={`h-dvh w-screen overflow-hidden ${t.pagina}`}>
+      <div className="flex h-full w-full items-center justify-center">
+        <div
+          aria-label="Palco 16:9 do painel TV"
+          className="shrink-0"
+          style={{
+            width: LARGURA_BASE_PAINEL_TV * escalaPainel,
+            height: ALTURA_BASE_PAINEL_TV * escalaPainel,
+          }}
+        >
+          <div
+            className={`flex flex-col overflow-hidden ${t.pagina} px-6 py-4`}
+            style={{
+              width: LARGURA_BASE_PAINEL_TV,
+              height: ALTURA_BASE_PAINEL_TV,
+              transform: `scale(${escalaPainel})`,
+              transformOrigin: 'top left',
+            }}
+          >
       {/* Header */}
-      <header className="mb-6 flex items-center justify-between gap-6">
+      <header className="mb-4 flex items-center justify-between gap-6">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600">
             <Activity size={18} className="text-white" />
@@ -291,7 +347,7 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
       </header>
 
       {/* KPIs + Gauges */}
-      <section className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="mb-4 grid grid-cols-4 gap-3">
         <CardKpiTv
           label="Meta Mensal"
           valor={metaPecas > 0 ? formatarNumero(metaPecas) : '—'}
@@ -310,7 +366,7 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
           tema={tema}
         />
 
-        <div className={`flex flex-col items-center justify-center rounded-2xl border ${t.gaugeContainer} p-3`}>
+        <div className={`flex flex-col items-center justify-center rounded-2xl border ${t.gaugeContainer} p-2`}>
           <p className={`mb-1 text-xs font-semibold uppercase tracking-widest ${t.textoSecundario}`}>Mês</p>
           {metaPecas > 0 ? (
             <GaugeMeta
@@ -325,7 +381,7 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
           )}
         </div>
 
-        <div className={`flex flex-col items-center justify-center rounded-2xl border ${t.gaugeContainer} p-3`}>
+        <div className={`flex flex-col items-center justify-center rounded-2xl border ${t.gaugeContainer} p-2`}>
           <p className={`mb-1 text-xs font-semibold uppercase tracking-widest ${t.textoSecundario}`}>
             {labelGaugeDiario}
           </p>
@@ -344,12 +400,13 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
       </section>
 
       {/* Tabelas de eficiência */}
-      <section className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+      <section className="grid min-h-0 flex-1 grid-cols-2 gap-3">
         <TabelaEficienciaTv
           titulo="Eficiência por Hora"
           colunas={colunasHora}
           linhas={linhasHora}
           tema={tema}
+          itensPorPagina={6}
           semDados="Sem apontamentos suficientes para a leitura por hora."
         />
 
@@ -358,9 +415,13 @@ export function PainelTvCliente({ initialPlanning, resumoMetaMensal }: PainelTvC
           colunas={colunasDia}
           linhas={linhasDia}
           tema={tema}
+          itensPorPagina={6}
           semDados="O resumo diário será exibido assim que houver apontamentos válidos."
         />
       </section>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

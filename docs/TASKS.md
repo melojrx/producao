@@ -5431,6 +5431,65 @@ Decisão de domínio:
 
   **Evidência:** validação remota em `2026-05-20` no Supabase `jsuufbgdcqxogimmocof` com `scripts/sprint52_validate_roteiro_versionado.mjs`: produto temporário nasceu com roteiro v1 (`HU52RV-OP-A`, `HU52RV-OP-B`), um turno temporário derivou v1, o roteiro foi versionado para v2 (`HU52RV-OP-A`, `HU52RV-OP-C`), o turno já derivado permaneceu com v1 e o novo turno derivou v2. Limpeza final removeu `4` `turno_setor_operacoes`, `4` demandas, `4` seções, `2` turno_ops, `2` turnos, `4` produto_operacoes, `3` operações, `1` produto e `2` setores temporários. Validação local: `node --test --experimental-strip-types lib/utils/produto-roteiro-versionamento.test.ts` passou 3/3; `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram sem erros. O primeiro `npm run build` falhou apenas por limitação de sandbox do Turbopack (`binding to a port`); rerun fora do sandbox passou.
 
+## SPRINT 53 — Painel TV 16:9 sem rolagem no navegador da televisão
+**Status:** ✅ Concluída
+**Objetivo:** ajustar a rota `/tv` para funcionar como painel dedicado de chão de fábrica em TVs 16:9, mantendo metas e quadros de eficiência visíveis sem depender dos breakpoints normais do navegador.
+**Pré-requisito:** Sprint 52 concluída; confirmação explícita do usuário para registrar a mudança como nova sprint.
+
+Decisão de domínio/UI:
+- `/tv` é uma superfície pública e operacional própria, diferente de `/admin/dashboard`
+- o painel deve caber em uma tela 16:9 sem rolagem vertical quando aberto diretamente no navegador da TV
+- o layout não deve depender de `lg`/`xl` como gatilho principal, pois browsers de TV podem informar viewport CSS reduzido ou zoom interno alto
+- a visão padrão deve preservar metas, atingimento mensal/diário, eficiência por hora e eficiência do dia simultaneamente
+- carrossel em múltiplas telas pode existir futuramente como modo alternativo, mas não substitui o painel único como padrão
+
+- [x] **HU 53.1 — Como produto, quero formalizar o contrato do painel TV 16:9, para que a correção não seja tratada como ajuste visual improvisado.**
+  **Prioridade:** P0
+  **Risco:** Baixo
+
+  Regras:
+  - registrar no PRD que `/tv` é uma superfície dedicada ao navegador da TV
+  - registrar que o padrão deve ser uma visão única 16:9 sem rolagem vertical
+  - registrar que o layout não pode depender dos breakpoints normais do admin
+  - registrar que metas e dois quadros de eficiência devem aparecer juntos no modo padrão
+  - registrar a Sprint 53 no `TASKS.md` e no `BACKLOG.md`
+
+  **Evidência esperada:** `docs/PRD.md`, `docs/TASKS.md` e `docs/BACKLOG.md` documentam a Sprint 53 e o contrato do painel TV dedicado.
+
+  **Evidência:** `docs/PRD.md` passou a registrar `Painel TV dedicado`, definindo `/tv` como superfície pública de chão de fábrica com palco 16:9 escalável, sem dependência dos breakpoints normais do admin e sem rolagem vertical como critério de sucesso. `docs/TASKS.md` abriu a Sprint 53 com decisão de domínio/UI, HUs e evidências esperadas. `docs/BACKLOG.md` incluiu a Sprint 53 no plano macro.
+
+- [x] **HU 53.2 — Como supervisor, quero abrir `/tv` diretamente no navegador da televisão e ver metas e eficiência sem rolar a página.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Regras:
+  - ajustar `components/tv/PainelTvCliente.tsx` para usar um palco interno 16:9 escalável em `100vw x 100dvh`
+  - manter a visão única com header compacto, cards/gauges de metas e duas tabelas lado a lado
+  - reduzir densidade vertical do painel TV sem alterar o admin
+  - preservar o tema claro/escuro do painel TV
+  - preservar realtime e rotação interna das tabelas
+  - evitar rolagem vertical da página em condições normais de TV 16:9
+  - não alterar cálculos, queries, banco, dashboard admin ou fluxo operacional
+
+  **Evidência esperada:** `/tv` renderiza em layout único 16:9, com metas e as duas tabelas de eficiência visíveis sem rolagem vertical em viewport simulando navegador de TV.
+
+  **Evidência:** `components/tv/PainelTvCliente.tsx` passou a renderizar `/tv` dentro de um palco fixo 16:9 de `1280x720`, escalado pela função pura `calcularEscalaPainelTv()` para caber em `100vw x 100dvh`, sem depender dos breakpoints `lg`/`xl` para a composição principal. Metas, gauges e as duas tabelas de eficiência agora permanecem em grade única de quatro colunas + duas colunas dentro do palco, com `itensPorPagina={6}` nas tabelas para evitar estouro vertical. `components/tv/TabelaEficienciaTv.tsx` recebeu `min-h-0` e overflow controlado para preservar o painel sem rolagem. Criado `lib/utils/painel-tv-layout.ts` e `lib/utils/painel-tv-layout.test.ts`, validando escala para `960x540`, `1280x640` e viewport ainda não medido. Validação local em `2026-05-22`: `node --test --experimental-strip-types lib/utils/painel-tv-layout.test.ts` passou 3/3; `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram sem erros. Tentativa inicial de screenshot via Playwright em `/tv` sem sessão confirmou bloqueio por autenticação local e redirecionou para `/login`; a validação visual autenticada foi concluída na HU 53.3.
+
+- [x] **HU 53.3 — Como produto, quero validar o painel TV em viewports reais/simulados, para garantir que a correção não regrediu desktop nem TV.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Regras:
+  - validar `npx tsc --noEmit`
+  - validar `npm run lint`
+  - validar build quando aplicável
+  - testar visualmente `/tv` em viewport desktop e em viewport reduzido típico de navegador de TV
+  - registrar evidência no `TASKS.md` antes de concluir a sprint
+
+  **Evidência esperada:** checks técnicos passam e a validação visual confirma `/tv` sem empilhamento vertical indevido e sem necessidade de scroll para metas e quadros principais.
+
+  **Evidência:** criado usuário temporário autenticado `supervisor` apenas para validação visual, removido ao final do teste. Playwright autenticado validou `/tv` em `1280x720`, `960x540` e `1024x576`, confirmando título `Painel TV — Produção em Tempo Real`, presença de `META MENSAL`, `Eficiência por Hora` e `Eficiência do Dia por Operador`, `scrollHeight === clientHeight`, `scrollWidth === clientWidth`, palco 16:9 dentro do viewport, tabelas dentro da altura visível e tabelas lado a lado. Screenshots temporários gerados em `/tmp/tv-desktop-auth-1280x720.png`, `/tmp/tv-auth-960x540.png` e `/tmp/tv-auth-1024x576.png`. Validação autenticada não encontrou warnings/errors relevantes no console da rota `/tv`. Usuário temporário removido do Supabase Auth e de `usuarios_sistema`.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -5452,6 +5511,7 @@ Sprint 48 ──► Sprint 49
 Sprint 49 ──► Sprint 50
 Sprint 50 ──► Sprint 51
 Sprint 51 ──► Sprint 52
+Sprint 52 ──► Sprint 53
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

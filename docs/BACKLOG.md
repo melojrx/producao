@@ -62,8 +62,9 @@
 | 50 | Controle físico de saldo da OP | ✅ Concluída | 2 |
 | 51 | Fluxo contínuo de qualidade simples, prático e sem travas | 🚧 Em correção de homologação (HU 51.12) | 5 |
 | 52 | Versionamento de roteiro de produto para novos turnos | ✅ Concluída | 2 |
+| 53 | Painel TV 16:9 sem rolagem no navegador da televisão | ✅ Concluída | 1 |
 
-**Total estimado: 99 dias úteis**
+**Total estimado: 100 dias úteis**
 
 **Observação:** o plano antigo de “multi-produto por blocos” foi substituído pelo rebaseline V2 baseado em `turno + OP + setor`. As Sprints 15 a 18 foram concluídas e consolidaram a consistência estrutural do progresso, a separação entre `quantidade concluída` e `progresso operacional`, os KPIs de eficiência por hora e por dia e o ajuste cirúrgico do input de quantidade no scanner. A Sprint 19 foi retomada após a homologação da Sprint 20 e fechada com a UX de produto orientada por setores. A Sprint 20 fechou o ciclo de vida seguro do CRUD de produtos com homologação manual da UI real. A Sprint 21 separou definitivamente a dashboard pública da fábrica da superfície operacional de impressão, movendo os QRs do turno para `/admin/qrcodes` com presets de impressão por página. A Sprint 22 acrescentou a duplicação assistida de produtos no próprio CRUD, reutilizando o modal existente em modo de criação pré-carregada. A Sprint 23 permanece em realinhamento documental após a reversão do worktree visual, preservando `docs/DESIGN_PROPOSAL.md` como norte homologado sem reabrir implementação de frontend até nova confirmação explícita do usuário, e sai da prioridade ativa do projeto até segunda ordem. A Sprint 24 foi concluída com a frente de meta mensal global da fábrica disponível na dashboard e em `/admin/apontamentos`. A Sprint 25 foi concluída simplificando o fluxo operacional de apontamentos, removendo previews expandidos, ocultando itens concluídos do fluxo de lançamento e pré-preenchendo a quantidade com base no saldo da operação. A Sprint 26 foi concluída alinhando o cadastro de operações ao domínio atual de máquinas patrimoniais, substituindo `tipo_maquina_codigo` por `maquina_id`, expondo a máquina pelo `modelo` na UI e tornando `codigo` da operação um campo manual. A Sprint 27 profissionalizou `/admin/operacoes` com paginação, ordenação por coluna e persistência de navegação via URL. A Sprint 28 concluiu a versão mínima segura desse mesmo padrão em `/admin/relatorios`, com contrato tipado de ordenação, paginação completa na tabela de detalhamento e preservação dos filtros atuais na URL. As Sprints 29, 30 e 31 consolidaram, em sequência, a capacidade setorial com fila real, o parcelamento/carry-over por backlog aceito e o fluxo paralelo oficial `Frente + Costa -> Montagem`. A Sprint 32 foi concluída consolidando fila contínua por setor, capacidade diária cumulativa, excedente setorial e exceção manual auditável do supervisor. A Sprint 33 foi concluída trazendo a gestão real de imagens do produto; as Sprints 34 e 35 consolidaram descrição do produto e imagem única da operação. A Sprint 36 consolidou o setor `Qualidade` como etapa oficial do fluxo. As Sprints 37 a 50 consolidaram vocabulário operacional, relatórios, permissões de qualidade, carry-over e saldo físico da OP. A Sprint 51 foi concluída após a HU 51.11 restaurar Qualidade como etapa final operacional após `Finalização`, preservando as melhorias válidas de tipos de defeito, input do revisor e indicadores em aba própria. A Sprint 52 foi concluída com versionamento seguro do roteiro do produto, mantendo turnos ativos e históricos congelados e aplicando alterações apenas a novos turnos. O detalhamento técnico oficial está em `TASKS.md`.
 
@@ -773,6 +774,24 @@
 
 **Fechamento em `2026-05-20`:** Sprint 52 concluída com versionamento interno em `produto_operacoes`, edição de roteiro liberada para produto com histórico ou turno aberto, preservação de turnos já derivados e uso exclusivo do roteiro vigente em novos turnos. Migration e validação remota executadas via Supabase Management API no projeto `jsuufbgdcqxogimmocof`; validações locais `node --test`, `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram.
 
+## SPRINT 53 — Painel TV 16:9 sem rolagem no navegador da televisão
+**Objetivo:** fazer `/tv` funcionar como painel dedicado de chão de fábrica em navegadores nativos de televisão, preservando metas e quadros de eficiência visíveis em uma única tela 16:9 sem depender dos breakpoints normais do admin.
+**Entregável:** contrato documentado no PRD, layout `/tv` com palco 16:9 escalável para `100vw x 100dvh`, metas e duas tabelas de eficiência visíveis sem rolagem vertical em TV, e validação técnica/visual sem regressão no desktop.
+**Status:** ✅ Concluída
+
+- Formalizar `/tv` como superfície pública dedicada ao navegador da televisão
+- Usar uma visão única 16:9 como comportamento padrão
+- Evitar dependência de breakpoints `lg`/`xl` para a composição principal do painel
+- Manter metas, atingimento mensal/diário, eficiência por hora e eficiência do dia visíveis simultaneamente
+- Preservar tema claro/escuro, realtime e rotação interna das tabelas
+- Validar com viewport desktop e viewport reduzido típico de navegador de TV
+
+**Abertura em `2026-05-22`:** sprint criada após análise de homologação do usuário: o painel está adequado no computador e no espelhamento para TV, mas no navegador nativo da TV de 50 polegadas o viewport CSS faz o layout empilhar metas e quadros de eficiência, exigindo rolagem. A decisão aprovada é corrigir `/tv` como palco 16:9 escalável em tela única, deixando carrossel em múltiplas telas apenas como possibilidade futura.
+
+**Implementação parcial em `2026-05-22`:** HUs 53.1 e 53.2 concluídas. O PRD/TASKS/BACKLOG formalizam `/tv` como superfície dedicada de TV, e o painel passou a usar palco interno 16:9 de `1280x720` escalado para o viewport disponível, mantendo metas e tabelas lado a lado sem depender de breakpoints normais do admin. Validações locais `node --test`, `npx tsc --noEmit`, `npm run lint`, `git diff --check` e `npm run build` passaram. A primeira tentativa de screenshot sem sessão redirecionou para `/login`, exigindo validação autenticada na etapa de fechamento.
+
+**Fechamento em `2026-05-22`:** Sprint 53 concluída após validação visual autenticada. Foi criado um usuário temporário `supervisor` para teste e removido ao final. Playwright validou `/tv` em `1280x720`, `960x540` e `1024x576`, confirmando painel sem scroll, palco 16:9 dentro do viewport, metas visíveis e as duas tabelas de eficiência lado a lado, sem warnings/errors relevantes no console da rota.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -794,6 +813,7 @@ Sprint 48 ──► Sprint 49
 Sprint 49 ──► Sprint 50
 Sprint 50 ──► Sprint 51
 Sprint 51 ──► Sprint 52
+Sprint 52 ──► Sprint 53
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.
