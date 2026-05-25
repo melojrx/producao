@@ -5068,7 +5068,7 @@ Escopo futuro previsto:
 **Fechamento em `2026-05-13`:** Sprint 50 concluída documentalmente após a HU 50.5 validar a OP como container físico único por `numero_op`, aplicar a correção remota da OP `207675` e passar nas validações locais `npm run lint`, `npx tsc --noEmit`, `git diff --check` e suíte focada 15/15. Todas as HUs da sprint estão marcadas como concluídas e nenhuma pendência operacional foi mantida nesta sprint.
 
 ## SPRINT 51 — Fluxo contínuo de qualidade simples, prático e sem travas
-**Status:** 🚧 Em andamento
+**Status:** ✅ Concluída
 **Objetivo:** evoluir Qualidade para uma fila contínua de lotes parciais criados automaticamente a partir da produção, permitindo revisão em paralelo ao chão de fábrica sem travar fluxo, sem controlar retrabalho e sem alterar os KPIs operacionais de produção.
 **Pré-requisito:** Sprint 50 concluída.
 
@@ -5490,6 +5490,125 @@ Decisão de domínio/UI:
 
   **Evidência:** criado usuário temporário autenticado `supervisor` apenas para validação visual, removido ao final do teste. Playwright autenticado validou `/tv` em `1280x720`, `960x540` e `1024x576`, confirmando título `Painel TV — Produção em Tempo Real`, presença de `META MENSAL`, `Eficiência por Hora` e `Eficiência do Dia por Operador`, `scrollHeight === clientHeight`, `scrollWidth === clientWidth`, palco 16:9 dentro do viewport, tabelas dentro da altura visível e tabelas lado a lado. Screenshots temporários gerados em `/tmp/tv-desktop-auth-1280x720.png`, `/tmp/tv-auth-960x540.png` e `/tmp/tv-auth-1024x576.png`. Validação autenticada não encontrou warnings/errors relevantes no console da rota `/tv`. Usuário temporário removido do Supabase Auth e de `usuarios_sistema`.
 
+## SPRINT 54 — Correção de homologação da Qualidade operacional
+**Status:** ✅ Concluída
+**Objetivo:** remover a convivência visual e tipada entre o fluxo legado por lotes e o fluxo correto de Qualidade como etapa final operacional, garantindo que `/admin/apontamentos` e a dashboard exponham somente o contrato operacional homologado.
+**Pré-requisito:** Sprint 53 concluída; confirmação explícita do usuário para abrir correção de homologação.
+
+Decisão de domínio:
+- `Qualidade` é uma etapa/setor operacional final da OP, normalmente após `Finalização`
+- `qualidade_lotes` não faz parte do contrato ativo do sistema
+- a aba `Operação do turno` não pode oferecer `Qualidade` no formulário produtivo comum de operador/operação/quantidade
+- a aba `Qualidade` e o scanner de qualidade devem ser as superfícies corretas para revisar aprovadas, reprovadas e defeitos
+- `qualidade_registros` e `qualidade_detalhes` permanecem como fonte de verdade de revisões e defeitos
+- o banco remoto deve manter removidos `qualidade_lotes`, `qualidade_lote_id`, `registrar_revisao_lote_qualidade` e o trigger de lote
+- a revisão de Qualidade pode ser parcial e deve consumir a pendência somente pelas peças aprovadas
+- textos visuais das superfícies ativas de Qualidade devem falar em pendência/revisão/peças, não em lote
+
+- [x] **HU 54.1 — Como produto, quero reabrir documentalmente a correção da Qualidade operacional, para eliminar a contradição de requisitos entre etapa operacional e lote legado.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Regras:
+  - atualizar `docs/PRD.md` para remover `qualidade_lotes` como contrato ativo
+  - registrar que a fila de Qualidade é a pendência operacional do setor `Qualidade`
+  - registrar no `TASKS.md` e no `BACKLOG.md` a Sprint 54 com HUs, riscos e evidências
+  - preservar histórico documental da Sprint 51 sem reativar o fluxo por lotes
+
+  **Evidência esperada:** PRD/TASKS/BACKLOG registram a Qualidade operacional como contrato ativo único e deixam claro que o fluxo por lotes é legado removido.
+
+  **Evidência:** `docs/PRD.md` passou a declarar a Qualidade como etapa operacional final, com fila derivada de pendências do setor `Qualidade` e `qualidade_lotes` fora do contrato ativo. `docs/TASKS.md` abriu a Sprint 54 com decisão de domínio, HUs, riscos e evidências esperadas. `docs/BACKLOG.md` registrou a Sprint 54 com objetivo, entregável e nota de abertura da correção de homologação.
+
+- [x] **HU 54.2 — Como supervisor, quero que a aba Operação do turno não permita apontar Qualidade pelo formulário produtivo comum, para evitar registros sem os inputs de revisão.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - filtrar seções com `modo_apontamento = revisao_qualidade` ou setor `Qualidade` fora de `PainelApontamentosSupervisor`
+  - impedir que os filtros rápidos e o seletor de contexto acionável exibam Qualidade na aba `operacao_turno`
+  - manter demais setores produtivos sem regressão
+  - cobrir o comportamento com teste focado em função pura
+
+  **Evidência esperada:** um planejamento com seções produtivas e uma seção `Qualidade` mostra apenas seções produtivas no apontamento comum; a revisão de Qualidade permanece acessível na aba própria.
+
+  **Evidência:** criado `filtrarSecoesAcionaveisOperacaoTurno()` em `lib/utils/apontamento-supervisor.ts`, usando a regra de `setorUsaRevisaoQualidade()` para remover seções com `modo_apontamento = revisao_qualidade` ou nome `Qualidade` do apontamento produtivo comum. `components/apontamentos/PainelApontamentosSupervisor.tsx` passou a usar essa função para alimentar filtros rápidos, seletor e contexto acionável. Teste RED/GREEN adicionado em `lib/utils/apontamento-supervisor.test.ts`; validação focada passou com `node --test --experimental-strip-types lib/utils/apontamento-supervisor.test.ts`.
+
+- [x] **HU 54.3 — Como revisor, quero que a aba Qualidade use a linguagem e o fluxo operacional correto, para revisar peças recebidas da Finalização sem referência a lote legado.**
+  **Prioridade:** P0
+  **Risco:** Médio
+
+  Regras:
+  - renomear estado, mensagens e rótulos de `lote` para pendência/revisão da etapa Qualidade
+  - preservar inputs obrigatórios: aprovadas, reprovadas, operação, tipo de defeito, quantidade e observação
+  - preservar a action `registrarRevisaoQualidade` e a RPC operacional
+  - manter catálogo de defeitos e permissão de revisor
+
+  **Evidência esperada:** a aba `qualidade_turno` revisa a etapa `Qualidade` com os inputs corretos e não exibe termos de lote como contrato ativo.
+
+  **Evidência:** `components/apontamentos/PainelQualidadeSupervisor.tsx` foi renomeado semanticamente para pendência/revisão operacional: estados, validadores, mensagens, IDs de campos e rótulos deixaram de usar `lote` como contrato ativo. A action preservada é `registrarRevisaoQualidade`, com inputs de aprovadas, reprovadas, operação, tipo de defeito, quantidade e observação. Busca ativa por `loteSelecionado`, `defeitosLote`, `quantidadeLote` e termos equivalentes no componente não retornou ocorrências.
+
+- [x] **HU 54.4 — Como sistema, quero limpar contratos e utilitários locais do fluxo por lotes removido, para que o código não volte a depender de objetos inexistentes no banco.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - remover types locais de `QualidadeLote` e status de lote ativo
+  - remover utilitário e testes de `qualidade-lotes` quando não forem mais contrato ativo
+  - ajustar indicadores de qualidade para nomes de revisão/pendência operacional, não lote
+  - regenerar `types/supabase.ts` a partir do Supabase remoto ou corrigir por fonte validada se a CLI não estiver disponível
+  - validar remotamente em modo read-only que `qualidade_lotes`, `qualidade_lote_id`, RPC de lote e trigger de lote não existem
+
+  **Evidência esperada:** busca por `qualidade_lotes`, `registrar_revisao_lote_qualidade`, `qualidade_lote_id` e tipos ativos de lote retorna apenas scripts/docs históricos ou nenhuma referência ativa; `types/supabase.ts` reflete o banco remoto.
+
+  **Evidência:** removidos `lib/utils/qualidade-lotes.ts` e `lib/utils/qualidade-lotes.test.ts`; removidos `QualidadeLoteStatus`, `QualidadeLote` e contratos de indicador por lote em `types/index.ts`; indicadores passaram para `pendenciasRevisao`, `pecasPendentesRevisao`, `revisoesRealizadas` e `pendenciasRevisaoLista`. `components/dashboard/DashboardQualidadeTab.tsx` passou a usar vocabulário de etapa Qualidade e pendências de revisão. `types/supabase.ts` foi regenerado com `npx supabase gen types typescript --project-id jsuufbgdcqxogimmocof`. Buscas em `app components hooks lib types` e em `types/supabase.ts` não retornaram `qualidade_lotes`, `registrar_revisao_lote_qualidade` ou `qualidade_lote_id`. Validação remota read-only confirmou `qualidade_lotes_existe=false`, `qualidade_lote_id_existe=false`, `rpc_lote_existe=false`, `trigger_lote_existe=false` e `rpc_operacional_existe=true`.
+
+- [x] **HU 54.5 — Como produto, quero homologar a correção ponta a ponta, para confirmar que resta apenas o fluxo operacional de Qualidade.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - validar testes focados de Qualidade/apontamentos
+  - rodar `npx tsc --noEmit`
+  - rodar `npm run lint`
+  - rodar `npm run build` quando aplicável
+  - registrar evidências no `TASKS.md` e atualizar `BACKLOG.md`
+
+  **Evidência esperada:** checks técnicos passam; banco remoto confirma ausência dos objetos de lote; Operação do turno não exibe Qualidade no formulário comum; aba Qualidade mantém revisão com inputs corretos.
+
+  **Evidência:** validação focada passou com `node --test --experimental-strip-types lib/utils/apontamento-supervisor.test.ts lib/utils/qualidade-indicadores.test.ts lib/utils/qualidade.test.ts lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-defeitos.test.ts` em 15/15 testes. `npx tsc --noEmit`, `npm run lint`, `npm run build` e `git diff --check` passaram sem erros. A validação remota read-only do Supabase confirmou ausência dos objetos de lote e preservação da RPC operacional de Qualidade.
+
+- [x] **HU 54.6 — Como revisor, quero registrar revisão parcial mantendo reprovações na pendência, para refletir o trabalho real da bancada de Qualidade.**
+  **Prioridade:** P0
+  **Risco:** Alto
+
+  Regras:
+  - permitir que o revisor registre qualquer parcial da pendência disponível, sem exigir que aprovadas + reprovadas fechem a pendência total
+  - bloquear somente revisão vazia ou revisão maior que a pendência disponível
+  - quando uma revisão tiver aprovadas e reprovadas, somente as aprovadas reduzem a pendência operacional da etapa `Qualidade`
+  - reprovadas permanecem na fila de revisão até retornarem corrigidas e serem aprovadas em nova revisão
+  - preservar `qualidade_registros.quantidade_revisada = quantidade_aprovada + quantidade_reprovada` para histórico e indicadores
+  - preservar exigência de defeito catalogado quando `quantidade_reprovada > 0`
+  - ajustar admin e scanner para a mesma semântica
+  - atualizar a RPC operacional no Supabase remoto via Management API
+
+  **Evidência esperada:** uma pendência de `914` aceita revisão parcial `40` aprovadas e `10` reprovadas; a fila passa a `874`, não `864`; testes focados, `npx tsc --noEmit`, `npm run lint`, `npm run build` e validação remota passam.
+
+  **Evidência:** `docs/PRD.md` passou a explicitar revisão parcial e a regra `pendencia_qualidade = quantidade_recebida_da_finalizacao - quantidade_aprovada_acumulada`. Criadas as funções puras `validarRevisaoParcialQualidade()` e `calcularResultadoRevisaoParcialQualidade()` em `lib/utils/qualidade-operacional.ts`, com teste cobrindo `914 -> 40 aprovadas + 10 reprovadas -> 874 pendentes`. `PainelQualidadeSupervisor` e `ConfirmacaoQualidade` passaram a aceitar parciais e bloquear apenas revisão vazia ou maior que a pendência. Criada e aplicada remotamente `scripts/sprint54_revisao_parcial_qualidade.sql`, alterando a RPC operacional para consumir pendência apenas por `p_quantidade_aprovada` e corrigindo o trigger `validar_insert_qualidade_saldo_fisico_op()` que ainda referenciava `qualidade_lote_id`. Validação remota rollback confirmou `quantidade_aprovada=40`, `quantidade_reprovada=10`, `quantidade_revisada=50`, `consumiu_apenas_aprovadas=true` e `saldo_descontou_apenas_aprovadas=true`; validação read-only confirmou `funcao_referencia_qualidade_lote_id=false`, `rpc_consumo_apenas_aprovadas=true` e `rpc_bloqueia_revisao_maior_que_pendencia=true`. Validação local: testes focados passaram 17/17; `npx tsc --noEmit`, `npm run lint` e `npm run build` passaram sem erros.
+
+- [x] **HU 54.7 — Como produto, quero remover os últimos textos visuais de `lote` nas superfícies de Qualidade, para que a homologação leia apenas pendência/revisão operacional.**
+  **Prioridade:** P1
+  **Risco:** Baixo
+
+  Regras:
+  - ajustar textos ativos da aba `Qualidade`, da dashboard e de mensagens visuais relacionadas à revisão operacional
+  - substituir `lote/lotes` por pendência, revisão ou quantidade quando a tela estiver falando do fluxo atual de Qualidade
+  - preservar ocorrências históricas em documentação de sprints antigas, scripts legados e tipos/utilitários genéricos que não aparecem como contrato visual de Qualidade
+  - não alterar schema, RPC, regra de negócio ou consumo de pendência nesta HU
+
+  **Evidência esperada:** busca direcionada em `app`, `components` e `lib` não encontra `lote/lotes` em textos ativos da Qualidade; ocorrências remanescentes são genéricas ou históricas; `npx tsc --noEmit` passa sem erros.
+
+  **Evidência:** `docs/PRD.md` passou a declarar que superfícies ativas de Qualidade devem usar `pendência`, `revisão` e `peças`, mantendo `lote` apenas em histórico ou nomes técnicos não expostos como contrato visual. Foram removidos textos visuais de lote em `ApontamentosTabs`, nas páginas `/admin/apontamentos`, em `DashboardQualidadeTab`, em `dashboard-tabs` e na mensagem de saldo físico que orientava ajuste de lote. Busca direcionada por frases antigas (`Fila de lotes`, `Fila contínua de lotes`, `reprovação vinculada a lote`, `Ajuste o lote`, `lotes de revisão contínua`) não retornou ocorrências em `app`, `components` e `lib`. A busca ampla por `lote/lotes` ficou restrita a tipos/funções genéricas de fluxo/capacidade, RPC produtiva em lote e mensagem genérica do Kanban operacional fora da aba Qualidade. Validações: `node --test --experimental-strip-types lib/utils/saldo-fisico-op.test.ts`, `node --test --experimental-strip-types lib/utils/dashboard-tabs.test.ts`, `npx tsc --noEmit`, `npm run lint` e `git diff --check` passaram sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
@@ -5512,6 +5631,7 @@ Sprint 49 ──► Sprint 50
 Sprint 50 ──► Sprint 51
 Sprint 51 ──► Sprint 52
 Sprint 52 ──► Sprint 53
+Sprint 53 ──► Sprint 54
 ```
 
 Sprints 3 e 4 puderam ser desenvolvidas em paralelo após Sprint 2.

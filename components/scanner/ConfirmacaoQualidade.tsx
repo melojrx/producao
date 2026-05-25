@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { RegistroQualidadeDefeitoInput, ResultadoScannerAction } from '@/hooks'
 import type { QualidadeDefeitoCatalogoItem } from '@/lib/queries/qualidade'
+import { validarRevisaoParcialQualidade } from '@/lib/utils/qualidade-operacional'
 import {
   calcularSaldoFisicoRestanteOperacao,
   validarConsumoSaldoFisicoOperacao,
@@ -169,8 +170,14 @@ export function ConfirmacaoQualidade({
   }
 
   async function handleRegistrar() {
-    if (quantidadeRevisada <= 0) {
-      onErro('Informe ao menos uma peça aprovada ou reprovada.')
+    const validacaoParcial = validarRevisaoParcialQualidade({
+      quantidadePendente: saldoDisponivel,
+      quantidadeAprovada: aprovadas,
+      quantidadeReprovada: reprovadas,
+    })
+
+    if (validacaoParcial.erro) {
+      onErro(validacaoParcial.erro)
       return
     }
 

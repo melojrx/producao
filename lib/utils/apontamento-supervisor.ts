@@ -1,8 +1,10 @@
 import type {
+  SetorModoApontamento,
   TurnoSetorDemandaStatusV2,
   TurnoSetorOperacaoStatusV2,
   TurnoSetorOpStatusV2,
 } from '@/types'
+import { setorUsaRevisaoQualidade } from './qualidade.ts'
 
 function normalizarNumeroPositivo(valor?: number | null): number {
   return Number.isFinite(valor) && Number(valor) > 0 ? Number(valor) : 0
@@ -35,6 +37,11 @@ export interface SupervisorAcionamentoContexto {
   status: TurnoSetorDemandaStatusV2 | TurnoSetorOperacaoStatusV2 | TurnoSetorOpStatusV2
   quantidadeDisponivelApontamento?: number | null
   saldoManualPermitido?: number | null
+}
+
+export interface SupervisorSecaoOperacaoTurnoContexto extends SupervisorAcionamentoContexto {
+  setorNome: string
+  modoApontamento?: SetorModoApontamento | null
 }
 
 export interface ValidacaoLancamentoSupervisorResultado {
@@ -129,6 +136,22 @@ export function supervisorPodeAcionarContexto(
   }
 
   return true
+}
+
+export function secaoPodeAparecerNoApontamentoOperacaoTurno(
+  secao: SupervisorSecaoOperacaoTurnoContexto
+): boolean {
+  if (!supervisorPodeAcionarContexto(secao)) {
+    return false
+  }
+
+  return !setorUsaRevisaoQualidade(secao.setorNome, secao.modoApontamento ?? null)
+}
+
+export function filtrarSecoesAcionaveisOperacaoTurno<
+  TSecao extends SupervisorSecaoOperacaoTurnoContexto,
+>(secoes: readonly TSecao[]): TSecao[] {
+  return secoes.filter(secaoPodeAparecerNoApontamentoOperacaoTurno)
 }
 
 export function supervisorDependeDeExcecaoManual(

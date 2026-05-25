@@ -8,9 +8,9 @@ test('retorna zeros quando nao ha registros', () => {
     detalhes: [],
   })
 
-  assert.equal(indicadores.lotesPendentes, 0)
-  assert.equal(indicadores.pecasPendentes, 0)
-  assert.equal(indicadores.lotesRevisados, 0)
+  assert.equal(indicadores.pendenciasRevisao, 0)
+  assert.equal(indicadores.pecasPendentesRevisao, 0)
+  assert.equal(indicadores.revisoesRealizadas, 0)
   assert.equal(indicadores.quantidadeAprovadaTotal, 0)
   assert.equal(indicadores.quantidadeReprovadaTotal, 0)
   assert.equal(indicadores.taxaAprovacao, null)
@@ -49,7 +49,7 @@ test('calcula aprovacao retrabalho e rankings de defeitos e operadores', () => {
     ],
   })
 
-  assert.equal(indicadores.lotesRevisados, 1)
+  assert.equal(indicadores.revisoesRealizadas, 1)
   assert.equal(indicadores.quantidadeAprovadaTotal, 95)
   assert.equal(indicadores.quantidadeReprovadaTotal, 5)
   assert.equal(indicadores.quantidadeRetrabalhoTotal, 5)

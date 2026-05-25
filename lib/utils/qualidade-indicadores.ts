@@ -112,9 +112,9 @@ export function calcularIndicadoresQualidadeTurno(
       numeroOp: registro.numeroOp,
       produtoReferencia: registro.produtoReferencia,
       produtoNome: registro.produtoNome,
-      lotesPendentes: 0,
-      pecasPendentes: 0,
-      lotesRevisados: 0,
+      pendenciasRevisao: 0,
+      pecasPendentesRevisao: 0,
+      revisoesRealizadas: 0,
       quantidadeAprovada: 0,
       quantidadeReprovada: 0,
       quantidadeRevisada: 0,
@@ -126,7 +126,7 @@ export function calcularIndicadoresQualidadeTurno(
     opAtual.quantidadeReprovada += registro.quantidadeReprovada
     opAtual.quantidadeRevisada += registro.quantidadeRevisada
     opAtual.totalDefeitos += totalDefeitosRegistro
-    opAtual.lotesRevisados += 1
+    opAtual.revisoesRealizadas += 1
 
     ops.set(registro.turnoOpId, opAtual)
 
@@ -161,9 +161,9 @@ export function calcularIndicadoresQualidadeTurno(
     .sort((opA, opB) => opA.numeroOp.localeCompare(opB.numeroOp, 'pt-BR', { numeric: true }))
 
   return {
-    lotesPendentes: 0,
-    pecasPendentes: 0,
-    lotesRevisados: input.registros.length,
+    pendenciasRevisao: 0,
+    pecasPendentesRevisao: 0,
+    revisoesRealizadas: input.registros.length,
     quantidadeAprovadaTotal,
     quantidadeReprovadaTotal,
     quantidadeRetrabalhoTotal: quantidadeReprovadaTotal,
@@ -171,7 +171,7 @@ export function calcularIndicadoresQualidadeTurno(
     totalDefeitos,
     taxaAprovacao: calcularPercentual(quantidadeAprovadaTotal, quantidadeRevisadaTotal),
     taxaReprovacao: calcularPercentual(quantidadeReprovadaTotal, quantidadeRevisadaTotal),
-    lotesPendentesLista: [],
+    pendenciasRevisaoLista: [],
     ops: opsOrdenadas,
     rankingDefeitos: percentualDefeitosBase.sort((defeitoA, defeitoB) => {
       if (defeitoA.quantidadeDefeitos !== defeitoB.quantidadeDefeitos) {

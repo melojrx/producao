@@ -17,10 +17,62 @@ export interface QualidadeOperacionalFilaItem {
   operacoesOrigem: TurnoSetorOperacaoApontamentoV2[]
 }
 
+export interface RevisaoParcialQualidadeInput {
+  quantidadePendente: number
+  quantidadeAprovada: number
+  quantidadeReprovada: number
+}
+
+export interface RevisaoParcialQualidadeResultado {
+  quantidadeRevisada: number
+  quantidadeConsumidaPendencia: number
+  quantidadePendenteAposRevisao: number
+}
+
 interface MontarFilaQualidadeOperacionalInput {
   ops: TurnoOpV2[]
   demandasSetor: TurnoSetorDemandaV2[]
   operacoesTurno: TurnoSetorOperacaoApontamentoV2[]
+}
+
+function normalizarInteiroNaoNegativo(valor: number): number {
+  if (!Number.isFinite(valor) || valor <= 0) {
+    return 0
+  }
+
+  return Math.floor(valor)
+}
+
+export function calcularResultadoRevisaoParcialQualidade(
+  input: RevisaoParcialQualidadeInput
+): RevisaoParcialQualidadeResultado {
+  const quantidadePendente = normalizarInteiroNaoNegativo(input.quantidadePendente)
+  const quantidadeAprovada = normalizarInteiroNaoNegativo(input.quantidadeAprovada)
+  const quantidadeReprovada = normalizarInteiroNaoNegativo(input.quantidadeReprovada)
+  const quantidadeRevisada = quantidadeAprovada + quantidadeReprovada
+
+  return {
+    quantidadeRevisada,
+    quantidadeConsumidaPendencia: quantidadeAprovada,
+    quantidadePendenteAposRevisao: Math.max(quantidadePendente - quantidadeAprovada, 0),
+  }
+}
+
+export function validarRevisaoParcialQualidade(
+  input: RevisaoParcialQualidadeInput
+): { erro?: string } {
+  const quantidadePendente = normalizarInteiroNaoNegativo(input.quantidadePendente)
+  const { quantidadeRevisada } = calcularResultadoRevisaoParcialQualidade(input)
+
+  if (quantidadeRevisada <= 0) {
+    return { erro: 'Informe ao menos uma peça aprovada ou reprovada.' }
+  }
+
+  if (quantidadeRevisada > quantidadePendente) {
+    return { erro: 'A quantidade revisada não pode ultrapassar a pendência disponível.' }
+  }
+
+  return {}
 }
 
 function calcularDisponivelRevisao(

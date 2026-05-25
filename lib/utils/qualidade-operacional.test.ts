@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { montarFilaQualidadeOperacional } from './qualidade-operacional.ts'
+import {
+  calcularResultadoRevisaoParcialQualidade,
+  montarFilaQualidadeOperacional,
+  validarRevisaoParcialQualidade,
+} from './qualidade-operacional.ts'
 import type {
   TurnoOpV2,
   TurnoSetorDemandaV2,
@@ -104,4 +108,48 @@ test('monta fila operacional de Qualidade a partir da etapa Qualidade do turno',
   assert.equal(fila[0]?.operacaoQualidade.operacaoDescricao, 'Revisar qualidade')
   assert.equal(fila[0]?.operacoesOrigem.length, 1)
   assert.equal(fila[0]?.operacoesOrigem[0]?.operacaoDescricao, 'Finalizar peca')
+})
+
+test('permite revisao parcial e consome pendencia somente pelas aprovadas', () => {
+  assert.deepEqual(
+    validarRevisaoParcialQualidade({
+      quantidadePendente: 914,
+      quantidadeAprovada: 40,
+      quantidadeReprovada: 10,
+    }),
+    {}
+  )
+
+  assert.deepEqual(
+    calcularResultadoRevisaoParcialQualidade({
+      quantidadePendente: 914,
+      quantidadeAprovada: 40,
+      quantidadeReprovada: 10,
+    }),
+    {
+      quantidadeRevisada: 50,
+      quantidadeConsumidaPendencia: 40,
+      quantidadePendenteAposRevisao: 874,
+    }
+  )
+})
+
+test('bloqueia revisao vazia ou maior que a pendencia disponivel', () => {
+  assert.equal(
+    validarRevisaoParcialQualidade({
+      quantidadePendente: 914,
+      quantidadeAprovada: 0,
+      quantidadeReprovada: 0,
+    }).erro,
+    'Informe ao menos uma peça aprovada ou reprovada.'
+  )
+
+  assert.equal(
+    validarRevisaoParcialQualidade({
+      quantidadePendente: 914,
+      quantidadeAprovada: 914,
+      quantidadeReprovada: 1,
+    }).erro,
+    'A quantidade revisada não pode ultrapassar a pendência disponível.'
+  )
 })

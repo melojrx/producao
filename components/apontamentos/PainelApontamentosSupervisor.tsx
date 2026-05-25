@@ -17,6 +17,7 @@ import {
   type RegistrarApontamentosSupervisorActionState,
 } from '@/lib/actions/producao'
 import {
+  filtrarSecoesAcionaveisOperacaoTurno,
   normalizarQuantidadeSupervisorInput,
   resolverQuantidadeSupervisorAoAlterarOperacao,
   supervisorDependeDeExcecaoManual,
@@ -124,10 +125,6 @@ function statusPermiteApontamento(
 
 function saldoManualSecao(secao: Pick<SecaoComContexto, 'saldoManualPermitido'>): number {
   return Math.max(secao.saldoManualPermitido, 0)
-}
-
-function secaoEstaAcionavel(secao: SecaoComContexto): boolean {
-  return statusPermiteApontamento(secao.status)
 }
 
 function operacaoEstaAcionavel(operacao: TurnoSetorOperacaoApontamentoV2): boolean {
@@ -282,7 +279,7 @@ export function PainelApontamentosSupervisor({
   const [filtroProduto, setFiltroProduto] = useState('')
   const secoes = useMemo(() => montarSecoesComContexto(planejamento), [planejamento])
   const secoesAcionaveis = useMemo(
-    () => secoes.filter((secao) => secaoEstaAcionavel(secao)),
+    () => filtrarSecoesAcionaveisOperacaoTurno(secoes),
     [secoes]
   )
   const opcoesOp = useMemo(
@@ -726,7 +723,7 @@ export function PainelApontamentosSupervisor({
         saldoManualPermitido: saldoManualSecaoSelecionada,
       })
     : false
-  const quantidadeLoteAtual = lancamentos.reduce((soma, lancamento) => {
+  const quantidadeLancamentosAtual = lancamentos.reduce((soma, lancamento) => {
     const quantidade = Number.parseInt(lancamento.quantidade, 10)
     return Number.isInteger(quantidade) && quantidade > 0 ? soma + quantidade : soma
   }, 0)
@@ -735,7 +732,7 @@ export function PainelApontamentosSupervisor({
         quantidadePlanoDoDia: secaoSelecionada.quantidadePlanoDoDia,
         quantidadeConcluida: secaoSelecionada.quantidadeConcluida,
         quantidadeDisponivelApontamento: saldoSecaoSelecionada,
-        quantidadeSelecionada: quantidadeLoteAtual,
+        quantidadeSelecionada: quantidadeLancamentosAtual,
       })
     : null
 

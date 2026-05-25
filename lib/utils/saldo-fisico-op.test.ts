@@ -29,7 +29,7 @@ test('recusa consumo acima do saldo fisico restante da operacao na OP', () => {
       permitido: false,
       saldoFisicoRestante: 345,
       mensagem:
-        'A OP 13089 possui apenas 345 peça(s) com saldo físico nesta operação. Ajuste o lote ou selecione outra OP.',
+        'A OP 13089 possui apenas 345 peça(s) com saldo físico nesta operação. Ajuste a quantidade ou selecione outra OP.',
     }
   )
 })

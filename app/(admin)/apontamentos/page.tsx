@@ -119,7 +119,7 @@ export default async function AdminApontamentosPage(props: {
                 <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
                 <p className="mt-2 max-w-2xl text-sm text-slate-600">
                   O painel de qualidade fica disponível quando existe um turno aberto com fila de
-                  lotes de revisão contínua.
+                  pendências de revisão operacional.
                 </p>
               </section>
             </section>

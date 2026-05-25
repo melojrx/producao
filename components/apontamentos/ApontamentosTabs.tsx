@@ -48,7 +48,7 @@ export function ApontamentosTabs({
     {
       id: 'qualidade_turno',
       titulo: 'Qualidade',
-      descricao: 'Fila contínua de lotes, aprovadas, reprovadas e defeitos catalogados.',
+      descricao: 'Pendências de revisão, aprovadas, reprovadas e defeitos catalogados.',
       icone: ClipboardCheck,
     },
   ]

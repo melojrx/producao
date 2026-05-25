@@ -47,8 +47,8 @@ export function DashboardQualidadeTab({
           Sem indicadores de qualidade
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          A aba passa a exibir fila de lotes, revisões, reprovações e defeitos assim que houver
-          dados de qualidade no turno selecionado.
+          A aba passa a exibir pendências de revisão, reprovações e defeitos assim que houver
+          dados da etapa Qualidade no turno selecionado.
         </p>
       </section>
     )
@@ -64,7 +64,7 @@ export function DashboardQualidadeTab({
               Qualidade contínua
             </div>
             <h2 className="mt-3 text-lg font-semibold text-slate-900">
-              Indicadores de revisão por lote
+              Indicadores da etapa Qualidade
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Peças reprovadas e ocorrências de defeito ficam separadas da leitura produtiva do
@@ -134,21 +134,21 @@ export function DashboardQualidadeTab({
               Fila pendente
             </p>
             <p className="mt-2 text-3xl font-semibold text-amber-900">
-              {indicadoresQualidade.lotesPendentes}
+              {indicadoresQualidade.pendenciasRevisao}
             </p>
             <p className="mt-1 text-xs font-medium text-amber-800">
-              {indicadoresQualidade.pecasPendentes} peça(s) aguardando
+              {indicadoresQualidade.pecasPendentesRevisao} peça(s) aguardando
             </p>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Lotes revisados
+              Revisões realizadas
             </p>
             <p className="mt-2 text-3xl font-semibold text-slate-900">
-              {indicadoresQualidade.lotesRevisados}
+              {indicadoresQualidade.revisoesRealizadas}
             </p>
-            <p className="mt-1 text-xs font-medium text-slate-500">Histórico vinculado a lotes</p>
+            <p className="mt-1 text-xs font-medium text-slate-500">Histórico operacional</p>
           </div>
 
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
@@ -200,31 +200,31 @@ export function DashboardQualidadeTab({
 
         <div className="mt-5 grid gap-4 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-semibold text-slate-900">Fila por lote</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Pendências de revisão</h3>
             <div className="mt-3 space-y-2">
-              {indicadoresQualidade.lotesPendentesLista.slice(0, 5).map((lote) => (
-                <article key={lote.id} className="rounded-xl border border-slate-200 bg-white p-3">
+              {indicadoresQualidade.pendenciasRevisaoLista.slice(0, 5).map((pendencia) => (
+                <article key={pendencia.id} className="rounded-xl border border-slate-200 bg-white p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{lote.numeroOp}</p>
+                      <p className="text-sm font-semibold text-slate-900">{pendencia.numeroOp}</p>
                       <p className="text-xs text-slate-600">
-                        {lote.produtoReferencia} · {lote.produtoNome}
+                        {pendencia.produtoReferencia} · {pendencia.produtoNome}
                       </p>
                     </div>
                     <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
-                      {lote.quantidadeLote}
+                      {pendencia.quantidadePendente}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    {formatarHorario(lote.criadoEm)}
-                    {lote.operadorNome ? ` · ${lote.operadorNome}` : ''}
+                    {formatarHorario(pendencia.criadoEm)}
+                    {pendencia.operadorNome ? ` · ${pendencia.operadorNome}` : ''}
                   </p>
                 </article>
               ))}
 
-              {indicadoresQualidade.lotesPendentesLista.length === 0 ? (
+              {indicadoresQualidade.pendenciasRevisaoLista.length === 0 ? (
                 <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  Nenhum lote aguardando revisão.
+                  Nenhuma pendência aguardando revisão.
                 </p>
               ) : null}
             </div>
@@ -285,7 +285,7 @@ export function DashboardQualidadeTab({
 
               {indicadoresQualidade.rankingOperadores.length === 0 ? (
                 <p className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-                  Nenhum operador com reprovação vinculada a lote.
+                  Nenhum operador com reprovação vinculada à revisão.
                 </p>
               ) : null}
             </div>
@@ -343,7 +343,9 @@ export function DashboardQualidadeTab({
                     <p className="font-semibold text-slate-900">{op.numeroOp}</p>
                     <p className="text-xs text-slate-500">{op.produtoReferencia}</p>
                   </div>
-                  <div className="bg-white px-3 py-2 text-slate-700">{op.pecasPendentes}</div>
+                  <div className="bg-white px-3 py-2 text-slate-700">
+                    {op.pecasPendentesRevisao}
+                  </div>
                   <div className="bg-white px-3 py-2 text-slate-700">
                     {op.quantidadeRevisada}
                   </div>

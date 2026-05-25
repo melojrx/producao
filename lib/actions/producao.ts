@@ -175,7 +175,7 @@ export async function registrarProducao(
     p_operador_id: input.operadorId,
     p_turno_setor_op_id: input.turnoSetorOpId,
     p_quantidade: input.quantidade,
-    p_maquina_id: input.maquinaId ?? null,
+    p_maquina_id: input.maquinaId ?? undefined,
   })
 
   if (error) {
@@ -245,10 +245,10 @@ export async function registrarProducaoOperacao(
     p_operador_id: input.operadorId,
     p_turno_setor_operacao_id: input.turnoSetorOperacaoId,
     p_quantidade: input.quantidade,
-    p_usuario_sistema_id: usuarioSistemaId ?? null,
+    p_usuario_sistema_id: usuarioSistemaId ?? undefined,
     p_origem_apontamento: input.origemApontamento ?? 'operador_qr',
-    p_maquina_id: input.maquinaId ?? null,
-    p_observacao: input.observacao ?? null,
+    p_maquina_id: input.maquinaId ?? undefined,
+    p_observacao: input.observacao ?? undefined,
   })
 
   if (error) {

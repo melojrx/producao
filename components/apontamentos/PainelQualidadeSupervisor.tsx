@@ -4,7 +4,10 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Minus, Plus, ShieldAlert } from 'lucide-react'
 import { registrarRevisaoQualidade } from '@/lib/actions/qualidade'
-import { montarFilaQualidadeOperacional } from '@/lib/utils/qualidade-operacional'
+import {
+  montarFilaQualidadeOperacional,
+  validarRevisaoParcialQualidade,
+} from '@/lib/utils/qualidade-operacional'
 import type {
   PlanejamentoTurnoDashboardV2,
   TurnoSetorOperacaoApontamentoV2,
@@ -21,7 +24,7 @@ interface PainelQualidadeSupervisorProps {
   revisorNome: string | null
 }
 
-interface QualidadeFilaRevisaoItem {
+interface QualidadePendenciaRevisaoItem {
   id: string
   turnoId: string
   turnoOpId: string
@@ -32,11 +35,11 @@ interface QualidadeFilaRevisaoItem {
   operacaoCodigoOrigem: string
   operacaoDescricaoOrigem: string
   setorNomeOrigem: string
-  quantidadeLote: number
+  quantidadePendente: number
   criadoEm: string
 }
 
-interface DefeitoLoteDraft {
+interface DefeitoRevisaoDraft {
   id: string
   turnoSetorOperacaoIdOrigem: string
   qualidadeDefeitoId: string
@@ -105,8 +108,8 @@ export function PainelQualidadeSupervisor({
   const [quantidadeReprovada, setQuantidadeReprovada] = useState('0')
   const [erro, setErro] = useState<string | null>(null)
   const [mensagem, setMensagem] = useState<string | null>(null)
-  const [loteSelecionadoId, setLoteSelecionadoId] = useState('')
-  const [defeitosLote, setDefeitosLote] = useState<DefeitoLoteDraft[]>([])
+  const [pendenciaSelecionadaId, setPendenciaSelecionadaId] = useState('')
+  const [defeitosRevisao, setDefeitosRevisao] = useState<DefeitoRevisaoDraft[]>([])
 
   const itensQualidadeOperacional = useMemo(
     () =>
@@ -117,7 +120,7 @@ export function PainelQualidadeSupervisor({
       }),
     [operacoesTurno, planejamento.demandasSetor, planejamento.ops]
   )
-  const itensRevisao = useMemo<QualidadeFilaRevisaoItem[]>(
+  const itensRevisao = useMemo<QualidadePendenciaRevisaoItem[]>(
     () =>
       itensQualidadeOperacional.map((item) => ({
         id: `operacional:${item.operacaoQualidade.id}`,
@@ -130,7 +133,7 @@ export function PainelQualidadeSupervisor({
         operacaoCodigoOrigem: item.operacaoQualidade.operacaoCodigo,
         operacaoDescricaoOrigem: item.operacaoQualidade.operacaoDescricao,
         setorNomeOrigem: item.demandaQualidade.setorNome,
-        quantidadeLote: item.quantidadeDisponivelRevisao,
+        quantidadePendente: item.quantidadeDisponivelRevisao,
         criadoEm:
           item.operacaoQualidade.iniciadoEm ??
           item.demandaQualidade.iniciadoEm ??
@@ -138,26 +141,28 @@ export function PainelQualidadeSupervisor({
       })),
     [itensQualidadeOperacional, planejamento.turno.iniciadoEm]
   )
-  const loteSelecionado =
-    itensRevisao.find((lote) => lote.id === loteSelecionadoId) ?? itensRevisao[0] ?? null
-  const itemOperacionalSelecionado = loteSelecionado
+  const pendenciaSelecionada =
+    itensRevisao.find((pendencia) => pendencia.id === pendenciaSelecionadaId) ??
+    itensRevisao[0] ??
+    null
+  const itemOperacionalSelecionado = pendenciaSelecionada
     ? itensQualidadeOperacional.find(
-        (item) => `operacional:${item.operacaoQualidade.id}` === loteSelecionado.id
+        (item) => `operacional:${item.operacaoQualidade.id}` === pendenciaSelecionada.id
       ) ?? null
     : null
-  const operacoesOrigemLote = useMemo(
+  const operacoesOrigemRevisao = useMemo(
     () =>
       itemOperacionalSelecionado
         ? itemOperacionalSelecionado.operacoesOrigem
-        : loteSelecionado
+        : pendenciaSelecionada
         ? operacoesTurno
             .filter(
               (operacao) =>
-                operacao.turnoOpId === loteSelecionado.turnoOpId
+                operacao.turnoOpId === pendenciaSelecionada.turnoOpId
             )
             .sort((operacaoA, operacaoB) => operacaoA.sequencia - operacaoB.sequencia)
         : [],
-    [itemOperacionalSelecionado, loteSelecionado, operacoesTurno]
+    [itemOperacionalSelecionado, pendenciaSelecionada, operacoesTurno]
   )
 
   const quantidadeRevisada = quantidadeNumero(quantidadeAprovada) + quantidadeNumero(quantidadeReprovada)
@@ -167,13 +172,15 @@ export function PainelQualidadeSupervisor({
     setQuantidadeReprovada('0')
   }
 
-  function adicionarDefeitoLote() {
-    setDefeitosLote((estadoAtual) => [
+  function adicionarDefeitoRevisao() {
+    setDefeitosRevisao((estadoAtual) => [
       ...estadoAtual,
       {
         id: criarIdLocal(),
         turnoSetorOperacaoIdOrigem:
-          loteSelecionado?.turnoSetorOperacaoIdOrigem ?? operacoesOrigemLote[0]?.id ?? '',
+          pendenciaSelecionada?.turnoSetorOperacaoIdOrigem ??
+          operacoesOrigemRevisao[0]?.id ??
+          '',
         qualidadeDefeitoId: defeitosCatalogo[0]?.id ?? '',
         quantidadeDefeito: '1',
         observacao: '',
@@ -181,17 +188,17 @@ export function PainelQualidadeSupervisor({
     ])
   }
 
-  function removerDefeitoLote(id: string) {
-    setDefeitosLote((estadoAtual) => estadoAtual.filter((defeito) => defeito.id !== id))
+  function removerDefeitoRevisao(id: string) {
+    setDefeitosRevisao((estadoAtual) => estadoAtual.filter((defeito) => defeito.id !== id))
   }
 
-  function atualizarDefeitoLote(id: string, atualizacao: Partial<DefeitoLoteDraft>) {
-    setDefeitosLote((estadoAtual) =>
+  function atualizarDefeitoRevisao(id: string, atualizacao: Partial<DefeitoRevisaoDraft>) {
+    setDefeitosRevisao((estadoAtual) =>
       estadoAtual.map((defeito) => (defeito.id === id ? { ...defeito, ...atualizacao } : defeito))
     )
   }
 
-  function validarFormularioLote(): {
+  function validarFormularioRevisao(): {
     defeitosNormalizados: Array<{
       turnoSetorOperacaoIdOrigem: string
       qualidadeDefeitoId: string
@@ -199,27 +206,33 @@ export function PainelQualidadeSupervisor({
       observacao?: string
     }>
   } | null {
-    if (!loteSelecionado) {
-      setErro('Selecione um lote de qualidade pendente antes de registrar.')
+    if (!pendenciaSelecionada) {
+      setErro('Selecione uma pendência da etapa Qualidade antes de registrar.')
       return null
     }
 
-    if (quantidadeRevisada !== loteSelecionado.quantidadeLote) {
-      setErro('A soma de aprovadas e reprovadas precisa fechar exatamente a quantidade do lote.')
+    const validacaoParcial = validarRevisaoParcialQualidade({
+      quantidadePendente: pendenciaSelecionada.quantidadePendente,
+      quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
+      quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
+    })
+
+    if (validacaoParcial.erro) {
+      setErro(validacaoParcial.erro)
       return null
     }
 
-    if (quantidadeNumero(quantidadeReprovada) > 0 && defeitosLote.length === 0) {
+    if (quantidadeNumero(quantidadeReprovada) > 0 && defeitosRevisao.length === 0) {
       setErro('As peças reprovadas exigem ao menos um defeito do catálogo.')
       return null
     }
 
-    if (quantidadeNumero(quantidadeReprovada) === 0 && defeitosLote.length > 0) {
-      setErro('Não informe defeitos quando o lote não possuir peças reprovadas.')
+    if (quantidadeNumero(quantidadeReprovada) === 0 && defeitosRevisao.length > 0) {
+      setErro('Não informe defeitos quando a revisão não possuir peças reprovadas.')
       return null
     }
 
-    const operacoesOrigemValidas = new Set(operacoesOrigemLote.map((operacao) => operacao.id))
+    const operacoesOrigemValidas = new Set(operacoesOrigemRevisao.map((operacao) => operacao.id))
     const defeitoChaves = new Set<string>()
     const defeitosNormalizados: Array<{
       turnoSetorOperacaoIdOrigem: string
@@ -228,14 +241,14 @@ export function PainelQualidadeSupervisor({
       observacao?: string
     }> = []
 
-    for (const defeito of defeitosLote) {
+    for (const defeito of defeitosRevisao) {
       if (!defeito.turnoSetorOperacaoIdOrigem) {
         setErro('Cada defeito precisa informar a operação produtiva analisada.')
         return null
       }
 
       if (!operacoesOrigemValidas.has(defeito.turnoSetorOperacaoIdOrigem)) {
-        setErro('A operação do defeito precisa pertencer à OP do lote e ser produtiva.')
+        setErro('A operação do defeito precisa pertencer à OP em revisão e ser produtiva.')
         return null
       }
 
@@ -247,7 +260,7 @@ export function PainelQualidadeSupervisor({
       const chaveDefeito = `${defeito.turnoSetorOperacaoIdOrigem}:${defeito.qualidadeDefeitoId}`
 
       if (defeitoChaves.has(chaveDefeito)) {
-        setErro('Cada combinação de operação e tipo de defeito pode aparecer apenas uma vez por revisão de lote.')
+        setErro('Cada combinação de operação e tipo de defeito pode aparecer apenas uma vez por revisão.')
         return null
       }
 
@@ -270,10 +283,10 @@ export function PainelQualidadeSupervisor({
     return { defeitosNormalizados }
   }
 
-  function handleRegistrarLote() {
-    const formularioValido = validarFormularioLote()
+  function handleRegistrarRevisao() {
+    const formularioValido = validarFormularioRevisao()
 
-    if (!formularioValido || !loteSelecionado) {
+    if (!formularioValido || !pendenciaSelecionada) {
       return
     }
 
@@ -282,7 +295,7 @@ export function PainelQualidadeSupervisor({
 
     startTransition(async () => {
       const resultado = await registrarRevisaoQualidade({
-        turnoSetorOperacaoIdQualidade: loteSelecionado.turnoSetorOperacaoIdOrigem,
+        turnoSetorOperacaoIdQualidade: pendenciaSelecionada.turnoSetorOperacaoIdOrigem,
         quantidadeAprovada: quantidadeNumero(quantidadeAprovada),
         quantidadeReprovada: quantidadeNumero(quantidadeReprovada),
         origemLancamento: 'manual_qualidade',
@@ -290,14 +303,14 @@ export function PainelQualidadeSupervisor({
       })
 
       if (!resultado.sucesso) {
-        setErro(resultado.erro ?? 'Não foi possível registrar a revisão do lote de qualidade.')
+        setErro(resultado.erro ?? 'Não foi possível registrar a revisão da etapa Qualidade.')
         return
       }
 
       resetFormulario()
-      setDefeitosLote([])
+      setDefeitosRevisao([])
       setMensagem(
-        `Lote revisado: ${resultado.quantidadeAprovada ?? 0} aprovada(s) e ${resultado.quantidadeReprovada ?? 0} reprovada(s).`
+        `Revisão registrada: ${resultado.quantidadeAprovada ?? 0} aprovada(s) e ${resultado.quantidadeReprovada ?? 0} reprovada(s).`
       )
       router.refresh()
     })
@@ -321,7 +334,7 @@ export function PainelQualidadeSupervisor({
     )
   }
 
-  if (loteSelecionado) {
+  if (pendenciaSelecionada) {
     return (
       <section className="space-y-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -338,13 +351,18 @@ export function PainelQualidadeSupervisor({
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Lotes</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Pendências
+                </p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{itensRevisao.length}</p>
               </div>
               <div className="rounded-2xl bg-amber-50 px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Peças</p>
                 <p className="mt-1 text-2xl font-semibold text-amber-900">
-                  {itensRevisao.reduce((soma, lote) => soma + lote.quantidadeLote, 0)}
+                  {itensRevisao.reduce(
+                    (soma, pendencia) => soma + pendencia.quantidadePendente,
+                    0
+                  )}
                 </p>
               </div>
               <div className="rounded-2xl bg-blue-50 px-4 py-3">
@@ -357,17 +375,17 @@ export function PainelQualidadeSupervisor({
 
         <section className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
           <div className="space-y-3">
-            {itensRevisao.map((lote) => {
-              const ativo = lote.id === loteSelecionado.id
+            {itensRevisao.map((pendencia) => {
+              const ativo = pendencia.id === pendenciaSelecionada.id
 
               return (
                 <button
-                  key={lote.id}
+                  key={pendencia.id}
                   type="button"
                   onClick={() => {
-                    setLoteSelecionadoId(lote.id)
+                    setPendenciaSelecionadaId(pendencia.id)
                     resetFormulario()
-                    setDefeitosLote([])
+                    setDefeitosRevisao([])
                     setErro(null)
                     setMensagem(null)
                   }}
@@ -379,9 +397,9 @@ export function PainelQualidadeSupervisor({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{lote.numeroOp}</p>
+                      <p className="text-sm font-semibold text-slate-900">{pendencia.numeroOp}</p>
                       <p className="mt-1 text-xs text-slate-600">
-                        {lote.produtoReferencia} · {lote.produtoNome}
+                        {pendencia.produtoReferencia} · {pendencia.produtoNome}
                       </p>
                     </div>
                     <span
@@ -392,17 +410,21 @@ export function PainelQualidadeSupervisor({
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                     <div className="rounded-xl bg-white/70 px-3 py-2">
-                      <p className="text-xs text-slate-500">Lote</p>
-                      <p className="font-semibold text-slate-900">{lote.quantidadeLote}</p>
+                      <p className="text-xs text-slate-500">Peças</p>
+                      <p className="font-semibold text-slate-900">
+                        {pendencia.quantidadePendente}
+                      </p>
                     </div>
                     <div className="rounded-xl bg-white/70 px-3 py-2">
                       <p className="text-xs text-slate-500">Horário</p>
-                      <p className="font-semibold text-slate-900">{formatarHorario(lote.criadoEm)}</p>
+                      <p className="font-semibold text-slate-900">
+                        {formatarHorario(pendencia.criadoEm)}
+                      </p>
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-600">
-                  Etapa Qualidade · {lote.operacaoCodigoOrigem} ·{' '}
-                    {lote.operacaoDescricaoOrigem}
+                    Etapa Qualidade · {pendencia.operacaoCodigoOrigem} ·{' '}
+                    {pendencia.operacaoDescricaoOrigem}
                   </p>
                 </button>
               )
@@ -416,11 +438,11 @@ export function PainelQualidadeSupervisor({
                   Revisão da etapa Qualidade
                 </p>
                 <h3 className="mt-1 text-lg font-semibold text-slate-900">
-                  {loteSelecionado.numeroOp} · {loteSelecionado.operacaoCodigoOrigem}
+                  {pendenciaSelecionada.numeroOp} · {pendenciaSelecionada.operacaoCodigoOrigem}
                 </h3>
                 <p className="text-sm text-slate-600">
-                  {loteSelecionado.setorNomeOrigem} · criado às{' '}
-                  {formatarHorario(loteSelecionado.criadoEm)}
+                  {pendenciaSelecionada.setorNomeOrigem} · criado às{' '}
+                  {formatarHorario(pendenciaSelecionada.criadoEm)}
                 </p>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
@@ -428,18 +450,18 @@ export function PainelQualidadeSupervisor({
                   Disponível
                 </p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">
-                  {loteSelecionado.quantidadeLote}
+                  {pendenciaSelecionada.quantidadePendente}
                 </p>
               </div>
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <label htmlFor="qualidade-lote-aprovada" className="text-sm font-medium text-slate-700">
+                <label htmlFor="qualidade-revisao-aprovada" className="text-sm font-medium text-slate-700">
                   Aprovadas
                 </label>
                 <input
-                  id="qualidade-lote-aprovada"
+                  id="qualidade-revisao-aprovada"
                   type="number"
                   min={0}
                   step={1}
@@ -452,11 +474,11 @@ export function PainelQualidadeSupervisor({
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="qualidade-lote-reprovada" className="text-sm font-medium text-slate-700">
+                <label htmlFor="qualidade-revisao-reprovada" className="text-sm font-medium text-slate-700">
                   Reprovadas
                 </label>
                 <input
-                  id="qualidade-lote-reprovada"
+                  id="qualidade-revisao-reprovada"
                   type="number"
                   min={0}
                   step={1}
@@ -471,7 +493,7 @@ export function PainelQualidadeSupervisor({
 
             <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               Quantidade revisada agora: <strong>{quantidadeRevisada}</strong> de{' '}
-              <strong>{loteSelecionado.quantidadeLote}</strong>
+              <strong>{pendenciaSelecionada.quantidadePendente}</strong>
             </div>
 
             {quantidadeNumero(quantidadeReprovada) > 0 ? (
@@ -485,7 +507,7 @@ export function PainelQualidadeSupervisor({
                   </div>
                   <button
                     type="button"
-                    onClick={adicionarDefeitoLote}
+                    onClick={adicionarDefeitoRevisao}
                     disabled={defeitosCatalogo.length === 0}
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -494,19 +516,19 @@ export function PainelQualidadeSupervisor({
                   </button>
                 </div>
 
-                {defeitosLote.length === 0 ? (
+                {defeitosRevisao.length === 0 ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                     As peças reprovadas exigem ao menos um defeito do catálogo.
                   </div>
                 ) : null}
 
-                {defeitosLote.map((defeito, index) => (
+                {defeitosRevisao.map((defeito, index) => (
                   <div key={defeito.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-slate-900">Defeito {index + 1}</p>
                       <button
                         type="button"
-                        onClick={() => removerDefeitoLote(defeito.id)}
+                        onClick={() => removerDefeitoRevisao(defeito.id)}
                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-white hover:text-slate-700"
                       >
                         <Minus size={14} />
@@ -520,14 +542,14 @@ export function PainelQualidadeSupervisor({
                         <select
                           value={defeito.turnoSetorOperacaoIdOrigem}
                           onChange={(event) =>
-                            atualizarDefeitoLote(defeito.id, {
+                            atualizarDefeitoRevisao(defeito.id, {
                               turnoSetorOperacaoIdOrigem: event.target.value,
                             })
                           }
                           className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Selecione</option>
-                          {operacoesOrigemLote.map((operacao) => (
+                          {operacoesOrigemRevisao.map((operacao) => (
                             <option key={operacao.id} value={operacao.id}>
                               {operacao.operacaoCodigo} · {operacao.operacaoDescricao}
                             </option>
@@ -540,7 +562,7 @@ export function PainelQualidadeSupervisor({
                         <select
                           value={defeito.qualidadeDefeitoId}
                           onChange={(event) =>
-                            atualizarDefeitoLote(defeito.id, {
+                            atualizarDefeitoRevisao(defeito.id, {
                               qualidadeDefeitoId: event.target.value,
                             })
                           }
@@ -563,7 +585,7 @@ export function PainelQualidadeSupervisor({
                           step={1}
                           value={defeito.quantidadeDefeito}
                           onChange={(event) =>
-                            atualizarDefeitoLote(defeito.id, {
+                            atualizarDefeitoRevisao(defeito.id, {
                               quantidadeDefeito: normalizarQuantidadePositiva(event.target.value),
                             })
                           }
@@ -580,7 +602,7 @@ export function PainelQualidadeSupervisor({
                         type="text"
                         value={defeito.observacao}
                         onChange={(event) =>
-                          atualizarDefeitoLote(defeito.id, {
+                          atualizarDefeitoRevisao(defeito.id, {
                             observacao: event.target.value,
                           })
                         }
@@ -613,7 +635,7 @@ export function PainelQualidadeSupervisor({
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
-                onClick={handleRegistrarLote}
+                onClick={handleRegistrarRevisao}
                 disabled={pendente}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >

@@ -10,7 +10,6 @@ export type UsuarioSistemaPapel = 'admin' | 'supervisor'
 export type UsuarioSistemaStatus = 'ativo' | 'inativo' | 'pendente_ativacao'
 export type SetorModoApontamento = 'producao_padrao' | 'revisao_qualidade'
 export type OrigemLancamentoQualidade = 'scanner_qualidade' | 'manual_qualidade'
-export type QualidadeLoteStatus = 'pendente' | 'em_revisao' | 'revisado' | 'cancelado'
 export type QualidadeDefeitoClassificacao = 'maquina' | 'operador' | 'processo' | 'materia_prima'
 export type TurnoStatusV2 = 'aberto' | 'encerrado'
 export type OrigemPlanejamentoTurnoV2 = 'aberto' | 'ultimo_encerrado'
@@ -579,8 +578,6 @@ export type QualidadeRegistro = Tables<'qualidade_registros'>
 
 export type QualidadeDetalhe = Tables<'qualidade_detalhes'>
 
-export type QualidadeLote = Tables<'qualidade_lotes'>
-
 export type QualidadeDefeito = Tables<'qualidade_defeitos'>
 
 export type QualidadeTipoDefeitoListItem = Tables<'qualidade_defeitos'> & {
@@ -640,14 +637,14 @@ export interface QualidadeResumoTurnoV2 {
   opsComReprovacao: number
 }
 
-export interface QualidadeIndicadorLotePendenteV2 {
+export interface QualidadeIndicadorPendenciaRevisaoV2 {
   id: string
   turnoOpId: string
   numeroOp: string
   produtoReferencia: string
   produtoNome: string
-  quantidadeLote: number
-  status: Extract<QualidadeLoteStatus, 'pendente' | 'em_revisao'>
+  quantidadePendente: number
+  status: 'pendente' | 'em_revisao'
   criadoEm: string
   operadorNome: string | null
 }
@@ -657,9 +654,9 @@ export interface QualidadeIndicadorOpV2 {
   numeroOp: string
   produtoReferencia: string
   produtoNome: string
-  lotesPendentes: number
-  pecasPendentes: number
-  lotesRevisados: number
+  pendenciasRevisao: number
+  pecasPendentesRevisao: number
+  revisoesRealizadas: number
   quantidadeAprovada: number
   quantidadeReprovada: number
   quantidadeRevisada: number
@@ -682,9 +679,9 @@ export interface QualidadeRankingOperadorV2 {
 }
 
 export interface QualidadeIndicadoresTurnoV2 {
-  lotesPendentes: number
-  pecasPendentes: number
-  lotesRevisados: number
+  pendenciasRevisao: number
+  pecasPendentesRevisao: number
+  revisoesRealizadas: number
   quantidadeAprovadaTotal: number
   quantidadeReprovadaTotal: number
   quantidadeRetrabalhoTotal: number
@@ -692,7 +689,7 @@ export interface QualidadeIndicadoresTurnoV2 {
   totalDefeitos: number
   taxaAprovacao: number | null
   taxaReprovacao: number | null
-  lotesPendentesLista: QualidadeIndicadorLotePendenteV2[]
+  pendenciasRevisaoLista: QualidadeIndicadorPendenciaRevisaoV2[]
   ops: QualidadeIndicadorOpV2[]
   rankingDefeitos: QualidadeRankingDefeitoV2[]
   rankingOperadores: QualidadeRankingOperadorV2[]

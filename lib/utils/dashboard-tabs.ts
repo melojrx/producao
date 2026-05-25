@@ -21,7 +21,7 @@ export function obterDashboardTabs(): DashboardTabDefinition[] {
     {
       id: 'qualidade',
       titulo: 'Qualidade',
-      descricao: 'Fila de lotes, aprovação, reprovação, defeitos e rankings do turno.',
+      descricao: 'Pendências de revisão, aprovação, reprovação, defeitos e rankings do turno.',
     },
     {
       id: 'operadores',

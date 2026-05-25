@@ -53,7 +53,7 @@ export function validarConsumoSaldoFisicoOperacao(
     return {
       permitido: false,
       saldoFisicoRestante,
-      mensagem: `A OP ${input.numeroOp} possui apenas ${saldoFisicoRestante} peça(s) com saldo físico nesta operação. Ajuste o lote ou selecione outra OP.`,
+      mensagem: `A OP ${input.numeroOp} possui apenas ${saldoFisicoRestante} peça(s) com saldo físico nesta operação. Ajuste a quantidade ou selecione outra OP.`,
     }
   }
 

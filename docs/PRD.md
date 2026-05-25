@@ -161,44 +161,30 @@ Regras obrigatórias:
 - peças aprovadas na Qualidade são liberadas como produção final/expedição
 - peças reprovadas registram defeitos e retornam fisicamente para correção fora do sistema
 - após correção física, as peças retornam para a fila da Qualidade como nova revisão, sem duplicar produção física da OP
+- a revisão pode ser parcial: o revisor pode pegar qualquer quantidade disponível da pendência, sem obrigação de revisar toda a fila da OP de uma vez
+- somente peças aprovadas reduzem a pendência operacional da Qualidade; peças reprovadas permanecem pendentes até retornarem corrigidas e serem aprovadas em nova revisão
 - o código legado de Qualidade da Sprint 36 era conceitualmente correto como base do fluxo e deve ser restaurado/adaptado, não removido
 - as melhorias da Sprint 51 que devem permanecer são: CRUD de tipos de defeito, catálogo estruturado, múltiplos defeitos por revisão, input do revisor com `Operação`, `Tipo de defeito`, `Quantidade` e `Observação`, e indicadores de qualidade
 - revisar Qualidade não pode fabricar saldo físico inexistente nem ultrapassar a quantidade física da OP
 
-### 5.1.2 Fluxo contínuo de qualidade por lotes parciais
-
-A Qualidade acompanha a produção em tempo real por uma fila contínua de lotes de revisão recebidos da etapa final produtiva.
-Essa fila complementa o fluxo operacional baseado em setor `Qualidade`, permitindo que a revisão aconteça de forma contínua sem travar a fábrica.
+### 5.1.2 Fluxo contínuo de qualidade como etapa operacional
 
 Regra central:
 - a produção não precisa esperar a OP inteira terminar para iniciar a qualidade
-- quando a `Finalização` ou a última etapa produtiva equivalente conclui um lote parcial, o sistema deve disponibilizar esse lote na fila da Qualidade
-- o lote de qualidade representa peças físicas recebidas para revisão final, não uma nova produção física
-- a produção continua normalmente enquanto a Qualidade revisa os lotes recebidos
-- a fila de qualidade deve ser simples, rápida, mobile-first e sem workflow interno de retrabalho
-
-Cada lote de qualidade deve preservar:
-- OP
-- produto
-- turno
-- setor de origem
-- operação de origem
-- quantidade do lote
-- horário de criação
-- operadores envolvidos no apontamento produtivo de origem
-- status da revisão
-
-Estados mínimos do lote:
-- `pendente`: lote criado automaticamente e aguardando revisão
-- `em_revisao`: lote aberto por um revisor
-- `revisado`: lote finalizado com aprovadas/reprovadas e defeitos quando houver
-- `cancelado`: lote invalidado por ajuste administrativo excepcional, sem apagar o histórico produtivo
+- quando a `Finalização` ou a última etapa produtiva equivalente conclui peças, o setor `Qualidade` recebe saldo revisável dentro do mesmo fluxo operacional
+- o setor `Qualidade` representa peças físicas recebidas para revisão final, não uma nova produção física
+- a produção continua normalmente enquanto a Qualidade revisa as peças recebidas
+- a fila da Qualidade é a própria pendência operacional do setor `Qualidade`, derivada de `turno_setor_demandas`, `turno_setor_ops` e `turno_setor_operacoes`
+- `qualidade_registros` e `qualidade_detalhes` são as fontes de verdade para revisões e defeitos
+- `qualidade_lotes` não faz parte do contrato ativo do sistema
+- nas superfícies ativas de Qualidade, a linguagem visual deve usar `pendência`, `revisão` e `peças`; `lote` deve ficar restrito a histórico documental ou nomes técnicos legados que não apareçam como contrato da tela
 
 Regras de não regressão:
-- criar lote de qualidade não pode nascer de etapa produtiva intermediária que ainda não entregou peça pronta para revisão final
-- revisar lote de qualidade não pode duplicar produção física nem ultrapassar a quantidade física da OP
-- peças reprovadas retornam fisicamente ao operador fora do sistema; quando voltarem para nova revisão, entram como novo lote de qualidade
-- o retorno da peça corrigida deve ser tratado como novo lote de revisão, como se a peça nunca tivesse sido revisada antes, mas sem duplicar a produção física da OP
+- saldo de Qualidade não pode nascer de etapa produtiva intermediária que ainda não entregou peça pronta para revisão final
+- revisar Qualidade não pode duplicar produção física nem ultrapassar a quantidade física da OP
+- peças reprovadas retornam fisicamente ao operador fora do sistema; quando voltarem para nova revisão, entram novamente na pendência operacional do setor `Qualidade`
+- o retorno da peça corrigida deve ser tratado como nova revisão operacional, como se a peça nunca tivesse sido revisada antes, mas sem duplicar a produção física da OP
+- a fila da Qualidade deve considerar `pendente = recebidas_da_finalizacao - aprovadas_acumuladas`, não `recebidas - revisadas`
 - a Qualidade registra rastreabilidade e indicadores; ela não controla retrabalho operacional interno
 - bloqueios continuam restritos a dados estruturalmente inválidos, turno inexistente/fechado, usuário sem permissão, contexto cancelado ou ausência de saldo físico real quando aplicável
 
@@ -209,7 +195,7 @@ Defeitos devem usar catálogo estruturado:
 - o cadastro deve preservar histórico analítico; defeito usado em revisão não pode desaparecer dos relatórios por alteração posterior
 - os defeitos são atribuídos à operação produtiva analisada pelo revisor, nunca a uma operação de revisão de qualidade
 - uma mesma peça reprovada pode ter mais de um defeito operacional
-- uma mesma operação pode receber vários tipos de defeito no mesmo lote, por exemplo `ponto falho`, `borda larga`, `costura caindo` e `costura que não foi até o final`
+- uma mesma operação pode receber vários tipos de defeito na mesma revisão, por exemplo `ponto falho`, `borda larga`, `costura caindo` e `costura que não foi até o final`
 - a soma das ocorrências de defeito não precisa ser igual nem limitada à quantidade de peças reprovadas; defeitos são ocorrências operacionais, não rastreio unitário por peça
 - quando houver peças reprovadas, deve existir ao menos um defeito catalogado informado
 - o input do revisor deve registrar, para cada linha de defeito: operação produtiva, tipo de defeito, quantidade de ocorrências e observação opcional
@@ -473,15 +459,15 @@ Supervisor ou operador abre o scanner no celular
             - supervisor escolhe qual operação será apontada
             - sistema mostra realizado e saldo da operação
           → se o setor for `Qualidade`:
-            - o revisor trabalha a fila de peças recebidas da `Finalização`
+            - o revisor trabalha a pendência operacional de peças recebidas da `Finalização`
             - o sistema mostra quantidade recebida, revisada, aprovada, reprovada e saldo pendente de revisão
-          → lotes concluídos pela `Finalização` entram na fila da Qualidade
+          → peças concluídas pela `Finalização` entram na etapa Qualidade
 
 [Passo 4] Supervisor informa os dados do lançamento
           → no modo produtivo padrão:
             - quantidade concluída pelo operador naquela operação
             - lançamento sempre incremental, nunca total acumulado
-          → para revisão de qualidade, o revisor abre um lote recebido da Finalização e informa:
+          → para revisão de qualidade, o revisor abre a pendência da etapa Qualidade e informa:
             - quantidade_aprovada
             - quantidade_reprovada
             - linhas de defeito com operação, tipo de defeito, quantidade e observação opcional
@@ -495,8 +481,8 @@ Supervisor ou operador abre o scanner no celular
             - quantidade incremental
             - autoria do lançamento (`supervisor_manual` ou `operador_qr`)
           → no fluxo de qualidade, cada revisão identifica:
-            - lote de qualidade
-            - OP/produto do lote
+            - operação do setor Qualidade no turno
+            - OP/produto revisado
             - revisor responsável
             - quantidade_aprovada
             - quantidade_reprovada
@@ -508,10 +494,10 @@ Supervisor ou operador abre o scanner no celular
           → no modo produtivo padrão:
             - atualiza o realizado da operação dentro da seção
             - recalcula o realizado consolidado da seção
-          → no fluxo de qualidade por lote:
+          → no fluxo de qualidade:
             - considera `quantidade_revisada = quantidade_aprovada + quantidade_reprovada`
             - persiste os defeitos por operação produtiva e tipo de defeito
-            - não consome saldo de setor, não recalcula andamento produtivo e não fecha OP
+            - atualiza a operação, seção e OP da etapa `Qualidade` sem recalcular produção física anterior
           → no modo produtivo padrão:
             - recalcula o andamento da OP
             - recalcula o andamento do turno em tempo real
@@ -522,7 +508,7 @@ Regra operacional:
 - a quantidade registrada no scanner é atribuída ao `operador_id` do QR escaneado
 - se o scanner estiver em sessão autenticada de supervisor, o sistema também deve auditar `usuario_sistema_id`
 - o executor da produção e o usuário que lançou o dado não são o mesmo conceito
-- na fila `qualidade_lotes`, o usuário lançador atua como revisor e precisa ter permissão para revisão de qualidade
+- no setor `Qualidade`, o usuário lançador atua como revisor e precisa ter permissão para revisão de qualidade
 - a operação produtiva analisada deve ser informada em cada linha de defeito
 - a soma dos defeitos pode ultrapassar a quantidade de peças reprovadas, porque defeitos representam ocorrências operacionais e não rastreio unitário por peça
 
@@ -531,7 +517,7 @@ Saídas após cada registro:
 - trocar operação mantendo a mesma seção e o mesmo operador
 - trocar operador mantendo a mesma seção
 - reiniciar tudo para abrir outra seção
-- no fluxo de qualidade, revisar o próximo lote pendente sem reabrir contexto produtivo
+- no fluxo de qualidade, revisar a próxima pendência da etapa Qualidade sem reabrir contexto produtivo
 
 ### 5.4 Encerramentos
 
@@ -544,8 +530,8 @@ Encerramento da OP:
 - pode ser ajustado manualmente pelo supervisor/admin
 
 Regra complementar:
-- o encerramento da OP não depende mais de setor `Qualidade`
-- lotes pendentes de qualidade permanecem como fila de revisão e indicador gerencial, sem bloquear encerramento produtivo da OP
+- o encerramento produtivo da OP deve distinguir saída produtiva e revisão final de Qualidade
+- pendências de Qualidade permanecem como fila operacional de revisão e indicador gerencial, sem alterar a produção física já executada
 
 Encerramento do turno:
 - manual pelo supervisor/admin
@@ -562,7 +548,7 @@ Organização obrigatória das abas:
 - `Visão Geral` passa a ser a superfície gerencial de meta mensal global da fábrica
 - `Visão Operacional` passa a concentrar o conteúdo que hoje representa o monitoramento do turno, das OPs, dos setores e da projeção por hora
 - `Operadores` passa a concentrar a leitura de eficiência por hora por operador/operação e a eficiência do dia por operador
-- `Qualidade` passa a concentrar fila de lotes, revisões, reprovações, defeitos e rankings de qualidade
+- `Qualidade` passa a concentrar pendências da etapa Qualidade, revisões, reprovações, defeitos e rankings de qualidade
 - a aba `Visão Geral` não pode depender da existência de turno aberto para carregar
 - a aba `Visão Operacional` continua dependente do turno aberto atual ou do último turno encerrado, preservando o comportamento operacional já homologado
 - a aba `Operadores` continua dependente do turno aberto atual ou do último turno encerrado, preservando o comportamento operacional já homologado
@@ -694,17 +680,20 @@ Então:
 
 Essa regra evita supercontagem e preserva a leitura correta do funil produtivo.
 
-### 6.5.1 Semântica da revisão de qualidade por lote
+### 6.5.1 Semântica da revisão operacional de qualidade
 
-Quando o revisor abre um lote da fila `qualidade_lotes`, a semântica do input é:
+Quando o revisor abre uma pendência da etapa `Qualidade`, a semântica do input é:
 
-- **quantidade aprovada**: peças do lote revisadas e aprovadas
-- **quantidade reprovada**: peças do lote revisadas e reprovadas
+- **quantidade aprovada**: peças recebidas na Qualidade, revisadas e aprovadas
+- **quantidade reprovada**: peças recebidas na Qualidade, revisadas e reprovadas
 - **quantidade revisada**: `quantidade_aprovada + quantidade_reprovada`
 - **defeito operacional**: ocorrência atribuída a uma operação produtiva específica e a um tipo de defeito catalogado
 
 Regras obrigatórias:
-- revisar lote não consome saldo, capacidade ou andamento produtivo
+- a revisão pode ser parcial; `quantidade_revisada` precisa ser maior que zero e menor ou igual à pendência disponível
+- somente `quantidade_aprovada` consome a pendência operacional da etapa `Qualidade`
+- `quantidade_reprovada` registra defeito e indicador, mas permanece na pendência da etapa até nova revisão posterior aprová-la
+- revisar Qualidade não duplica produção física de etapas anteriores
 - os defeitos devem ser distribuídos em uma ou mais operações produtivas daquela OP/produto
 - cada linha de defeito deve informar operação, tipo de defeito, quantidade e observação opcional
 - o sistema não deve exigir rastreio por peça individual
@@ -714,6 +703,9 @@ Leituras gerenciais obrigatórias:
 
 ```text
 quantidade_revisada = quantidade_aprovada + quantidade_reprovada
+
+pendencia_qualidade =
+  quantidade_recebida_da_finalizacao - quantidade_aprovada_acumulada
 
 percentual_reprovacao =
   (quantidade_reprovada / quantidade_revisada) × 100
@@ -735,35 +727,32 @@ Tratamento obrigatório:
 - se `quantidade_revisada = 0`, os indicadores de qualidade devem aparecer como `sem dados`
 - o sistema pode exibir simultaneamente a leitura de `percentual_reprovacao` e a leitura de `percentual_defeitos_op`, porque elas medem fenômenos diferentes e complementares
 
-### 6.5.2 Semântica dos lotes contínuos de qualidade
+### 6.5.2 Semântica da fila operacional de Qualidade
 
-O lote contínuo de qualidade é a unidade de fila criada a partir de um apontamento produtivo parcial.
-Ele não substitui `registros_producao` nem `qualidade_registros`.
+A fila de Qualidade é a lista de pendências operacionais do setor `Qualidade`, derivada do planejamento e do saldo recebido da etapa anterior.
+Ela substitui o conceito intermediário de `qualidade_lotes`.
 
 Papéis das entidades:
-- `registros_producao`: fonte de verdade da produção física executada
-- `qualidade_lotes`: fila operacional de revisão criada a partir da produção parcial
+- `turno_setor_demandas`, `turno_setor_ops` e `turno_setor_operacoes`: fonte da fila operacional e do saldo revisável da etapa `Qualidade`
 - `qualidade_registros`: histórico da revisão efetivamente realizada
 - `qualidade_detalhes`: defeitos encontrados na revisão, atribuídos às operações produtivas de origem
+- `qualidade_defeitos`: catálogo mestre dos tipos de defeito
 
 Regras:
-- um lote de qualidade nasce a partir de um registro produtivo ou de um agrupamento explícito de registros produtivos de mesma OP/operação/setor quando a implementação permitir
-- nesta fase, o padrão seguro é um lote de qualidade por apontamento produtivo registrado
-- `quantidade_lote` deve ser igual à quantidade produtiva que originou o lote
-- `quantidade_aprovada + quantidade_reprovada` deve ser igual à quantidade revisada do lote quando a revisão for finalizada
-- a análise do revisor deve permitir múltiplas linhas de defeito no mesmo lote
-- cada linha de defeito deve informar `operacao_id_origem`, `qualidade_defeito_id`, `quantidade_defeito` e `observacao`
+- a aba `Operação do turno` não pode registrar a etapa `Qualidade` pelo formulário produtivo comum
+- a aba `Qualidade` e o scanner de qualidade devem ser as únicas superfícies de revisão da etapa `Qualidade`
+- a revisão pode registrar qualquer parcial da pendência disponível, por exemplo `40` aprovadas e `10` reprovadas de uma pendência de `914`
+- após essa revisão parcial, a pendência operacional deve cair apenas pelas aprovadas; no exemplo, `914 - 40 = 874`
+- a revisão deve permitir múltiplas linhas de defeito na mesma revisão
+- cada linha de defeito deve informar `turno_setor_operacao_id_origem`, `qualidade_defeito_id`, `quantidade_defeito` e `observacao`
 - `observacao` é opcional, mas deve ser preservada quando informada por ser evidência operacional importante
 - `quantidade_defeito` representa ocorrências do defeito naquela operação, não quantidade de peças únicas
 - a soma de `quantidade_defeito` pode ser maior que `quantidade_reprovada`, porque uma peça reprovada pode concentrar múltiplos defeitos
 - a soma de `quantidade_defeito` não deve ser usada para bloquear revisão, desde que exista ao menos uma ocorrência catalogada quando `quantidade_reprovada > 0`
-- a revisão parcial do mesmo lote não faz parte do primeiro contrato; se o revisor não revisar tudo, deve manter o lote pendente ou cancelar administrativamente e criar novo lote somente com regra explícita futura
-- o lote revisado permanece no histórico e não volta para a fila
-- peça reprovada corrigida fisicamente volta como novo lote de revisão, sem vínculo obrigatório de retrabalho no sistema
-- indicadores de qualidade podem somar aprovações, reprovações, defeitos e tempo de fila, mas não podem alterar KPIs de produção, peças completas, progresso operacional ou saldo físico da OP
-- a leitura gerencial do fluxo contínuo deve separar fila pendente, lotes revisados, peças aprovadas, peças reprovadas/retrabalho, taxa de aprovação, ranking de defeitos, ranking de operadores e resumo por OP
+- peça reprovada corrigida fisicamente volta para nova revisão operacional em Qualidade, sem vínculo obrigatório de retrabalho no sistema
+- indicadores de qualidade podem somar aprovações, reprovações, defeitos e pendências da etapa, mas não podem contaminar KPIs produtivos de etapas anteriores
+- a leitura gerencial do fluxo contínuo deve separar pendências de revisão, revisões realizadas, peças aprovadas, peças reprovadas, taxa de aprovação, ranking de defeitos, ranking de operadores e resumo por OP
 - os indicadores de qualidade devem viver em uma aba ou seção própria da dashboard, separada da `Visão Operacional` produtiva
-- lotes pendentes ou em revisão aparecem como fila de qualidade; não contam como reprovação, defeito ou retrabalho enquanto não houver `qualidade_registros`
 
 ### 6.6 Capacidade e progresso
 

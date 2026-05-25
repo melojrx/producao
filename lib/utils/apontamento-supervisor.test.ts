@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   calcularQuantidadeManualPermitidaOperacao,
   calcularSaldoManualPermitido,
+  filtrarSecoesAcionaveisOperacaoTurno,
   normalizarQuantidadeSupervisorInput,
   resolverQuantidadeSupervisorAoAlterarOperacao,
   supervisorDependeDeExcecaoManual,
@@ -130,5 +131,39 @@ test('preserva quantidade digitada pelo supervisor sem sobrescrever por sugestao
       quantidadeSugerida: '72',
     }),
     '72'
+  )
+})
+
+test('remove secoes de qualidade do apontamento produtivo comum do supervisor', () => {
+  const secoes = [
+    {
+      id: 'preparacao',
+      setorNome: 'Preparacao',
+      modoApontamento: 'producao_padrao',
+      status: 'aberta',
+    },
+    {
+      id: 'qualidade-modo',
+      setorNome: 'Inspecao',
+      modoApontamento: 'revisao_qualidade',
+      status: 'aberta',
+    },
+    {
+      id: 'qualidade-nome',
+      setorNome: 'Qualidade',
+      modoApontamento: 'producao_padrao',
+      status: 'aberta',
+    },
+    {
+      id: 'encerrada',
+      setorNome: 'Finalizacao',
+      modoApontamento: 'producao_padrao',
+      status: 'encerrada_manualmente',
+    },
+  ] as const
+
+  assert.deepEqual(
+    filtrarSecoesAcionaveisOperacaoTurno(secoes).map((secao) => secao.id),
+    ['preparacao']
   )
 })
