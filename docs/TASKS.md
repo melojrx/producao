@@ -5609,6 +5609,21 @@ Decisão de domínio:
 
   **Evidência:** `docs/PRD.md` passou a declarar que superfícies ativas de Qualidade devem usar `pendência`, `revisão` e `peças`, mantendo `lote` apenas em histórico ou nomes técnicos não expostos como contrato visual. Foram removidos textos visuais de lote em `ApontamentosTabs`, nas páginas `/admin/apontamentos`, em `DashboardQualidadeTab`, em `dashboard-tabs` e na mensagem de saldo físico que orientava ajuste de lote. Busca direcionada por frases antigas (`Fila de lotes`, `Fila contínua de lotes`, `reprovação vinculada a lote`, `Ajuste o lote`, `lotes de revisão contínua`) não retornou ocorrências em `app`, `components` e `lib`. A busca ampla por `lote/lotes` ficou restrita a tipos/funções genéricas de fluxo/capacidade, RPC produtiva em lote e mensagem genérica do Kanban operacional fora da aba Qualidade. Validações: `node --test --experimental-strip-types lib/utils/saldo-fisico-op.test.ts`, `node --test --experimental-strip-types lib/utils/dashboard-tabs.test.ts`, `npx tsc --noEmit`, `npm run lint` e `git diff --check` passaram sem erros.
 
+- [x] **HU 54.8 — Como supervisor, quero ver o revisor responsável pelas aprovações/reprovações na dashboard de Qualidade, para rastrear autoria das revisões operacionais.**
+  **Prioridade:** P1
+  **Risco:** Baixo
+
+  Regras:
+  - usar `qualidade_registros.revisor_usuario_id` como fonte de autoria da revisão
+  - buscar o nome do revisor em `usuarios_sistema.nome`
+  - substituir o card atual de ranking de operadores por um resumo de revisores, sem misturar operador produtivo com revisor de qualidade
+  - manter a tabela por OP sem nova coluna de revisor nesta primeira versão, evitando ambiguidade quando uma OP tiver mais de um revisor
+  - não alterar schema, RPC, regras de saldo físico, regras de revisão parcial nem contratos de defeito
+
+  **Evidência esperada:** dashboard de Qualidade exibe revisores com revisões, aprovadas, reprovadas e ocorrências de defeito; teste focado valida agregação por revisor; `npx tsc --noEmit`, `npm run lint`, `npm run build` e `git diff --check` passam sem erros.
+
+  **Evidência:** `docs/PRD.md` passou a registrar a autoria do revisor como contrato da revisão de Qualidade. `listarIndicadoresQualidadeTurnoComClient()` passou a selecionar `qualidade_registros.revisor_usuario_id`, buscar `usuarios_sistema.nome` e entregar os registros para `calcularIndicadoresQualidadeTurno()` com `revisorId/revisorNome`. O utilitário de indicadores agora agrega `rankingRevisores` com revisões realizadas, aprovadas, reprovadas e ocorrências de defeito. `DashboardQualidadeTab` substituiu o card de `Ranking de operadores` por `Revisores`, sem misturar operador produtivo com revisor de Qualidade. Validações: `node --test --experimental-strip-types lib/utils/qualidade-indicadores.test.ts lib/utils/dashboard-qualidade.test.ts`, `npx tsc --noEmit`, `npm run lint` e `npm run build` passaram sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

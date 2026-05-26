@@ -1,7 +1,7 @@
 import type {
   QualidadeIndicadoresTurnoV2,
   QualidadeRankingDefeitoV2,
-  QualidadeRankingOperadorV2,
+  QualidadeRankingRevisorV2,
 } from '@/types'
 
 export interface QualidadeRegistroIndicadorEntrada {
@@ -13,8 +13,8 @@ export interface QualidadeRegistroIndicadorEntrada {
   quantidadeAprovada: number
   quantidadeReprovada: number
   quantidadeRevisada: number
-  operadorId: string | null
-  operadorNome: string | null
+  revisorId: string | null
+  revisorNome: string | null
 }
 
 export interface QualidadeDetalheIndicadorEntrada {
@@ -53,23 +53,28 @@ function incrementarRankingDefeito(
   ranking.set(chave, atual)
 }
 
-function incrementarRankingOperador(
-  ranking: Map<string, QualidadeRankingOperadorV2>,
-  operadorId: string,
-  operadorNome: string,
+function incrementarRankingRevisor(
+  ranking: Map<string, QualidadeRankingRevisorV2>,
+  revisorId: string,
+  revisorNome: string,
+  quantidadeAprovada: number,
   quantidadeReprovada: number,
   quantidadeDefeitos: number
 ) {
-  const atual = ranking.get(operadorId) ?? {
-    operadorId,
-    operadorNome,
+  const atual = ranking.get(revisorId) ?? {
+    revisorId,
+    revisorNome,
+    revisoesRealizadas: 0,
+    quantidadeAprovada: 0,
     quantidadeReprovada: 0,
     quantidadeDefeitos: 0,
   }
 
+  atual.revisoesRealizadas += 1
+  atual.quantidadeAprovada += quantidadeAprovada
   atual.quantidadeReprovada += quantidadeReprovada
   atual.quantidadeDefeitos += quantidadeDefeitos
-  ranking.set(operadorId, atual)
+  ranking.set(revisorId, atual)
 }
 
 export function calcularIndicadoresQualidadeTurno(
@@ -84,7 +89,7 @@ export function calcularIndicadoresQualidadeTurno(
   }
 
   const rankingDefeitos = new Map<string, QualidadeRankingDefeitoV2>()
-  const rankingOperadores = new Map<string, QualidadeRankingOperadorV2>()
+  const rankingRevisores = new Map<string, QualidadeRankingRevisorV2>()
   const ops = new Map<
     string,
     QualidadeIndicadoresTurnoV2['ops'][number]
@@ -134,11 +139,12 @@ export function calcularIndicadoresQualidadeTurno(
       incrementarRankingDefeito(rankingDefeitos, detalhe)
     }
 
-    if (registro.operadorId && registro.operadorNome) {
-      incrementarRankingOperador(
-        rankingOperadores,
-        registro.operadorId,
-        registro.operadorNome,
+    if (registro.revisorId && registro.revisorNome) {
+      incrementarRankingRevisor(
+        rankingRevisores,
+        registro.revisorId,
+        registro.revisorNome,
+        registro.quantidadeAprovada,
         registro.quantidadeReprovada,
         totalDefeitosRegistro
       )
@@ -180,16 +186,20 @@ export function calcularIndicadoresQualidadeTurno(
 
       return defeitoA.defeitoNome.localeCompare(defeitoB.defeitoNome)
     }),
-    rankingOperadores: [...rankingOperadores.values()].sort((operadorA, operadorB) => {
-      if (operadorA.quantidadeReprovada !== operadorB.quantidadeReprovada) {
-        return operadorB.quantidadeReprovada - operadorA.quantidadeReprovada
+    rankingRevisores: [...rankingRevisores.values()].sort((revisorA, revisorB) => {
+      if (revisorA.revisoesRealizadas !== revisorB.revisoesRealizadas) {
+        return revisorB.revisoesRealizadas - revisorA.revisoesRealizadas
       }
 
-      if (operadorA.quantidadeDefeitos !== operadorB.quantidadeDefeitos) {
-        return operadorB.quantidadeDefeitos - operadorA.quantidadeDefeitos
+      if (revisorA.quantidadeReprovada !== revisorB.quantidadeReprovada) {
+        return revisorB.quantidadeReprovada - revisorA.quantidadeReprovada
       }
 
-      return operadorA.operadorNome.localeCompare(operadorB.operadorNome)
+      if (revisorA.quantidadeDefeitos !== revisorB.quantidadeDefeitos) {
+        return revisorB.quantidadeDefeitos - revisorA.quantidadeDefeitos
+      }
+
+      return revisorA.revisorNome.localeCompare(revisorB.revisorNome)
     }),
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { ShieldCheck, Users } from 'lucide-react'
+import { ShieldCheck, UserCheck } from 'lucide-react'
 import { montarRankingOperacoesQualidade } from '@/lib/utils/dashboard-qualidade'
 import type {
   QualidadeIndicadoresTurnoV2,
@@ -260,32 +260,38 @@ export function DashboardQualidadeTab({
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2">
-              <Users size={16} className="text-slate-500" />
-              <h3 className="text-sm font-semibold text-slate-900">Ranking de operadores</h3>
+              <UserCheck size={16} className="text-slate-500" />
+              <h3 className="text-sm font-semibold text-slate-900">Revisores</h3>
             </div>
             <div className="mt-3 space-y-2">
-              {indicadoresQualidade.rankingOperadores.slice(0, 5).map((operador) => (
+              {indicadoresQualidade.rankingRevisores.slice(0, 5).map((revisor) => (
                 <div
-                  key={operador.operadorId}
+                  key={revisor.revisorId}
                   className="rounded-xl border border-slate-200 bg-white p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-900">
-                      {operador.operadorNome}
-                    </p>
-                    <p className="text-sm font-semibold text-rose-700">
-                      {operador.quantidadeReprovada}
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {revisor.revisorNome}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {revisor.revisoesRealizadas} revisão(ões)
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-emerald-700">
+                      {revisor.quantidadeAprovada}
                     </p>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {operador.quantidadeDefeitos} ocorrência(s) de defeito
+                  <p className="mt-2 text-xs text-slate-500">
+                    {revisor.quantidadeReprovada} reprovada(s) · {revisor.quantidadeDefeitos}{' '}
+                    ocorrência(s) de defeito
                   </p>
                 </div>
               ))}
 
-              {indicadoresQualidade.rankingOperadores.length === 0 ? (
+              {indicadoresQualidade.rankingRevisores.length === 0 ? (
                 <p className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-                  Nenhum operador com reprovação vinculada à revisão.
+                  Nenhum revisor com revisão registrada no turno.
                 </p>
               ) : null}
             </div>

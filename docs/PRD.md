@@ -176,6 +176,7 @@ Regra central:
 - a produção continua normalmente enquanto a Qualidade revisa as peças recebidas
 - a fila da Qualidade é a própria pendência operacional do setor `Qualidade`, derivada de `turno_setor_demandas`, `turno_setor_ops` e `turno_setor_operacoes`
 - `qualidade_registros` e `qualidade_detalhes` são as fontes de verdade para revisões e defeitos
+- cada registro de revisão deve preservar e expor a autoria do revisor em `usuarios_sistema`, permitindo que a dashboard identifique quem aprovou/reprovou peças na etapa Qualidade
 - `qualidade_lotes` não faz parte do contrato ativo do sistema
 - nas superfícies ativas de Qualidade, a linguagem visual deve usar `pendência`, `revisão` e `peças`; `lote` deve ficar restrito a histórico documental ou nomes técnicos legados que não apareçam como contrato da tela
 

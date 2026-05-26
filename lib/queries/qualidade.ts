@@ -34,6 +34,7 @@ type QualidadeRegistroIndicadorRow = Pick<
   | 'quantidade_aprovada'
   | 'quantidade_reprovada'
   | 'quantidade_revisada'
+  | 'revisor_usuario_id'
   | 'turno_op_id'
   | 'turno_setor_operacao_id_qualidade'
 >
@@ -51,8 +52,7 @@ type QualidadeDetalheIndicadorRow = Pick<
 >
 type TurnoOpFilaRow = Pick<Tables<'turno_ops'>, 'id' | 'numero_op' | 'produto_id'>
 type ProdutoFilaRow = Pick<Tables<'produtos'>, 'id' | 'nome' | 'referencia'>
-type RegistroProducaoIndicadorRow = Pick<Tables<'registros_producao'>, 'id' | 'operador_id'>
-type OperadorIndicadorRow = Pick<Tables<'operadores'>, 'id' | 'nome'>
+type UsuarioSistemaIndicadorRow = Pick<Tables<'usuarios_sistema'>, 'id' | 'nome'>
 type QualidadeDefeitoCatalogoRow = Pick<
   Tables<'qualidade_defeitos'>,
   'id' | 'nome' | 'classificacao' | 'ordem'
@@ -190,7 +190,7 @@ export async function listarIndicadoresQualidadeTurnoComClient(
   const { data: registros, error: registrosError } = await supabase
     .from('qualidade_registros')
     .select(
-      'id, quantidade_aprovada, quantidade_reprovada, quantidade_revisada, turno_op_id, turno_setor_operacao_id_qualidade'
+      'id, quantidade_aprovada, quantidade_reprovada, quantidade_revisada, revisor_usuario_id, turno_op_id, turno_setor_operacao_id_qualidade'
     )
     .eq('turno_id', turnoId)
     .returns<QualidadeRegistroIndicadorRow[]>()
@@ -215,10 +215,10 @@ export async function listarIndicadoresQualidadeTurnoComClient(
   const turnoOpIds = Array.from(
     new Set(registrosQualidade.map((registro) => registro.turno_op_id))
   )
-  const turnoSetorOperacaoIds = Array.from(
+  const revisorUsuarioIds = Array.from(
     new Set(
       registrosQualidade
-        .map((registro) => registro.turno_setor_operacao_id_qualidade)
+        .map((registro) => registro.revisor_usuario_id)
         .filter((id): id is string => Boolean(id))
     )
   )
@@ -226,7 +226,7 @@ export async function listarIndicadoresQualidadeTurnoComClient(
   const [
     { data: detalhes, error: detalhesError },
     { data: turnoOps, error: turnoOpsError },
-    { data: registrosProducao, error: registrosProducaoError },
+    { data: revisores, error: revisoresError },
   ] = await Promise.all([
     registroQualidadeIds.length > 0
       ? supabase
@@ -242,13 +242,13 @@ export async function listarIndicadoresQualidadeTurnoComClient(
           .in('id', turnoOpIds)
           .returns<TurnoOpFilaRow[]>()
       : Promise.resolve({ data: [] as TurnoOpFilaRow[], error: null }),
-    turnoSetorOperacaoIds.length > 0
+    revisorUsuarioIds.length > 0
       ? supabase
-          .from('registros_producao')
-          .select('id, operador_id')
-          .in('turno_setor_operacao_id', turnoSetorOperacaoIds)
-          .returns<RegistroProducaoIndicadorRow[]>()
-      : Promise.resolve({ data: [] as RegistroProducaoIndicadorRow[], error: null }),
+          .from('usuarios_sistema')
+          .select('id, nome')
+          .in('id', revisorUsuarioIds)
+          .returns<UsuarioSistemaIndicadorRow[]>()
+      : Promise.resolve({ data: [] as UsuarioSistemaIndicadorRow[], error: null }),
   ])
 
   if (detalhesError) {
@@ -265,9 +265,9 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     throw new Error(`Erro ao carregar OPs dos indicadores de qualidade: ${turnoOpsError.message}`)
   }
 
-  if (registrosProducaoError) {
+  if (revisoresError) {
     throw new Error(
-      `Erro ao carregar apontamentos de origem dos indicadores de qualidade: ${registrosProducaoError.message}`
+      `Erro ao carregar revisores dos indicadores de qualidade: ${revisoresError.message}`
     )
   }
 
@@ -304,33 +304,14 @@ export async function listarIndicadoresQualidadeTurnoComClient(
         .filter((id): id is string => Boolean(id))
     )
   )
-  const operadorIds = Array.from(
-    new Set(
-      (registrosProducao ?? [])
-        .map((registro) => registro.operador_id)
-        .filter((id): id is string => Boolean(id))
-    )
-  )
-
-  const [
-    { data: defeitosCatalogo, error: defeitosCatalogoError },
-    { data: operadores, error: operadoresError },
-  ] = await Promise.all([
+  const { data: defeitosCatalogo, error: defeitosCatalogoError } =
     qualidadeDefeitoIds.length > 0
-      ? supabase
+      ? await supabase
           .from('qualidade_defeitos')
           .select('id, nome, classificacao, ordem')
           .in('id', qualidadeDefeitoIds)
           .returns<QualidadeDefeitoCatalogoRow[]>()
-      : Promise.resolve({ data: [] as QualidadeDefeitoCatalogoRow[], error: null }),
-    operadorIds.length > 0
-      ? supabase
-          .from('operadores')
-          .select('id, nome')
-          .in('id', operadorIds)
-          .returns<OperadorIndicadorRow[]>()
-      : Promise.resolve({ data: [] as OperadorIndicadorRow[], error: null }),
-  ])
+      : { data: [] as QualidadeDefeitoCatalogoRow[], error: null }
 
   if (defeitosCatalogoError) {
     throw new Error(
@@ -338,25 +319,9 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     )
   }
 
-  if (operadoresError) {
-    throw new Error(
-      `Erro ao carregar operadores dos indicadores de qualidade: ${operadoresError.message}`
-    )
-  }
-
   const produtosPorId = new Map(produtosIndicadores.map((produto) => [produto.id, produto]))
-  const operadoresPorId = new Map((operadores ?? []).map((operador) => [operador.id, operador]))
+  const revisoresPorId = new Map((revisores ?? []).map((revisor) => [revisor.id, revisor]))
   const defeitosPorId = new Map((defeitosCatalogo ?? []).map((defeito) => [defeito.id, defeito]))
-
-  const operadorPorTurnoSetorOperacao = new Map<string, { id: string; nome: string }>()
-  for (const registro of registrosProducao ?? []) {
-    if (registro.operador_id) {
-      const operador = operadoresPorId.get(registro.operador_id)
-      if (operador) {
-        operadorPorTurnoSetorOperacao.set(registro.id, operador)
-      }
-    }
-  }
 
   function resolverProduto(turnoOpId: string) {
     const turnoOp = turnoOpsPorId.get(turnoOpId) ?? null
@@ -369,18 +334,9 @@ export async function listarIndicadoresQualidadeTurnoComClient(
     }
   }
 
-  function resolverOperadorRevisor(turnoSetorOperacaoId: string | null): { id: string | null; nome: string | null } {
-    if (!turnoSetorOperacaoId || operadorIds.length === 0) {
-      return { id: null, nome: null }
-    }
-
-    const primeiroOperador = operadoresPorId.values().next().value
-    return primeiroOperador ? { id: primeiroOperador.id, nome: primeiroOperador.nome } : { id: null, nome: null }
-  }
-
   const registrosEntrada: QualidadeRegistroIndicadorEntrada[] = registrosQualidade.map((registro) => {
     const produto = resolverProduto(registro.turno_op_id)
-    const operador = resolverOperadorRevisor(registro.turno_setor_operacao_id_qualidade)
+    const revisor = revisoresPorId.get(registro.revisor_usuario_id) ?? null
 
     return {
       id: registro.id,
@@ -391,8 +347,8 @@ export async function listarIndicadoresQualidadeTurnoComClient(
       quantidadeAprovada: registro.quantidade_aprovada,
       quantidadeReprovada: registro.quantidade_reprovada,
       quantidadeRevisada: registro.quantidade_revisada,
-      operadorId: operador.id,
-      operadorNome: operador.nome,
+      revisorId: revisor?.id ?? null,
+      revisorNome: revisor?.nome ?? null,
     }
   })
 

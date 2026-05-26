@@ -17,7 +17,7 @@ test('retorna zeros quando nao ha registros', () => {
   assert.equal(indicadores.taxaReprovacao, null)
 })
 
-test('calcula aprovacao retrabalho e rankings de defeitos e operadores', () => {
+test('calcula aprovacao retrabalho e rankings de defeitos e revisores', () => {
   const indicadores = calcularIndicadoresQualidadeTurno({
     registros: [
       {
@@ -29,8 +29,20 @@ test('calcula aprovacao retrabalho e rankings de defeitos e operadores', () => {
         quantidadeAprovada: 95,
         quantidadeReprovada: 5,
         quantidadeRevisada: 100,
-        operadorId: 'operador-1',
-        operadorNome: 'Ana',
+        revisorId: 'revisor-1',
+        revisorNome: 'Ana Revisora',
+      },
+      {
+        id: 'registro-qualidade-2',
+        turnoOpId: 'op-1',
+        numeroOp: 'OP-001',
+        produtoReferencia: 'REF-1',
+        produtoNome: 'Produto 1',
+        quantidadeAprovada: 45,
+        quantidadeReprovada: 5,
+        quantidadeRevisada: 50,
+        revisorId: 'revisor-1',
+        revisorNome: 'Ana Revisora',
       },
     ],
     detalhes: [
@@ -46,19 +58,27 @@ test('calcula aprovacao retrabalho e rankings de defeitos e operadores', () => {
         defeitoNome: 'Costura torta',
         quantidadeDefeito: 2,
       },
+      {
+        qualidadeRegistroId: 'registro-qualidade-2',
+        qualidadeDefeitoId: 'defeito-1',
+        defeitoNome: 'Ponto falho',
+        quantidadeDefeito: 4,
+      },
     ],
   })
 
-  assert.equal(indicadores.revisoesRealizadas, 1)
-  assert.equal(indicadores.quantidadeAprovadaTotal, 95)
-  assert.equal(indicadores.quantidadeReprovadaTotal, 5)
-  assert.equal(indicadores.quantidadeRetrabalhoTotal, 5)
-  assert.equal(indicadores.taxaAprovacao, 95)
-  assert.equal(indicadores.taxaReprovacao, 5)
-  assert.equal(indicadores.totalDefeitos, 5)
+  assert.equal(indicadores.revisoesRealizadas, 2)
+  assert.equal(indicadores.quantidadeAprovadaTotal, 140)
+  assert.equal(indicadores.quantidadeReprovadaTotal, 10)
+  assert.equal(indicadores.quantidadeRetrabalhoTotal, 10)
+  assert.equal(indicadores.taxaAprovacao, 140 / 150 * 100)
+  assert.equal(indicadores.taxaReprovacao, 10 / 150 * 100)
+  assert.equal(indicadores.totalDefeitos, 9)
   assert.equal(indicadores.rankingDefeitos[0]?.defeitoNome, 'Ponto falho')
-  assert.equal(indicadores.rankingDefeitos[0]?.percentualDefeitos, 60)
-  assert.equal(indicadores.rankingOperadores[0]?.operadorNome, 'Ana')
-  assert.equal(indicadores.rankingOperadores[0]?.quantidadeReprovada, 5)
-  assert.equal(indicadores.rankingOperadores[0]?.quantidadeDefeitos, 5)
+  assert.equal(indicadores.rankingDefeitos[0]?.percentualDefeitos, 7 / 9 * 100)
+  assert.equal(indicadores.rankingRevisores[0]?.revisorNome, 'Ana Revisora')
+  assert.equal(indicadores.rankingRevisores[0]?.revisoesRealizadas, 2)
+  assert.equal(indicadores.rankingRevisores[0]?.quantidadeAprovada, 140)
+  assert.equal(indicadores.rankingRevisores[0]?.quantidadeReprovada, 10)
+  assert.equal(indicadores.rankingRevisores[0]?.quantidadeDefeitos, 9)
 })

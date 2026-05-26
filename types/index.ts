@@ -671,9 +671,11 @@ export interface QualidadeRankingDefeitoV2 {
   percentualDefeitos: number | null
 }
 
-export interface QualidadeRankingOperadorV2 {
-  operadorId: string
-  operadorNome: string
+export interface QualidadeRankingRevisorV2 {
+  revisorId: string
+  revisorNome: string
+  revisoesRealizadas: number
+  quantidadeAprovada: number
   quantidadeReprovada: number
   quantidadeDefeitos: number
 }
@@ -692,7 +694,7 @@ export interface QualidadeIndicadoresTurnoV2 {
   pendenciasRevisaoLista: QualidadeIndicadorPendenciaRevisaoV2[]
   ops: QualidadeIndicadorOpV2[]
   rankingDefeitos: QualidadeRankingDefeitoV2[]
-  rankingOperadores: QualidadeRankingOperadorV2[]
+  rankingRevisores: QualidadeRankingRevisorV2[]
 }
 
 export interface UsuarioSistemaV2 {

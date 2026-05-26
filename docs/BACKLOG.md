@@ -817,6 +817,10 @@
 
 **Conclusão final em `2026-05-25`:** HU 54.7 concluída. As superfícies ativas de Qualidade passaram a usar linguagem de pendência/revisão/peças; os textos antigos com `lote` foram removidos da aba de apontamentos, fallback sem turno, dashboard de Qualidade e mensagem visual de saldo físico. A busca direcionada por frases antigas não retornou ocorrências em `app`, `components` e `lib`; ocorrências remanescentes de `lote` são genéricas ou históricas, fora do contrato visual de Qualidade. Validações: testes focados, `npx tsc --noEmit`, `npm run lint` e `git diff --check`.
 
+**Reabertura em `2026-05-26`:** HU 54.8 aberta como micro-HU de rastreabilidade visual da Qualidade, para expor na dashboard o revisor responsável pelas aprovações/reprovações a partir de `qualidade_registros.revisor_usuario_id`, sem alterar schema, RPC ou regras de saldo/revisão parcial.
+
+**Conclusão da HU 54.8 em `2026-05-26`:** dashboard de Qualidade passou a exibir `Revisores` com revisões, aprovadas, reprovadas e ocorrências de defeito, usando `qualidade_registros.revisor_usuario_id -> usuarios_sistema.nome` como fonte de autoria. O card anterior de ranking de operadores foi substituído para evitar mistura entre operador produtivo e revisor de Qualidade. Validações locais: testes focados de Qualidade, `npx tsc --noEmit`, `npm run lint` e `npm run build`.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS
