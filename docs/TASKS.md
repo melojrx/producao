@@ -5624,6 +5624,36 @@ Decisão de domínio:
 
   **Evidência:** `docs/PRD.md` passou a registrar a autoria do revisor como contrato da revisão de Qualidade. `listarIndicadoresQualidadeTurnoComClient()` passou a selecionar `qualidade_registros.revisor_usuario_id`, buscar `usuarios_sistema.nome` e entregar os registros para `calcularIndicadoresQualidadeTurno()` com `revisorId/revisorNome`. O utilitário de indicadores agora agrega `rankingRevisores` com revisões realizadas, aprovadas, reprovadas e ocorrências de defeito. `DashboardQualidadeTab` substituiu o card de `Ranking de operadores` por `Revisores`, sem misturar operador produtivo com revisor de Qualidade. Validações: `node --test --experimental-strip-types lib/utils/qualidade-indicadores.test.ts lib/utils/dashboard-qualidade.test.ts`, `npx tsc --noEmit`, `npm run lint` e `npm run build` passaram sem erros.
 
+- [x] **HU 54.9 — Como revisor, quero que a fila de Qualidade deixe claro que apenas aprovações baixam a pendência final, para evitar interpretação incorreta das reprovações.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Regras:
+  - manter a regra funcional atual: somente peças aprovadas baixam a pendência final da etapa `Qualidade`
+  - corrigir a validação server-side da action para validar saldo físico pela quantidade aprovada, alinhada à RPC operacional
+  - preservar `quantidade_revisada = quantidade_aprovada + quantidade_reprovada` para histórico e indicadores
+  - trocar o rótulo visual genérico `Peças` por `Pendentes para aprovação` ou `Pendência de aprovação`
+  - exibir no detalhe da revisão: `Recebidas`, `Aprovadas`, `Reprovadas` e `Pendentes`
+  - incluir orientação visual de que reprovadas permanecem pendentes até retornarem corrigidas
+
+  **Evidência esperada:** exemplo `100` pendentes com revisão de `20` aprovadas e `5` reprovadas resulta em `80` pendentes, `25` revisadas no histórico e validação de saldo físico por `20` aprovadas; card da fila comunica pendência de aprovação e detalhe mostra recebidas/aprovadas/reprovadas/pendentes.
+
+  **Evidência:** `calcularResumoPendenciaAprovacaoQualidade()` foi criado em `lib/utils/qualidade-operacional.ts` para consolidar `Recebidas`, `Aprovadas`, `Reprovadas`, `Revisadas`, `Pendentes` e `quantidadeValidacaoSaldoFisico`, preservando o cenário `100 -> 20 aprovadas + 5 reprovadas = 80 pendentes` com `25` revisadas no histórico. `registrarRevisaoQualidade()` passou a validar consumo de saldo físico somente pela quantidade aprovada, alinhada à RPC operacional que consome pendência apenas por aprovações. `PainelQualidadeSupervisor` trocou o rótulo visual genérico `Peças` por `Pendência de aprovação`, exibe resumo `Recebidas/Aprovadas/Reprovadas/Pendentes` no detalhe da OP e orienta que reprovadas permanecem pendentes até retornarem corrigidas. Validações: `node --test --experimental-strip-types lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-indicadores.test.ts lib/utils/dashboard-qualidade.test.ts`, `npx tsc --noEmit`, `npm run lint`, `npm run build` e `git diff --check` passaram sem erros.
+
+- [x] **Complementação HU 54.9.1 — Como revisor, quero que a fila e a aba de Qualidade reflitam o contexto operacional ativo após lançamento, para continuar trabalhando sem releitura manual.**
+  **Prioridade:** P1
+  **Risco:** Médio
+
+  Regras:
+  - a fila de Qualidade deve priorizar a pendência operacional calculada para o contexto ativo, não o `saldoFisicoRestante` genérico quando ele vier contaminado por histórico legado de Q1
+  - o detalhe da OP deve mostrar acumulados reais da revisão (`Aprovadas`, `Reprovadas`, `Revisadas`) vindos de `qualidadeResumoOps`
+  - os valores do formulário atual não podem substituir os acumulados após reset do formulário
+  - a aba ativa em `/admin/apontamentos` deve ser persistida na URL para sobreviver a `router.refresh()` e refresh manual do navegador
+
+  **Evidência esperada:** OP com disponibilidade operacional diferente de `saldoFisicoRestante` legado usa a disponibilidade operacional na fila; o detalhe mostra acumulados reais da OP após o formulário zerar; ao clicar em `Qualidade`, a URL recebe `?aba=qualidade_turno` e o refresh mantém a mesma aba.
+
+  **Evidência:** `calcularDisponivelRevisao()` passou a priorizar `quantidadeDisponivelApontamento` da demanda operacional de Qualidade antes do `saldoFisicoRestante` legado de Q1. `PainelQualidadeSupervisor` agora usa `qualidadeResumoOps` para preencher acumulados reais da OP (`Aprovadas`, `Reprovadas`, `Revisadas`) e mantém os cards do detalhe independentes do formulário resetado. `ApontamentosTabs` passou a persistir a aba ativa na URL via `criarHrefAbaApontamentos()` e `router.replace`, preservando `?aba=qualidade_turno` após refresh. Validações: `node --test --experimental-strip-types lib/utils/qualidade-operacional.test.ts lib/utils/qualidade-indicadores.test.ts lib/utils/dashboard-qualidade.test.ts lib/utils/apontamentos-tabs.test.ts`, `npx tsc --noEmit`, `npm run lint`, `npm run build` e `git diff --check` passaram sem erros.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

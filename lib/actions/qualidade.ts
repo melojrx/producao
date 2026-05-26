@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { validarConsumoSaldoFisicoOperacoesComClient } from '@/lib/queries/saldo-fisico-op'
 import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
+import { calcularResumoPendenciaAprovacaoQualidade } from '@/lib/utils/qualidade-operacional'
 import type { OrigemLancamentoQualidade } from '@/types'
 
 export interface RegistrarDefeitoQualidadeInput {
@@ -185,17 +186,25 @@ export async function registrarRevisaoQualidade(
   }
 
   const supabase = createAdminClient()
-  const validacaoSaldoFisico = await validarConsumoSaldoFisicoOperacoesComClient(supabase, [
-    {
-      turnoSetorOperacaoId: input.turnoSetorOperacaoIdQualidade,
-      quantidadeSolicitada: quantidadeRevisada,
-    },
-  ])
+  const resumoPendencia = calcularResumoPendenciaAprovacaoQualidade({
+    quantidadeRecebida: quantidadeRevisada,
+    quantidadeAprovada: input.quantidadeAprovada,
+    quantidadeReprovada: input.quantidadeReprovada,
+  })
 
-  if (validacaoSaldoFisico.erro) {
-    return {
-      sucesso: false,
-      erro: validacaoSaldoFisico.erro,
+  if (resumoPendencia.quantidadeValidacaoSaldoFisico > 0) {
+    const validacaoSaldoFisico = await validarConsumoSaldoFisicoOperacoesComClient(supabase, [
+      {
+        turnoSetorOperacaoId: input.turnoSetorOperacaoIdQualidade,
+        quantidadeSolicitada: resumoPendencia.quantidadeValidacaoSaldoFisico,
+      },
+    ])
+
+    if (validacaoSaldoFisico.erro) {
+      return {
+        sucesso: false,
+        erro: validacaoSaldoFisico.erro,
+      }
     }
   }
 

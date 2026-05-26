@@ -186,6 +186,7 @@ Regras de não regressão:
 - peças reprovadas retornam fisicamente ao operador fora do sistema; quando voltarem para nova revisão, entram novamente na pendência operacional do setor `Qualidade`
 - o retorno da peça corrigida deve ser tratado como nova revisão operacional, como se a peça nunca tivesse sido revisada antes, mas sem duplicar a produção física da OP
 - a fila da Qualidade deve considerar `pendente = recebidas_da_finalizacao - aprovadas_acumuladas`, não `recebidas - revisadas`
+- superfícies de revisão devem comunicar a pendência como pendência de aprovação final, expondo recebidas, aprovadas, reprovadas e pendentes quando houver detalhe de uma OP
 - a Qualidade registra rastreabilidade e indicadores; ela não controla retrabalho operacional interno
 - bloqueios continuam restritos a dados estruturalmente inválidos, turno inexistente/fechado, usuário sem permissão, contexto cancelado ou ausência de saldo físico real quando aplicável
 

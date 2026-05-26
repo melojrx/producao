@@ -1,10 +1,13 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CalendarRange, ClipboardCheck, ClipboardList } from 'lucide-react'
-
-type ApontamentosTabId = 'gestao_mensal' | 'operacao_turno' | 'qualidade_turno'
+import {
+  criarHrefAbaApontamentos,
+  type ApontamentosTabId,
+} from '@/lib/utils/apontamentos-tabs'
 
 interface ApontamentosTabsProps {
   gestaoMensal: ReactNode
@@ -19,7 +22,14 @@ export function ApontamentosTabs({
   qualidadeTurno,
   abaInicial = 'gestao_mensal',
 }: ApontamentosTabsProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [abaAtiva, setAbaAtiva] = useState<ApontamentosTabId>(abaInicial)
+  useEffect(() => {
+    setAbaAtiva(abaInicial)
+  }, [abaInicial])
+
   const conteudoAtivo =
     abaAtiva === 'gestao_mensal'
       ? gestaoMensal
@@ -65,7 +75,17 @@ export function ApontamentosTabs({
               <button
                 key={aba.id}
                 type="button"
-                onClick={() => setAbaAtiva(aba.id)}
+                onClick={() => {
+                  setAbaAtiva(aba.id)
+                  router.replace(
+                    criarHrefAbaApontamentos({
+                      pathname,
+                      search: searchParams.toString(),
+                      aba: aba.id,
+                    }),
+                    { scroll: false }
+                  )
+                }}
                 className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
                   ativa
                     ? 'border-blue-200 bg-blue-50 shadow-sm'

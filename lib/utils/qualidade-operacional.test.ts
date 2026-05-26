@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  calcularResumoPendenciaAprovacaoQualidade,
   calcularResultadoRevisaoParcialQualidade,
   montarFilaQualidadeOperacional,
   validarRevisaoParcialQualidade,
@@ -110,6 +111,27 @@ test('monta fila operacional de Qualidade a partir da etapa Qualidade do turno',
   assert.equal(fila[0]?.operacoesOrigem[0]?.operacaoDescricao, 'Finalizar peca')
 })
 
+test('prioriza pendencia operacional da demanda antes do saldo fisico legado de Q1', () => {
+  const demandaQualidade = {
+    ...criarDemandaQualidade(),
+    quantidadeDisponivelApontamento: 275,
+  }
+  const operacaoQualidade = {
+    ...criarOperacao('qualidade', 'setor-qualidade', 'Revisar qualidade'),
+    saldoFisicoRestante: 284,
+  }
+  const fila = montarFilaQualidadeOperacional({
+    ops: [criarOp()],
+    demandasSetor: [demandaQualidade],
+    operacoesTurno: [
+      criarOperacao('finalizacao', 'setor-finalizacao', 'Finalizar peca'),
+      operacaoQualidade,
+    ],
+  })
+
+  assert.equal(fila[0]?.quantidadeDisponivelRevisao, 275)
+})
+
 test('permite revisao parcial e consome pendencia somente pelas aprovadas', () => {
   assert.deepEqual(
     validarRevisaoParcialQualidade({
@@ -130,6 +152,42 @@ test('permite revisao parcial e consome pendencia somente pelas aprovadas', () =
       quantidadeRevisada: 50,
       quantidadeConsumidaPendencia: 40,
       quantidadePendenteAposRevisao: 874,
+    }
+  )
+})
+
+test('resume pendencia de aprovacao mantendo revisadas no historico', () => {
+  assert.deepEqual(
+    calcularResumoPendenciaAprovacaoQualidade({
+      quantidadeRecebida: 100,
+      quantidadeAprovada: 20,
+      quantidadeReprovada: 5,
+    }),
+    {
+      quantidadeRecebida: 100,
+      quantidadeAprovada: 20,
+      quantidadeReprovada: 5,
+      quantidadeRevisada: 25,
+      quantidadePendenteAprovacao: 80,
+      quantidadeValidacaoSaldoFisico: 20,
+    }
+  )
+})
+
+test('resume detalhe com acumulados reais da OP mesmo quando formulario atual esta zerado', () => {
+  assert.deepEqual(
+    calcularResumoPendenciaAprovacaoQualidade({
+      quantidadeRecebida: 608,
+      quantidadeAprovada: 333,
+      quantidadeReprovada: 25,
+    }),
+    {
+      quantidadeRecebida: 608,
+      quantidadeAprovada: 333,
+      quantidadeReprovada: 25,
+      quantidadeRevisada: 358,
+      quantidadePendenteAprovacao: 275,
+      quantidadeValidacaoSaldoFisico: 333,
     }
   )
 })

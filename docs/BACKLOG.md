@@ -821,6 +821,14 @@
 
 **Conclusão da HU 54.8 em `2026-05-26`:** dashboard de Qualidade passou a exibir `Revisores` com revisões, aprovadas, reprovadas e ocorrências de defeito, usando `qualidade_registros.revisor_usuario_id -> usuarios_sistema.nome` como fonte de autoria. O card anterior de ranking de operadores foi substituído para evitar mistura entre operador produtivo e revisor de Qualidade. Validações locais: testes focados de Qualidade, `npx tsc --noEmit`, `npm run lint` e `npm run build`.
 
+**Reabertura em `2026-05-26`:** HU 54.9 aberta como micro-HU de clareza operacional da fila de Qualidade. A regra de domínio permanece: somente aprovadas baixam a pendência final; reprovadas ficam rastreadas no histórico e permanecem pendentes até retorno corrigido. O ajuste concentra validação server-side alinhada à RPC e UX da fila/detalhe para evitar interpretação de que reprovação deveria deduzir a pendência.
+
+**Conclusão da HU 54.9 em `2026-05-26`:** a action de revisão passou a validar saldo físico somente pela quantidade aprovada, mantendo a RPC como fonte de gravação da pendência por aprovações. A fila de Qualidade passou a comunicar `Pendência de aprovação`, e o detalhe da OP mostra `Recebidas`, `Aprovadas`, `Reprovadas` e `Pendentes`, com orientação explícita de que reprovadas permanecem pendentes até retornarem corrigidas. Validações locais: testes focados de Qualidade, `npx tsc --noEmit`, `npm run lint`, `npm run build` e `git diff --check`.
+
+**Complementação aberta em `2026-05-26`:** HU 54.9.1 aberta após validação real da OP `208327` mostrar que o lançamento `9` aprovadas e `1` reprovada gravou corretamente no banco, mas a fila visual continuou usando `saldoFisicoRestante` legado de Q1 e a aba `Qualidade` voltou para a primeira aba após refresh. O ajuste deve priorizar a pendência operacional ativa, exibir acumulados reais da OP no detalhe e persistir a aba na URL.
+
+**Conclusão da HU 54.9.1 em `2026-05-26`:** a fila de Qualidade passou a priorizar a pendência operacional ativa (`quantidadeDisponivelApontamento`) antes do saldo físico legado, evitando que histórico antigo de Q1 mantenha a OP visualmente parada após lançamento válido. O detalhe da OP passou a exibir acumulados reais vindos de `qualidadeResumoOps` (`Aprovadas`, `Reprovadas`, `Revisadas`) sem depender dos valores atuais do formulário. A aba ativa de `/admin/apontamentos` agora é refletida na URL, mantendo `Qualidade` após refresh manual ou atualização da rota. Validações locais: testes focados de Qualidade/Tabs, `npx tsc --noEmit`, `npm run lint`, `npm run build` e `git diff --check`.
+
 ---
 
 ## DEPENDÊNCIAS ENTRE SPRINTS

@@ -29,6 +29,21 @@ export interface RevisaoParcialQualidadeResultado {
   quantidadePendenteAposRevisao: number
 }
 
+export interface ResumoPendenciaAprovacaoQualidadeInput {
+  quantidadeRecebida: number
+  quantidadeAprovada: number
+  quantidadeReprovada: number
+}
+
+export interface ResumoPendenciaAprovacaoQualidade {
+  quantidadeRecebida: number
+  quantidadeAprovada: number
+  quantidadeReprovada: number
+  quantidadeRevisada: number
+  quantidadePendenteAprovacao: number
+  quantidadeValidacaoSaldoFisico: number
+}
+
 interface MontarFilaQualidadeOperacionalInput {
   ops: TurnoOpV2[]
   demandasSetor: TurnoSetorDemandaV2[]
@@ -75,19 +90,46 @@ export function validarRevisaoParcialQualidade(
   return {}
 }
 
+export function calcularResumoPendenciaAprovacaoQualidade(
+  input: ResumoPendenciaAprovacaoQualidadeInput
+): ResumoPendenciaAprovacaoQualidade {
+  const quantidadeRecebida = normalizarInteiroNaoNegativo(input.quantidadeRecebida)
+  const quantidadeAprovada = normalizarInteiroNaoNegativo(input.quantidadeAprovada)
+  const quantidadeReprovada = normalizarInteiroNaoNegativo(input.quantidadeReprovada)
+  const quantidadeRevisada = quantidadeAprovada + quantidadeReprovada
+
+  return {
+    quantidadeRecebida,
+    quantidadeAprovada,
+    quantidadeReprovada,
+    quantidadeRevisada,
+    quantidadePendenteAprovacao: Math.max(quantidadeRecebida - quantidadeAprovada, 0),
+    quantidadeValidacaoSaldoFisico: quantidadeAprovada,
+  }
+}
+
 function calcularDisponivelRevisao(
   demanda: TurnoSetorDemandaV2,
   operacaoQualidade: TurnoSetorOperacaoApontamentoV2
 ): number {
-  if (typeof operacaoQualidade.saldoFisicoRestante === 'number') {
-    return operacaoQualidade.saldoFisicoRestante
-  }
-
   if (typeof demanda.quantidadeDisponivelApontamento === 'number') {
     return demanda.quantidadeDisponivelApontamento
   }
 
-  return Math.max(operacaoQualidade.quantidadePlanejada - operacaoQualidade.quantidadeRealizada, 0)
+  const pendenciaOperacional = Math.max(
+    operacaoQualidade.quantidadePlanejada - operacaoQualidade.quantidadeRealizada,
+    0
+  )
+
+  if (pendenciaOperacional > 0) {
+    return pendenciaOperacional
+  }
+
+  if (typeof operacaoQualidade.saldoFisicoRestante === 'number') {
+    return operacaoQualidade.saldoFisicoRestante
+  }
+
+  return 0
 }
 
 export function montarFilaQualidadeOperacional({

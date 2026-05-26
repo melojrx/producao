@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Minus, Plus, ShieldAlert } from 'lucide-react'
 import { registrarRevisaoQualidade } from '@/lib/actions/qualidade'
 import {
+  calcularResumoPendenciaAprovacaoQualidade,
   montarFilaQualidadeOperacional,
   validarRevisaoParcialQualidade,
 } from '@/lib/utils/qualidade-operacional'
@@ -36,6 +37,10 @@ interface QualidadePendenciaRevisaoItem {
   operacaoDescricaoOrigem: string
   setorNomeOrigem: string
   quantidadePendente: number
+  quantidadeRecebida: number
+  quantidadeAprovadaAcumulada: number
+  quantidadeReprovadaAcumulada: number
+  quantidadeRevisadaAcumulada: number
   criadoEm: string
 }
 
@@ -120,26 +125,47 @@ export function PainelQualidadeSupervisor({
       }),
     [operacoesTurno, planejamento.demandasSetor, planejamento.ops]
   )
+  const resumosQualidadePorTurnoOpId = useMemo(
+    () =>
+      new Map(
+        (planejamento.qualidadeResumoOps ?? []).map((resumo) => [resumo.turnoOpId, resumo])
+      ),
+    [planejamento.qualidadeResumoOps]
+  )
   const itensRevisao = useMemo<QualidadePendenciaRevisaoItem[]>(
     () =>
-      itensQualidadeOperacional.map((item) => ({
-        id: `operacional:${item.operacaoQualidade.id}`,
-        turnoId: item.demandaQualidade.turnoId,
-        turnoOpId: item.turnoOpId,
-        numeroOp: item.numeroOp,
-        produtoNome: item.produtoNome,
-        produtoReferencia: item.produtoReferencia,
-        turnoSetorOperacaoIdOrigem: item.operacaoQualidade.id,
-        operacaoCodigoOrigem: item.operacaoQualidade.operacaoCodigo,
-        operacaoDescricaoOrigem: item.operacaoQualidade.operacaoDescricao,
-        setorNomeOrigem: item.demandaQualidade.setorNome,
-        quantidadePendente: item.quantidadeDisponivelRevisao,
-        criadoEm:
-          item.operacaoQualidade.iniciadoEm ??
-          item.demandaQualidade.iniciadoEm ??
-          planejamento.turno.iniciadoEm,
-      })),
-    [itensQualidadeOperacional, planejamento.turno.iniciadoEm]
+      itensQualidadeOperacional.map((item) => {
+        const resumoQualidade = resumosQualidadePorTurnoOpId.get(item.turnoOpId)
+        const quantidadeAprovadaAcumulada =
+          resumoQualidade?.quantidadeAprovada ?? item.operacaoQualidade.quantidadeRealizada
+        const quantidadeReprovadaAcumulada = resumoQualidade?.quantidadeReprovada ?? 0
+        const quantidadeRevisadaAcumulada =
+          resumoQualidade?.quantidadeRevisada ??
+          quantidadeAprovadaAcumulada + quantidadeReprovadaAcumulada
+
+        return {
+          id: `operacional:${item.operacaoQualidade.id}`,
+          turnoId: item.demandaQualidade.turnoId,
+          turnoOpId: item.turnoOpId,
+          numeroOp: item.numeroOp,
+          produtoNome: item.produtoNome,
+          produtoReferencia: item.produtoReferencia,
+          turnoSetorOperacaoIdOrigem: item.operacaoQualidade.id,
+          operacaoCodigoOrigem: item.operacaoQualidade.operacaoCodigo,
+          operacaoDescricaoOrigem: item.operacaoQualidade.operacaoDescricao,
+          setorNomeOrigem: item.demandaQualidade.setorNome,
+          quantidadePendente: item.quantidadeDisponivelRevisao,
+          quantidadeRecebida: item.quantidadeDisponivelRevisao + quantidadeAprovadaAcumulada,
+          quantidadeAprovadaAcumulada,
+          quantidadeReprovadaAcumulada,
+          quantidadeRevisadaAcumulada,
+          criadoEm:
+            item.operacaoQualidade.iniciadoEm ??
+            item.demandaQualidade.iniciadoEm ??
+            planejamento.turno.iniciadoEm,
+        }
+      }),
+    [itensQualidadeOperacional, planejamento.turno.iniciadoEm, resumosQualidadePorTurnoOpId]
   )
   const pendenciaSelecionada =
     itensRevisao.find((pendencia) => pendencia.id === pendenciaSelecionadaId) ??
@@ -166,6 +192,13 @@ export function PainelQualidadeSupervisor({
   )
 
   const quantidadeRevisada = quantidadeNumero(quantidadeAprovada) + quantidadeNumero(quantidadeReprovada)
+  const resumoPendenciaSelecionada = pendenciaSelecionada
+    ? calcularResumoPendenciaAprovacaoQualidade({
+        quantidadeRecebida: pendenciaSelecionada.quantidadeRecebida,
+        quantidadeAprovada: pendenciaSelecionada.quantidadeAprovadaAcumulada,
+        quantidadeReprovada: pendenciaSelecionada.quantidadeReprovadaAcumulada,
+      })
+    : null
 
   function resetFormulario() {
     setQuantidadeAprovada('0')
@@ -348,8 +381,11 @@ export function PainelQualidadeSupervisor({
                 Revisor {revisorNome ?? 'habilitado'} · aprovação libera o fluxo, reprovação exige
                 defeito catalogado.
               </p>
+              <p className="mt-1 max-w-2xl text-sm text-slate-600">
+                Reprovadas permanecem pendentes até retornarem corrigidas.
+              </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-1 gap-2 text-center sm:grid-cols-3">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                   Pendências
@@ -357,7 +393,9 @@ export function PainelQualidadeSupervisor({
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{itensRevisao.length}</p>
               </div>
               <div className="rounded-2xl bg-amber-50 px-4 py-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Peças</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                  Pendência de aprovação
+                </p>
                 <p className="mt-1 text-2xl font-semibold text-amber-900">
                   {itensRevisao.reduce(
                     (soma, pendencia) => soma + pendencia.quantidadePendente,
@@ -410,7 +448,7 @@ export function PainelQualidadeSupervisor({
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                     <div className="rounded-xl bg-white/70 px-3 py-2">
-                      <p className="text-xs text-slate-500">Peças</p>
+                      <p className="text-xs text-slate-500">Pendência de aprovação</p>
                       <p className="font-semibold text-slate-900">
                         {pendencia.quantidadePendente}
                       </p>
@@ -447,12 +485,61 @@ export function PainelQualidadeSupervisor({
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Disponível
+                  Pendência de aprovação
                 </p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">
                   {pendenciaSelecionada.quantidadePendente}
                 </p>
               </div>
+            </div>
+
+            {resumoPendenciaSelecionada ? (
+              <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Recebidas
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {resumoPendenciaSelecionada.quantidadeRecebida}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                    Revisadas
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-blue-900">
+                    {pendenciaSelecionada.quantidadeRevisadaAcumulada}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                    Aprovadas
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-emerald-900">
+                    {resumoPendenciaSelecionada.quantidadeAprovada}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-rose-700">
+                    Reprovadas
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-rose-900">
+                    {resumoPendenciaSelecionada.quantidadeReprovada}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                    Pendentes
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-amber-900">
+                    {resumoPendenciaSelecionada.quantidadePendenteAprovacao}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Reprovadas permanecem pendentes até retornarem corrigidas.
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
