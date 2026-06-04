@@ -19,18 +19,25 @@ Esta frente e paralela a aplicacao atual. Ela nao substitui, nao interrompe e na
 
 Stack alvo recomendada:
 
-- **Frontend:** Next.js 16 permanece como interface web, admin, scanner e painel TV.
-- **Backend:** Django como backend dedicado de dominio.
-- **API:** Django REST Framework ou Django Ninja, com OpenAPI documentado.
-- **Banco:** PostgreSQL em VPS, com migrations versionadas pelo backend.
+- **Frontend:** Next.js 16 permanece como interface web, admin, scanner e painel TV. Diretório `app/` (convenção App Router).
+- **Backend:** Django 5+ como backend dedicado de domínio. Diretório `backend/`.
+- **API:** Django REST Framework, com OpenAPI documentado via drf-spectacular.
+- **Banco:** PostgreSQL 16 em container Docker, com migrations versionadas pelo backend.
 - **Admin operacional:** Django Admin para suporte, auditoria e manutencao assistida.
-- **Infraestrutura:** Ubuntu + Docker + EasyPanel, com volumes persistentes, backups, logs e rotina de restore testada.
+- **Infraestrutura:**
+  - Docker Compose para desenvolvimento (`docker-compose.dev.yml`)
+  - Docker Compose para produção (`docker-compose.prod.yml`)
+  - Multi-stage Dockerfiles (development → production)
+  - Backend: `runserver` em dev, Gunicorn em prod
+  - Frontend: Next.js dev server em dev, standalone output em prod
+  - PostgreSQL com healthcheck e volumes persistentes
+  - Deploy final: VPS Ubuntu + Docker + EasyPanel
 - **Realtime:** fase posterior. Comecar com polling controlado ou SSE; WebSocket/Django Channels apenas quando a necessidade operacional estiver provada.
 
 Decisao principal:
 
-- Django e preferido a FastAPI porque o sistema possui dominio relacional maduro, muitas transacoes criticas, necessidade de admin operacional, permissoes, migrations fortes, auditoria e manutencao previsivel.
-- FastAPI permanece como alternativa tecnica valida para APIs menores, mas nao e a primeira escolha para esta migracao.
+- Django + DRF e a escolha definitiva. Sistema possui domínio relacional maduro, transações críticas, necessidade de admin operacional, permissões, migrations fortes, auditoria e manutenção previsível.
+- Docker Compose com multi-stage builds para separar ambientes dev/prod.
 
 ---
 
@@ -199,12 +206,38 @@ Nenhum dado de homologacao deve ser descartado, sobrescrito ou corrigido sem scr
 ## 9. Arquitetura alvo em alto nivel
 
 ```text
-Next.js
+/projeto
+├── app/                    # Next.js (App Router — NÃO renomear)
+├── backend/                # Django DRF
+│   ├── pcp_project/config/ # Settings modular (base, local, production)
+│   ├── accounts/
+│   ├── cadastros/
+│   ├── produtos/
+│   ├── turnos/
+│   ├── producao/
+│   ├── qualidade/
+│   ├── metas/
+│   ├── relatorios/
+│   ├── scanner/
+│   ├── infra/
+│   ├── shared/
+│   ├── Dockerfile          # Multi-stage (development → production)
+│   └── requirements.txt
+├── docker-compose.dev.yml   # Docker Compose desenvolvimento
+├── docker-compose.prod.yml  # Docker Compose produção
+└── .env.example
+```
+
+Fluxo de comunicação:
+
+```text
+Next.js (app/)
   app/admin, scanner, tv
   |
-  | HTTPS / JSON / OpenAPI
+  | HTTPS / JSON / OpenAPI 3.1
+  | Authorization: Bearer <JWT>
   v
-Django API
+Django API (backend/)
   apps de dominio
   services transacionais
   selectors/read models
@@ -212,13 +245,14 @@ Django API
   |
   | ORM + transaction.atomic()
   v
-PostgreSQL VPS
-  dados operacionais
+PostgreSQL 16 (container Docker)
+  migrations versionadas
+  constraints de dominio
   auditoria
   backups
 ```
 
-Organizacao sugerida de apps Django:
+Organizacao de apps Django:
 
 - `accounts`: usuarios, papeis e permissoes
 - `cadastros`: operadores, maquinas, setores, operacoes
@@ -228,7 +262,9 @@ Organizacao sugerida de apps Django:
 - `qualidade`: revisoes, defeitos e indicadores
 - `metas`: metas mensais e indicadores gerenciais
 - `relatorios`: agregacoes, dashboards e exports
+- `scanner`: leitura por QR token
 - `infra`: auditoria, healthcheck, configuracoes e suporte operacional
+- `shared/`: pacote Python (NÃO app) com exceptions, permissions, constants, formulas
 
 ---
 
