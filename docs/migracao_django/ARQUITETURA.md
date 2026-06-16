@@ -78,6 +78,8 @@ PostgreSQL 16 (banco em container Docker)
 
 ## 2. Docker — Estrutura e Padrões
 
+Nota operacional em `2026-06-04`: a estratégia de Docker da aplicação está documentada para backend, frontend e banco PostgreSQL da aplicação Django. O restore dos dados Supabase deve usar container PostgreSQL isolado, documentado em `docs/migracao_django/PLANO_BACKUP_RESTORE.md`, e não deve compartilhar volume, credenciais ou porta interna com o banco da aplicação.
+
 ### 2.1 Docker Compose (desenvolvimento)
 
 ```yaml
@@ -139,6 +141,15 @@ services:
 volumes:
   postgres_data:
 ```
+
+### 2.1.1 Banco da aplicação vs banco de restore
+
+| Banco | Finalidade | Compose/Container | Porta local | Volume |
+|---|---|---|---|---|
+| `db` | Banco principal do backend Django em desenvolvimento | `docker-compose.dev.yml` | `5432` ou rede interna | `postgres_data` |
+| `postgres_restore` | Restore isolado dos dados Supabase para validação/importação | `docker-compose.restore.yml` | `5433` | `postgres_restore_data` |
+
+O banco `postgres_restore` é fonte temporária de comparação/importação, não banco operacional da aplicação. Ele pode ser recriado quando necessário a partir dos dumps do Supabase e deve permanecer fora do compose de produção.
 
 ### 2.2 Docker Compose (produção)
 
@@ -1037,7 +1048,70 @@ factory-boy
 
 ---
 
-## 19. Proximos Passos (MDJ-4+)
+## 19. Integracao gradual com Next.js
+
+### 19.1 Principio
+
+O frontend Next.js atual continua usando Supabase como origem principal ate que cada modulo Django prove paridade funcional, backup/restore validado e rollback operacional. A troca de origem de dados deve ser feita por modulo, nunca por big bang.
+
+### 19.2 Feature flags por modulo
+
+Cada integracao Django deve ser controlada por feature flag explicita em variavel de ambiente, com fallback para Supabase quando a flag estiver desligada.
+
+| Modulo | Flag proposta | Origem padrao | Origem alternativa |
+|---|---|---|---|
+| Scanner read-only | `NEXT_PUBLIC_USE_DJANGO_SCANNER_READS` | Supabase | Django `/api/v1/scanner/*` |
+| Cadastros read-only | `NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS` | Supabase | Django `/api/v1/cadastros/*`, `/api/v1/produtos/*` |
+| Metas mensais read-only | `NEXT_PUBLIC_USE_DJANGO_METAS_READS` | Supabase | Django `/api/v1/metas/*` |
+| Dashboard operacional | `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS` | Supabase | Django selectors expostos em `/api/v1/relatorios/*` e `/api/v1/turnos/*` |
+| Mutacoes administrativas simples | `NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES` | Supabase Server Actions | Django DRF |
+| Apontamentos produtivos | `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES` | Supabase RPC | Django `ProducaoService` |
+| Qualidade | `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES` | Supabase RPC | Django `QualidadeService` |
+
+Regra obrigatoria: flags de escrita critica so podem ser ligadas depois de testes de paridade, testes de concorrencia, backup restaurado e plano de rollback aceito.
+
+### 19.3 Endpoints iniciais read-only
+
+A primeira integracao deve evitar escrita e priorizar endpoints de leitura comparaveis com o sistema atual:
+
+1. `GET /api/v1/scanner/operador/{token}/`
+2. `GET /api/v1/scanner/setor/{token}/`
+3. `GET /api/v1/scanner/setor/{token}/demandas/`
+4. `GET /api/v1/cadastros/operadores/`
+5. `GET /api/v1/cadastros/maquinas/`
+6. `GET /api/v1/cadastros/setores/`
+7. `GET /api/v1/cadastros/operacoes/`
+8. `GET /api/v1/produtos/`
+9. `GET /api/v1/metas/mensais/{competencia}/resumo/`
+
+Esses endpoints permitem comparar payload, contagens e comportamento sem risco de corromper dados de homologacao.
+
+### 19.4 Fallback e rollback por modulo
+
+O fallback padrao e desligar a feature flag do modulo e retornar imediatamente ao caminho Supabase existente. Nenhum modulo Django deve remover o caminho Supabase antes do cutover definitivo e homologado.
+
+Critérios de rollback:
+- divergencia de payload em campo contratual
+- divergencia de contagem em leitura read-only
+- erro de permissao/autenticacao nao previsto
+- latencia operacional incompatível com scanner, dashboard ou apontamentos
+- qualquer falha de escrita critica em ambiente de homologacao
+
+### 19.5 Criterios de cutover por modulo
+
+Um modulo so pode trocar oficialmente para Django quando cumprir todos os criterios abaixo:
+
+- backup e restore da base Supabase validados
+- endpoints Django documentados no OpenAPI
+- testes de paridade cobrindo invariantes aplicaveis
+- comparacao com Supabase atual sem divergencias relevantes
+- feature flag testada em ligado/desligado
+- plano de rollback documentado para o modulo
+- aceite explicito do usuario antes de desligar o caminho Supabase
+
+---
+
+## 20. Proximos Passos (MDJ-4+)
 
 1. **MDJ-4** — Scaffold Django + Docker Compose
    - `django-admin startproject pcp_project backend/`

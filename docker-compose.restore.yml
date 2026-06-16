@@ -1,0 +1,21 @@
+services:
+  postgres_restore:
+    image: postgres:16-alpine
+    container_name: pcp-postgres-restore
+    environment:
+      POSTGRES_DB: supabase_restore_test
+      POSTGRES_USER: restore_user
+      POSTGRES_PASSWORD: restore_senha_local
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_restore_data:/var/lib/postgresql/data
+      - /home/jrmelo/backup-supabase-20260531:/backups:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "restore_user", "-d", "supabase_restore_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_restore_data:

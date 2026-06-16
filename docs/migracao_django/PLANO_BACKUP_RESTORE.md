@@ -6,6 +6,20 @@
 
 ---
 
+## Estado operacional atual
+
+Em `2026-06-04`, o restore anteriormente validado em um container PostgreSQL separado deixou de estar disponível. O restore foi recriado na MDJ-6 e validado novamente como fonte local read-only de paridade.
+
+Antes de qualquer etapa que dependa de dados restaurados fora do Supabase, especialmente importação real para o banco Django, comparação de migrations ou validação de paridade com dados reais, o container de restore deve estar ativo, healthy e validado contra o baseline documentado.
+
+Regra prática:
+- MDJ-2 permanece concluída como plano documental e histórico validado.
+- O restore operacional atual fica documentado em `MDJ6_RESTORE_READONLY_VALIDACAO.md`.
+- Qualquer importação com dados reais exige restore healthy no momento da execução.
+- O banco de restore nunca deve compartilhar volume com o banco da aplicação Django.
+
+---
+
 ## Referências do projeto
 
 | Item | Valor |
@@ -360,6 +374,60 @@ export LOCAL_DB_NAME="supabase_restore_test"
 export LOCAL_DB_USER="restore_user"
 export LOCAL_DB_PASSWORD="restore_senha_local"
 ```
+
+### 2.3.1.1 Estratégia recomendada — container Compose dedicado para restore
+
+Para evitar misturar o banco de desenvolvimento Django com o banco restaurado do Supabase, o restore deve usar um container próprio, com volume próprio e porta própria.
+
+Arquivo recomendado para a sprint de recriação do restore:
+
+```yaml
+# docker-compose.restore.yml
+services:
+  postgres_restore:
+    image: postgres:16-alpine
+    container_name: pcp-postgres-restore
+    environment:
+      POSTGRES_DB: supabase_restore_test
+      POSTGRES_USER: restore_user
+      POSTGRES_PASSWORD: restore_senha_local
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_restore_data:/var/lib/postgresql/data
+      - ./backups/supabase:/backups:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "restore_user", "-d", "supabase_restore_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_restore_data:
+```
+
+Comandos de ciclo de vida:
+
+```bash
+# Subir restore isolado
+docker compose -f docker-compose.restore.yml up -d
+
+# Verificar saúde
+docker compose -f docker-compose.restore.yml ps
+
+# Variáveis para comandos psql
+export LOCAL_DB_HOST="localhost"
+export LOCAL_DB_PORT="5433"
+export LOCAL_DB_NAME="supabase_restore_test"
+export LOCAL_DB_USER="restore_user"
+export LOCAL_DB_PASSWORD="restore_senha_local"
+```
+
+Critérios obrigatórios:
+- `postgres_restore_data` é exclusivo do restore e não pode ser reutilizado pelo banco Django.
+- O container de restore não deve ser exposto em produção.
+- O diretório `./backups/supabase` deve conter apenas dumps e arquivos exportados do Supabase.
+- Se o container for removido junto com o volume, o restore deixa de existir e deve ser refeito.
 
 ### 2.3.2 Restaurar schema
 
