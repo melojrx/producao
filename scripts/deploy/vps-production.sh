@@ -28,7 +28,7 @@ cd "${DEPLOY_PATH}"
 echo "==> Fetch ${DEPLOY_REF}"
 git fetch origin "${DEPLOY_REF}"
 git checkout "${DEPLOY_REF}"
-git pull --ff-only origin "${DEPLOY_REF}"
+git reset --hard "origin/${DEPLOY_REF}"
 
 if [[ ! -f .env ]]; then
   echo "ERRO: .env ausente em ${DEPLOY_PATH}. Copie de .env.example e preencha secrets." >&2
