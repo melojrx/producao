@@ -35,6 +35,8 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY . .
 
+RUN chmod +x docker-entrypoint.prod.sh
+
 EXPOSE 8000
 
-CMD ["gunicorn", "pcp_project.wsgi:application", "--bind", "0.0.0.0:8000"]
+ENTRYPOINT ["./docker-entrypoint.prod.sh"]

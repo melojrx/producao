@@ -4,7 +4,10 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_load_env.sh
+source "${SCRIPT_DIR}/_load_env.sh"
+
 COMPOSE_FILE="${ROOT_DIR}/docker-compose.prod.yml"
 BACKUP_DIR="${1:-${ROOT_DIR}/backups/postgres}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -24,6 +27,7 @@ DB_NAME="${POSTGRES_DB:-pcp_db}"
 DB_USER="${POSTGRES_USER:-pcp_user}"
 
 echo "Gerando backup PostgreSQL em ${OUTPUT_FILE}..."
+echo "  Banco: ${DB_NAME} | Usuario: ${DB_USER}"
 
 docker compose -f "${COMPOSE_FILE}" exec -T "${DB_SERVICE}" \
   pg_dump \

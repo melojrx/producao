@@ -1,0 +1,3 @@
+# Wrapper de compatibilidade — fonte canonica: docker/compose/dev.full.yml
+include:
+  - path: docker/compose/dev.full.yml

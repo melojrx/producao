@@ -8,6 +8,7 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
   : null
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   turbopack: {
     root: path.resolve(rootDir),
   },

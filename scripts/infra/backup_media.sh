@@ -4,13 +4,21 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_load_env.sh
+source "${SCRIPT_DIR}/_load_env.sh"
+
 COMPOSE_FILE="${ROOT_DIR}/docker-compose.prod.yml"
 BACKUP_DIR="${1:-${ROOT_DIR}/backups/media}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 ARCHIVE="${BACKUP_DIR}/media_${TIMESTAMP}.tar.gz"
 
 mkdir -p "${BACKUP_DIR}"
+
+if [[ ! -f "${COMPOSE_FILE}" ]]; then
+  echo "Arquivo compose nao encontrado: ${COMPOSE_FILE}" >&2
+  exit 1
+fi
 
 cd "${ROOT_DIR}"
 

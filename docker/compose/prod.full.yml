@@ -1,0 +1,9 @@
+# Stack producao integrada MDJ-18: Django + PostgreSQL + Next.js + Nginx
+# Uso: docker compose -f docker/compose/prod.full.yml up --build
+# Alternativa: npm run prod:docker
+# Projeto Compose: definir `name: producao-prod` no wrapper raiz (docker-compose.prod.yml)
+
+include:
+  - path: prod.base.yml
+  - path: prod.frontend.yml
+  - path: prod.proxy.yml

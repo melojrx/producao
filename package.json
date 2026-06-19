@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:docker": "docker compose -f docker/compose/dev.full.yml up --build",
+    "dev:docker:backend": "docker compose -f docker-compose.dev.yml up --build",
+    "prod:docker": "docker compose -f docker/compose/prod.full.yml up --build",
+    "prod:docker:config": "docker compose -f docker-compose.prod.yml config",
+    "smoke:prod": "node scripts/smoke-stack-prod.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

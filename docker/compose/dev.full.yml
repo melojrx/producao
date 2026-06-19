@@ -1,0 +1,9 @@
+# Stack dev integrada MDJ-17: Django + PostgreSQL + Next.js
+# Uso: docker compose -f docker/compose/dev.full.yml up --build
+# Alternativa: npm run dev:docker
+
+name: producao
+
+include:
+  - path: dev.base.yml
+  - path: dev.frontend.yml
