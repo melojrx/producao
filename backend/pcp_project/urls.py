@@ -34,6 +34,8 @@ urlpatterns = [
     path("api/v1/", include("producao.urls")),
     path("api/v1/", include("qualidade.urls")),
     path("api/v1/", include("relatorios.urls")),
+    path("api/v1/scanner/", include("scanner.urls")),
+    path("api/v1/", include("metas.urls")),
 ]
 
 if settings.DEBUG:

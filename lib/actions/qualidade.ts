@@ -1,6 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import {
+  mapearErroAcaoQualidadeDjango,
+  registrarRevisaoQualidadeDjango,
+} from '@/lib/django/actions/qualidade'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { validarConsumoSaldoFisicoOperacoesComClient } from '@/lib/queries/saldo-fisico-op'
@@ -173,6 +178,26 @@ export async function registrarRevisaoQualidade(
     return {
       sucesso: false,
       erro: erroDefeitos,
+    }
+  }
+
+  if (estaUsandoDjango('qualidade_writes')) {
+    try {
+      const resultado = await registrarRevisaoQualidadeDjango(input)
+
+      if (resultado.sucesso) {
+        revalidatePath('/scanner')
+        revalidatePath('/admin/dashboard')
+        revalidatePath('/admin/apontamentos')
+        revalidatePath('/admin/relatorios')
+      }
+
+      return resultado
+    } catch (error) {
+      return {
+        sucesso: false,
+        erro: mapearErroAcaoQualidadeDjango(error),
+      }
     }
   }
 

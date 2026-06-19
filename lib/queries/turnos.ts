@@ -1,3 +1,10 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import {
+  buscarPlanejamentoTurnoPorIdDjango,
+  buscarTurnoAbertoDjango,
+  buscarTurnoAbertoOuUltimoEncerradoDjango,
+  buscarUltimoTurnoEncerradoDjango,
+} from '@/lib/django/queries/turnos-dashboard'
 import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
 import {
   listarIndicadoresQualidadeTurnoComClient,
@@ -696,6 +703,10 @@ function enriquecerOpsComPosicaoFluxo(
 }
 
 export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<PlanejamentoTurnoV2 | null> {
+  if (estaUsandoDjango('dashboard_reads')) {
+    return buscarPlanejamentoTurnoPorIdDjango(turnoId)
+  }
+
   const supabase = await createClient()
 
   const { data: turno, error } = await supabase
@@ -797,6 +808,10 @@ export async function buscarPlanejamentoTurnoPorId(turnoId: string): Promise<Pla
 }
 
 export async function buscarTurnoAberto(): Promise<PlanejamentoTurnoV2 | null> {
+  if (estaUsandoDjango('dashboard_reads')) {
+    return buscarTurnoAbertoDjango()
+  }
+
   const turno = await buscarTurnoBase('aberto')
 
   if (!turno) {
@@ -807,6 +822,10 @@ export async function buscarTurnoAberto(): Promise<PlanejamentoTurnoV2 | null> {
 }
 
 export async function buscarUltimoTurnoEncerrado(): Promise<PlanejamentoTurnoV2 | null> {
+  if (estaUsandoDjango('dashboard_reads')) {
+    return buscarUltimoTurnoEncerradoDjango()
+  }
+
   const turno = await buscarTurnoBase('ultimo_encerrado')
 
   if (!turno) {
@@ -817,6 +836,10 @@ export async function buscarUltimoTurnoEncerrado(): Promise<PlanejamentoTurnoV2 
 }
 
 export async function buscarTurnoAbertoOuUltimoEncerrado(): Promise<PlanejamentoTurnoDashboardV2 | null> {
+  if (estaUsandoDjango('dashboard_reads')) {
+    return buscarTurnoAbertoOuUltimoEncerradoDjango()
+  }
+
   const turnoAberto = await buscarTurnoAberto()
 
   if (turnoAberto) {

@@ -7,7 +7,7 @@ import {
   buscarOperacoesScaneadasPorDemanda,
   buscarOperadorScaneadoPorToken,
   buscarTurnoSetorScaneadoPorToken,
-} from '@/lib/queries/scanner'
+} from '@/lib/queries/scanner-client'
 import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
 import {
   calcularSaldoFisicoRestanteOperacao,

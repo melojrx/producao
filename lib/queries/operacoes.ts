@@ -1,3 +1,9 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import {
+  buscarOperacaoPorIdDjango,
+  buscarOperacaoPorTokenDjango,
+  listarOperacoesDjango,
+} from '@/lib/django/queries/cadastros'
 import { createClient } from '@/lib/supabase/server'
 import type {
   OperacaoListItem,
@@ -150,7 +156,7 @@ function aplicarBusca(operacoes: OperacaoListItem[], busca: string): OperacaoLis
   })
 }
 
-export async function listarOperacoes(): Promise<OperacaoListItem[]> {
+async function listarOperacoesSupabase(): Promise<OperacaoListItem[]> {
   const supabase = await createClient()
 
   const [
@@ -177,6 +183,14 @@ export async function listarOperacoes(): Promise<OperacaoListItem[]> {
   }
 
   return mapearOperacoes(operacoes, maquinas, setores)
+}
+
+export async function listarOperacoes(): Promise<OperacaoListItem[]> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return listarOperacoesDjango()
+  }
+
+  return listarOperacoesSupabase()
 }
 
 export async function listarOperacoesPaginadas(
@@ -206,7 +220,7 @@ export async function listarOperacoesPaginadas(
   }
 }
 
-export async function buscarOperacaoPorId(id: string): Promise<OperacaoListItem | null> {
+async function buscarOperacaoPorIdSupabase(id: string): Promise<OperacaoListItem | null> {
   const supabase = await createClient()
 
   const { data: operacao, error } = await supabase
@@ -252,7 +266,15 @@ export async function buscarOperacaoPorId(id: string): Promise<OperacaoListItem 
   return mapearOperacaoComReferencias(operacao, maquina, setor)
 }
 
-export async function buscarOperacaoPorToken(token: string): Promise<OperacaoListItem | null> {
+export async function buscarOperacaoPorId(id: string): Promise<OperacaoListItem | null> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return buscarOperacaoPorIdDjango(id)
+  }
+
+  return buscarOperacaoPorIdSupabase(id)
+}
+
+async function buscarOperacaoPorTokenSupabase(token: string): Promise<OperacaoListItem | null> {
   const supabase = await createClient()
 
   const { data: operacao, error } = await supabase
@@ -296,4 +318,12 @@ export async function buscarOperacaoPorToken(token: string): Promise<OperacaoLis
   }
 
   return mapearOperacaoComReferencias(operacao, maquina, setor)
+}
+
+export async function buscarOperacaoPorToken(token: string): Promise<OperacaoListItem | null> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return buscarOperacaoPorTokenDjango(token)
+  }
+
+  return buscarOperacaoPorTokenSupabase(token)
 }

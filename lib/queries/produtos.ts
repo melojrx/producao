@@ -1,3 +1,8 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import {
+  buscarProdutoComRoteiroDjango,
+  listarProdutosDjango,
+} from '@/lib/django/queries/produtos'
 import { createClient } from '@/lib/supabase/server'
 import type { ProdutoListItem, ProdutoRoteiroItem } from '@/types'
 import type { Tables } from '@/types/supabase'
@@ -77,6 +82,10 @@ function mapearProdutosComRoteiro(
 }
 
 export async function listarProdutos(): Promise<ProdutoListItem[]> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return listarProdutosDjango()
+  }
+
   const supabase = await createClient()
 
   const [
@@ -118,6 +127,10 @@ export async function listarProdutos(): Promise<ProdutoListItem[]> {
 }
 
 export async function buscarProdutoComRoteiro(id: string): Promise<ProdutoListItem | null> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return buscarProdutoComRoteiroDjango(id)
+  }
+
   const supabase = await createClient()
 
   const [{ data: produto, error: produtoError }, { data: produtoOperacoes, error: produtoOpsError }] =

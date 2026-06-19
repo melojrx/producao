@@ -2,7 +2,7 @@ from typing import Optional
 
 from django.db.models import QuerySet
 
-from turnos.models import Turno, TurnoOp, TurnoSetor, TurnoSetorDemanda, TurnoSetorOperacao
+from turnos.models import Turno, TurnoOp, TurnoSetor, TurnoSetorDemanda, TurnoSetorOperacao, TurnoSetorOp
 
 
 def list_turnos(status: Optional[str] = None) -> QuerySet[Turno]:
@@ -21,6 +21,15 @@ def get_turno(turno_id: str) -> Turno:
 def get_turno_aberto() -> Optional[Turno]:
     """Retorna turno aberto ou None."""
     return Turno.objects.filter(status=Turno.Status.ABERTO).first()
+
+
+def get_turno_ultimo_encerrado() -> Optional[Turno]:
+    """Retorna o ultimo turno encerrado ou None."""
+    return (
+        Turno.objects.filter(status=Turno.Status.ENCERRADO)
+        .order_by("-data_hora_encerramento", "-data_hora_abertura")
+        .first()
+    )
 
 
 def get_turno_completo(turno_id: str) -> Turno:
@@ -48,11 +57,44 @@ def list_turno_setores(turno_id: str) -> QuerySet[TurnoSetor]:
     return TurnoSetor.objects.filter(turno_id=turno_id).select_related("setor")
 
 
-def list_turno_setor_demandas(turno_setor_id: str) -> QuerySet[TurnoSetorDemanda]:
-    """Lista demandas de um setor de turno."""
-    return TurnoSetorDemanda.objects.filter(turno_setor_id=turno_setor_id).select_related("turno_op__produto")
+def list_turno_setor_demandas(
+    turno_setor_id: str | None = None,
+    turno_id: str | None = None,
+) -> QuerySet[TurnoSetorDemanda]:
+    """Lista demandas de um setor de turno ou de um turno inteiro."""
+    qs = TurnoSetorDemanda.objects.select_related(
+        "turno_op__produto",
+        "setor",
+        "turno_setor_op_legacy",
+    )
+    if turno_setor_id:
+        qs = qs.filter(turno_setor_id=turno_setor_id)
+    elif turno_id:
+        qs = qs.filter(turno_id=turno_id)
+    else:
+        return TurnoSetorDemanda.objects.none()
+    return qs.order_by("created_at")
 
 
-def list_turno_setor_operacoes(turno_setor_demanda_id: str) -> QuerySet[TurnoSetorOperacao]:
-    """Lista operacoes de uma demanda de setor."""
-    return TurnoSetorOperacao.objects.filter(turno_setor_demanda_id=turno_setor_demanda_id).select_related("operacao")
+def list_turno_setor_operacoes(
+    turno_setor_demanda_id: str | None = None,
+    turno_id: str | None = None,
+) -> QuerySet[TurnoSetorOperacao]:
+    """Lista operacoes de uma demanda de setor ou de um turno inteiro."""
+    qs = TurnoSetorOperacao.objects.select_related("operacao", "operacao__maquina", "setor")
+    if turno_setor_demanda_id:
+        qs = qs.filter(turno_setor_demanda_id=turno_setor_demanda_id)
+    elif turno_id:
+        qs = qs.filter(turno_id=turno_id)
+    else:
+        return TurnoSetorOperacao.objects.none()
+    return qs.order_by("turno_setor_demanda", "sequencia")
+
+
+def list_turno_setor_ops(turno_id: str) -> QuerySet[TurnoSetorOp]:
+    """Lista secoes legadas (turno_setor_ops) de um turno."""
+    return (
+        TurnoSetorOp.objects.filter(turno_id=turno_id)
+        .select_related("setor", "turno_op")
+        .order_by("created_at")
+    )

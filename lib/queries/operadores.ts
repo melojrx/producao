@@ -1,7 +1,13 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import {
+  buscarOperadorPorIdDjango,
+  buscarOperadorPorTokenDjango,
+  listarOperadoresDjango,
+} from '@/lib/django/queries/cadastros'
 import { createClient } from '@/lib/supabase/server'
 import type { OperadorListItem } from '@/types'
 
-export async function listarOperadores(): Promise<OperadorListItem[]> {
+async function listarOperadoresSupabase(): Promise<OperadorListItem[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -13,7 +19,7 @@ export async function listarOperadores(): Promise<OperadorListItem[]> {
   return data
 }
 
-export async function buscarOperadorPorId(id: string): Promise<OperadorListItem | null> {
+async function buscarOperadorPorIdSupabase(id: string): Promise<OperadorListItem | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -26,7 +32,7 @@ export async function buscarOperadorPorId(id: string): Promise<OperadorListItem 
   return data
 }
 
-export async function buscarOperadorPorToken(token: string): Promise<OperadorListItem | null> {
+async function buscarOperadorPorTokenSupabase(token: string): Promise<OperadorListItem | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -37,4 +43,28 @@ export async function buscarOperadorPorToken(token: string): Promise<OperadorLis
 
   if (error) return null
   return data
+}
+
+export async function listarOperadores(): Promise<OperadorListItem[]> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return listarOperadoresDjango()
+  }
+
+  return listarOperadoresSupabase()
+}
+
+export async function buscarOperadorPorId(id: string): Promise<OperadorListItem | null> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return buscarOperadorPorIdDjango(id)
+  }
+
+  return buscarOperadorPorIdSupabase(id)
+}
+
+export async function buscarOperadorPorToken(token: string): Promise<OperadorListItem | null> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return buscarOperadorPorTokenDjango(token)
+  }
+
+  return buscarOperadorPorTokenSupabase(token)
 }

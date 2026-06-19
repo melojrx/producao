@@ -1,9 +1,19 @@
 import 'server-only'
 
-import type { User } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { AdminRole } from '@/lib/auth/roles'
+import {
+  resolverSessaoAdminDjango,
+  type AdminSessionUser,
+} from '@/lib/auth/sessao-django'
+import { obterUsuarioAtualDjango, refreshAccessToken } from '@/lib/django/auth.ts'
+import {
+  limparSessaoJwtCookies,
+  obterTokensJwtDosCookies,
+  persistirSessaoJwtCookies,
+} from '@/lib/django/cookies.ts'
+import { estaUsandoDjango } from '@/lib/django/flags.ts'
 import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 
 export class AdminAuthorizationError extends Error {
@@ -20,7 +30,7 @@ export class AdminAuthorizationError extends Error {
 }
 
 export interface AdminSession {
-  user: User
+  user: AdminSessionUser
   role: AdminRole
 }
 
@@ -40,7 +50,17 @@ export function getAuthorizationErrorMessage(error: unknown): string | null {
   return 'Sua conta não tem permissão para acessar a área administrativa.'
 }
 
-export async function getOptionalAdminSession(): Promise<AdminSession | null> {
+async function obterSessaoAdminDjango(): Promise<AdminSession | null> {
+  return resolverSessaoAdminDjango({
+    obterTokens: obterTokensJwtDosCookies,
+    persistirTokens: persistirSessaoJwtCookies,
+    limparTokens: limparSessaoJwtCookies,
+    refreshAccessToken,
+    obterUsuarioAtual: obterUsuarioAtualDjango,
+  })
+}
+
+async function obterSessaoAdminSupabase(): Promise<AdminSession | null> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -56,7 +76,21 @@ export async function getOptionalAdminSession(): Promise<AdminSession | null> {
     return null
   }
 
-  return { user, role }
+  return {
+    user: {
+      id: user.id,
+      email: user.email ?? null,
+    },
+    role,
+  }
+}
+
+export async function getOptionalAdminSession(): Promise<AdminSession | null> {
+  if (estaUsandoDjango('auth')) {
+    return obterSessaoAdminDjango()
+  }
+
+  return obterSessaoAdminSupabase()
 }
 
 interface RequireAdminUserOptions {
@@ -68,6 +102,21 @@ export async function requireAdminUser(
   options: RequireAdminUserOptions = {}
 ): Promise<AdminSession> {
   const { redirectOnFail = true, redirectTo = '/login' } = options
+
+  if (estaUsandoDjango('auth')) {
+    const sessao = await obterSessaoAdminDjango()
+
+    if (!sessao) {
+      if (redirectOnFail) {
+        redirect(`${redirectTo}?erro=sessao-expirada`)
+      }
+
+      throw new AdminAuthorizationError('unauthenticated')
+    }
+
+    return sessao
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -92,7 +141,13 @@ export async function requireAdminUser(
     throw new AdminAuthorizationError('unauthorized')
   }
 
-  return { user, role }
+  return {
+    user: {
+      id: user.id,
+      email: user.email ?? null,
+    },
+    role,
+  }
 }
 
 export async function requireSystemAdmin(

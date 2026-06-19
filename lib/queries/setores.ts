@@ -1,7 +1,9 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import { buscarSetorPorIdDjango, listarSetoresDjango } from '@/lib/django/queries/cadastros'
 import { createClient } from '@/lib/supabase/server'
 import type { SetorListItem } from '@/types'
 
-export async function listarSetores(): Promise<SetorListItem[]> {
+async function listarSetoresSupabase(): Promise<SetorListItem[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -16,7 +18,7 @@ export async function listarSetores(): Promise<SetorListItem[]> {
   return data
 }
 
-export async function buscarSetorPorId(id: string): Promise<SetorListItem | null> {
+async function buscarSetorPorIdSupabase(id: string): Promise<SetorListItem | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -30,4 +32,20 @@ export async function buscarSetorPorId(id: string): Promise<SetorListItem | null
   }
 
   return data
+}
+
+export async function listarSetores(): Promise<SetorListItem[]> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return listarSetoresDjango()
+  }
+
+  return listarSetoresSupabase()
+}
+
+export async function buscarSetorPorId(id: string): Promise<SetorListItem | null> {
+  if (estaUsandoDjango('cadastros_reads')) {
+    return buscarSetorPorIdDjango(id)
+  }
+
+  return buscarSetorPorIdSupabase(id)
 }

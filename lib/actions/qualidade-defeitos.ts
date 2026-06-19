@@ -5,6 +5,14 @@ import {
   getAuthorizationErrorMessage,
   requireAdminUser,
 } from '@/lib/auth/require-admin-user'
+import {
+  criarTipoDefeitoQualidadeDjango,
+  editarTipoDefeitoQualidadeDjango,
+  inativarTipoDefeitoQualidadeDjango,
+  mapearErroAcaoQualidadeDefeitoDjango,
+  reativarTipoDefeitoQualidadeDjango,
+} from '@/lib/django/actions/qualidade-defeitos'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validarTipoDefeitoInput } from '@/lib/utils/qualidade-defeitos'
 import type { FormActionState } from '@/types'
@@ -79,6 +87,16 @@ export async function criarTipoDefeitoQualidade(
     return { erro: validacao.erro }
   }
 
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      await criarTipoDefeitoQualidadeDjango(validacao.dados)
+      revalidarSuperficiesQualidade()
+      return { sucesso: true }
+    } catch (error) {
+      return { erro: mapearErroAcaoQualidadeDefeitoDjango(error) }
+    }
+  }
+
   const supabase = createAdminClient()
   const { error } = await supabase.from('qualidade_defeitos').insert({
     nome: validacao.dados.nome,
@@ -120,6 +138,16 @@ export async function editarTipoDefeitoQualidade(
     return { erro: validacao.erro }
   }
 
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      await editarTipoDefeitoQualidadeDjango(id, validacao.dados)
+      revalidarSuperficiesQualidade()
+      return { sucesso: true }
+    } catch (error) {
+      return { erro: mapearErroAcaoQualidadeDefeitoDjango(error) }
+    }
+  }
+
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('qualidade_defeitos')
@@ -153,6 +181,23 @@ export async function alterarStatusTipoDefeitoQualidade(
     return erroSessao
   }
 
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      if (ativo) {
+        await reativarTipoDefeitoQualidadeDjango(id)
+      } else {
+        await inativarTipoDefeitoQualidadeDjango(id)
+      }
+
+      revalidarSuperficiesQualidade()
+      return { sucesso: true }
+    } catch (error) {
+      return {
+        erro: mapearErroAcaoQualidadeDefeitoDjango(error),
+      }
+    }
+  }
+
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('qualidade_defeitos')
@@ -174,6 +219,16 @@ export async function excluirTipoDefeitoQualidade(id: string): Promise<FormActio
   const erroSessao = await validarSessaoAdmin()
   if (erroSessao) {
     return erroSessao
+  }
+
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      await inativarTipoDefeitoQualidadeDjango(id)
+      revalidarSuperficiesQualidade()
+      return { sucesso: true }
+    } catch (error) {
+      return { erro: mapearErroAcaoQualidadeDefeitoDjango(error) }
+    }
   }
 
   const supabase = createAdminClient()

@@ -1,3 +1,5 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import { listarTiposDefeitoQualidadeDjango } from '@/lib/django/queries/qualidade-defeitos'
 import { createClient } from '@/lib/supabase/server'
 import { normalizarClassificacaoTipoDefeito } from '@/lib/utils/qualidade-defeitos'
 import type {
@@ -83,6 +85,10 @@ export async function listarTiposDefeitoQualidade(
     status: 'todos',
   }
 ): Promise<QualidadeTipoDefeitoListItem[]> {
+  if (estaUsandoDjango('admin_writes')) {
+    return listarTiposDefeitoQualidadeDjango(params)
+  }
+
   const supabase = await createClient()
 
   const [

@@ -1,6 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import {
+  mapearErroAcaoProducaoDjango,
+  registrarProducaoOperacaoDjango,
+} from '@/lib/django/actions/producao'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validarConsumoSaldoFisicoOperacoesComClient } from '@/lib/queries/saldo-fisico-op'
@@ -154,6 +159,7 @@ async function resolverUsuarioSistemaAutenticadoOpcional(): Promise<string | nul
   return usuarioSistema?.id ?? null
 }
 
+/** Legado V1 (turnoSetorOpId). Deferido para Supabase — scanner V2 usa registrarProducaoOperacao. */
 export async function registrarProducao(
   input: RegistrarProducaoInput
 ): Promise<RegistrarProducaoResultado> {
@@ -221,6 +227,19 @@ export async function registrarProducaoOperacao(
     return { sucesso: false, erro: 'A quantidade deve ser um número inteiro maior ou igual a 1.' }
   }
 
+  if (estaUsandoDjango('producao_writes')) {
+    try {
+      const resultado = await registrarProducaoOperacaoDjango(input)
+      revalidatePath('/scanner')
+      revalidatePath('/admin/dashboard')
+      revalidatePath('/admin/apontamentos')
+      revalidatePath('/admin/relatorios')
+      return resultado
+    } catch (error) {
+      return { sucesso: false, erro: mapearErroAcaoProducaoDjango(error) }
+    }
+  }
+
   const usuarioSistemaId =
     input.usuarioSistemaId === undefined
       ? await resolverUsuarioSistemaAutenticadoOpcional()
@@ -286,6 +305,10 @@ export async function registrarProducaoOperacao(
   }
 }
 
+/**
+ * Batch supervisor (RPC registrar_producao_supervisor_em_lote).
+ * MDJ-10 não expõe equivalente Django — permanece Supabase mesmo com producao_writes=true.
+ */
 export async function registrarApontamentosSupervisor(
   _previousState: RegistrarApontamentosSupervisorActionState,
   formData: FormData

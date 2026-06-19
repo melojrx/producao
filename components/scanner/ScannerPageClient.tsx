@@ -20,7 +20,7 @@ import { SelecaoOperacaoScanner } from '@/components/scanner/SelecaoOperacaoScan
 import { useScanner } from '@/hooks'
 import { registrarProducaoOperacao } from '@/lib/actions/producao'
 import { registrarRevisaoQualidade } from '@/lib/actions/qualidade'
-import { listarOperadoresAtivosScanner } from '@/lib/queries/scanner'
+import { listarOperadoresAtivosScanner } from '@/lib/queries/scanner-client'
 import type { QualidadeDefeitoCatalogoItem } from '@/lib/queries/qualidade'
 import { isScannerV2Enabled } from '@/lib/utils/feature-flags'
 import { descreverTipoQRCode } from '@/lib/utils/qrcode'

@@ -1,3 +1,8 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import {
+  buscarMetaMensalCompetenciaDjango,
+  buscarResumoMetaMensalDashboardDjango,
+} from '@/lib/django/queries/metas'
 import { consolidarDemandasPorOperacoes, consolidarOpsPorDemandas } from '@/lib/utils/consolidacao-turno'
 import { createClient } from '@/lib/supabase/server'
 import { normalizarCompetenciaMensal, obterCompetenciaMesAtual, obterDiasDaCompetencia } from '@/lib/utils/data'
@@ -87,6 +92,10 @@ export async function buscarMetaMensalCompetencia(
   competencia: string
   metaMensal: MetaMensal | null
 }> {
+  if (estaUsandoDjango('metas_reads')) {
+    return buscarMetaMensalCompetenciaDjango(competenciaSelecionada)
+  }
+
   const supabase = await createClient()
   const competencia =
     normalizarCompetenciaMensal(competenciaSelecionada ?? obterCompetenciaMesAtual()) ??
@@ -322,6 +331,10 @@ function construirResumoSemanal(
 export async function buscarResumoMetaMensalDashboard(
   competenciaSelecionada?: string
 ): Promise<MetaMensalResumoDashboard> {
+  if (estaUsandoDjango('metas_reads')) {
+    return buscarResumoMetaMensalDashboardDjango(competenciaSelecionada)
+  }
+
   const supabase = await createClient()
   const intervalo = construirIntervaloCompetencia(competenciaSelecionada ?? obterCompetenciaMesAtual())
 

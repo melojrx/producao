@@ -3,14 +3,16 @@ from rest_framework.decorators import action
 from shared.permissions import IsSupervisor
 from rest_framework.response import Response
 
-from turnos.models import Turno, TurnoOp, TurnoSetor, TurnoSetorDemanda, TurnoSetorOperacao, TurnoOperador
+from turnos.models import Turno, TurnoOp, TurnoSetor, TurnoSetorDemanda, TurnoSetorOperacao, TurnoSetorOp, TurnoOperador
 from turnos.selectors import (
     get_turno,
     get_turno_aberto,
     get_turno_completo,
+    get_turno_ultimo_encerrado,
     list_turno_ops,
     list_turno_setor_demandas,
     list_turno_setor_operacoes,
+    list_turno_setor_ops,
     list_turno_setores,
     list_turnos,
 )
@@ -21,6 +23,7 @@ from turnos.serializers.turno import (
     TurnoSerializer,
     TurnoSetorDemandaSerializer,
     TurnoSetorOperacaoSerializer,
+    TurnoSetorOpSerializer,
     TurnoSetorSerializer,
 )
 
@@ -46,6 +49,15 @@ class TurnoViewSet(viewsets.ReadOnlyModelViewSet):
         instance = get_turno_aberto()
         if not instance:
             return Response({"detail": "Nenhum turno aberto."}, status=404)
+        serializer = TurnoDetailSerializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="ultimo-encerrado")
+    def ultimo_encerrado(self, request):
+        """Retorna o ultimo turno encerrado ou 404."""
+        instance = get_turno_ultimo_encerrado()
+        if not instance:
+            return Response({"detail": "Nenhum turno encerrado."}, status=404)
         serializer = TurnoDetailSerializer(instance)
         return Response(serializer.data)
 
@@ -87,8 +99,11 @@ class TurnoSetorDemandaViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         turno_setor_id = self.request.query_params.get("turno_setor")
+        turno_id = self.request.query_params.get("turno")
         if turno_setor_id:
-            return list_turno_setor_demandas(turno_setor_id)
+            return list_turno_setor_demandas(turno_setor_id=turno_setor_id)
+        if turno_id:
+            return list_turno_setor_demandas(turno_id=turno_id)
         return TurnoSetorDemanda.objects.none()
 
 
@@ -101,8 +116,11 @@ class TurnoSetorOperacaoViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         demanda_id = self.request.query_params.get("demanda")
+        turno_id = self.request.query_params.get("turno")
         if demanda_id:
-            return list_turno_setor_operacoes(demanda_id)
+            return list_turno_setor_operacoes(turno_setor_demanda_id=demanda_id)
+        if turno_id:
+            return list_turno_setor_operacoes(turno_id=turno_id)
         return TurnoSetorOperacao.objects.none()
 
 
@@ -116,5 +134,21 @@ class TurnoOperadorViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         turno_id = self.request.query_params.get("turno")
         if turno_id:
-            return TurnoOperador.objects.filter(turno_id=turno_id).select_related("operador", "setor")
+            return TurnoOperador.objects.filter(turno_id=turno_id).select_related(
+                "operador", "setor"
+            )
         return TurnoOperador.objects.none()
+
+
+class TurnoSetorOpViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet para TurnoSetorOp - secoes legadas do turno."""
+
+    permission_classes = [IsSupervisor]
+    serializer_class = TurnoSetorOpSerializer
+    queryset = TurnoSetorOp.objects.none()
+
+    def get_queryset(self):
+        turno_id = self.request.query_params.get("turno")
+        if turno_id:
+            return list_turno_setor_ops(turno_id)
+        return TurnoSetorOp.objects.none()

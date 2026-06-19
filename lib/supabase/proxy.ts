@@ -2,6 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 import { createSupabaseFetch } from '@/lib/supabase/fetch'
+import {
+  DJANGO_ACCESS_TOKEN_COOKIE,
+  DJANGO_REFRESH_TOKEN_COOKIE,
+} from '@/lib/django/session.ts'
+import { tokenJwtExpirado } from '@/lib/django/jwt.ts'
+import { estaUsandoDjango } from '@/lib/django/flags.ts'
 import type { Database } from '@/types/supabase'
 
 function redirecionarParaLogin(request: NextRequest, erro?: 'auth' | 'permissao') {
@@ -19,7 +25,51 @@ function redirecionarParaLogin(request: NextRequest, erro?: 'auth' | 'permissao'
   return NextResponse.redirect(url)
 }
 
-export async function updateSession(request: NextRequest) {
+function redirecionarParaDashboard(request: NextRequest) {
+  const url = request.nextUrl.clone()
+  url.pathname = '/admin/dashboard'
+  url.search = ''
+  return NextResponse.redirect(url)
+}
+
+function possuiSessaoDjangoValida(request: NextRequest): boolean {
+  const accessToken = request.cookies.get(DJANGO_ACCESS_TOKEN_COOKIE)?.value
+  const refreshToken = request.cookies.get(DJANGO_REFRESH_TOKEN_COOKIE)?.value
+
+  if (!accessToken && !refreshToken) {
+    return false
+  }
+
+  if (accessToken && !tokenJwtExpirado(accessToken)) {
+    return true
+  }
+
+  return Boolean(refreshToken)
+}
+
+async function updateSessionDjango(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const isAdminRoute = pathname.startsWith('/admin')
+  const isScannerRoute = pathname.startsWith('/scanner')
+  const isLoginRoute = pathname.startsWith('/login')
+  const isPublicRoute = isScannerRoute || isLoginRoute
+
+  if (isAdminRoute && !possuiSessaoDjangoValida(request)) {
+    return redirecionarParaLogin(request, 'auth')
+  }
+
+  if (isLoginRoute && possuiSessaoDjangoValida(request)) {
+    return redirecionarParaDashboard(request)
+  }
+
+  if (!isPublicRoute) {
+    return NextResponse.next({ request })
+  }
+
+  return NextResponse.next({ request })
+}
+
+async function updateSessionSupabase(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient<Database>(
@@ -66,10 +116,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isLoginRoute && user && role) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/dashboard'
-    url.search = ''
-    return NextResponse.redirect(url)
+    return redirecionarParaDashboard(request)
   }
 
   if (!isPublicRoute) {
@@ -77,4 +124,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   return supabaseResponse
+}
+
+export async function updateSession(request: NextRequest) {
+  if (estaUsandoDjango('auth')) {
+    return updateSessionDjango(request)
+  }
+
+  return updateSessionSupabase(request)
 }
