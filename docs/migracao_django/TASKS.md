@@ -1626,7 +1626,7 @@ Decisao de escopo reduzido:
 
 ## Sprint MDJ-21 — Deploy VPS producao
 
-**Status:** 🟡 Proxima (documentacao pronta — 2026-06-17)
+**Status:** 🟡 Em validacao (stack no ar — 2026-06-19)
 **Pre-requisito:** MDJ-18 concluida (artefatos prod + smoke local 5/5).
 **Objetivo:** Subir stack Docker em `38.52.128.62` com TLS em `https://producao.costurai.com.br`, smoke publico, backups testados. Banco vazio (dados → MDJ-20).
 **Runbook:** `docs/migracao_django/MDJ21_RUNBOOK_DEPLOY_VPS.md`
@@ -1644,25 +1644,25 @@ Decisao de escopo reduzido:
 
 ### HU 21.2 — Preparacao VPS
 
-- [ ] Docker + Compose instalados
-- [ ] Firewall 22/80/443
-- [ ] Repo clonado; `.env` com secrets (flags OFF)
+- [x] Docker + Compose instalados
+- [x] Firewall 22/80/443
+- [x] Repo clonado; `.env` com secrets (flags OFF)
 
-**Evidencia:** _(pendente)_
+**Evidencia:** VPS `38.52.128.62` — repo `/opt/producao`, `.env` chmod 600, flags Django OFF; apps brabustore/finanpy/hermes intactos.
 
 ### HU 21.3 — Stack no ar
 
-- [ ] `docker compose -f docker-compose.prod.yml up -d --build`
-- [ ] Health `{"status":"ok","database":"ok"}`
-- [ ] TLS HTTPS funcional
+- [x] `docker compose -f docker-compose.prod.yml up -d --build`
+- [x] Health `{"status":"ok","database":"ok"}`
+- [x] TLS HTTPS funcional
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `curl https://producao.costurai.com.br/health/` 2026-06-19 → `{"status": "ok", "database": "ok"}`; workflow **Deploy Production** run `27851350575` ✅ (re-run apos fix grep).
 
 ### HU 21.4 — Smoke e evidencia
 
-- [ ] `createsuperuser` ou usuario dominio
+- [x] `createsuperuser` ou usuario dominio
 - [ ] `smoke-stack-prod.mjs` 5/5 contra `https://producao.costurai.com.br`
 - [ ] Backup manual testado
-- [ ] `MDJ21_VALIDACAO_DEPLOY_VPS.md` preenchido
+- [x] `MDJ21_VALIDACAO_DEPLOY_VPS.md` preenchido
 
-**Evidencia:** _(pendente)_
+**Evidencia:** superuser em `/root/producao-bootstrap-credentials.txt`; smoke parcial — health OK, API 401 (auth), `/login` HTTP 500 (faltam `NEXT_PUBLIC_SUPABASE_*` no `.env` VPS — esperado com flags OFF).

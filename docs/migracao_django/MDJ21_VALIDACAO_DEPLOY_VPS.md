@@ -69,15 +69,21 @@ docker compose -f /opt/producao/docker-compose.prod.yml ps
 - [x] Docker + firewall OK (pre-existente)
 - [x] Repo clonado em `/opt/producao`
 - [x] `.env` preenchido — flags OFF
-- [ ] GitHub secrets CI/CD configurados
+- [x] GitHub secrets CI/CD configurados (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_DEPLOY_PATH`)
 - [x] `docker compose config` OK
 - [x] Stack `up -d --build` — healthy
 - [x] TLS HTTPS funcional
 - [x] Health publico OK
 - [x] Superusuario criado (ver credenciais no VPS)
-- [ ] Smoke `smoke-stack-prod.mjs` 5/5 (apos secrets GitHub)
+- [ ] Smoke `smoke-stack-prod.mjs` 5/5 — parcial: health + API OK; `/login` 500 sem `NEXT_PUBLIC_SUPABASE_*` no `.env` VPS
 - [ ] Backup manual testado
 - [x] Este documento preenchido
+
+### CI/CD (2026-06-19)
+
+- GitHub secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_DEPLOY_PATH`
+- Workflow **Deploy Production** run `27851350575` — ✅ success (re-run)
+- Causa raiz do failure anterior: bash mantinha script antigo em memoria apos `git reset`; fix em `develop` (`4b935ca`, `e23f8d8`) aguarda merge em `main`
 
 ---
 
@@ -91,6 +97,7 @@ docker compose -f /opt/producao/docker-compose.prod.yml ps
 
 ## Proximo marco
 
-1. Configurar secrets GitHub (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`)
-2. Re-run workflow Deploy Production
-3. **MDJ-20** — importacao snapshot Supabase
+1. Merge `develop` → `main` (fixes deploy self-reexec + workflow pre-reset)
+2. Adicionar `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` no `.env` VPS para `/login` funcionar com flags OFF
+3. Smoke completo `smoke-stack-prod.mjs` 5/5
+4. **MDJ-20** — importacao snapshot Supabase
