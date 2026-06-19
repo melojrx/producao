@@ -30,6 +30,12 @@ git fetch origin "${DEPLOY_REF}"
 git checkout "${DEPLOY_REF}"
 git reset --hard "origin/${DEPLOY_REF}"
 
+# Reexecuta apos atualizar o script no disco (bash nao recarrega o arquivo em execucao).
+if [[ "${DEPLOY_SELF_UPDATED:-}" != "1" ]]; then
+  export DEPLOY_SELF_UPDATED=1
+  exec env DEPLOY_SELF_UPDATED=1 bash "$0" "$@"
+fi
+
 if [[ ! -f .env ]]; then
   echo "ERRO: .env ausente em ${DEPLOY_PATH}. Copie de .env.example e preencha secrets." >&2
   exit 1
