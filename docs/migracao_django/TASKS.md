@@ -1661,8 +1661,8 @@ Decisao de escopo reduzido:
 ### HU 21.4 — Smoke e evidencia
 
 - [x] `createsuperuser` ou usuario dominio
-- [ ] `smoke-stack-prod.mjs` 5/5 contra `https://producao.costurai.com.br`
+- [x] `smoke-stack-prod.mjs` 5/5 contra `https://producao.costurai.com.br`
 - [ ] Backup manual testado
 - [x] `MDJ21_VALIDACAO_DEPLOY_VPS.md` preenchido
 
-**Evidencia:** superuser em `/root/producao-bootstrap-credentials.txt`; smoke parcial — health OK, API 401 (auth), `/login` HTTP 500 (faltam `NEXT_PUBLIC_SUPABASE_*` no `.env` VPS — esperado com flags OFF).
+**Evidencia:** superuser `admin@costurai.com.br`; smoke 5/5 em 2026-06-19 (`proxy-health`, `api-via-proxy`, `frontend-login`, `admin-redirect`, `django-login`).
