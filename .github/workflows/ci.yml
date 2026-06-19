@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (TypeScript + ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      # ESLint: reativar quando divida de warnings legacy for tratada (MDJ pos-deploy)
+      # - run: npm run lint
+
+  compose-config:
+    name: Docker Compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar dev e prod
+        run: |
+          docker compose -f docker-compose.dev.yml config >/dev/null
+          docker compose -f docker-compose.prod.yml config >/dev/null
+
+  django-tests:
+    name: Django tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend
+        run: docker compose -f docker-compose.dev.yml build backend
+
+      - name: Subir PostgreSQL
+        run: docker compose -f docker-compose.dev.yml up -d db
+
+      - name: Aguardar banco
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.dev.yml exec -T db pg_isready -U pcp_user -d pcp_db; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Migrate + test
+        run: |
+          docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manage.py migrate --noinput
+          docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manage.py test --keepdb
+
+      - name: Parar servicos
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
