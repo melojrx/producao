@@ -1188,3 +1188,481 @@ Decisao de escopo reduzido:
 - [x] Revalidar compose prod e suite completa
 
 **Evidencia:** teste `infra.tests.test_arquivos.ConstruirUrlPublicaArquivoTests.test_preserva_url_absoluta_retornada_pelo_storage` falhou antes da correcao com URL `https://api.example.comhttps://cdn.example.com/...` e passou apos o ajuste. `docker compose -f docker-compose.prod.yml config` falha sem secrets obrigatorios e passa com `DJANGO_SECRET_KEY`/`POSTGRES_PASSWORD` definidos. Suite completa revalidada com 97 testes OK.
+
+---
+
+## Sprint MDJ-16 — Cutover controlado por modulo (dev local)
+
+**Status:** ✅ Concluida (2026-06-17)
+**Objetivo:** Trocar a origem de dados do frontend Next.js para o backend Django **em dev local**, por modulo, com feature flags, fallback para Supabase e rollback operacional — conforme `ARQUITETURA.md` secao 19.
+**Ambiente alvo:** backend `docker-compose.dev.yml` (porta 8001) + frontend `npm run dev` no host. Sem VPS, sem dominio, sem S3.
+**Escopo:** `lib/` (cliente Django, flags, roteamento dual), queries/actions do frontend, `.env.local` do Next.js, documentacao de rollback em dev.
+**Fora de escopo:** VPS/EasyPanel/producao (MDJ-18), stack Docker com frontend em container (MDJ-17), S3, big bang, remocao de caminhos Supabase, migracao em massa Storage Supabase, alteracoes no Supabase remoto, Realtime/WebSocket.
+
+**Regra de execucao:** implementar uma HU por vez, na ordem abaixo. HUs 16.2–16.4 foram concluidas como **preparatorias** (util para MDJ-18); nao bloqueiam o cutover em dev. Proxima HU ativa: **16.7**. Flags de escrita critica so apos 16.6–16.7 e aceite explicito do usuario.
+
+### HU 16.0 — Realinhamento estrategico (decisao 2026-06-15)
+
+- [x] Registrar decisao: migracao 100% em dev antes de VPS/producao
+- [x] Adiar VPS, dominio, EasyPanel e S3 para MDJ-18
+- [x] Adiar stack Docker integrada (Django + Postgres + Next.js) para MDJ-17
+- [x] Manter MDJ-15 como artefatos preparatorios (nao ativar)
+- [x] Atualizar `BACKLOG.md` com fases A/B/C e sprints MDJ-17/MDJ-18
+
+**Evidencia:** decisao do usuario em 2026-06-15 registrada em `BACKLOG.md` (fases operacionais). MDJ-16 reescrita para cutover em dev (`localhost:8001`). HU 16.5 adiada para MDJ-18. MDJ-17 planejada para compose dev integrado apos homologacao da MDJ-16. Storage permanece volume local (MDJ-14); S3 fora de escopo ate nova decisao.
+
+### HU 16.1 — Abertura da sprint
+
+- [x] Registrar MDJ-16 em `TASKS.md` e `BACKLOG.md` com HUs tecnicas, fora de escopo e ordem de execucao
+- [x] Referenciar `ARQUITETURA.md` secao 19 como contrato de flags e criterios de cutover
+
+**Evidencia:** Sprint MDJ-16 aberta em `2026-06-15` com HUs 16.1–16.15 cobrindo hardening operacional, CORS, infraestrutura de flags no frontend, cutover read-only, auth JWT, escritas criticas e homologacao final. MDJ-15 permanece concluida como pre-requisito.
+
+### HU 16.2 — Hardening dos scripts operacionais de backup/restore
+
+- [x] Scripts `scripts/infra/backup_postgres.sh`, `restore_postgres.sh` e `backup_media.sh` carregam variaveis de `.env` da raiz quando existir (`set -a` / `source`)
+- [x] `restore_postgres.sh` exige confirmacao explicita antes de `pg_restore --clean --if-exists`
+- [x] Documentar em `MDJ15_VALIDACAO_INFRA.md` ou runbook MDJ-16: parar backend (`docker compose stop backend`) antes do restore destrutivo
+- [x] Teste manual ou script de smoke validando que backup usa `POSTGRES_DB`/`POSTGRES_USER` do `.env` customizado
+
+**Evidencia:** Helper compartilhado `scripts/infra/_load_env.sh` (source com `set -a`/`set +a` quando `.env` existe na raiz). `restore_postgres.sh` exige digitar `yes` ou flag `--yes`; bloqueia se backend estiver rodando (salvo `--force`). Runbook atualizado em `MDJ15_VALIDACAO_INFRA.md`. Smoke test: `./scripts/infra/test_backup_env.sh`.
+
+### HU 16.3 — CORS e origens confiaveis para producao *(preparatoria — MDJ-18)*
+
+- [x] Adicionar `django-cors-headers` (ou equivalente documentado) em `requirements.txt` e `INSTALLED_APPS` apenas em `production.py` quando `CORS_ALLOWED_ORIGINS` estiver definido
+- [x] Configurar `CORS_ALLOWED_ORIGINS` e `CSRF_TRUSTED_ORIGINS` via env (lista separada por virgula)
+- [x] Documentar valores esperados para Vercel (`https://*.vercel.app` ou dominio customizado) em `.env.example`
+- [x] Testes cobrindo preflight OPTIONS e rejeicao de origem nao autorizada quando CORS estiver ativo
+
+**Evidencia:** _(mesma da implementacao)_ Preparatorio para MDJ-18. **Nao necessario para cutover em dev** (`local.py` sem CORS; frontend e backend em localhost).
+
+### HU 16.4 — Fail-fast S3 e revisao de ACL padrao *(preparatoria — fora de escopo ate nova decisao)*
+
+- [x] Em `production.py`, levantar `ImproperlyConfigured` quando `USE_S3_STORAGE=true` e credenciais/bucket vazios
+- [x] Alterar default de `AWS_DEFAULT_ACL` para `private`
+- [x] Teste unitario cobrindo validacao S3
+
+**Evidencia:** _(mesma da implementacao)_ Codigo existe em `production.py` mas **`USE_S3_STORAGE` permanece `false` em todo o projeto**. S3 nao sera usado em dev nem na primeira producao (MDJ-18).
+
+### HU 16.5 — Arquivos estaticos do Django Admin em producao *(adiada → MDJ-18)*
+
+- [ ] ~~Definir `STATIC_ROOT` em `production.py`~~
+- [ ] ~~`collectstatic` no Dockerfile production~~
+- [ ] ~~Validar `/admin/` em stack prod~~
+
+**Evidencia:** Adiada para MDJ-18 (VPS/producao). Admin em dev continua via `runserver` + `DEBUG`/`local.py`.
+
+### HU 16.6 — Cliente HTTP/JWT Django no frontend (dev local)
+
+- [x] Criar `lib/django/client.ts` (ou pasta equivalente) com base URL `NEXT_PUBLIC_DJANGO_API_URL` default `http://localhost:8001`, headers JWT e tratamento de erro tipado
+- [x] Criar helpers de sessao/token compativeis com fluxo JWT da MDJ-13 (`/api/v1/accounts/login/`, refresh se aplicavel)
+- [x] Documentar em `.env.local.example` (frontend): `NEXT_PUBLIC_DJANGO_API_URL=http://localhost:8001` e flags (HU 16.7)
+- [x] Nenhum componente em `components/` acessa fetch direto ao Django — apenas via `lib/`
+
+**Evidencia:** Implementado em `lib/django/` (`client.ts`, `auth.ts`, `session.ts`, `types.ts`) com `djangoFetch()`, `DjangoApiError`, `loginDjango()`, `refreshAccessToken()`, `obterUsuarioAtualDjango()` e abstracao minima de sessao JWT (constantes de cookie + memoria para testes). Base URL via `NEXT_PUBLIC_DJANGO_API_URL` (default `http://localhost:8001`). Flags documentadas em `.env.local.example` (sem helper 16.7). Testes em `lib/django/client.test.ts`. Validacao em `2026-06-17` com `node --test --experimental-strip-types lib/django/client.test.ts` e `npx tsc --noEmit`, ambos sem erros. Nenhum arquivo em `components/` alterado.
+
+### HU 16.7 — Infraestrutura de feature flags (todas OFF por padrao)
+
+- [x] Centralizar flags em `lib/constants.ts` ou `lib/django/flags.ts` conforme `ARQUITETURA.md` secao 19.2:
+
+  | Flag | Modulo |
+  |---|---|
+  | `NEXT_PUBLIC_USE_DJANGO_SCANNER_READS` | Scanner read-only |
+  | `NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS` | Cadastros + produtos read-only |
+  | `NEXT_PUBLIC_USE_DJANGO_METAS_READS` | Metas mensais read-only |
+  | `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS` | Dashboard/relatorios/turnos read-only |
+  | `NEXT_PUBLIC_USE_DJANGO_AUTH` | Login JWT Django (substitui Supabase Auth no admin) |
+  | `NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES` | Mutacoes administrativas simples |
+  | `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES` | Apontamentos produtivos |
+  | `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES` | Revisao de qualidade |
+
+- [x] Helper `estaUsandoDjango(modulo)` retorna `false` quando env ausente ou `"false"`
+- [x] Preservar caminhos Supabase existentes em `lib/queries/` e `lib/actions/` — roteamento dual, nunca remocao prematura
+- [x] Testes unitarios das flags (ligado/desligado) sem rede
+
+**Evidencia:** Implementado em `lib/django/flags.ts` com `ModuloDjangoCutover`, `FLAG_POR_MODULO`, `estaUsandoDjango()` e `obterFlagsDjangoCutover()`. Parsing booleano: true apenas para `1`, `true` ou `yes` (case insensitive); ausente, vazio ou qualquer outro valor → false. Oito flags mapeadas conforme `ARQUITETURA.md` 19.2. `.env.local.example` atualizado com referencia ao helper. Testes em `lib/django/flags.test.ts` (ausente, falsos, verdadeiros, env por modulo, snapshot debug). Validacao em `2026-06-17` com `node --test --experimental-strip-types lib/django/flags.test.ts` e `npx tsc --noEmit`, ambos sem erros. Nenhum roteamento em queries/actions nem alteracao em `components/`.
+
+### HU 16.8 — Cutover read-only: cadastros e produtos
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS=true`, queries de operadores, maquinas, setores, operacoes e produtos usam Django (`/api/v1/cadastros/*`, `/api/v1/produtos/*`)
+- [x] Com flag OFF, comportamento identico ao atual via Supabase
+- [x] Testes de paridade (contagens e campos contratuais) comparando Supabase vs Django com dados importados locais
+- [x] Runbook de rollback: desligar flag → redeploy frontend → validar CRUD admin via Supabase
+
+**Evidencia:** Roteamento dual em `lib/queries/operadores.ts`, `maquinas.ts`, `setores.ts`, `operacoes.ts` e `produtos.ts` via `estaUsandoDjango('cadastros_reads')`. Camada Django read-only em `lib/django/queries/cadastros.ts`, `produtos.ts`, `mappers.ts` e `obter-token-servidor.ts` (JWT do cookie `django_access_token` ou `DJANGO_DEV_ACCESS_TOKEN` em dev). Mapeamentos criticos: produto `codigo`→`referencia`; setor/operacao/maquina `situacao`→`ativo`/`ativa`/`status`; operador `setor`→`null` (campo ausente no Django); `tipo_maquina`→`tipo_maquina_codigo`. Testes unitarios de mappers em `lib/django/queries/mappers.test.ts` (fixtures dos serializers DRF, sem rede). Validacao em `2026-06-17`: `npx tsc --noEmit` e `node --test --experimental-strip-types lib/django/queries/mappers.test.ts` sem erros.
+
+**Rollback (runbook):**
+1. Definir `NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS=false` (ou remover a variavel) no `.env.local`/Vercel.
+2. Redeploy ou reiniciar `npm run dev`.
+3. Validar paginas admin de operadores, maquinas, setores, operacoes e produtos — devem voltar a ler Supabase.
+4. Se dados foram alterados apenas no Django durante teste, nao afeta Supabase; descartar ou reimportar conforme `PLANO_BACKUP_RESTORE.md`.
+
+### HU 16.9 — Cutover read-only: scanner
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_SCANNER_READS=true`, fluxo scanner usa endpoints Django (`/api/v1/scanner/*`)
+- [x] Com flag OFF, scanner continua via Supabase/queries atuais
+- [x] Testes de paridade para operador, setor e demandas por token QR
+- [x] Runbook de rollback documentado
+
+**Evidencia:** Backend read-only em `backend/scanner/` (selectors, serializers, viewsets publicos `AllowAny`): `GET /api/v1/scanner/operador/{token}/`, `GET /api/v1/scanner/setor/{token}/`, `GET /api/v1/scanner/setor/{token}/demandas/`, `GET /api/v1/scanner/turno-setor/{id}/demandas/` (refresh de demandas no hook). Roteamento dual em `lib/queries/scanner.ts` via `estaUsandoDjango('scanner_reads')`. Camada Django em `lib/django/queries/scanner.ts` e `scanner-mappers.ts` — mapeia `produto.codigo`→`produtoReferencia`, `turno.data_hora_abertura`→`turnoIniciadoEm`, reutiliza `consolidarSetorScaneadoPorDemandas` e utils de qualidade no path Django. Opcional com `cadastros_reads`: `buscarOperadorScaneadoPorId`, `listarOperadoresAtivosScanner`, `buscarMaquinaScaneadaPorToken`, `buscarOperacaoBasePorToken`. Testes: `backend/scanner/tests/test_scanner_api.py` (10 casos) e `lib/django/queries/scanner-mappers.test.ts` (5 casos). Validacao em `2026-06-17`: `docker compose -f docker-compose.dev.yml exec -T backend python manage.py test scanner --keepdb`, `npx tsc --noEmit`, `node --test --experimental-strip-types lib/django/queries/scanner-mappers.test.ts`, `git diff --check`.
+
+**Rollback (runbook):**
+1. Definir `NEXT_PUBLIC_USE_DJANGO_SCANNER_READS=false` (ou remover a variavel) no `.env.local`/Vercel.
+2. Redeploy ou reiniciar `npm run dev`.
+3. Validar fluxo scanner (scan setor → operador → demandas) — deve voltar a ler Supabase.
+4. Enriquecimento de capacidade/fluxo paralelo permanece no path Supabase; com flag ON o scanner usa demandas base do Django (sem enrichment Supabase adicional).
+5. Dados lidos no Django durante teste nao alteram Supabase.
+
+### HU 16.10 — Cutover read-only: dashboard, relatorios e metas
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=true`, leituras operacionais usam Django (`/api/v1/relatorios/*`, `/api/v1/turnos/*`)
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_METAS_READS=true`, resumo de meta mensal usa Django (`/api/v1/metas/*`)
+- [x] Flags independentes; fallback Supabase por flag
+- [x] Testes de paridade nos KPIs e payloads documentados em MDJ-7/8
+
+**Evidencia:** Backend metas read API em `backend/metas/` (`GET /api/v1/metas/`, `/api/v1/metas/competencia/{YYYY-MM-01}/`, `/api/v1/metas/resumo/?competencia=`). Turnos: `GET /api/v1/turnos/ultimo-encerrado/`, filtros `?turno=` em demandas/operacoes, `GET /api/v1/turnos-secoes/?turno=`. Roteamento dual: `lib/queries/metas-mensais.ts` (`metas_reads`), `lib/queries/turnos.ts` (`dashboard_reads`). Camada Django: `lib/django/queries/metas.ts`, `turnos-dashboard.ts`, `dashboard-relatorios.ts` + mappers/testes. Testes backend: `backend/metas/tests/test_meta_api.py`, `backend/turnos/tests/test_turno_read_api.py`. Testes mappers: `lib/django/queries/metas-mappers.test.ts`, `turnos-dashboard-mappers.test.ts`, `dashboard-relatorios-mappers.test.ts`. Validacao em `2026-06-17`: `npx tsc --noEmit`, `python manage.py test metas turnos relatorios scanner --settings=pcp_project.config.local`, `npm test -- lib/django/queries/*mappers*.test.ts`.
+
+**Rollback (runbook):**
+1. Definir `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=false` e `NEXT_PUBLIC_USE_DJANGO_METAS_READS=false` (ou remover) no `.env.local`.
+2. Reiniciar `npm run dev`.
+3. Validar dashboard/TV/apontamentos — devem voltar a ler Supabase; metas mensais idem.
+
+**Deferido (paridade parcial):** `lib/queries/turnos-client.ts` e `useRealtimePlanejamentoTurnoV2` permanecem Supabase (refresh client-side sem JWT browser na 16.11). `lib/queries/relatorios-v2.ts` e `relatorios.ts` legado nao roteados (escopo dashboard/metas). Path Django de planejamento de turno omite eficiencia/qualidade operacional (campos opcionais vazios) ate endpoints dedicados ou HU 16.11.
+
+### HU 16.11 — Cutover de autenticacao JWT (admin/supervisor)
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_AUTH=true`, login em `/login` usa `/api/v1/accounts/login/` Django e armazena JWT conforme MDJ-13
+- [x] Com flag OFF, login permanece Supabase Auth
+- [x] Middleware/proxy Next.js protege `/admin/*` com either path sem regressao
+- [x] Testes E2E ou integracao cobrindo login, 401 sem token e logout
+- [x] Aceite explicito do usuario antes de ligar flag em ambiente compartilhado (dev local: OK apos homologacao)
+
+**Evidencia:** `lib/django/cookies.ts` persiste JWT em cookies httpOnly (`django_access_token`, `django_refresh_token`); `lib/actions/auth.ts` roteia login/logout por `estaUsandoDjango('auth')`; `lib/auth/require-admin-user.ts` + `lib/auth/sessao-django.ts` resolvem sessao admin via `/api/v1/accounts/me/` com refresh automatico; `lib/supabase/proxy.ts` protege `/admin/*` e redireciona `/login` no path Django; testes `lib/django/jwt.test.ts`, `lib/django/cookies.test.ts`, `lib/auth/sessao-django.test.ts`, `lib/actions/auth.test.ts` passam com `node --test --experimental-strip-types`. **Deferido:** `lib/queries/turnos-client.ts` permanece Supabase — cookies httpOnly impedem JWT no browser client sem endpoint dedicado (HU posterior).
+
+**Rollback (dev local):** `NEXT_PUBLIC_USE_DJANGO_AUTH=false` em `.env.local`; apagar cookies `django_access_token` e `django_refresh_token` no browser; `npm run dev` reiniciado; validar login Supabase em `/login` e acesso `/admin/dashboard`.
+
+**Aceite usuario (ambiente compartilhado):** nao ligar `NEXT_PUBLIC_USE_DJANGO_AUTH=true` em Vercel/homologacao compartilhada sem homologacao manual em dev local com credencial Django (`createsuperuser` ou usuario migrado MDJ-13).
+
+### HU 16.12 — Cutover de escritas administrativas simples (dev local)
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES=true`, mutacoes de cadastros simples (ex.: tipos de defeito ja migrado na MDJ-9) roteiam para DRF
+- [x] Demais Server Actions permanecem Supabase ate flags especificas
+- [x] Testes de paridade write + read apos mutacao
+- [x] Rollback: flag OFF; dados escritos no Django durante teste documentados para descarte ou sync manual (`PLANO_BACKUP_RESTORE.md`)
+
+**Evidencia:** `lib/actions/qualidade-defeitos.ts` e `lib/queries/qualidade-defeitos.ts` roteiam por `estaUsandoDjango('admin_writes')`; mutacoes delegam a `lib/django/actions/qualidade-defeitos.ts` (POST/PATCH/inativar/reativar em `/api/v1/qualidade/defeitos/`); listagem pos-mutacao via `lib/django/queries/qualidade-defeitos.ts` + mappers com `totalVinculosHistoricos`; testes `lib/django/actions/qualidade-defeitos.test.ts` e `lib/django/queries/qualidade-defeitos-mappers.test.ts` passam com `node --test --experimental-strip-types`; `npx tsc --noEmit` passa. Gap documentado: Django ignora `ordem` na escrita; `excluir` no path Django sempre inativa (sem hard delete).
+
+**Rollback (dev local):** `NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES=false` em `.env.local`; reiniciar `npm run dev`; validar CRUD tipos de defeito gravando no Supabase. Dados criados no Postgres Django (`pcp_db` via `docker-compose.dev.yml`) durante testes sao locais — descartar container/volume ou sync manual conforme `PLANO_BACKUP_RESTORE.md` se necessario; Supabase remoto intocado.
+
+### HU 16.13 — Cutover de apontamentos produtivos
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES=true`, registro produtivo usa `POST /api/v1/producao/apontamentos/` (MDJ-10)
+- [x] Validar concorrencia e saldo fisico antes de aceite
+- [x] Flag OFF mantem RPC Supabase intacto
+- [x] Aceite explicito do usuario obrigatorio
+
+**Evidencia:** Roteamento dual em `lib/actions/producao.ts` via `estaUsandoDjango('producao_writes')` para `registrarProducaoOperacao` (scanner V2). Mutacao Django em `lib/django/actions/producao.ts` + helpers (`POST /api/v1/producao/apontamentos/`); enriquecimento pos-POST via GET read-only em `turnos-operacoes`, `turnos-demandas` e `turnos-ops`. Pre-validacao Supabase de saldo fisico omitida no path Django — validacao atomica no service MDJ-10 (`registrar_apontamento_operacao` + `validar_quantidade_dentro_saldo_fisico`). `usuario_sistema` mapeado via `lib/auth/resolver-usuario-django.ts` (User Django quando `auth` ON); scanner publico envia null. JWT via `obterAccessTokenDjango()` (cookie ou `DJANGO_DEV_ACCESS_TOKEN`). Testes `lib/django/actions/producao.test.ts`. Validacao em `2026-06-17`: `npx tsc --noEmit` e `node --test --experimental-strip-types lib/django/actions/producao.test.ts` sem erros.
+
+**Aceite explicito (mutacao critica):** Homologar em dev local antes de ligar flag em ambiente compartilhado. Fluxo: `docker compose -f docker-compose.dev.yml up` + `npm run dev` + definir `DJANGO_DEV_ACCESS_TOKEN` (JWT supervisor) + `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES=true` + scanner apontamento com quantidade valida; repetir tentativa acima do saldo fisico e confirmar erro Django; flag OFF e confirmar RPC Supabase intacto.
+
+**Deferidos:** `registrarApontamentosSupervisor` (batch RPC `registrar_producao_supervisor_em_lote`) permanece Supabase — MDJ-10 sem endpoint batch. `registrarProducao` legado (turnoSetorOpId) permanece Supabase.
+
+**Rollback (dev local):** `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES=false` em `.env.local`; reiniciar `npm run dev`; validar apontamento via RPC Supabase. Apontamentos gravados no Postgres Django (`pcp_db`) durante testes sao locais — descartar container/volume ou sync manual conforme `PLANO_BACKUP_RESTORE.md`; Supabase remoto intocado.
+
+### HU 16.14 — Cutover de revisao de qualidade
+
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES=true`, revisao usa endpoints MDJ-11
+- [x] Autoria segura do revisor (`request.user.id`) preservada
+- [x] Flag OFF mantem fluxo Supabase
+- [x] Aceite explicito do usuario obrigatorio
+
+**Evidencia:** Roteamento dual em `lib/actions/qualidade.ts` via `estaUsandoDjango('qualidade_writes')` para `registrarRevisaoQualidade`. Mutacao Django em `lib/django/actions/qualidade.ts` + helpers (`POST /api/v1/qualidade/revisoes/`); payload **sem** `revisor_usuario_id` — autoria via JWT (`request.user.id` no viewset MDJ-11). Permissao revisor validada pre-POST via `GET /api/v1/accounts/me/` (`pode_revisar_qualidade` + `ativo`). Enriquecimento pos-POST via GET read-only em `turnos-operacoes`, `turnos-demandas` e `turnos-ops`. Pre-validacao Supabase de saldo fisico omitida no path Django — validacao atomica no service MDJ-11. Testes `lib/django/actions/qualidade.test.ts`. Validacao em `2026-06-17`: `npx tsc --noEmit` e `node --test --experimental-strip-types lib/django/actions/qualidade.test.ts` sem erros.
+
+**Aceite explicito (mutacao critica):** Homologar em dev local antes de ligar flag em ambiente compartilhado. Fluxo: `docker compose -f docker-compose.dev.yml up` + `npm run dev` + JWT de usuario com `pode_revisar_qualidade=true` (`NEXT_PUBLIC_USE_DJANGO_AUTH=true` ou `DJANGO_DEV_ACCESS_TOKEN`) + `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES=true` + revisao no scanner ou painel apontamentos com quantidades validas; repetir tentativa acima do saldo fisico e confirmar erro Django; flag OFF e confirmar RPC Supabase intacto.
+
+**Deferidos:** `app/(operador)/scanner/page.tsx` continua usando Supabase para `podeRegistrarQualidade` — cutover completo do scanner auth depende de homologacao MDJ-16.11 no painel admin; com `qualidade_writes` ON e auth Django OFF, revisao exige `DJANGO_DEV_ACCESS_TOKEN` de revisor em Server Actions.
+
+**Rollback (dev local):** `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES=false` em `.env.local`; reiniciar `npm run dev`; validar revisao via RPC Supabase. Registros gravados no Postgres Django (`pcp_db`) durante testes sao locais — descartar container/volume ou sync manual conforme `PLANO_BACKUP_RESTORE.md`; Supabase remoto intocado.
+
+### HU 16.15 — Homologacao final MDJ-16 (dev local)
+
+- [x] Criar `docs/migracao_django/MDJ16_VALIDACAO_CUTOVER.md` com matriz flag × modulo × status de paridade × rollback **em dev**
+- [x] Todas as flags testadas em OFF (regressao Supabase) e ON (Django em `localhost:8001`) por modulo homologado
+- [x] `python manage.py check`, `makemigrations --check --dry-run`, suite completa backend passam
+- [x] `npx tsc --noEmit` passa apos alteracoes de frontend
+- [x] `git diff --check` passa
+- [x] Smoke manual: `docker-compose.dev.yml` up + `npm run dev` + fluxo critico (login, listagem, apontamento) com flags ON
+- [x] Nenhum caminho Supabase removido do codigo; Supabase remoto intocado
+- [x] ~~Smoke test `docker-compose.prod.yml`~~ → movido para MDJ-18
+
+**Evidencia:** Relatorio `docs/migracao_django/MDJ16_VALIDACAO_CUTOVER.md` (2026-06-17) com matriz 8 flags × paridade × rollback, checklist smoke manual e auditoria Supabase. Validacao automatizada: `manage.py check` OK; `makemigrations --check --dry-run` OK; `manage.py test --keepdb` **120 testes OK**; `npx tsc --noEmit` OK; `node --test` **60 testes OK**; `git diff --check` OK. Correcao trivial em `backend/metas/selectors/meta_mensal.py` (`_formatar_dia_mes` aceita `date | str`). Deferidos documentados: turnos-client/realtime, relatorios legado, batch supervisor, scanner `podeRegistrarQualidade`, eficiencia/qualidade operacional vazios no path Django.
+
+---
+
+## Sprint MDJ-17 — Stack Docker dev integrada
+
+**Status:** ✅ Concluida (2026-06-17)
+**Pre-requisito:** MDJ-16 concluida e homologada (frontend host + backend container).
+**Objetivo:** Unificar dev em um Compose com Django + PostgreSQL + Next.js — sem VPS, dominio ou S3.
+**Escopo:** `docker-compose.dev.full.yml`, Dockerfile frontend dev, rede interna, documentacao.
+**Fora de escopo:** producao, VPS, S3, cutover de novos modulos (ja feito na MDJ-16).
+
+### HU 17.1 — Abertura da sprint
+
+- [x] Registrar MDJ-17 em `TASKS.md` e `BACKLOG.md` apos confirmacao de MDJ-16 concluida
+
+**Evidencia:** Sprint MDJ-17 aberta em 2026-06-17 apos confirmacao do usuario pos-MDJ-16. Status atualizado em `TASKS.md` e linha MDJ-17 em `BACKLOG.md` → Em andamento.
+
+### HU 17.2 — Compose dev integrado
+
+- [x] Criar compose com servicos `backend` (target development), `db`, `frontend` (Next.js dev)
+- [x] Volumes para hot-reload (`./backend`, repo root, `node_modules` anonimo)
+- [x] `NEXT_PUBLIC_DJANGO_API_URL` acessivel do browser (porta publicada 8001)
+
+**Evidencia:** `docker/compose/dev.base.yml`, `dev.frontend.yml`, `dev.full.yml` (include), `docker/frontend/Dockerfile.dev`, wrappers raiz, `.dockerignore`, scripts `dev:docker` e `dev:docker:backend`. `NEXT_PUBLIC_DJANGO_API_URL=http://localhost:8001` documentado (nao usar `backend:8000`). Refatoracao cleanup 2026-06-17: duplicacao backend/db eliminada — ver `MDJ17_DOCKER_AUDIT.md`.
+
+### HU 17.3 — Homologacao stack integrada
+
+- [x] Documento `MDJ17_VALIDACAO_STACK_DEV.md`
+- [x] Comando unico sobe os tres servicos; flags MDJ-16 funcionam no compose integrado
+- [x] `git diff --check` passa
+
+**Evidencia:** Relatorio `docs/migracao_django/MDJ17_VALIDACAO_STACK_DEV.md` (2026-06-17). Validacao: `docker compose config` OK; `build frontend` OK; `up -d` OK; `curl` health → `{"status":"ok","database":"ok"}`; frontend HTTP 307; `git diff --check` OK. Pos-refatoracao modular: estrutura `docker/compose/*` + wrappers; revalidacao documentada em `MDJ17_DOCKER_AUDIT.md`.
+
+---
+
+## Sprint MDJ-18 — VPS, dominio e producao
+
+**Status:** ✅ Concluida (artefatos pre-deploy — 2026-06-17)
+**Pre-requisito:** MDJ-17 concluida; migracao homologada em dev.
+**Objetivo:** Stack Docker producao pronta para deploy em `producao.costurai.com.br` — sem executar deploy nesta sprint.
+**Dominio:** `producao.costurai.com.br` (DNS A → VPS `38.52.128.62`).
+**Escopo:** compose prod (backend + frontend + db + nginx), Dockerfile.prod standalone, STATIC_ROOT, CORS/CSRF documentados, smoke local.
+**Fora de escopo:** deploy VPS, TLS na VPS, S3, cutover flags em producao.
+
+### HU 18.1 — Abertura e checklist pre-deploy
+
+- [x] Registrar MDJ-18 apos confirmacao de MDJ-17
+- [x] Checklist: dominio, TLS (doc), secrets, backup referenciado
+
+**Evidencia:** Sprint MDJ-18 aberta em 2026-06-17. Dominio unico `producao.costurai.com.br`. Checklist em `MDJ18_VALIDACAO_PRODUCAO.md`. DNS configurado pelo usuario na Hostinger.
+
+### HU 18.2 — Static files e Admin em producao
+
+- [x] `STATIC_ROOT` + WhiteNoise em `production.py`
+- [x] `collectstatic` no entrypoint `docker-entrypoint.prod.sh`
+- [x] Rota `/static/` no nginx → backend
+
+**Evidencia:** `whitenoise` em `requirements.txt`; testes `test_production_static_settings.py`.
+
+### HU 18.3 — Homologacao producao (artefatos locais)
+
+- [x] `MDJ18_VALIDACAO_PRODUCAO.md`
+- [x] Compose modular `docker/compose/prod.*` + `Dockerfile.prod` + nginx
+- [x] CORS/CSRF com dominio real documentado em `.env.example`
+- [x] `scripts/smoke-stack-prod.mjs` + `npm run prod:docker`
+
+**Evidencia:** Relatorio `docs/migracao_django/MDJ18_VALIDACAO_PRODUCAO.md`. Validacao 2026-06-19: `prod:docker:config` OK; build backend+frontend OK; `smoke-stack-prod.mjs` **5/5 OK** (`proxy-health`, `api-via-proxy`, `frontend-login`, `admin-redirect-sem-sessao`, `django-login-via-proxy`). Fix: runtime `NEXT_PUBLIC_*` no servico frontend + smoke prioriza `.env` sobre `.env.local`.
+
+---
+
+## Sprint MDJ-19 — Limpeza legado Supabase e preparacao desligamento
+
+**Status:** 🧭 Planejada
+**Pre-requisito:** MDJ-16 concluida (flags Django homologadas em dev); MDJ-17 recomendada (stack integrada). Pode executar **em paralelo** com MDJ-18 ou **apos** MDJ-18 — nao bloqueia deploy VPS.
+**Objetivo:** Eliminar ruído e dependencias Supabase no browser quando flags Django estiverem ON; substituir Realtime legado por polling Django no dashboard; deprecar `configuracao_turno` / blocos; documentar checklist de desligamento do Supabase remoto.
+**Ambiente alvo:** dev local — backend `localhost:8001` + frontend host ou `docker/compose/dev.full.yml`.
+**Escopo:** guards client-side, hooks de dashboard, remocao/redirect de fluxos legados, relatorio de desligamento.
+**Fora de escopo:** desligar Supabase remoto de fato (exige aceite explicito pos-checklist); migracao de `relatorios-v2.ts` completa; Django Channels/WebSocket; alteracoes no projeto Supabase cloud sem aprovacao.
+
+**Regra de execucao:** uma HU por vez, na ordem abaixo. Nenhuma HU remove variaveis `NEXT_PUBLIC_SUPABASE_*` do `.env.example` ate HU 19.5 aprovada pelo usuario.
+
+### HU 19.1 — Abertura e inventario de chamadas Supabase no browser
+
+- [x] Registrar MDJ-19 em `TASKS.md` e `BACKLOG.md`
+- [ ] Inventario atualizado: hooks/client components que ainda instanciam `createClient()` ou Realtime com flags Django ON (`useRealtimePlanejamentoTurnoV2`, `useRealtimeProducao`, `turnos-client.ts`, `meta-grupo-turno-v2-client.ts`, `producao.ts` client)
+- [ ] Matriz deferidos MDJ-16 atualizada com status "MDJ-19" onde aplicavel
+
+**Evidencia:** Sprint MDJ-19 proposta em 2026-06-17 — secao adicionada em `TASKS.md` (HUs 19.1–19.6) e marco em `BACKLOG.md` (fase D pos-cutover).
+
+### HU 19.2 — Guard Supabase no browser (flags Django ON)
+
+- [ ] Criar helper `deveUsarSupabaseBrowser()` (ou equivalente) baseado em `estaUsandoDjango()` — quando **todas** as flags de leitura/escrita relevantes estiverem ON, browser **nao** abre WebSocket Realtime nem dispara refresh de sessao Supabase Auth
+- [ ] `hooks/useRealtimePlanejamentoTurnoV2.ts`: early return sem `createClient()` / channel quando guard ativo; status `ativo` via polling (HU 19.3) ou `desligado` explicito ate polling existir
+- [ ] `hooks/useRealtimeProducao.ts`: mesmo guard (componente legado — nao criar channel se guard ativo)
+- [ ] `lib/supabase/client.ts` ou consumidores: evitar loop de `refresh_token` quando auth Django ativo (login ja usa JWT cookies)
+- [ ] Testes unitarios do guard + smoke manual: console sem erros CORS/WebSocket Supabase com perfil homologacao MDJ-16 ON
+
+**Evidencia:** _(pendente)_
+
+### HU 19.3 — Polling Django no dashboard (substituir Realtime legado)
+
+- [ ] Com `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=true`, refresh do planejamento de turno via API Django (server action ou route handler autenticado) — intervalo configuravel em `lib/constants.ts` (ex.: `INTERVALO_POLLING_DASHBOARD_MS`)
+- [ ] `useRealtimePlanejamentoTurnoV2` renomeado ou encapsulado (ex.: `usePlanejamentoTurnoV2`) — sem dependencia de Supabase quando flags ON
+- [ ] `useMetaGrupoTurnoV2` passa a usar leitura Django (endpoint existente ou novo GET enxuto) em vez de `meta-grupo-turno-v2-client.ts` Supabase
+- [ ] Indicador de conexao na UI: `polling` / `erro` / `pausado` (nao "Realtime Supabase")
+- [ ] Testes: mock de fetch + `npx tsc --noEmit`
+
+**Evidencia:** _(pendente)_
+
+### HU 19.4 — Deprecar `configuracao_turno` legado no frontend
+
+- [ ] Documentar em codigo/comentario de rota: fluxo operacional oficial = **turno V2** (`turnos` Django); `configuracao_turno` e **somente historico**
+- [ ] Remover ou isolar `MonitorRealtimeProducao` do dashboard principal (ja substituido por `MonitorPlanejamentoTurnoV2`) — redirect ou feature flag `NEXT_PUBLIC_LEGACY_DASHBOARD=false` (default off)
+- [ ] `lib/actions/turno.ts` / `turno-blocos.ts`: bloquear escrita Supabase quando flags Django ON; mensagem clara "use Novo Turno / Encerrar Turno"
+- [ ] `lib/queries/producao.ts` (client Supabase): nao ser invocado quando guard ativo; KPIs legados por bloco ficam indisponiveis ou leem turno V2
+- [ ] Scanner: auditar `buscarConfiguracaoTurnoHoje` — path legado documentado ou removido do fluxo V2 scanner
+- [ ] **Nao** criar models Django para `configuracao_turno` nesta HU (escopo = deprecar uso, nao migrar tabela)
+
+**Evidencia:** _(pendente)_
+
+### HU 19.5 — Checklist desligamento Supabase remoto
+
+- [ ] Criar `docs/migracao_django/MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` com:
+  - criterios ARQUITETURA §19.5 cumpridos por modulo
+  - matriz flags ON em producao + smoke E2E
+  - backup final Supabase + restore local arquivado
+  - plano rollback (reativar flags OFF + variaveis Supabase)
+  - janela de cutover e responsavel
+  - **checkbox explicito:** "Usuario autoriza desligamento do Supabase remoto"
+- [ ] Script ou comando de validacao de paridade final (`scripts/validar-paridade-dados.mjs` ou management command) referenciado no checklist
+- [ ] Atualizar `MDJ16_VALIDACAO_CUTOVER.md` — secao "Pos-MDJ-19" com deferidos resolvidos vs remanescentes (`relatorios-v2`, etc.)
+
+**Evidencia:** _(pendente)_
+
+### HU 19.6 — Homologacao MDJ-19
+
+- [ ] `docs/migracao_django/MDJ19_VALIDACAO_LIMPEZA.md` com evidencias:
+  - console browser limpo (sem CORS/WS Supabase) com flags ON
+  - dashboard atualiza via polling Django
+  - login/logout Django intacto
+  - `npx tsc --noEmit` + testes afetados passando
+  - `git diff --check` OK
+- [ ] Nenhuma remocao de env Supabase do repositorio ate aceite do checklist 19.5
+
+**Evidencia:** _(pendente)_
+
+---
+
+## Sprint MDJ-20 — Migracao de dados producao (snapshot congelado)
+
+**Status:** 🧭 Planejada
+**Pre-requisito:** MDJ-18 concluida (artefatos prod); **deploy VPS (MDJ-21)** executado e smoke `scripts/smoke-stack-prod.mjs` OK contra `https://producao.costurai.com.br`.
+**Objetivo:** Carregar no Postgres de producao o **snapshot unico** do Supabase (backup ja realizado), importar midia e validar paridade — **sem sync incremental** com Supabase remoto.
+**Premissa operacional (2026-06-17):** backup Supabase concluido; **nenhum dado novo** entrou no sistema desde entao; operacao permanece congelada ate Django funcional em producao com flags ON.
+**Referencia tecnica:** `PLANO_IMPORTACAO_DADOS_REAIS.md`, evidencia ensaio local `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`, paridade MDJ-7/8.
+**Escopo:** inventario do snapshot, import Postgres prod, midia, usuarios Django, relatorio de paridade, gate de retomada operacional.
+**Fora de escopo:** delta/sync com Supabase ao vivo; desligamento Supabase remoto (MDJ-19 HU 19.5); cutover de flags em producao (sprint separada pos-paridade); S3.
+
+**Regra de execucao:** uma HU por vez. **Nao** ligar flags Django de escrita/leitura em producao antes de HU 20.6 aprovada.
+
+### HU 20.1 — Abertura e registro do snapshot congelado
+
+- [x] Registrar MDJ-20 em `TASKS.md` e `BACKLOG.md`
+- [ ] Documentar metadados do backup: data, responsavel, caminho/arquivo (`backup_postgres` / dump Supabase), checksum opcional
+- [ ] Confirmar por escrito: zero escritas operacionais no Supabase desde o backup (sistema congelado)
+- [ ] Baseline de contagens do snapshot (SQL read-only no restore ou no dump) — tabela alvo vs contagem, anexo ao relatorio
+
+**Evidencia:** Sprint MDJ-20 aberta em 2026-06-17. Premissa: backup Supabase ja feito; dados congelados; importacao sera **one-shot** do snapshot, nao espelhamento continuo.
+
+### HU 20.2 — Checklist pre-importacao (VPS + banco vazio)
+
+- [ ] Stack prod na VPS: `migrate` aplicado, Postgres **vazio** de dados de negocio (so schema)
+- [ ] Secrets prod preenchidos (`.env` na VPS, nunca commitado)
+- [ ] Backup do volume Postgres prod **antes** da importacao (`scripts/infra/backup_postgres.sh`)
+- [ ] Restore do snapshot Supabase em container/postgres temporario acessivel pela VPS ou import direto do arquivo — decisao registrada
+- [ ] `python manage.py check` + `makemigrations --check --dry-run` OK no backend prod
+
+**Evidencia:** _(pendente)_
+
+### HU 20.3 — Importacao Postgres producao (dados de negocio)
+
+- [ ] Executar pipeline de importacao conforme `PLANO_IMPORTACAO_DADOS_REAIS.md` (management command / script ja usado em `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`)
+- [ ] Origem: snapshot congelado (nao Supabase remoto)
+- [ ] Destino: banco `producao-prod` / servico `db` do compose prod na VPS
+- [ ] Dry-run com log; execucao real com log arquivado
+- [ ] Validar: nenhuma FK quebrada; sequencias/IDs coerentes pos-import
+
+**Evidencia:** _(pendente)_
+
+### HU 20.4 — Importacao de midia (Storage → volume prod)
+
+- [ ] Inventario de objetos no backup de midia Supabase (produtos, operacoes, QR, etc.)
+- [ ] Copiar para volume `media_data` do compose prod (`scripts/infra/backup_media.sh` / restore inverso ou `rsync`)
+- [ ] URLs/caminhos Django batem com arquivos no disco (`MEDIA_ROOT`)
+- [ ] Spot-check: imagens carregam via `/media/` no nginx prod
+
+**Evidencia:** _(pendente)_
+
+### HU 20.5 — Usuarios Django (admin / supervisor)
+
+- [ ] Listar contas que precisam acessar producao (emails do snapshot ou lista acordada)
+- [ ] Criar usuarios Django + permissoes de dominio (nao reutilizar hashes Supabase Auth — novo cadastro ou `createsuperuser`)
+- [ ] Smoke: login via proxy nginx (`scripts/smoke-stack-prod.mjs` — cenario `django-login-via-proxy`) com credencial real
+- [ ] Documentar credenciais entregues ao responsavel (fora do git)
+
+**Evidencia:** _(pendente)_
+
+### HU 20.6 — Paridade e homologacao pos-import
+
+- [ ] Contagens Django prod == baseline snapshot (HU 20.1), exceto lacunas documentadas
+- [ ] Endpoints read-only criticos retornam dados reais (turnos, scanner lookup, metas, qualidade — amostra)
+- [ ] Comparacao de payloads: divergencias classificadas aceitas vs bloqueantes (criterios MDJ-7/8)
+- [ ] `docs/migracao_django/MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` com evidencias + comandos executados
+- [ ] `git diff --check` OK nos artefatos de doc
+
+**Evidencia:** _(pendente)_
+
+### HU 20.7 — Gate de retomada operacional
+
+- [ ] Checklist explicito: importacao + paridade OK → **autorizado** cutover flags Django em producao (sprint futura)
+- [ ] Ate o cutover: sistema continua **somente leitura** ou offline para operadores — sem dual-write Supabase
+- [ ] Pos-cutover: primeiro registro de producao novo entra **apenas** via Django (scanner + actions)
+- [ ] Referenciar MDJ-19 checklist desligamento Supabase como passo posterior (nao bloqueante para MDJ-20)
+
+**Evidencia:** _(pendente)_
+
+---
+
+## Sprint MDJ-21 — Deploy VPS producao
+
+**Status:** 🟡 Proxima (documentacao pronta — 2026-06-17)
+**Pre-requisito:** MDJ-18 concluida (artefatos prod + smoke local 5/5).
+**Objetivo:** Subir stack Docker em `38.52.128.62` com TLS em `https://producao.costurai.com.br`, smoke publico, backups testados. Banco vazio (dados → MDJ-20).
+**Runbook:** `docs/migracao_django/MDJ21_RUNBOOK_DEPLOY_VPS.md`
+**Escopo:** VPS prep, `.env`, compose up, TLS, superusuario, smoke, cron backup.
+**Fora de escopo:** importacao dados (MDJ-20), flags Django ON, desligamento Supabase.
+
+### HU 21.1 — Abertura e runbook
+
+- [x] Registrar MDJ-21 em `TASKS.md` e `BACKLOG.md`
+- [x] Runbook passo a passo `MDJ21_RUNBOOK_DEPLOY_VPS.md`
+- [x] Indice consolidado `ESTADO_ATUAL.md`
+- [x] Auditoria VPS `MDJ21_VPS_AUDITORIA.md` (SSH srvjosemaria — multi-app, nginx host, porta 8080)
+
+**Evidencia:** MDJ-21 documentada 2026-06-17; auditoria VPS 2026-06-19 — finanpy:8001, brabustore:3001, nginx host :80/:443; PCP via 127.0.0.1:8080 + vhost novo; compose proxy bind localhost aplicado.
+
+### HU 21.2 — Preparacao VPS
+
+- [ ] Docker + Compose instalados
+- [ ] Firewall 22/80/443
+- [ ] Repo clonado; `.env` com secrets (flags OFF)
+
+**Evidencia:** _(pendente)_
+
+### HU 21.3 — Stack no ar
+
+- [ ] `docker compose -f docker-compose.prod.yml up -d --build`
+- [ ] Health `{"status":"ok","database":"ok"}`
+- [ ] TLS HTTPS funcional
+
+**Evidencia:** _(pendente)_
+
+### HU 21.4 — Smoke e evidencia
+
+- [ ] `createsuperuser` ou usuario dominio
+- [ ] `smoke-stack-prod.mjs` 5/5 contra `https://producao.costurai.com.br`
+- [ ] Backup manual testado
+- [ ] `MDJ21_VALIDACAO_DEPLOY_VPS.md` preenchido
+
+**Evidencia:** _(pendente)_

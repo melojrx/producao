@@ -10,41 +10,30 @@
 
 ```
 /projeto
-├── app/                    # Next.js (NÃO renomear — convenção oficial App Router)
-│   ├── (auth)/
-│   ├── (admin)/
-│   ├── (operador)/
-│   └── next.config.ts      # outputFileTracingRoot para monorepo
-├── backend/                 # Django (novo)
-│   ├── pcp_project/        # Django project root
-│   │   └── config/         # Settings modular
-│   │       ├── base.py    # Comum a todos ambientes
-│   │       ├── local.py   # Desenvolvimento (Docker)
-│   │       └── production.py # Produção
-│   ├── accounts/
-│   ├── cadastros/
-│   ├── produtos/
-│   ├── turnos/
-│   ├── producao/
-│   ├── qualidade/
-│   ├── metas/
-│   ├── relatorios/
-│   ├── scanner/
-│   ├── infra/
-│   ├── shared/
-│   ├── Dockerfile           # Multi-stage build
-│   ├── docker-compose.dev.yml
-│   ├── docker-compose.prod.yml
-│   └── requirements.txt
-├── docker-compose.yml       # Desenvolvimento completo
+├── app/                         # Next.js App Router (nao renomear)
+├── backend/                     # Django
+│   ├── pcp_project/config/      # base.py, local.py, production.py
+│   ├── <apps de dominio>/
+│   ├── Dockerfile
+│   └── docker-entrypoint.prod.sh
+├── docker/
+│   ├── compose/                 # dev.*.yml, prod.*.yml (fonte canonica)
+│   ├── frontend/                # Dockerfile.dev, Dockerfile.prod
+│   └── nginx/prod.conf
+├── docker-compose.dev.yml       # wrapper → dev.base
+├── docker-compose.dev.full.yml  # wrapper → dev.full
+├── docker-compose.prod.yml      # wrapper → prod.full (name: producao-prod)
+├── scripts/
+│   ├── smoke-stack-prod.mjs
+│   └── infra/                   # backup_postgres.sh, restore, backup_media
 └── .env.example
 ```
 
-**Notas sobre estrutura:**
-- `app/` **NÃO** deve ser renomeado — convenção oficial Next.js App Router
-- Para monorepo: configurar `outputFileTracingRoot` no `next.config.ts`
-- `backend/` criado novo, separado do frontend
-- Docker Compose na raiz para orchestrar todos os serviços
+**Notas sobre estrutura (jun/2026):**
+- Compose canonico em `docker/compose/`; wrappers na raiz para compatibilidade
+- Dev backend exposto em `localhost:8001`; prod local via proxy `localhost:8080`
+- Prod VPS: `producao.costurai.com.br` — ver `MDJ21_RUNBOOK_DEPLOY_VPS.md`
+- Frontend prod: `output: 'standalone'` + `docker/frontend/Dockerfile.prod`
 
 ---
 
@@ -1111,29 +1100,37 @@ Um modulo so pode trocar oficialmente para Django quando cumprir todos os criter
 
 ---
 
-## 20. Proximos Passos (MDJ-4+)
+## 20. Estado da migracao (jun/2026)
 
-1. **MDJ-4** — Scaffold Django + Docker Compose
-   - `django-admin startproject pcp_project backend/`
-   - Criar apps com estrutura de camadas
-   - Configurar `config/local.py` com env vars do Docker
-   - Criar Dockerfile multi-stage (development + production)
-   - Criar `docker-compose.dev.yml` e `docker-compose.prod.yml`
-   - Validar: `docker compose up` → Django responde em localhost:8000
+Sprints MDJ-4 a MDJ-18 concluidas. Cutover por flags homologado em dev (MDJ-16). Stack prod Docker validada localmente (smoke 5/5).
 
-2. **MDJ-5** — Modelagem inicial e migrations
-   - Criar todos os models conforme secao 7
-   - `makemigrations` e `migrate` dentro do container
-   - Validar que migrations geram SQL equivalente ao schema restaurado
+**Proximos marcos:**
 
-3. **MDJ-6** — Importacao read-only
-   - Script de importacao dos dados do container restore
-   - Validacao de contagens e integridade
+| Ordem | Sprint | Objetivo |
+|---|---|---|
+| 1 | MDJ-21 | Deploy VPS — stack vazia, flags OFF |
+| 2 | MDJ-20 | Import snapshot congelado Supabase → Postgres prod |
+| 3 | Cutover | Flags Django ON em producao |
+| 4 | MDJ-19 | Desligamento Supabase remoto (aceite explicito) |
 
-4. **MDJ-7** — API read-only de cadastros e scanner
-   - Expor selectors como ViewSets
-   - Comparar respostas com Supabase atual
+Documentacao operacional consolidada em `ESTADO_ATUAL.md`. Feature flags detalhadas na secao 19 deste documento.
+
+**Premissa de dados:** backup Supabase realizado; sistema congelado desde entao; importacao one-shot sem sync delta.
 
 ---
 
-*Documento atualizado com estrutura Docker profissional baseada em documentação oficial (Context7).*
+## 21. Referencias historicas (MDJ-4 a MDJ-8)
+
+Sequencia inicial de implementacao (concluida):
+
+1. **MDJ-4** — Scaffold Django + Docker Compose
+2. **MDJ-5** — Modelagem e migrations
+3. **MDJ-6** — Importacao read-only / restore
+4. **MDJ-7** — API read-only cadastros e scanner
+5. **MDJ-8** — API read-only turnos e relatorios
+
+Evidencias por sprint: relatorios `MDJ*_VALIDACAO_*.md` e `TASKS.md`.
+
+---
+
+*Documento atualizado jun/2026 — estrutura Docker modular MDJ-17/18.*

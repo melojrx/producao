@@ -24,22 +24,50 @@
 | MDJ-12 | Turno, fechamento e carry-over | ✅ Concluida | Abertura, encerramento, Qualidade no roteiro, sincronizacao e carry-over portados com 63 testes |
 | MDJ-13 | Auth, permissoes e Django Admin | ✅ Concluida | JWT + permissoes de dominio + autoria segura de Qualidade + Admin + 71 testes |
 | MDJ-14 | Storage e arquivos | ✅ Concluida | Storage local Django para imagens de produtos/operacoes + HU 14.7 + 96 testes |
-| MDJ-15 | Infra VPS, EasyPanel e observabilidade | ✅ Concluida | Deploy, backups, logs, healthcheck, storage S3 validado e secrets obrigatorios |
-| MDJ-16 | Cutover controlado por modulo | 🧭 Planejada | Trocar origem de dados do frontend por modulo com rollback |
+| MDJ-15 | Infra VPS, EasyPanel e observabilidade | ✅ Concluida | Scripts backup/restore, `production.py`; consumido por MDJ-18/21 |
+| MDJ-16 | Cutover controlado por modulo (dev local) | ✅ Concluida (2026-06-17) | Feature flags + frontend apontando para Django em dev (`localhost:8001`) com fallback Supabase; relatorio `MDJ16_VALIDACAO_CUTOVER.md` |
+| MDJ-17 | Stack Docker dev integrada | ✅ Concluida (2026-06-17) | Compose modular: `docker/compose/dev.full.yml` + wrappers raiz — `MDJ17_VALIDACAO_STACK_DEV.md`, `MDJ17_DOCKER_AUDIT.md` |
+| MDJ-18 | VPS, dominio e producao | ✅ Concluida (pre-deploy) | Compose prod Docker (back+front+db+nginx), `producao.costurai.com.br`, `MDJ18_VALIDACAO_PRODUCAO.md` |
+| MDJ-19 | Limpeza legado Supabase e preparacao desligamento | 🧭 Planejada | Guards browser, polling dashboard Django, deprecar `configuracao_turno`, checklist desligamento Supabase remoto |
+| MDJ-20 | Migracao de dados producao (snapshot congelado) | 🧭 Planejada | Import one-shot backup Supabase → Postgres VPS + midia + usuarios + paridade; sem sync delta; sistema congelado desde backup |
+| MDJ-21 | Deploy VPS producao | 🟡 **Proxima** | Subir stack em `38.52.128.62`, TLS, smoke publico — runbook `MDJ21_RUNBOOK_DEPLOY_VPS.md` |
 
 ---
 
 ## Direcao aprovada
 
-Arquitetura alvo:
+Arquitetura alvo (visao de longo prazo):
 
 - Next.js continua como frontend.
 - Django assume o dominio de negocio.
-- PostgreSQL em VPS vira banco principal.
-- Django Admin apoia suporte operacional e homologacao.
+- PostgreSQL vira banco principal (hoje: container local em dev).
 - API REST documentada por OpenAPI sera o contrato entre frontend e backend.
 - Realtime sera tratado depois da paridade funcional, com polling/SSE antes de WebSocket.
-- Docker/EasyPanel em Ubuntu sera a base de deploy.
+
+### Fases operacionais (decisao em 2026-06-15)
+
+| Fase | Sprint | Quando | O que fazer |
+|---|---|---|---|
+| **A — Dev** | MDJ-16 | ✅ Concluida (2026-06-17) | Cutover por modulo no ambiente de desenvolvimento. Supabase remoto como fallback via flags OFF. |
+| **B — Stack integrada** | MDJ-17 | ✅ Concluida (2026-06-17) | Compose modular dev: `docker/compose/dev.full.yml`. |
+| **C — Producao** | MDJ-18 + MDJ-21 | Artefatos ✅; **deploy VPS proximo** | MDJ-18 entregou compose prod; MDJ-21 executa deploy em `producao.costurai.com.br`. Media em volume local — **S3 fora de escopo**. |
+| **D — Pos-cutover** | MDJ-19 | Apos MDJ-16 (paralelo OK) | Limpar legado Supabase no browser, polling Django, checklist desligamento Supabase remoto. |
+| **E — Dados producao** | MDJ-20 | Apos deploy MDJ-21 | Snapshot congelado (backup ja feito; zero dados novos) → Postgres prod + midia + paridade. |
+
+**Regras atuais (jun/2026):**
+
+- **Proximo marco:** deploy VPS (MDJ-21) — runbook `MDJ21_RUNBOOK_DEPLOY_VPS.md`.
+- Visao consolidada: `ESTADO_ATUAL.md`.
+- **Flags Django OFF** na primeira subida em producao; cutover apos MDJ-20.
+- Storage de imagens: volume Docker local (`media_data`), como na MDJ-14.
+- **S3 fora de escopo** ate nova decisao explicita.
+- Dev: `npm run dev` + compose dev **ou** `npm run dev:docker`.
+- Backup Supabase **congelado** — sem novos dados desde o backup; importacao MDJ-20 e one-shot.
+
+Arquitetura alvo (referencia):
+
+- Django Admin apoia suporte; **nao** exposto publicamente na v1 (conflito rota `/admin/` Next.js).
+- Docker Compose na VPS Ubuntu — dominio unico via nginx.
 
 ---
 
@@ -306,7 +334,9 @@ Entregaveis:
 
 ## Marco MDJ-15 — Infra VPS, EasyPanel e observabilidade
 
-**Status:** ✅ Concluida
+**Status:** ✅ Concluida — scripts e settings consumidos por MDJ-18/21
+
+> Artefatos implementados antecipadamente. Permanecem no repositorio para a fase de producao futura. **Nao e necessario subir `docker-compose.prod.yml`, configurar S3 ou CORS de Vercel durante a migracao em dev.**
 
 Complemento HU 15.8: URL absoluta de storage externo/S3 preservada sem prefixo indevido de `MEDIA_BASE_URL`; compose prod agora exige `DJANGO_SECRET_KEY` e `POSTGRES_PASSWORD` antes de gerar config/subir stack; suite revalidada com 97 testes OK.
 
@@ -326,6 +356,156 @@ Entregaveis:
 
 ---
 
+## Marco MDJ-16 — Cutover controlado por modulo (dev local)
+
+**Status:** ✅ Concluida (2026-06-17)
+
+Objetivo:
+
+Trocar a origem de dados do frontend Next.js para o backend Django **em desenvolvimento local**, por modulo, com feature flags, fallback imediato para Supabase e rollback operacional — sem big bang, sem VPS e sem remover caminhos Supabase antes da homologacao de cada modulo.
+
+Ambiente alvo desta sprint:
+
+- Backend: `docker compose -f docker-compose.dev.yml` (porta **8001**)
+- Frontend: `npm run dev` na maquina host (integracao em container → MDJ-17)
+- Banco: PostgreSQL do compose dev + dados importados (MDJ-6)
+- Storage: volume `media_data` local (MDJ-14) — sem S3
+
+Entregaveis concluidos:
+
+- hardening dos scripts operacionais de backup/restore ✅ (util para dev; producao → MDJ-18)
+- CORS/S3/prod settings ✅ preparatorios (MDJ-15/16.3–16.4); **nao bloqueiam dev**
+- ~~`STATIC_ROOT` + collectstatic VPS~~ → adiado para MDJ-18
+- cliente HTTP/JWT Django no frontend (`lib/django/`) apontando para `http://localhost:8001` ✅
+- utilitario de feature flags com 8 flags `NEXT_PUBLIC_USE_DJANGO_*` desligadas por padrao ✅
+- cutover read-only por modulo (cadastros, scanner, dashboard/metas) com testes de paridade ✅
+- cutover de auth JWT e de escritas criticas com aceite documentado ✅
+- relatorio `MDJ16_VALIDACAO_CUTOVER.md` com matriz flag × modulo × rollback **em dev** ✅
+- Supabase remoto permanece intacto; caminhos Supabase no frontend preservados enquanto flag estiver OFF ✅
+
+Referencia vinculante: `ARQUITETURA.md` secao 19 (flags, fallback, criterios de cutover).
+
+---
+
+## Marco MDJ-17 — Stack Docker dev integrada
+
+**Status:** ✅ Concluida (2026-06-17)
+
+**Pre-requisito:** MDJ-16 concluida e homologada em dev (frontend host + backend container).
+
+Objetivo:
+
+Unificar o ambiente de desenvolvimento em um unico Docker Compose com tres servicos: **Django (dev)**, **PostgreSQL** e **Next.js (dev)** — reproduzindo a integracao real sem VPS, dominio ou S3.
+
+Entregaveis:
+
+- `docker/compose/dev.base.yml` — fonte unica backend+db ✅
+- `docker/compose/dev.frontend.yml` + `docker/compose/dev.full.yml` (include) ✅
+- `docker/frontend/Dockerfile.dev` (Node 20, `npm ci`) ✅
+- Wrappers `docker-compose.dev.yml` / `docker-compose.dev.full.yml` na raiz ✅
+- `docker/README.md` — cheat sheet ✅
+- `.dockerignore` na raiz ✅
+- scripts `dev:docker`, `dev:docker:backend` em `package.json` ✅
+- `NEXT_PUBLIC_DJANGO_API_URL=http://localhost:8001` (browser no host, nao `backend:8000`) ✅
+- hot-reload via volumes (`.:/app` + volume anonimo `node_modules`) ✅
+- relatorios `MDJ17_VALIDACAO_STACK_DEV.md`, `MDJ17_DOCKER_AUDIT.md` ✅
+
+---
+
+## Marco MDJ-18 — VPS, dominio e producao
+
+**Status:** ✅ Concluida (artefatos pre-deploy — 2026-06-17)
+
+**Dominio:** `producao.costurai.com.br` (DNS A → VPS `38.52.128.62`).
+
+Entregue:
+
+- compose prod modular: backend + frontend standalone + db + nginx (`docker/compose/prod.*`)
+- `Dockerfile.prod`, `docker/nginx/prod.conf`, wrapper `docker-compose.prod.yml`
+- `STATIC_ROOT` + WhiteNoise + `collectstatic` no entrypoint
+- CORS/CSRF documentados para dominio unico
+- `MDJ18_VALIDACAO_PRODUCAO.md` + `scripts/smoke-stack-prod.mjs`
+- **sem** deploy VPS executado; **sem** S3
+
+Deploy na VPS: seguir checklist em `MDJ18_VALIDACAO_PRODUCAO.md`.
+
+---
+
+## Marco MDJ-19 — Limpeza legado Supabase e preparacao desligamento
+
+**Status:** 🧭 Planejada
+
+**Pre-requisito:** MDJ-16 concluida; MDJ-17 recomendada. Executavel em paralelo com MDJ-18.
+
+Objetivo:
+
+Fechar deferidos da MDJ-16 que ainda puxam Supabase no browser (Realtime, refresh auth, `configuracao_turno` legado) e preparar — sem executar ainda — o desligamento do Supabase remoto.
+
+Entregaveis previstos:
+
+- helper `deveUsarSupabaseBrowser()` + guards em hooks Realtime
+- polling Django no dashboard V2 (substitui WebSocket Supabase)
+- deprecacao de `configuracao_turno` / monitor legado no frontend
+- `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` + `MDJ19_VALIDACAO_LIMPEZA.md`
+- **nao** desliga Supabase remoto sem checkbox de aceite do usuario (HU 19.5)
+
+Remanescente pos-MDJ-19 (fora de escopo):
+
+- `relatorios-v2.ts` cutover completo
+- Django Channels / WebSocket nativo
+- models Django para `configuracao_turno` (historico opcional)
+
+---
+
+## Marco MDJ-20 — Migracao de dados producao (snapshot congelado)
+
+**Status:** 🧭 Planejada
+
+**Pre-requisito:** MDJ-18 deploy na VPS concluido (`MDJ21_RUNBOOK_DEPLOY_VPS.md`); ensaio local opcional com `docker-compose.prod.yml`.
+
+**Premissa (2026-06-17):** backup Supabase **ja realizado**; desde entao o sistema **nao recebe dados novos** e so voltara a operar quando Django estiver funcional em producao. Importacao e **one-shot** do snapshot — **sem sync incremental** com Supabase remoto.
+
+Objetivo:
+
+Popular Postgres de producao com dados reais, midia e usuarios Django; validar paridade; liberar gate para cutover de flags.
+
+Entregaveis previstos:
+
+- metadados + baseline de contagens do snapshot (`HU 20.1`)
+- import Postgres prod via pipeline `PLANO_IMPORTACAO_DADOS_REAIS.md` (referencia: `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`)
+- midia no volume `media_data`
+- usuarios admin/supervisor Django
+- `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md`
+- gate HU 20.7 antes de flags Django ON em producao
+
+Ordem macro pos-MDJ-18:
+
+```text
+MDJ-21 (deploy VPS) → MDJ-20 (dados snapshot) → cutover flags prod → MDJ-19 desligamento Supabase (aceite explicito)
+```
+
+MDJ-19 pode avancar em **dev** em paralelo; nao substitui MDJ-20.
+
+---
+
+## Marco MDJ-21 — Deploy VPS producao
+
+**Status:** 🟡 Proxima sprint operacional
+
+**Pre-requisito:** MDJ-18 concluida (artefatos + smoke local 5/5).
+
+**Objetivo:** Subir stack Docker prod na VPS Hostinger (`38.52.128.62`), TLS em `producao.costurai.com.br`, smoke publico, backups agendados. Banco com schema migrado e **sem dados de negocio** (import MDJ-20 depois).
+
+Entregaveis:
+
+- runbook `MDJ21_RUNBOOK_DEPLOY_VPS.md`
+- evidencia `MDJ21_VALIDACAO_DEPLOY_VPS.md` (pos-execucao)
+- flags Django **OFF** na primeira subida
+
+Fora de escopo: importacao de dados, cutover flags, desligamento Supabase.
+
+---
+
 ## Marco MDJ-7 em diante
 
 MDJ-7 e MDJ-8 foram concluidas como APIs read-only. A importacao real controlada descrita em `PLANO_IMPORTACAO_DADOS_REAIS.md` foi executada localmente antes da MDJ-9 e registrada em `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`, usando `MDJ7_VALIDACAO_PARIDADE.md` e `MDJ8_VALIDACAO_PARIDADE.md` como entradas de mapeamento. A MDJ-9 foi aberta para uma mutacao nao critica e isolada no catalogo de defeitos.
@@ -339,7 +519,9 @@ O criterio de seguranca e simples: primeiro entender, proteger e provar paridade
 ```text
 MDJ-0 -> MDJ-1 -> MDJ-2 -> MDJ-3 -> MDJ-4 -> MDJ-5 -> MDJ-6
                                                -> MDJ-7 -> MDJ-8
-MDJ-8 -> MDJ-9 -> MDJ-10 -> MDJ-11 -> MDJ-12 -> MDJ-13 -> MDJ-14 -> MDJ-15 -> MDJ-16
+MDJ-8 -> MDJ-9 -> MDJ-10 -> MDJ-11 -> MDJ-12 -> MDJ-13 -> MDJ-14 -> MDJ-15 -> MDJ-16 -> MDJ-17 -> MDJ-18 -> MDJ-21 -> MDJ-20
+                                                                                              \-> MDJ-19 (paralelo pos-16, dev)
+MDJ-20 -> cutover flags prod -> MDJ-19 HU 19.5 (desligamento Supabase remoto, aceite explicito)
 ```
 
 Sprints de implementacao Django nao devem iniciar antes da conclusao do inventario, backup/restore e arquitetura alvo.

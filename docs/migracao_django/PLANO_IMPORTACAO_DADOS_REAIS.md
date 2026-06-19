@@ -1,15 +1,21 @@
-# PLANO_IMPORTACAO_DADOS_REAIS.md — Supabase restore para Django local
+# PLANO_IMPORTACAO_DADOS_REAIS.md — Supabase restore para Django
 
-> Plano tecnico para importar o snapshot real restaurado do Supabase para o banco operacional Django local.
-> Este plano deve ser executado antes de abrir qualquer mutacao MDJ-9.
+> Plano tecnico para importar o snapshot real restaurado do Supabase para o banco Django.
+> Ensaio local executado: `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`.
+> **Producao:** sprint MDJ-20 — apos deploy VPS (MDJ-21).
+
+**Premissa (2026-06-17):** backup Supabase concluido; **nenhum dado novo** desde o backup. Importacao e **one-shot** do snapshot congelado — sem sync incremental com Supabase remoto.
 
 ---
 
 ## Objetivo
 
-Carregar dados reais do restore Supabase no banco Django local para permitir paridade funcional de payloads e preparar a primeira mutacao segura.
+Carregar dados reais do restore Supabase no banco Django para permitir paridade funcional de payloads.
 
-O plano nao muda a fonte operacional de producao. O Supabase remoto continua intacto ate cutover aprovado.
+- **Dev/local:** banco `pcp_db` no compose dev (ja validado pre-MDJ-9).
+- **Producao:** banco do compose `producao-prod` na VPS — ver `TASKS.md` sprint MDJ-20.
+
+O Supabase remoto permanece intacto ate cutover aprovado (MDJ-19 HU 19.5).
 
 ---
 
