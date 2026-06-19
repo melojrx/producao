@@ -35,4 +35,7 @@ jobs:
             export DEPLOY_PATH="${VPS_DEPLOY_PATH:-/opt/producao}"
             export DEPLOY_REF=main
             cd "${DEPLOY_PATH}"
+            git fetch origin "${DEPLOY_REF}"
+            git checkout "${DEPLOY_REF}"
+            git reset --hard "origin/${DEPLOY_REF}"
             bash scripts/deploy/vps-production.sh
