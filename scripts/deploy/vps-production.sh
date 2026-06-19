@@ -50,8 +50,12 @@ docker compose -f "${COMPOSE_FILE}" exec -T backend python manage.py migrate --n
 echo "==> Health check"
 resposta="$(curl -sf "${HEALTH_URL}")"
 echo "${resposta}"
-if ! echo "${resposta}" | grep -q '"status":"ok"'; then
+if ! echo "${resposta}" | grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"'; then
   echo "ERRO: health check falhou." >&2
+  exit 1
+fi
+if ! echo "${resposta}" | grep -qE '"database"[[:space:]]*:[[:space:]]*"ok"'; then
+  echo "ERRO: health check database falhou." >&2
   exit 1
 fi
 
