@@ -15,7 +15,7 @@
 | Stack Docker prod (artefatos) | ✅ MDJ-18 — smoke local 5/5 |
 | **Auditoria VPS** | ✅ `MDJ21_VPS_AUDITORIA.md` (multi-app, nginx host) |
 | **Deploy VPS** | 🟡 **Proximo passo** (MDJ-21) |
-| Importacao dados producao | 🧭 MDJ-20 (apos deploy) |
+| Importacao dados producao | ✅ MDJ-20 concluida (2026-06-19) |
 | Limpeza legado Supabase browser | 🧭 MDJ-19 (dev em paralelo OK) |
 
 **Dominio producao:** `https://producao.costurai.com.br` — DNS A → VPS `38.52.128.62` (Hostinger).

@@ -1,0 +1,33 @@
+# Postgres restore read-only na VPS — rede compartilhada com producao-prod (MDJ-20).
+# Uso: BACKUP_MOUNT=/opt/producao/backups/supabase-snapshot-20260531 \
+#      docker compose -f docker/compose/restore.vps.yml up -d
+
+name: producao-restore
+
+services:
+  postgres_restore:
+    image: postgres:16-alpine
+    container_name: producao-postgres-restore
+    restart: "no"
+    environment:
+      POSTGRES_DB: supabase_restore_test
+      POSTGRES_USER: restore_user
+      POSTGRES_PASSWORD: ${RESTORE_DB_PASSWORD:-restore_senha_local}
+    volumes:
+      - postgres_restore_data:/var/lib/postgresql/data
+      - ${BACKUP_MOUNT:?defina BACKUP_MOUNT}:/backups:ro
+    networks:
+      - producao_prod_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "restore_user", "-d", "supabase_restore_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  producao_prod_network:
+    name: producao-prod_default
+    external: true
+
+volumes:
+  postgres_restore_data:

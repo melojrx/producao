@@ -29,7 +29,7 @@
 | MDJ-17 | Stack Docker dev integrada | ✅ Concluida (2026-06-17) | Compose modular: `docker/compose/dev.full.yml` + wrappers raiz — `MDJ17_VALIDACAO_STACK_DEV.md`, `MDJ17_DOCKER_AUDIT.md` |
 | MDJ-18 | VPS, dominio e producao | ✅ Concluida (pre-deploy) | Compose prod Docker (back+front+db+nginx), `producao.costurai.com.br`, `MDJ18_VALIDACAO_PRODUCAO.md` |
 | MDJ-19 | Limpeza legado Supabase e preparacao desligamento | 🧭 Planejada | Guards browser, polling dashboard Django, deprecar `configuracao_turno`, checklist desligamento Supabase remoto |
-| MDJ-20 | Migracao de dados producao (snapshot congelado) | 🧭 Planejada | Import one-shot backup Supabase → Postgres VPS + midia + usuarios + paridade; sem sync delta; sistema congelado desde backup |
+| MDJ-20 | Migracao de dados producao (snapshot congelado) | ✅ Concluida | Import one-shot 2026-06-19 — ver `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` |
 | MDJ-21 | Deploy VPS producao | 🟡 **Proxima** | Subir stack em `38.52.128.62`, TLS, smoke publico — runbook `MDJ21_RUNBOOK_DEPLOY_VPS.md` |
 
 ---

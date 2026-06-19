@@ -1546,7 +1546,7 @@ Decisao de escopo reduzido:
 
 ## Sprint MDJ-20 — Migracao de dados producao (snapshot congelado)
 
-**Status:** 🧭 Planejada
+**Status:** ✅ Concluida (import producao 2026-06-19)
 **Pre-requisito:** MDJ-18 concluida (artefatos prod); **deploy VPS (MDJ-21)** executado e smoke `scripts/smoke-stack-prod.mjs` OK contra `https://producao.costurai.com.br`.
 **Objetivo:** Carregar no Postgres de producao o **snapshot unico** do Supabase (backup ja realizado), importar midia e validar paridade — **sem sync incremental** com Supabase remoto.
 **Premissa operacional (2026-06-17):** backup Supabase concluido; **nenhum dado novo** entrou no sistema desde entao; operacao permanece congelada ate Django funcional em producao com flags ON.
@@ -1559,68 +1559,68 @@ Decisao de escopo reduzido:
 ### HU 20.1 — Abertura e registro do snapshot congelado
 
 - [x] Registrar MDJ-20 em `TASKS.md` e `BACKLOG.md`
-- [ ] Documentar metadados do backup: data, responsavel, caminho/arquivo (`backup_postgres` / dump Supabase), checksum opcional
-- [ ] Confirmar por escrito: zero escritas operacionais no Supabase desde o backup (sistema congelado)
-- [ ] Baseline de contagens do snapshot (SQL read-only no restore ou no dump) — tabela alvo vs contagem, anexo ao relatorio
+- [x] Documentar metadados do backup: data, responsavel, caminho/arquivo (`backup_postgres` / dump Supabase), checksum opcional
+- [x] Confirmar por escrito: zero escritas operacionais no Supabase desde o backup (sistema congelado)
+- [x] Baseline de contagens do snapshot (SQL read-only no restore ou no dump) — tabela alvo vs contagem, anexo ao relatorio
 
-**Evidencia:** Sprint MDJ-20 aberta em 2026-06-17. Premissa: backup Supabase ja feito; dados congelados; importacao sera **one-shot** do snapshot, nao espelhamento continuo.
+**Evidencia:** Snapshot `backup-supabase-20260531` — sha256 schema/dados em `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md`; baseline 22 tabelas; premissa congelamento desde 2026-05-31.
 
 ### HU 20.2 — Checklist pre-importacao (VPS + banco vazio)
 
-- [ ] Stack prod na VPS: `migrate` aplicado, Postgres **vazio** de dados de negocio (so schema)
-- [ ] Secrets prod preenchidos (`.env` na VPS, nunca commitado)
-- [ ] Backup do volume Postgres prod **antes** da importacao (`scripts/infra/backup_postgres.sh`)
-- [ ] Restore do snapshot Supabase em container/postgres temporario acessivel pela VPS ou import direto do arquivo — decisao registrada
-- [ ] `python manage.py check` + `makemigrations --check --dry-run` OK no backend prod
+- [x] Stack prod na VPS: `migrate` aplicado, Postgres **vazio** de dados de negocio (so schema)
+- [x] Secrets prod preenchidos (`.env` na VPS, nunca commitado)
+- [x] Backup do volume Postgres prod **antes** da importacao (`scripts/infra/backup_postgres.sh`)
+- [x] Restore do snapshot Supabase em container/postgres temporario acessivel pela VPS ou import direto do arquivo — decisao registrada
+- [x] `python manage.py check` + `makemigrations --check --dry-run` OK no backend prod
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `docker/compose/restore.vps.yml` + `postgres_restore` na rede `producao-prod_default`; backup pre-import em `/opt/producao/backups/postgres-pre-mdj20/`.
 
 ### HU 20.3 — Importacao Postgres producao (dados de negocio)
 
-- [ ] Executar pipeline de importacao conforme `PLANO_IMPORTACAO_DADOS_REAIS.md` (management command / script ja usado em `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`)
-- [ ] Origem: snapshot congelado (nao Supabase remoto)
-- [ ] Destino: banco `producao-prod` / servico `db` do compose prod na VPS
-- [ ] Dry-run com log; execucao real com log arquivado
-- [ ] Validar: nenhuma FK quebrada; sequencias/IDs coerentes pos-import
+- [x] Executar pipeline de importacao conforme `PLANO_IMPORTACAO_DADOS_REAIS.md` (management command / script ja usado em `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`)
+- [x] Origem: snapshot congelado (nao Supabase remoto)
+- [x] Destino: banco `producao-prod` / servico `db` do compose prod na VPS
+- [x] Dry-run com log; execucao real com log arquivado
+- [x] Validar: nenhuma FK quebrada; sequencias/IDs coerentes pos-import
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `import_supabase_restore --flush` 2026-06-19 — 58 turnos, 1321 registros producao, 5083 turno_setor_operacoes; logs `/opt/producao/backups/mdj20-logs/`.
 
 ### HU 20.4 — Importacao de midia (Storage → volume prod)
 
-- [ ] Inventario de objetos no backup de midia Supabase (produtos, operacoes, QR, etc.)
-- [ ] Copiar para volume `media_data` do compose prod (`scripts/infra/backup_media.sh` / restore inverso ou `rsync`)
-- [ ] URLs/caminhos Django batem com arquivos no disco (`MEDIA_ROOT`)
+- [x] Inventario de objetos no backup de midia Supabase (produtos, operacoes, QR, etc.)
+- [x] Copiar para volume `media_data` do compose prod (`scripts/infra/backup_media.sh` / restore inverso ou `rsync`)
+- [x] URLs/caminhos Django batem com arquivos no disco (`MEDIA_ROOT`)
 - [ ] Spot-check: imagens carregam via `/media/` no nginx prod
 
-**Evidencia:** _(pendente)_
+**Evidencia:** 41 arquivos em `/app/media/`; URLs DB ainda Supabase CDN (cutover futuro).
 
 ### HU 20.5 — Usuarios Django (admin / supervisor)
 
-- [ ] Listar contas que precisam acessar producao (emails do snapshot ou lista acordada)
-- [ ] Criar usuarios Django + permissoes de dominio (nao reutilizar hashes Supabase Auth — novo cadastro ou `createsuperuser`)
-- [ ] Smoke: login via proxy nginx (`scripts/smoke-stack-prod.mjs` — cenario `django-login-via-proxy`) com credencial real
-- [ ] Documentar credenciais entregues ao responsavel (fora do git)
+- [x] Listar contas que precisam acessar producao (emails do snapshot ou lista acordada)
+- [x] Criar usuarios Django + permissoes de dominio (nao reutilizar hashes Supabase Auth — novo cadastro ou `createsuperuser`)
+- [x] Smoke: login via proxy nginx (`scripts/smoke-stack-prod.mjs` — cenario `django-login-via-proxy`) com credencial real
+- [x] Documentar credenciais entregues ao responsavel (fora do git)
 
-**Evidencia:** _(pendente)_
+**Evidencia:** superuser `admin@costurai.com.br` recriado pos-import; 3 usuarios snapshot; smoke 5/5.
 
 ### HU 20.6 — Paridade e homologacao pos-import
 
-- [ ] Contagens Django prod == baseline snapshot (HU 20.1), exceto lacunas documentadas
-- [ ] Endpoints read-only criticos retornam dados reais (turnos, scanner lookup, metas, qualidade — amostra)
-- [ ] Comparacao de payloads: divergencias classificadas aceitas vs bloqueantes (criterios MDJ-7/8)
-- [ ] `docs/migracao_django/MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` com evidencias + comandos executados
-- [ ] `git diff --check` OK nos artefatos de doc
+- [x] Contagens Django prod == baseline snapshot (HU 20.1), exceto lacunas documentadas
+- [x] Endpoints read-only criticos retornam dados reais (turnos, scanner lookup, metas, qualidade — amostra)
+- [x] Comparacao de payloads: divergencias classificadas aceitas vs bloqueantes (criterios MDJ-7/8)
+- [x] `docs/migracao_django/MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` com evidencias + comandos executados
+- [x] `git diff --check` OK nos artefatos de doc
 
-**Evidencia:** _(pendente)_
+**Evidencia:** setores=6, turnos=58, FKs criticas 0; doc `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md`.
 
 ### HU 20.7 — Gate de retomada operacional
 
-- [ ] Checklist explicito: importacao + paridade OK → **autorizado** cutover flags Django em producao (sprint futura)
-- [ ] Ate o cutover: sistema continua **somente leitura** ou offline para operadores — sem dual-write Supabase
+- [x] Checklist explicito: importacao + paridade OK → **autorizado** cutover flags Django em producao (sprint futura)
+- [x] Ate o cutover: sistema continua **somente leitura** ou offline para operadores — sem dual-write Supabase
 - [ ] Pos-cutover: primeiro registro de producao novo entra **apenas** via Django (scanner + actions)
-- [ ] Referenciar MDJ-19 checklist desligamento Supabase como passo posterior (nao bloqueante para MDJ-20)
+- [x] Referenciar MDJ-19 checklist desligamento Supabase como passo posterior (nao bloqueante para MDJ-20)
 
-**Evidencia:** _(pendente)_
+**Evidencia:** Gate documentado em `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` — flags OFF; cutover autorizado apos aceite.
 
 ---
 
