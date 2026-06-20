@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { estaUsandoDjango } from '@/lib/django/flags'
+import { listarUsuariosSistemaDjango } from '@/lib/django/queries/usuarios-sistema'
 import { isAdminRole, type AdminRole } from '@/lib/auth/roles'
 import type { UsuarioSistemaListItem, UsuarioSistemaStatus } from '@/types'
 import type { Database, Tables } from '@/types/supabase'
@@ -49,6 +51,10 @@ export async function buscarPapelAdminPorAuthUserId(
 }
 
 export async function listarUsuariosSistema(): Promise<UsuarioSistemaListItem[]> {
+  if (estaUsandoDjango('auth')) {
+    return listarUsuariosSistemaDjango()
+  }
+
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const supabase = createAdminClient()
   const { data, error } = await supabase

@@ -1,3 +1,5 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import { listarTurnoSetorOperacoesDoTurnoDjango } from '@/lib/django/queries/apontamentos'
 import { createClient } from '@/lib/supabase/server'
 import {
   listarTurnoSetorOperacoesDoTurnoComClient,
@@ -15,6 +17,10 @@ export async function listarTurnoSetorOperacoesPorSecao(
 export async function listarTurnoSetorOperacoesDoTurno(
   turnoId: string
 ): Promise<TurnoSetorOperacaoApontamentoV2[]> {
+  if (estaUsandoDjango('dashboard_reads')) {
+    return listarTurnoSetorOperacoesDoTurnoDjango(turnoId)
+  }
+
   const supabase = await createClient()
   return listarTurnoSetorOperacoesDoTurnoComClient(supabase, turnoId)
 }

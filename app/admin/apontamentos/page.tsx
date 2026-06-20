@@ -4,15 +4,12 @@ import { ControleTurnoSupervisor } from '@/components/apontamentos/ControleTurno
 import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelApontamentosSupervisor'
 import { PainelQualidadeSupervisor } from '@/components/apontamentos/PainelQualidadeSupervisor'
 import { PainelMetaMensalApontamentos } from '@/components/apontamentos/PainelMetaMensalApontamentos'
+import { obterPerfilRevisorQualidadeOpcional } from '@/lib/auth/obter-perfil-revisor-qualidade'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { buscarMetaMensalCompetencia } from '@/lib/queries/metas-mensais'
 import { listarOperadores } from '@/lib/queries/operadores'
 import { listarProdutos } from '@/lib/queries/produtos'
-import {
-  listarCatalogoDefeitosQualidadeComClient,
-} from '@/lib/queries/qualidade'
-import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
-import { createClient } from '@/lib/supabase/server'
+import { listarCatalogoDefeitosQualidade } from '@/lib/queries/qualidade'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
 import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/utils/data'
 import type {
@@ -64,11 +61,7 @@ export default async function AdminApontamentosPage(props: {
   const competenciaSelecionada =
     normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
     obterCompetenciaMesAtual()
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const usuarioSistema = user ? await buscarUsuarioSistemaPorAuthUserId(supabase, user.id) : null
+  const perfilRevisor = await obterPerfilRevisorQualidadeOpcional()
 
   const [planejamentoAtual, produtos, contextoMetaMensal] = await Promise.all([
     buscarTurnoAbertoOuUltimoEncerrado(),
@@ -131,7 +124,7 @@ export default async function AdminApontamentosPage(props: {
 
   const [operacoesTurno, defeitosCatalogo] = await Promise.all([
     listarTurnoSetorOperacoesDoTurno(planejamento.turno.id),
-    listarCatalogoDefeitosQualidadeComClient(supabase),
+    listarCatalogoDefeitosQualidade(),
   ])
   const precisaFallbackOperadores = planejamento.operadores.length === 0
   const operadoresAtivos = precisaFallbackOperadores ? await listarOperadores() : []
@@ -170,8 +163,8 @@ export default async function AdminApontamentosPage(props: {
               planejamento={planejamentoComOperadores}
               operacoesTurno={operacoesTurno}
               defeitosCatalogo={defeitosCatalogo}
-              podeRevisarQualidade={usuarioSistema?.pode_revisar_qualidade === true}
-              revisorNome={usuarioSistema?.nome ?? null}
+              podeRevisarQualidade={perfilRevisor?.podeRevisarQualidade === true}
+              revisorNome={perfilRevisor?.nome ?? null}
             />
           </section>
         }

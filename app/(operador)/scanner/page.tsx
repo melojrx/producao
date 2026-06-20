@@ -1,23 +1,17 @@
 import { ScannerPageClient } from '@/components/scanner/ScannerPageClient'
-import { listarCatalogoDefeitosQualidadeComClient } from '@/lib/queries/qualidade'
-import { buscarUsuarioSistemaPorAuthUserId } from '@/lib/queries/usuarios-sistema'
-import { createClient } from '@/lib/supabase/server'
+import { obterPerfilRevisorQualidadeOpcional } from '@/lib/auth/obter-perfil-revisor-qualidade'
+import { listarCatalogoDefeitosQualidade } from '@/lib/queries/qualidade'
 
 export default async function ScannerPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const [usuarioSistema, defeitosCatalogo] = await Promise.all([
-    user ? buscarUsuarioSistemaPorAuthUserId(supabase, user.id) : null,
-    listarCatalogoDefeitosQualidadeComClient(supabase),
+  const [perfilRevisor, defeitosCatalogo] = await Promise.all([
+    obterPerfilRevisorQualidadeOpcional(),
+    listarCatalogoDefeitosQualidade(),
   ])
 
   return (
     <ScannerPageClient
-      podeRegistrarQualidade={usuarioSistema?.pode_revisar_qualidade === true}
-      revisorNome={usuarioSistema?.nome ?? null}
+      podeRegistrarQualidade={perfilRevisor?.podeRevisarQualidade === true}
+      revisorNome={perfilRevisor?.nome ?? null}
       defeitosCatalogo={defeitosCatalogo}
     />
   )
