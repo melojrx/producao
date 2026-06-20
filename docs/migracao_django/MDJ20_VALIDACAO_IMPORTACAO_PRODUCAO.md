@@ -155,12 +155,18 @@ Com JWT admin via proxy:
 - [ ] Primeiro registro novo apenas via Django (pos-cutover)
 - [ ] MDJ-19 HU 19.5 desligamento Supabase — posterior, aceite explicito
 
-**Estado atual:** dados reais no Postgres prod; flags Django **OFF**; frontend continua Supabase para operacao.
+**Estado atual:** cutover flags Django **ON** em 2026-06-19; frontend rebuildado; scanner e APIs Django validados.
+
+### Cutover flags producao (2026-06-19)
+
+- 8 flags `NEXT_PUBLIC_USE_DJANGO_*=true` no `.env` VPS + rebuild frontend
+- Validacao: login, 6 setores, 58 turnos, scanner operador/setor/demandas, dashboard, metas
+- Apontamento: rota Django ativa (HTTP 400 saldo fisico no snapshot — esperado)
+- Scripts: `scripts/mdj20/cutover-flags-prod-vps.sh`, `validar-cutover-prod-remote.sh`
 
 ---
 
 ## Proximo marco
 
-1. Sprint cutover flags Django em producao
-2. Validar scanner/producao com flags ON contra dados importados
-3. MDJ-19 — desligamento Supabase remoto (aceite explicito)
+1. Homologacao manual no browser (`/login`, `/scanner`, `/admin/dashboard`) com flags ON
+2. MDJ-19 — desligamento Supabase remoto (aceite explicito)

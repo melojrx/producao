@@ -115,6 +115,7 @@ async function main() {
   }
 
   if (authDjango) {
+    let accessToken = ''
     try {
       const res = await fetch(`${djangoUrl}/api/v1/accounts/login/`, {
         method: 'POST',
@@ -123,12 +124,53 @@ async function main() {
       })
       const body = await res.json()
       if (res.ok && body.access) {
+        accessToken = body.access
         ok('django-login-via-proxy', `usuario ${body.user?.email ?? email}`)
       } else {
         falha('django-login-via-proxy', body.detail ?? JSON.stringify(body))
       }
     } catch (error) {
       falha('django-login-via-proxy', String(error))
+    }
+
+    const cutover = flagAtiva(env, 'SMOKE_CUTOVER') || flagAtiva(env, 'NEXT_PUBLIC_USE_DJANGO_SCANNER_READS')
+    if (cutover && accessToken) {
+      const authHeader = { Authorization: `Bearer ${accessToken}` }
+      for (const [nome, path] of [
+        ['cutover-setores', '/api/v1/cadastros/setores/'],
+        ['cutover-turnos', '/api/v1/turnos/'],
+        ['cutover-dashboard', '/api/v1/relatorios/dashboard/'],
+      ]) {
+        try {
+          const res = await fetch(`${djangoUrl}${path}`, { headers: authHeader })
+          if (res.ok) {
+            const body = await res.json()
+            const total = Array.isArray(body) ? body.length : 'ok'
+            ok(nome, `HTTP ${res.status} items=${total}`)
+          } else {
+            falha(nome, `HTTP ${res.status}`)
+          }
+        } catch (error) {
+          falha(nome, String(error))
+        }
+      }
+
+      const operadorToken = env.SMOKE_SCANNER_OPERADOR_TOKEN
+      if (operadorToken) {
+        try {
+          const res = await fetch(`${djangoUrl}/api/v1/scanner/operador/${operadorToken}/`)
+          if (res.ok) {
+            const body = await res.json()
+            ok('cutover-scanner-operador', body.nome ?? 'operador ok')
+          } else {
+            falha('cutover-scanner-operador', `HTTP ${res.status}`)
+          }
+        } catch (error) {
+          falha('cutover-scanner-operador', String(error))
+        }
+      } else {
+        ok('cutover-scanner-operador', 'SKIP — defina SMOKE_SCANNER_OPERADOR_TOKEN no .env')
+      }
     }
   } else {
     ok('django-login-via-proxy', 'SKIP — NEXT_PUBLIC_USE_DJANGO_AUTH=false')
