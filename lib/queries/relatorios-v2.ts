@@ -1,3 +1,5 @@
+import { estaUsandoDjango } from '@/lib/django/flags'
+import { carregarBaseRelatorioV2Django } from '@/lib/django/queries/relatorios-v2'
 import { createClient } from '@/lib/supabase/server'
 import {
   consolidarDemandasPorOperacoes,
@@ -87,7 +89,7 @@ type OperadorResumoRow = Pick<Tables<'operadores'>, 'id' | 'nome'>
 type ConfiguracaoMetaRow = Pick<Tables<'configuracao_turno'>, 'data' | 'meta_grupo'>
 type BlocoLegadoResumoRow = Pick<Tables<'configuracao_turno_blocos'>, 'id' | 'descricao_bloco'>
 
-interface BaseRelatorioV2 {
+export interface BaseRelatorioV2 {
   blocosLegados: BlocoLegadoResumoRow[]
   configuracoesLegadas: ConfiguracaoMetaRow[]
   operacoes: OperacaoResumoRow[]
@@ -359,7 +361,7 @@ function consolidarTurnosOpsRelatorio(
   }, [])
 }
 
-async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseRelatorioV2> {
+async function carregarBaseRelatorioV2Supabase(filtros: RelatorioFiltros): Promise<BaseRelatorioV2> {
   const supabase = await createClient()
   const inicioIntervalo = construirInicioIntervalo(filtros.dataInicio)
   const fimIntervalo = construirFimIntervalo(filtros.dataFim)
@@ -1047,6 +1049,14 @@ function construirOpcoesSetor(base: BaseRelatorioV2): RelatorioSetorOption[] {
       id: setor.id,
       nome: setor.nome,
     }))
+}
+
+async function carregarBaseRelatorioV2(filtros: RelatorioFiltros): Promise<BaseRelatorioV2> {
+  if (estaUsandoDjango('dashboard_reads')) {
+    return carregarBaseRelatorioV2Django(filtros)
+  }
+
+  return carregarBaseRelatorioV2Supabase(filtros)
 }
 
 export async function buscarPaginaRelatoriosV2(
