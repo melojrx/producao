@@ -291,9 +291,9 @@ export function mapearTurnoSetorOperacoesDjango(
     status: operacao.status as TurnoSetorOperacaoApontamentoV2['status'],
     iniciadoEm: null,
     encerradoEm: null,
-    operacaoCodigo: operacao.operacao_codigo,
-    operacaoDescricao: operacao.operacao_nome,
-    maquinaCodigo: operacao.maquina_codigo,
-    maquinaModelo: operacao.maquina_modelo,
+    operacaoCodigo: operacao.operacao_codigo ?? '',
+    operacaoDescricao: operacao.operacao_nome ?? '',
+    maquinaCodigo: operacao.maquina_codigo ?? null,
+    maquinaModelo: operacao.maquina_modelo ?? null,
   }))
 }

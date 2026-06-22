@@ -5,7 +5,7 @@ import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelAp
 import { PainelQualidadeSupervisor } from '@/components/apontamentos/PainelQualidadeSupervisor'
 import { PainelMetaMensalApontamentos } from '@/components/apontamentos/PainelMetaMensalApontamentos'
 import { obterPerfilRevisorQualidadeOpcional } from '@/lib/auth/obter-perfil-revisor-qualidade'
-import { executarQueryAdminDjango } from '@/lib/auth/tratar-erro-sessao-django'
+import { executarPaginaAdminDjango } from '@/lib/auth/tratar-erro-sessao-django'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { buscarMetaMensalCompetencia } from '@/lib/queries/metas-mensais'
 import { listarOperadores } from '@/lib/queries/operadores'
@@ -56,25 +56,87 @@ function mapearOperadoresFallback(
 export default async function AdminApontamentosPage(props: {
   searchParams: SearchParams
 }) {
-  const resolvedSearchParams = await props.searchParams
-  const turnoOpIdSelecionado = valorString(resolvedSearchParams.turnoOpId)
-  const abaInicial = normalizarAbaInicial(valorString(resolvedSearchParams.aba))
-  const competenciaSelecionada =
-    normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
-    obterCompetenciaMesAtual()
-  const perfilRevisor = await obterPerfilRevisorQualidadeOpcional()
+  return executarPaginaAdminDjango(async () => {
+    const resolvedSearchParams = await props.searchParams
+    const turnoOpIdSelecionado = valorString(resolvedSearchParams.turnoOpId)
+    const abaInicial = normalizarAbaInicial(valorString(resolvedSearchParams.aba))
+    const competenciaSelecionada =
+      normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
+      obterCompetenciaMesAtual()
+    const perfilRevisor = await obterPerfilRevisorQualidadeOpcional()
 
-  const [planejamentoAtual, produtos, contextoMetaMensal] = await Promise.all([
-    executarQueryAdminDjango(() => buscarTurnoAbertoOuUltimoEncerrado()),
-    executarQueryAdminDjango(() => listarProdutos()),
-    executarQueryAdminDjango(() => buscarMetaMensalCompetencia(competenciaSelecionada)),
-  ])
-  const planejamento =
-    planejamentoAtual?.origem === 'aberto'
-      ? (planejamentoAtual as PlanejamentoTurnoDashboardV2)
-      : null
+    const [planejamentoAtual, produtos, contextoMetaMensal] = await Promise.all([
+      buscarTurnoAbertoOuUltimoEncerrado(),
+      listarProdutos(),
+      buscarMetaMensalCompetencia(competenciaSelecionada),
+    ])
+    const planejamento =
+      planejamentoAtual?.origem === 'aberto'
+        ? (planejamentoAtual as PlanejamentoTurnoDashboardV2)
+        : null
 
-  if (!planejamento) {
+    if (!planejamento) {
+      return (
+        <main className="w-full">
+          <ApontamentosTabs
+            abaInicial={abaInicial}
+            gestaoMensal={
+              <PainelMetaMensalApontamentos
+                competencia={contextoMetaMensal.competencia}
+                metaMensal={contextoMetaMensal.metaMensal}
+              />
+            }
+            operacaoTurno={
+              <section className="space-y-4" aria-label="Área operacional de apontamentos">
+                <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                    <ClipboardList size={14} />
+                    Apontamentos indisponíveis
+                  </div>
+                  <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                    O painel de lançamento fica disponível quando existe um turno aberto. Use os
+                    controles acima para abrir o próximo turno e liberar as seções, operações
+                    derivadas e o registro incremental do supervisor.
+                  </p>
+                </section>
+              </section>
+            }
+            qualidadeTurno={
+              <section className="space-y-4" aria-label="Área de qualidade nos apontamentos">
+                <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
+                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                    <ClipboardList size={14} />
+                    Qualidade indisponível
+                  </div>
+                  <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                    O painel de qualidade fica disponível quando existe um turno aberto com fila de
+                    pendências de revisão operacional.
+                  </p>
+                </section>
+              </section>
+            }
+          />
+        </main>
+      )
+    }
+
+    const [operacoesTurno, defeitosCatalogo] = await Promise.all([
+      listarTurnoSetorOperacoesDoTurno(planejamento.turno.id),
+      listarCatalogoDefeitosQualidade(),
+    ])
+    const precisaFallbackOperadores = planejamento.operadores.length === 0
+    const operadoresAtivos = precisaFallbackOperadores ? await listarOperadores() : []
+    const planejamentoComOperadores = precisaFallbackOperadores
+      ? {
+          ...planejamento,
+          operadores: mapearOperadoresFallback(planejamento, operadoresAtivos),
+        }
+      : planejamento
+
     return (
       <main className="w-full">
         <ApontamentosTabs
@@ -88,90 +150,28 @@ export default async function AdminApontamentosPage(props: {
           operacaoTurno={
             <section className="space-y-4" aria-label="Área operacional de apontamentos">
               <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
-              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  <ClipboardList size={14} />
-                  Apontamentos indisponíveis
-                </div>
-                <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
-                <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                  O painel de lançamento fica disponível quando existe um turno aberto. Use os
-                  controles acima para abrir o próximo turno e liberar as seções, operações
-                  derivadas e o registro incremental do supervisor.
-                </p>
-              </section>
+              <PainelApontamentosSupervisor
+                planejamento={planejamentoComOperadores}
+                operacoesTurno={operacoesTurno}
+                origemOperadores={precisaFallbackOperadores ? 'fallback_ativos' : 'turno'}
+                filtroTurnoOpInicial={turnoOpIdSelecionado}
+              />
             </section>
           }
           qualidadeTurno={
             <section className="space-y-4" aria-label="Área de qualidade nos apontamentos">
               <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
-              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  <ClipboardList size={14} />
-                  Qualidade indisponível
-                </div>
-                <h2 className="mt-4 text-xl font-semibold text-slate-900">Nenhum turno aberto</h2>
-                <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                  O painel de qualidade fica disponível quando existe um turno aberto com fila de
-                  pendências de revisão operacional.
-                </p>
-              </section>
+              <PainelQualidadeSupervisor
+                planejamento={planejamentoComOperadores}
+                operacoesTurno={operacoesTurno}
+                defeitosCatalogo={defeitosCatalogo}
+                podeRevisarQualidade={perfilRevisor?.podeRevisarQualidade === true}
+                revisorNome={perfilRevisor?.nome ?? null}
+              />
             </section>
           }
         />
       </main>
     )
-  }
-
-  const [operacoesTurno, defeitosCatalogo] = await Promise.all([
-    executarQueryAdminDjango(() => listarTurnoSetorOperacoesDoTurno(planejamento.turno.id)),
-    executarQueryAdminDjango(() => listarCatalogoDefeitosQualidade()),
-  ])
-  const precisaFallbackOperadores = planejamento.operadores.length === 0
-  const operadoresAtivos = precisaFallbackOperadores
-    ? await executarQueryAdminDjango(() => listarOperadores())
-    : []
-  const planejamentoComOperadores = precisaFallbackOperadores
-    ? {
-        ...planejamento,
-        operadores: mapearOperadoresFallback(planejamento, operadoresAtivos),
-      }
-    : planejamento
-
-  return (
-    <main className="w-full">
-      <ApontamentosTabs
-        abaInicial={abaInicial}
-        gestaoMensal={
-          <PainelMetaMensalApontamentos
-            competencia={contextoMetaMensal.competencia}
-            metaMensal={contextoMetaMensal.metaMensal}
-          />
-        }
-        operacaoTurno={
-          <section className="space-y-4" aria-label="Área operacional de apontamentos">
-            <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
-            <PainelApontamentosSupervisor
-              planejamento={planejamentoComOperadores}
-              operacoesTurno={operacoesTurno}
-              origemOperadores={precisaFallbackOperadores ? 'fallback_ativos' : 'turno'}
-              filtroTurnoOpInicial={turnoOpIdSelecionado}
-            />
-          </section>
-        }
-        qualidadeTurno={
-          <section className="space-y-4" aria-label="Área de qualidade nos apontamentos">
-            <ControleTurnoSupervisor initialPlanning={planejamentoAtual} produtos={produtos} />
-            <PainelQualidadeSupervisor
-              planejamento={planejamentoComOperadores}
-              operacoesTurno={operacoesTurno}
-              defeitosCatalogo={defeitosCatalogo}
-              podeRevisarQualidade={perfilRevisor?.podeRevisarQualidade === true}
-              revisorNome={perfilRevisor?.nome ?? null}
-            />
-          </section>
-        }
-      />
-    </main>
-  )
+  })
 }

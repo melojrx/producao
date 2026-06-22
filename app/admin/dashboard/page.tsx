@@ -1,10 +1,9 @@
 import { MonitorPlanejamentoTurnoV2 } from '@/components/dashboard/MonitorPlanejamentoTurnoV2'
-import { executarQueryAdminDjango } from '@/lib/auth/tratar-erro-sessao-django'
+import { executarPaginaAdminDjango } from '@/lib/auth/tratar-erro-sessao-django'
 import { buscarResumoMetaMensalDashboard } from '@/lib/queries/metas-mensais'
 import { listarProdutos } from '@/lib/queries/produtos'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
 import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/utils/data'
-import type { ProdutoListItem } from '@/types'
 
 /** Fluxo operacional oficial: turno V2 via API Django. `configuracao_turno` é somente histórico. */
 
@@ -17,24 +16,26 @@ function valorString(param: string | string[] | undefined): string {
 export default async function AdminDashboardPage(props: {
   searchParams: SearchParams
 }) {
-  const resolvedSearchParams = await props.searchParams
-  const competenciaSelecionada =
-    normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
-    obterCompetenciaMesAtual()
+  return executarPaginaAdminDjango(async () => {
+    const resolvedSearchParams = await props.searchParams
+    const competenciaSelecionada =
+      normalizarCompetenciaMensal(valorString(resolvedSearchParams.competencia)) ??
+      obterCompetenciaMesAtual()
 
-  const [produtosCatalogoResultado, planejamentoTurnoV2, resumoMetaMensal] = await Promise.all([
-    executarQueryAdminDjango(() => listarProdutos()),
-    executarQueryAdminDjango(() => buscarTurnoAbertoOuUltimoEncerrado()),
-    executarQueryAdminDjango(() => buscarResumoMetaMensalDashboard(competenciaSelecionada)),
-  ])
+    const [produtosCatalogoResultado, planejamentoTurnoV2, resumoMetaMensal] = await Promise.all([
+      listarProdutos(),
+      buscarTurnoAbertoOuUltimoEncerrado(),
+      buscarResumoMetaMensalDashboard(competenciaSelecionada),
+    ])
 
-  return (
-    <main className="w-full space-y-6">
-      <MonitorPlanejamentoTurnoV2
-        initialPlanning={planejamentoTurnoV2}
-        resumoMetaMensal={resumoMetaMensal}
-        produtosCatalogo={produtosCatalogoResultado}
-      />
-    </main>
-  )
+    return (
+      <main className="w-full space-y-6">
+        <MonitorPlanejamentoTurnoV2
+          initialPlanning={planejamentoTurnoV2}
+          resumoMetaMensal={resumoMetaMensal}
+          produtosCatalogo={produtosCatalogoResultado}
+        />
+      </main>
+    )
+  })
 }
