@@ -28,7 +28,7 @@
 | MDJ-16 | Cutover controlado por modulo (dev local) | ✅ Concluida (2026-06-17) | Feature flags + frontend apontando para Django em dev (`localhost:8001`) com fallback Supabase; relatorio `MDJ16_VALIDACAO_CUTOVER.md` |
 | MDJ-17 | Stack Docker dev integrada | ✅ Concluida (2026-06-17) | Compose modular: `docker/compose/dev.full.yml` + wrappers raiz — `MDJ17_VALIDACAO_STACK_DEV.md`, `MDJ17_DOCKER_AUDIT.md` |
 | MDJ-18 | VPS, dominio e producao | ✅ Concluida (pre-deploy) | Compose prod Docker (back+front+db+nginx), `producao.costurai.com.br`, `MDJ18_VALIDACAO_PRODUCAO.md` |
-| MDJ-19 | Limpeza legado Supabase e preparacao desligamento | 🟡 **Proxima frente** | Guards browser, polling dashboard Django, deprecar `configuracao_turno`, checklist desligamento Supabase remoto |
+| MDJ-19 | Limpeza legado Supabase e preparacao desligamento | 🟡 **Em andamento** | HU 19.1–19.3 parcial; checklist criado; desligamento remoto aguarda aceite HU 19.5 |
 | MDJ-20 | Migracao de dados producao (snapshot congelado) | ✅ Concluida | Import one-shot 2026-06-19 — ver `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` |
 | MDJ-21 | Deploy VPS producao | ✅ Concluida | Stack em `38.52.128.62`, TLS e smoke publico — ver `MDJ21_VALIDACAO_DEPLOY_VPS.md`; backup manual segue pendencia operacional |
 
@@ -52,11 +52,11 @@ Arquitetura alvo (visao de longo prazo):
 | **B — Stack integrada** | MDJ-17 | ✅ Concluida (2026-06-17) | Compose modular dev: `docker/compose/dev.full.yml`. |
 | **C — Producao** | MDJ-18 + MDJ-21 | ✅ Concluida | MDJ-18 entregou compose prod; MDJ-21 executou deploy em `producao.costurai.com.br`. Media em volume local — **S3 fora de escopo**. |
 | **D — Dados producao** | MDJ-20 | ✅ Concluida | Snapshot congelado (backup ja feito; zero dados novos) → Postgres prod + midia + paridade. |
-| **E — Pos-cutover** | MDJ-19 | 🟡 Proxima frente | Limpar legado Supabase no browser, polling Django, checklist desligamento Supabase remoto. |
+| **E — Pos-cutover** | MDJ-19 | 🟡 Em andamento | Guards browser ✅; polling dashboard ✅ parcial; HU 19.4–19.6 abertas; checklist desligamento documentado. |
 
 **Regras atuais (jun/2026):**
 
-- **Proximo marco:** MDJ-19 — limpeza legado Supabase no browser e checklist de desligamento remoto.
+- **Proximo marco:** concluir MDJ-19 (HU 19.4–19.6) e executar checklist desligamento Supabase com aceite explicito.
 - Visao consolidada: `ESTADO_ATUAL.md`.
 - **Flags Django ON** em producao desde 2026-06-19 apos MDJ-20; desligamento Supabase remoto ainda exige checklist e aceite explicito.
 - Storage de imagens: volume Docker local (`media_data`), como na MDJ-14.
@@ -433,7 +433,7 @@ Deploy na VPS: seguir checklist em `MDJ18_VALIDACAO_PRODUCAO.md`.
 
 ## Marco MDJ-19 — Limpeza legado Supabase e preparacao desligamento
 
-**Status:** 🟡 Proxima frente
+**Status:** 🟡 Em andamento (2026-06-22)
 
 **Pre-requisito:** MDJ-16 concluida; MDJ-17 recomendada. Executavel em paralelo com MDJ-18.
 
@@ -441,25 +441,28 @@ Objetivo:
 
 Fechar deferidos da MDJ-16 que ainda puxam Supabase no browser (Realtime, refresh auth, `configuracao_turno` legado) e preparar — sem executar ainda — o desligamento do Supabase remoto.
 
-Entregaveis previstos:
+Entregaveis:
 
-- helper `deveUsarSupabaseBrowser()` + guards em hooks Realtime
-- polling Django no dashboard V2 (substitui WebSocket Supabase)
-- deprecacao de `configuracao_turno` / monitor legado no frontend
-- `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` + `MDJ19_VALIDACAO_LIMPEZA.md`
+- [x] helper `deveUsarSupabaseBrowser()` + guards em hooks Realtime
+- [x] polling Django no dashboard V2 (substitui WebSocket Supabase quando `DASHBOARD_READS` ON)
+- [ ] deprecacao de `configuracao_turno` / monitor legado no frontend (HU 19.4)
+- [x] `MDJ19_INVENTARIO_SUPABASE_BROWSER.md`
+- [x] `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md`
+- [ ] `MDJ19_VALIDACAO_LIMPEZA.md` (HU 19.6)
 - **nao** desliga Supabase remoto sem checkbox de aceite do usuario (HU 19.5)
 
-Remanescente pos-MDJ-19 (fora de escopo):
+Remanescente pos-MDJ-19 (fora de escopo imediato):
 
-- `relatorios-v2.ts` cutover completo
+- `relatorios-v2.ts` — ✅ cutover Django em prod (2026-06-20)
 - Django Channels / WebSocket nativo
 - models Django para `configuracao_turno` (historico opcional)
+- endpoint batch Django para `registrarApontamentosSupervisor`
 
 ---
 
 ## Marco MDJ-20 — Migracao de dados producao (snapshot congelado)
 
-**Status:** 🧭 Planejada
+**Status:** ✅ Concluida (import + cutover flags 2026-06-19)
 
 **Pre-requisito:** MDJ-18 deploy na VPS concluido (`MDJ21_RUNBOOK_DEPLOY_VPS.md`); ensaio local opcional com `docker-compose.prod.yml`.
 
@@ -477,7 +480,8 @@ Entregaveis previstos:
 - usuarios admin/supervisor Django
 - `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md`
 - gate HU 20.7 autorizou cutover; flags Django ON em producao em 2026-06-19
-- pendencias operacionais remanescentes: spot-check `/media/` via nginx prod e primeiro registro novo apenas via Django
+- pos-cutover 2026-06-22: `/media/` OK, auth SSR OK, MDJ-19 em andamento
+- pendencias operacionais: primeiro registro novo via Django na VPS; backup manual testado
 
 Ordem macro pos-MDJ-18:
 

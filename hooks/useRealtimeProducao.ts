@@ -1,6 +1,7 @@
 'use client'
 
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
+import { deveUsarSupabaseBrowser } from '@/lib/django/flags'
 import { createClient } from '@/lib/supabase/client'
 import {
   buscarConfiguracaoTurnoComBlocosHojeClient,
@@ -25,7 +26,7 @@ interface SnapshotProducao {
   blocosResumo: ProducaoBlocoResumo[]
 }
 
-export type StatusConexaoRealtime = 'conectando' | 'ativo' | 'erro'
+export type StatusConexaoRealtime = 'conectando' | 'ativo' | 'desligado' | 'erro'
 
 export interface UseRealtimeProducaoResultado {
   registros: ProducaoHojeRegistro[]
@@ -133,6 +134,12 @@ export function useRealtimeProducao(): UseRealtimeProducaoResultado {
   }, [aplicarSnapshot, registrarErro])
 
   useEffect(() => {
+    if (!deveUsarSupabaseBrowser()) {
+      setStatusConexao('desligado')
+      setEstaCarregando(false)
+      return
+    }
+
     const supabase = createClient()
     const channel = supabase
       .channel('dashboard-producao-hoje')

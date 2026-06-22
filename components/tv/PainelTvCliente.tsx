@@ -114,9 +114,11 @@ function resolverLabelGaugeDiario(dataDia: string | null, hojeStr: string | null
   )
 }
 
-function classeStatusDot(status: 'ativo' | 'conectando' | 'erro'): string {
-  if (status === 'ativo') return 'bg-emerald-500'
-  if (status === 'conectando') return 'bg-amber-400'
+function classeStatusDot(
+  status: 'ativo' | 'conectando' | 'polling' | 'desligado' | 'erro'
+): string {
+  if (status === 'ativo' || status === 'polling') return 'bg-emerald-500'
+  if (status === 'conectando' || status === 'desligado') return 'bg-amber-400'
   return 'bg-rose-500'
 }
 

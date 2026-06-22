@@ -1468,7 +1468,7 @@ Decisao de escopo reduzido:
 
 ## Sprint MDJ-19 — Limpeza legado Supabase e preparacao desligamento
 
-**Status:** 🧭 Planejada
+**Status:** 🟡 Em andamento (2026-06-22)
 **Pre-requisito:** MDJ-16 concluida (flags Django homologadas em dev); MDJ-17 recomendada (stack integrada). Pode executar **em paralelo** com MDJ-18 ou **apos** MDJ-18 — nao bloqueia deploy VPS.
 **Objetivo:** Eliminar ruído e dependencias Supabase no browser quando flags Django estiverem ON; substituir Realtime legado por polling Django no dashboard; deprecar `configuracao_turno` / blocos; documentar checklist de desligamento do Supabase remoto.
 **Ambiente alvo:** dev local — backend `localhost:8001` + frontend host ou `docker/compose/dev.full.yml`.
@@ -1480,30 +1480,30 @@ Decisao de escopo reduzido:
 ### HU 19.1 — Abertura e inventario de chamadas Supabase no browser
 
 - [x] Registrar MDJ-19 em `TASKS.md` e `BACKLOG.md`
-- [ ] Inventario atualizado: hooks/client components que ainda instanciam `createClient()` ou Realtime com flags Django ON (`useRealtimePlanejamentoTurnoV2`, `useRealtimeProducao`, `turnos-client.ts`, `meta-grupo-turno-v2-client.ts`, `producao.ts` client)
-- [ ] Matriz deferidos MDJ-16 atualizada com status "MDJ-19" onde aplicavel
+- [x] Inventario atualizado: hooks/client components que ainda instanciam `createClient()` ou Realtime com flags Django ON (`useRealtimePlanejamentoTurnoV2`, `useRealtimeProducao`, `turnos-client.ts`, `meta-grupo-turno-v2-client.ts`, `producao.ts` client)
+- [x] Matriz deferidos MDJ-16 atualizada com status "MDJ-19" onde aplicavel
 
-**Evidencia:** Sprint MDJ-19 proposta em 2026-06-17 — secao adicionada em `TASKS.md` (HUs 19.1–19.6) e marco em `BACKLOG.md` (fase D pos-cutover).
+**Evidencia:** `docs/migracao_django/MDJ19_INVENTARIO_SUPABASE_BROWSER.md` (2026-06-22) — inventario client/server, matriz deferidos MDJ-16, criterio "100% Django".
 
 ### HU 19.2 — Guard Supabase no browser (flags Django ON)
 
-- [ ] Criar helper `deveUsarSupabaseBrowser()` (ou equivalente) baseado em `estaUsandoDjango()` — quando **todas** as flags de leitura/escrita relevantes estiverem ON, browser **nao** abre WebSocket Realtime nem dispara refresh de sessao Supabase Auth
-- [ ] `hooks/useRealtimePlanejamentoTurnoV2.ts`: early return sem `createClient()` / channel quando guard ativo; status `ativo` via polling (HU 19.3) ou `desligado` explicito ate polling existir
-- [ ] `hooks/useRealtimeProducao.ts`: mesmo guard (componente legado — nao criar channel se guard ativo)
-- [ ] `lib/supabase/client.ts` ou consumidores: evitar loop de `refresh_token` quando auth Django ativo (login ja usa JWT cookies)
+- [x] Criar helper `deveUsarSupabaseBrowser()` (ou equivalente) baseado em `estaUsandoDjango()` — quando **todas** as flags de leitura/escrita relevantes estiverem ON, browser **nao** abre WebSocket Realtime nem dispara refresh de sessao Supabase Auth
+- [x] `hooks/useRealtimePlanejamentoTurnoV2.ts`: early return sem `createClient()` / channel quando guard ativo; status `ativo` via polling (HU 19.3) ou `desligado` explicito ate polling existir
+- [x] `hooks/useRealtimeProducao.ts`: mesmo guard (componente legado — nao criar channel se guard ativo)
+- [x] `lib/supabase/client.ts` ou consumidores: evitar loop de `refresh_token` quando auth Django ativo (login ja usa JWT cookies)
 - [ ] Testes unitarios do guard + smoke manual: console sem erros CORS/WebSocket Supabase com perfil homologacao MDJ-16 ON
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `lib/django/flags.ts` — `deveUsarSupabaseBrowser()`, `deveUsarRealtimeSupabaseDashboard()`; hooks atualizados; `node --test lib/django/flags.test.ts` 7/7 OK (2026-06-22). Smoke browser prod pendente (HU 19.6).
 
 ### HU 19.3 — Polling Django no dashboard (substituir Realtime legado)
 
-- [ ] Com `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=true`, refresh do planejamento de turno via API Django (server action ou route handler autenticado) — intervalo configuravel em `lib/constants.ts` (ex.: `INTERVALO_POLLING_DASHBOARD_MS`)
-- [ ] `useRealtimePlanejamentoTurnoV2` renomeado ou encapsulado (ex.: `usePlanejamentoTurnoV2`) — sem dependencia de Supabase quando flags ON
+- [x] Com `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=true`, refresh do planejamento de turno via API Django (server action ou route handler autenticado) — intervalo configuravel em `lib/constants.ts` (ex.: `INTERVALO_POLLING_DASHBOARD_MS`)
+- [x] `useRealtimePlanejamentoTurnoV2` renomeado ou encapsulado (ex.: `usePlanejamentoTurnoV2`) — sem dependencia de Supabase quando flags ON
 - [ ] `useMetaGrupoTurnoV2` passa a usar leitura Django (endpoint existente ou novo GET enxuto) em vez de `meta-grupo-turno-v2-client.ts` Supabase
-- [ ] Indicador de conexao na UI: `polling` / `erro` / `pausado` (nao "Realtime Supabase")
-- [ ] Testes: mock de fetch + `npx tsc --noEmit`
+- [x] Indicador de conexao na UI: `polling` / `erro` / `pausado` (nao "Realtime Supabase")
+- [x] Testes: mock de fetch + `npx tsc --noEmit`
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `lib/constants.ts` `INTERVALO_POLLING_DASHBOARD_MS=15000`; `lib/actions/dashboard-turno.ts` `buscarPlanejamentoTurnoDashboardAction`; `hooks/useRealtimePlanejamentoTurnoV2.ts` polling; UI `ResumoPlanejamentoTurnoV2`, `PainelTvCliente`, `ControleTurnoSupervisor`; `npx tsc --noEmit` OK (2026-06-22). Meta grupo Django pendente.
 
 ### HU 19.4 — Deprecar `configuracao_turno` legado no frontend
 
@@ -1518,7 +1518,7 @@ Decisao de escopo reduzido:
 
 ### HU 19.5 — Checklist desligamento Supabase remoto
 
-- [ ] Criar `docs/migracao_django/MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` com:
+- [x] Criar `docs/migracao_django/MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` com:
   - criterios ARQUITETURA §19.5 cumpridos por modulo
   - matriz flags ON em producao + smoke E2E
   - backup final Supabase + restore local arquivado
@@ -1526,9 +1526,9 @@ Decisao de escopo reduzido:
   - janela de cutover e responsavel
   - **checkbox explicito:** "Usuario autoriza desligamento do Supabase remoto"
 - [ ] Script ou comando de validacao de paridade final (`scripts/validar-paridade-dados.mjs` ou management command) referenciado no checklist
-- [ ] Atualizar `MDJ16_VALIDACAO_CUTOVER.md` — secao "Pos-MDJ-19" com deferidos resolvidos vs remanescentes (`relatorios-v2`, etc.)
+- [x] Atualizar `MDJ16_VALIDACAO_CUTOVER.md` — secao "Pos-MDJ-19" com deferidos resolvidos vs remanescentes (`relatorios-v2`, etc.)
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` criado 2026-06-22; secao Pos-MDJ-19 em `MDJ16_VALIDACAO_CUTOVER.md`. Execucao do checklist e aceite explicito pendentes.
 
 ### HU 19.6 — Homologacao MDJ-19
 

@@ -47,3 +47,24 @@ export function obterFlagsDjangoCutover(): Record<ModuloDjangoCutover, boolean> 
     qualidade_writes: estaUsandoDjango('qualidade_writes'),
   }
 }
+
+const MODULOS_CUTOVER_COMPLETO: ModuloDjangoCutover[] = [
+  'scanner_reads',
+  'cadastros_reads',
+  'metas_reads',
+  'dashboard_reads',
+  'auth',
+  'admin_writes',
+  'producao_writes',
+  'qualidade_writes',
+]
+
+/** Quando false, o browser nao deve abrir Realtime nem refresh Supabase Auth (MDJ-19). */
+export function deveUsarSupabaseBrowser(): boolean {
+  return !MODULOS_CUTOVER_COMPLETO.every((modulo) => estaUsandoDjango(modulo))
+}
+
+/** Dashboard V2: substituir Realtime Supabase por polling Django quando leitura de turno via API. */
+export function deveUsarRealtimeSupabaseDashboard(): boolean {
+  return !estaUsandoDjango('dashboard_reads')
+}

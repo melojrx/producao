@@ -6,6 +6,8 @@ const {
   FLAG_POR_MODULO,
   estaUsandoDjango,
   obterFlagsDjangoCutover,
+  deveUsarSupabaseBrowser,
+  deveUsarRealtimeSupabaseDashboard,
 }: typeof import('./flags') = await import(moduloFlagsUrl.href)
 
 type ModuloDjangoCutover = keyof typeof FLAG_POR_MODULO
@@ -115,5 +117,27 @@ test('obterFlagsDjangoCutover reflete estado atual de todas as flags', () => {
   assert.equal(flags.producao_writes, false)
   assert.equal(flags.qualidade_writes, false)
 
+  restaurarEnvFlags(snapshot)
+})
+
+test('deveUsarSupabaseBrowser retorna false quando cutover completo', () => {
+  const snapshot = salvarEnvFlags()
+  limparEnvFlags()
+  for (const nomeEnv of TODAS_FLAGS) {
+    process.env[nomeEnv] = 'true'
+  }
+  assert.equal(deveUsarSupabaseBrowser(), false)
+  assert.equal(deveUsarRealtimeSupabaseDashboard(), false)
+  restaurarEnvFlags(snapshot)
+})
+
+test('deveUsarSupabaseBrowser retorna true quando alguma flag OFF', () => {
+  const snapshot = salvarEnvFlags()
+  limparEnvFlags()
+  for (const nomeEnv of TODAS_FLAGS) {
+    process.env[nomeEnv] = 'true'
+  }
+  delete process.env.NEXT_PUBLIC_USE_DJANGO_AUTH
+  assert.equal(deveUsarSupabaseBrowser(), true)
   restaurarEnvFlags(snapshot)
 })

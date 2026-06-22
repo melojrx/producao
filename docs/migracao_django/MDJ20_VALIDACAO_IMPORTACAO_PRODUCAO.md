@@ -154,10 +154,19 @@ Com JWT admin via proxy:
 
 - [x] Importacao + paridade OK
 - [x] **Cutover flags Django ON** — executado em 2026-06-19 apos aceite
-- [ ] Primeiro registro novo apenas via Django (pos-cutover)
+- [ ] Primeiro registro novo apenas via Django (pos-cutover) — dev OK 2026-06-22; VPS pendente
 - [ ] MDJ-19 HU 19.5 desligamento Supabase — posterior, aceite explicito
 
-**Estado atual:** cutover flags Django **ON** em 2026-06-19; frontend rebuildado; scanner e APIs Django validados.
+**Estado atual:** cutover flags Django **ON** em 2026-06-19; frontend rebuildado; dashboard e login JWT Django validados em prod (2026-06-22).
+
+### Pos-cutover correcoes (2026-06-22)
+
+| Item | Status |
+|---|---|
+| `/media/` via nginx alias | ✅ HTTP 200 VPS |
+| Build prod client bundle | ✅ Split `qualidade-turno-client-base.ts` |
+| Dashboard SSR auth JWT | ✅ Refresh em memoria por request |
+| MDJ-19 guards + polling | 🟡 Em andamento — ver `ESTADO_ATUAL.md` |
 
 ### Cutover flags producao (2026-06-19)
 
@@ -170,7 +179,7 @@ Com JWT admin via proxy:
 
 ## Proximo marco
 
-1. Homologacao manual no browser (`/login`, `/scanner`, `/admin/dashboard`) com flags ON
-2. Deploy fix `/media/` (nginx alias + volume no proxy) na VPS e spot-check da imagem `operacoes/5af9b936-...jpg`
-3. Primeiro registro novo via Django em producao VPS (dev validado 2026-06-22 — registro `ecbfd84e-...`)
-4. MDJ-19 — limpeza legado Supabase browser e checklist de desligamento remoto (aceite explicito)
+1. Concluir MDJ-19 HU 19.4–19.6 (deprecar legado, homologacao browser)
+2. Primeiro registro novo via Django em producao VPS (dev validado 2026-06-22)
+3. Backup manual testado (`scripts/infra/backup_postgres.sh` + `backup_media.sh`)
+4. Executar checklist `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` + aceite explicito HU 19.5

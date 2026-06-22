@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { Monitor, Signal } from 'lucide-react'
-import type { StatusConexaoRealtimeTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
+import type { StatusConexaoPlanejamentoTurnoV2 } from '@/hooks/useRealtimePlanejamentoTurnoV2'
+import { rotuloStatusConexaoPlanejamento } from '@/hooks/useRealtimePlanejamentoTurnoV2'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
 interface ResumoPlanejamentoTurnoV2Props {
   planejamento: PlanejamentoTurnoDashboardV2 | null
-  statusConexao: StatusConexaoRealtimeTurnoV2
+  statusConexao: StatusConexaoPlanejamentoTurnoV2
   ultimaAtualizacao: Date | null
 }
 
@@ -122,9 +123,13 @@ export function ResumoPlanejamentoTurnoV2({
             <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
               <Signal
                 size={12}
-                className={statusConexao === 'ativo' ? 'text-emerald-500' : 'text-amber-500'}
+                className={
+                  statusConexao === 'ativo' || statusConexao === 'polling'
+                    ? 'text-emerald-500'
+                    : 'text-amber-500'
+                }
               />
-              {statusConexao}
+              {rotuloStatusConexaoPlanejamento(statusConexao)}
             </div>
           </div>
         </div>

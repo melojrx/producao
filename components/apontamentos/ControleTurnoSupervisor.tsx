@@ -57,7 +57,7 @@ export function ControleTurnoSupervisor({
   const setoresAtivos = planejamento ? mapearSetoresTurnoParaDashboard(planejamento) : []
   const operadoresEnvolvidos = contarOperadoresEnvolvidosNoTurno(planejamento)
   const indicadorConexao =
-    statusConexao === 'ativo'
+    statusConexao === 'ativo' || statusConexao === 'polling'
       ? 'bg-emerald-500'
       : statusConexao === 'erro'
         ? 'bg-red-500'

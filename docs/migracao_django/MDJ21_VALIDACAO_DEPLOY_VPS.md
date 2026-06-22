@@ -97,8 +97,20 @@ Nota pos-MDJ20/cutover: a stack MDJ-21 permanece concluida; importacao de dados,
 
 ---
 
+## Pos-cutover (2026-06-22)
+
+| Item | Status | Evidencia |
+|---|---|---|
+| `/media/` nginx alias + volume | ✅ | HTTP 200 imagem teste VPS |
+| Build prod (bundle client) | ✅ | `a0e4a98` — split qualidade-turno-client |
+| Dashboard + login JWT Django | ✅ | `e55292b` — refresh SSR sem mutar cookies |
+| MDJ-19 guards + polling dashboard | 🟡 | Ver `ESTADO_ATUAL.md`, `MDJ19_INVENTARIO_SUPABASE_BROWSER.md` |
+
+---
+
 ## Proximo marco
 
-1. Backup manual testado (`scripts/infra/backup_postgres.sh`)
-2. MDJ-19 — limpeza legado Supabase browser e checklist de desligamento remoto
-3. Pendencias pos-cutover registradas na MDJ-20: spot-check `/media/` e primeiro registro novo apenas via Django
+1. Concluir MDJ-19 (HU 19.4–19.6) — ver `TASKS.md`
+2. Backup manual testado (`scripts/infra/backup_postgres.sh` + `backup_media.sh`)
+3. Primeiro registro novo via Django na VPS
+4. Checklist desligamento Supabase (`MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md`) + aceite explicito

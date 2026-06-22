@@ -158,6 +158,23 @@ Visao consolidada: `ESTADO_ATUAL.md`.
 
 ---
 
+## Pos-MDJ-19 — deferidos resolvidos vs remanescentes (2026-06-22)
+
+| Deferido MDJ-16 | Status pos-MDJ-19 | Observacao |
+|---|---|---|
+| `relatorios-v2.ts` Supabase | ✅ Resolvido | Cutover Django em prod (2026-06-20) |
+| Realtime dashboard V2 | 🟡 Parcial | Polling Django quando `DASHBOARD_READS` ON (HU 19.3) |
+| Auth SSR JWT cookies | ✅ Resolvido | Fix refresh sem mutar cookies RSC (2026-06-22, commit `e55292b`) |
+| `turnos-client.ts` Supabase | 🟡 Remanescente | Fallback quando polling OFF; meta-grupo ainda Supabase |
+| `registrarApontamentosSupervisor` batch | ⏳ Pos-MDJ-19 | Endpoint batch Django futuro |
+| `registrarProducao` legado V1 | ⏳ HU 19.4 | Deprecar fluxo `configuracao_turno` |
+| `MonitorRealtimeProducao` | ⏳ HU 19.4 | Isolar do dashboard principal |
+| Eficiencia/qualidade operacional vazios path Django | 🟡 Remanescente | Mapper Django parcial |
+
+Inventario completo: `MDJ19_INVENTARIO_SUPABASE_BROWSER.md`. Gate desligamento: `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md`.
+
+---
+
 ## Referencias
 
 - Contrato de flags: `ARQUITETURA.md` secao 19
