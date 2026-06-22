@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { deveUsarSupabaseBrowser } from '@/lib/django/flags'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import type {
   ConfiguracaoTurno,
@@ -10,6 +11,10 @@ import type {
 } from '@/types'
 
 export async function listarProducaoHoje(): Promise<ProducaoHojeRegistro[]> {
+  if (!deveUsarSupabaseBrowser()) {
+    return []
+  }
+
   const supabase = createClient()
 
   const { data, error } = await supabase
@@ -34,6 +39,10 @@ export async function listarProducaoHoje(): Promise<ProducaoHojeRegistro[]> {
 }
 
 export async function listarProducaoPorHora(): Promise<ProducaoPorHoraRegistro[]> {
+  if (!deveUsarSupabaseBrowser()) {
+    return []
+  }
+
   const supabase = createClient()
 
   const { data, error } = await supabase
@@ -55,6 +64,10 @@ export async function listarProducaoPorHora(): Promise<ProducaoPorHoraRegistro[]
 }
 
 export async function listarStatusMaquinas(): Promise<StatusMaquinaRegistro[]> {
+  if (!deveUsarSupabaseBrowser()) {
+    return []
+  }
+
   const supabase = createClient()
 
   const { data, error } = await supabase
@@ -77,6 +90,10 @@ export async function listarStatusMaquinas(): Promise<StatusMaquinaRegistro[]> {
 }
 
 export async function buscarConfiguracaoTurnoHojeClient(): Promise<ConfiguracaoTurno | null> {
+  if (!deveUsarSupabaseBrowser()) {
+    return null
+  }
+
   const supabase = createClient()
 
   const { data, error } = await supabase
@@ -103,6 +120,10 @@ export async function buscarConfiguracaoTurnoHojeClient(): Promise<ConfiguracaoT
 }
 
 export async function buscarConfiguracaoTurnoComBlocosHojeClient(): Promise<ConfiguracaoTurnoComBlocos | null> {
+  if (!deveUsarSupabaseBrowser()) {
+    return null
+  }
+
   const supabase = createClient()
 
   const { data: configuracao, error: configuracaoError } = await supabase
@@ -161,6 +182,10 @@ export async function buscarConfiguracaoTurnoComBlocosHojeClient(): Promise<Conf
 }
 
 export async function listarResumoBlocosHoje(): Promise<ProducaoBlocoResumo[]> {
+  if (!deveUsarSupabaseBrowser()) {
+    return []
+  }
+
   const supabase = createClient()
   const configuracaoTurno = await buscarConfiguracaoTurnoComBlocosHojeClient()
 

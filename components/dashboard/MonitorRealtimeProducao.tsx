@@ -1,5 +1,11 @@
 'use client'
 
+/**
+ * @deprecated Monitor legado baseado em `configuracao_turno` e Realtime Supabase.
+ * O dashboard oficial é `MonitorPlanejamentoTurnoV2` (turno V2 + polling Django).
+ * Mantido apenas para rollback com flags Django OFF.
+ */
+
 import { useMemo } from 'react'
 import { Activity, Gauge, RefreshCw, Target, Users } from 'lucide-react'
 import { CardKPI } from '@/components/dashboard/CardKPI'
@@ -54,6 +60,22 @@ export function MonitorRealtimeProducao() {
   const progressoPct = metaGrupo > 0 ? Math.min((totalPecas / metaGrupo) * 100, 999.99) : 0
   const blocoAtivo = configuracaoTurno?.blocoAtivo ?? null
   const concluidos = blocosResumo.filter((bloco) => bloco.status === 'concluido').length
+
+  if (statusConexao === 'desligado') {
+    return (
+      <section
+        className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600"
+        aria-label="Monitor legado descontinuado"
+      >
+        <h2 className="text-base font-semibold text-slate-900">Monitor legado descontinuado</h2>
+        <p className="mt-2 max-w-2xl leading-6">
+          Este componente usava <code className="text-xs">configuracao_turno</code> e Realtime
+          Supabase. Com o cutover Django ativo, use o dashboard Turno V2 (
+          <code className="text-xs">MonitorPlanejamentoTurnoV2</code>).
+        </p>
+      </section>
+    )
+  }
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

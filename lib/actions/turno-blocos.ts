@@ -8,6 +8,10 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin'
 import { obterDataHojeLocal } from '@/lib/utils/data'
 import { calcularMetaGrupo, calcularTpProduto } from '@/lib/utils/producao'
+import {
+  fluxoTurnoLegadoDesativado,
+  MENSAGEM_FLUXO_TURNO_LEGADO_DESATIVADO,
+} from '@/lib/utils/turno-legado'
 import type { FormActionState, OrigemTpBloco, StatusConfiguracaoTurnoBloco } from '@/types'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 
@@ -43,6 +47,20 @@ export interface BlocoTurnoResultado {
 export interface ReordenarBlocosTurnoInput {
   configuracaoTurnoId: string
   blocoIdsEmOrdem: string[]
+}
+
+function bloquearTurnoLegadoFormAction(): FormActionState | null {
+  if (fluxoTurnoLegadoDesativado()) {
+    return { sucesso: false, erro: MENSAGEM_FLUXO_TURNO_LEGADO_DESATIVADO }
+  }
+  return null
+}
+
+function bloquearTurnoLegadoBloco(): BlocoTurnoResultado | null {
+  if (fluxoTurnoLegadoDesativado()) {
+    return { sucesso: false, erro: MENSAGEM_FLUXO_TURNO_LEGADO_DESATIVADO }
+  }
+  return null
 }
 
 interface PlanejamentoBlocoPayload {
@@ -400,6 +418,11 @@ export async function salvarPlanejamentoTurnoFormulario(
   _prevState: FormActionState,
   formData: FormData
 ): Promise<FormActionState> {
+  const bloqueio = bloquearTurnoLegadoFormAction()
+  if (bloqueio) {
+    return bloqueio
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {
@@ -511,6 +534,11 @@ export async function salvarPlanejamentoTurnoFormulario(
 }
 
 export async function criarBlocoTurno(input: BlocoTurnoInput): Promise<BlocoTurnoResultado> {
+  const bloqueio = bloquearTurnoLegadoBloco()
+  if (bloqueio) {
+    return bloqueio
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {
@@ -564,6 +592,11 @@ export async function editarBlocoTurno(
   blocoId: string,
   input: BlocoTurnoInput
 ): Promise<BlocoTurnoResultado> {
+  const bloqueio = bloquearTurnoLegadoBloco()
+  if (bloqueio) {
+    return bloqueio
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {
@@ -627,6 +660,11 @@ export async function editarBlocoTurno(
 }
 
 export async function ativarBlocoTurno(blocoId: string): Promise<FormActionState> {
+  const bloqueio = bloquearTurnoLegadoFormAction()
+  if (bloqueio) {
+    return bloqueio
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {
@@ -673,6 +711,11 @@ export async function ativarBlocoTurno(blocoId: string): Promise<FormActionState
 }
 
 export async function concluirBlocoTurno(blocoId: string): Promise<FormActionState> {
+  const bloqueio = bloquearTurnoLegadoFormAction()
+  if (bloqueio) {
+    return bloqueio
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {
@@ -710,6 +753,11 @@ export async function concluirBlocoTurno(blocoId: string): Promise<FormActionSta
 export async function reordenarBlocosTurno(
   input: ReordenarBlocosTurnoInput
 ): Promise<FormActionState> {
+  const bloqueio = bloquearTurnoLegadoFormAction()
+  if (bloqueio) {
+    return bloqueio
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {

@@ -7,6 +7,10 @@ import {
 } from '@/lib/auth/require-admin-user'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { obterDataHojeLocal } from '@/lib/utils/data'
+import {
+  fluxoTurnoLegadoDesativado,
+  MENSAGEM_FLUXO_TURNO_LEGADO_DESATIVADO,
+} from '@/lib/utils/turno-legado'
 import { calcularMetaGrupo, calcularTpProduto } from '@/lib/utils/producao'
 import type { FormActionState } from '@/types'
 import type { Tables } from '@/types/supabase'
@@ -110,6 +114,14 @@ async function carregarOperacoesDoProduto(
 export async function salvarConfiguracaoTurno(
   input: SalvarConfiguracaoTurnoInput
 ): Promise<SalvarConfiguracaoTurnoResultado> {
+  if (fluxoTurnoLegadoDesativado()) {
+    return {
+      sucesso: false,
+      metaGrupo: 0,
+      erro: MENSAGEM_FLUXO_TURNO_LEGADO_DESATIVADO,
+    }
+  }
+
   try {
     await requireAdminUser({ redirectOnFail: false })
   } catch (error) {

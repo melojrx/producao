@@ -51,12 +51,12 @@
 |---|---|---|
 | 19.1 Inventario browser | 🟡 Parcial | `MDJ19_INVENTARIO_SUPABASE_BROWSER.md` |
 | 19.2 Guard Supabase browser | ✅ | `deveUsarSupabaseBrowser()`, `useRealtimeProducao` desligado |
-| 19.3 Polling dashboard Django | 🟡 Parcial | `buscarPlanejamentoTurnoDashboardAction`, intervalo 15s, UI status `polling` |
-| 19.4 Deprecar `configuracao_turno` | ⏳ Aberta | `MonitorRealtimeProducao` ainda no repo |
-| 19.5 Checklist desligamento | 🟡 Doc criado | `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` |
-| 19.6 Homologacao | ⏳ Aberta | `MDJ19_VALIDACAO_LIMPEZA.md` pendente |
+| 19.3 Polling dashboard Django | ✅ | Meta grupo via Django API + polling planejamento |
+| 19.4 Deprecar `configuracao_turno` | ✅ | Bloqueio writes, guards client, monitor legado isolado |
+| 19.5 Checklist desligamento | 🟡 Doc criado | Execucao + aceite pendente |
+| 19.6 Homologacao | 🟡 Parcial | `MDJ19_VALIDACAO_LIMPEZA.md` — smoke browser prod pendente |
 
-**Validacao tecnica:** `npx tsc --noEmit` OK; `node --test lib/django/flags.test.ts` 7/7 OK.
+**Validacao tecnica:** `npx tsc --noEmit` OK; `flags.test.ts` + `turno-legado.test.ts` 9/9 OK.
 
 ---
 

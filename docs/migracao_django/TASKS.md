@@ -1499,22 +1499,22 @@ Decisao de escopo reduzido:
 
 - [x] Com `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=true`, refresh do planejamento de turno via API Django (server action ou route handler autenticado) — intervalo configuravel em `lib/constants.ts` (ex.: `INTERVALO_POLLING_DASHBOARD_MS`)
 - [x] `useRealtimePlanejamentoTurnoV2` renomeado ou encapsulado (ex.: `usePlanejamentoTurnoV2`) — sem dependencia de Supabase quando flags ON
-- [ ] `useMetaGrupoTurnoV2` passa a usar leitura Django (endpoint existente ou novo GET enxuto) em vez de `meta-grupo-turno-v2-client.ts` Supabase
+- [x] `useMetaGrupoTurnoV2` passa a usar leitura Django (endpoint existente ou novo GET enxuto) em vez de `meta-grupo-turno-v2-client.ts` Supabase
 - [x] Indicador de conexao na UI: `polling` / `erro` / `pausado` (nao "Realtime Supabase")
 - [x] Testes: mock de fetch + `npx tsc --noEmit`
 
-**Evidencia:** `lib/constants.ts` `INTERVALO_POLLING_DASHBOARD_MS=15000`; `lib/actions/dashboard-turno.ts` `buscarPlanejamentoTurnoDashboardAction`; `hooks/useRealtimePlanejamentoTurnoV2.ts` polling; UI `ResumoPlanejamentoTurnoV2`, `PainelTvCliente`, `ControleTurnoSupervisor`; `npx tsc --noEmit` OK (2026-06-22). Meta grupo Django pendente.
+**Evidencia:** `lib/constants.ts` `INTERVALO_POLLING_DASHBOARD_MS=15000`; `lib/actions/dashboard-turno.ts` + `lib/actions/meta-grupo-turno.ts`; `lib/django/queries/meta-grupo-turno.ts`; `hooks/useMetaGrupoTurnoV2.ts`; UI polling; `npx tsc --noEmit` OK (2026-06-22).
 
 ### HU 19.4 — Deprecar `configuracao_turno` legado no frontend
 
-- [ ] Documentar em codigo/comentario de rota: fluxo operacional oficial = **turno V2** (`turnos` Django); `configuracao_turno` e **somente historico**
-- [ ] Remover ou isolar `MonitorRealtimeProducao` do dashboard principal (ja substituido por `MonitorPlanejamentoTurnoV2`) — redirect ou feature flag `NEXT_PUBLIC_LEGACY_DASHBOARD=false` (default off)
-- [ ] `lib/actions/turno.ts` / `turno-blocos.ts`: bloquear escrita Supabase quando flags Django ON; mensagem clara "use Novo Turno / Encerrar Turno"
-- [ ] `lib/queries/producao.ts` (client Supabase): nao ser invocado quando guard ativo; KPIs legados por bloco ficam indisponiveis ou leem turno V2
-- [ ] Scanner: auditar `buscarConfiguracaoTurnoHoje` — path legado documentado ou removido do fluxo V2 scanner
-- [ ] **Nao** criar models Django para `configuracao_turno` nesta HU (escopo = deprecar uso, nao migrar tabela)
+- [x] Documentar em codigo/comentario de rota: fluxo operacional oficial = **turno V2** (`turnos` Django); `configuracao_turno` e **somente historico**
+- [x] Remover ou isolar `MonitorRealtimeProducao` do dashboard principal (ja substituido por `MonitorPlanejamentoTurnoV2`) — redirect ou feature flag `NEXT_PUBLIC_LEGACY_DASHBOARD=false` (default off)
+- [x] `lib/actions/turno.ts` / `turno-blocos.ts`: bloquear escrita Supabase quando flags Django ON; mensagem clara "use Novo Turno / Encerrar Turno"
+- [x] `lib/queries/producao.ts` (client Supabase): nao ser invocado quando guard ativo; KPIs legados por bloco ficam indisponiveis ou leem turno V2
+- [x] Scanner: auditar `buscarConfiguracaoTurnoHoje` — path legado documentado ou removido do fluxo V2 scanner
+- [x] **Nao** criar models Django para `configuracao_turno` nesta HU (escopo = deprecar uso, nao migrar tabela)
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `lib/utils/turno-legado.ts`; bloqueios em `turno.ts`/`turno-blocos.ts`; guards em `producao.ts`; `scanner.ts` retorna null para legado; `MonitorRealtimeProducao` mensagem descontinuado; comentarios em `app/admin/dashboard/page.tsx` (2026-06-22).
 
 ### HU 19.5 — Checklist desligamento Supabase remoto
 
@@ -1532,7 +1532,7 @@ Decisao de escopo reduzido:
 
 ### HU 19.6 — Homologacao MDJ-19
 
-- [ ] `docs/migracao_django/MDJ19_VALIDACAO_LIMPEZA.md` com evidencias:
+- [x] `docs/migracao_django/MDJ19_VALIDACAO_LIMPEZA.md` com evidencias:
   - console browser limpo (sem CORS/WS Supabase) com flags ON
   - dashboard atualiza via polling Django
   - login/logout Django intacto
@@ -1540,7 +1540,7 @@ Decisao de escopo reduzido:
   - `git diff --check` OK
 - [ ] Nenhuma remocao de env Supabase do repositorio ate aceite do checklist 19.5
 
-**Evidencia:** _(pendente)_
+**Evidencia:** `MDJ19_VALIDACAO_LIMPEZA.md` criado 2026-06-22 — validacao tecnica local OK; smoke browser prod pendente.
 
 ---
 

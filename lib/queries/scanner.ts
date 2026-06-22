@@ -1,21 +1,42 @@
-import { estaUsandoDjango } from '@/lib/django/flags'
+import { fluxoTurnoLegadoDesativado } from '@/lib/utils/turno-legado'
 
 export {
-  buscarConfiguracaoTurnoHoje,
-  buscarBlocoAtivoHoje,
   buscarTurnoSetorOpScaneadoPorToken,
   buscarOperacoesScaneadasPorSecao,
   buscarOperacoesScaneadasPorDemanda,
 } from './scanner-core'
 
 import * as scannerCore from './scanner-core'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import type {
+  ConfiguracaoTurno,
+  ConfiguracaoTurnoBloco,
   MaquinaScaneada,
   OperacaoScaneada,
   OperadorScaneado,
   TurnoSetorDemandaScaneada,
   TurnoSetorScaneado,
 } from '@/types'
+
+/**
+ * Fluxo operacional do scanner usa turno V2 (setor-op / demandas Django).
+ * `configuracao_turno` é legado — retorna null quando dashboard Django ativo.
+ */
+export async function buscarConfiguracaoTurnoHoje(): Promise<ConfiguracaoTurno | null> {
+  if (fluxoTurnoLegadoDesativado()) {
+    return null
+  }
+
+  return scannerCore.buscarConfiguracaoTurnoHoje()
+}
+
+export async function buscarBlocoAtivoHoje(): Promise<ConfiguracaoTurnoBloco | null> {
+  if (fluxoTurnoLegadoDesativado()) {
+    return null
+  }
+
+  return scannerCore.buscarBlocoAtivoHoje()
+}
 
 export async function buscarOperadorScaneadoPorToken(
   token: string

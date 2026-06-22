@@ -1,5 +1,6 @@
 'use client'
 
+import { deveUsarSupabaseBrowser } from '@/lib/django/flags'
 import { createClient } from '@/lib/supabase/client'
 import type { RegistroProducaoTurnoHora } from '@/types'
 import type { Tables } from '@/types/supabase'
@@ -12,6 +13,10 @@ type RegistroResumoTurnoRow = Pick<
 export async function listarRegistrosMetaGrupoTurnoV2(
   turnoOpIds: string[]
 ): Promise<RegistroProducaoTurnoHora[]> {
+  if (!deveUsarSupabaseBrowser()) {
+    return []
+  }
+
   const idsValidos = Array.from(new Set(turnoOpIds.filter(Boolean)))
 
   if (idsValidos.length === 0) {

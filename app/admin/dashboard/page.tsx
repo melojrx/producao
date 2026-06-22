@@ -7,6 +7,8 @@ import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/uti
 import { redirect } from 'next/navigation'
 import type { ProdutoListItem } from '@/types'
 
+/** Fluxo operacional oficial: turno V2 via API Django. `configuracao_turno` é somente histórico. */
+
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 function valorString(param: string | string[] | undefined): string {

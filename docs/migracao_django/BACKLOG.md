@@ -445,10 +445,9 @@ Entregaveis:
 
 - [x] helper `deveUsarSupabaseBrowser()` + guards em hooks Realtime
 - [x] polling Django no dashboard V2 (substitui WebSocket Supabase quando `DASHBOARD_READS` ON)
-- [ ] deprecacao de `configuracao_turno` / monitor legado no frontend (HU 19.4)
-- [x] `MDJ19_INVENTARIO_SUPABASE_BROWSER.md`
-- [x] `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md`
-- [ ] `MDJ19_VALIDACAO_LIMPEZA.md` (HU 19.6)
+- [x] deprecacao de `configuracao_turno` / monitor legado no frontend (HU 19.4)
+- [x] meta grupo dashboard via Django API (HU 19.3)
+- [ ] `MDJ19_VALIDACAO_LIMPEZA.md` smoke browser prod (HU 19.6)
 - **nao** desliga Supabase remoto sem checkbox de aceite do usuario (HU 19.5)
 
 Remanescente pos-MDJ-19 (fora de escopo imediato):
