@@ -1,7 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { estaUsandoDjango } from '@/lib/django/flags'
-import { listarCatalogoDefeitosQualidadeDjango } from '@/lib/django/queries/qualidade-catalogo'
-import { createClient } from '@/lib/supabase/server'
 import { setorUsaRevisaoQualidade } from '@/lib/utils/qualidade'
 import {
   calcularIndicadoresQualidadeTurno,
@@ -157,9 +155,13 @@ function normalizarClassificacaoDefeito(classificacao: string): QualidadeDefeito
 
 export async function listarCatalogoDefeitosQualidade(): Promise<QualidadeDefeitoCatalogoItem[]> {
   if (estaUsandoDjango('admin_writes') || estaUsandoDjango('qualidade_writes')) {
+    const { listarCatalogoDefeitosQualidadeDjango } = await import(
+      '@/lib/django/queries/qualidade-catalogo'
+    )
     return listarCatalogoDefeitosQualidadeDjango()
   }
 
+  const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
   return listarCatalogoDefeitosQualidadeComClient(supabase)
 }

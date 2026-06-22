@@ -1,7 +1,7 @@
 # Estado atual da migracao Django (jun/2026)
 
 > Ponto de entrada da documentacao de migracao. Atualizado em **2026-06-19**.
-> Sprint ativa: **MDJ-21 — Deploy VPS producao**.
+> Frente ativa: **MDJ-19 — Limpeza legado Supabase e preparacao desligamento**.
 
 ---
 
@@ -23,7 +23,7 @@
 
 **VPS (`srvjosemaria`):** nginx host em `:80`/`:443` + finanpy (`:8001`) + brabustore (`:3001`) + Hermes. PCP entra via **`127.0.0.1:8080`** + vhost novo — sem derrubar apps existentes.
 
-**Premissa operacional:** backup Supabase **ja realizado**; desde entao **nenhum dado novo** entrou no sistema. Operacao congelada ate Django funcional em producao. Importacao sera **one-shot** do snapshot (MDJ-20), sem sync incremental.
+**Premissa operacional:** backup Supabase **ja realizado**; desde entao **nenhum dado novo** entrou no sistema ate o cutover. A importacao MDJ-20 foi **one-shot** do snapshot, sem sync incremental. Supabase remoto permanece intacto ate checklist MDJ-19 HU 19.5 e aceite explicito.
 
 ---
 
@@ -43,13 +43,13 @@ Volumes Compose **isolados**: dev `producao` vs prod `producao-prod`.
 ## Roadmap pos-MDJ-18
 
 ```text
-1. MDJ-21  Deploy VPS (stack vazia, flags OFF, TLS)
-2. MDJ-20  Snapshot congelado → Postgres prod + midia + paridade
-3. Cutover  Flags Django ON em producao (sprint futura)
-4. MDJ-19  Desligamento Supabase remoto (aceite explicito HU 19.5)
+1. MDJ-21  Deploy VPS (stack inicial com flags OFF, TLS) ✅
+2. MDJ-20  Snapshot congelado → Postgres prod + midia + paridade ✅
+3. Cutover  Flags Django ON em producao (2026-06-19) ✅
+4. MDJ-19  Limpeza legado Supabase browser + checklist desligamento remoto 🟡
 ```
 
-MDJ-19 pode avancar em **dev** enquanto MDJ-21/20 executam — nao substitui carga de dados.
+MDJ-19 e a proxima frente operacional. O desligamento remoto do Supabase continua proibido sem checklist HU 19.5 e aceite explicito.
 
 ---
 
@@ -59,7 +59,7 @@ MDJ-19 pode avancar em **dev** enquanto MDJ-21/20 executam — nao substitui car
 
 | Documento | Uso |
 |---|---|
-| [BACKLOG.md](./BACKLOG.md) | Marcos MDJ-0 a MDJ-20, fases A–E |
+| [BACKLOG.md](./BACKLOG.md) | Marcos MDJ-0 a MDJ-21, fases A–E |
 | [TASKS.md](./TASKS.md) | HUs detalhadas, evidencias, checkboxes |
 | [PRD.md](./PRD.md) | Regras de negocio da migracao |
 
@@ -96,8 +96,8 @@ Relatorios `MDJ*_VALIDACAO_*.md` — evidencias de homologacao por marco (auth, 
 
 ## Regras atuais (jun/2026)
 
-- **Deploy VPS** e o proximo marco operacional (MDJ-21).
-- **Flags Django OFF** na primeira subida em producao; cutover apos MDJ-20.
+- **Proximo marco operacional:** MDJ-19 — limpeza legado Supabase no browser e checklist de desligamento.
+- **Flags Django ON** em producao desde 2026-06-19; validar pendencias pos-cutover antes de desligar Supabase remoto.
 - **S3 fora de escopo** — midia em volume Docker `media_data`.
 - **Supabase remoto** permanece intacto; desligamento so com checklist MDJ-19 HU 19.5.
 - **Dois ambientes** apenas: dev local e producao (`producao.costurai.com.br`).

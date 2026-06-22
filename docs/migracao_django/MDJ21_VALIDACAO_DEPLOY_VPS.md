@@ -79,6 +79,8 @@ docker compose -f /opt/producao/docker-compose.prod.yml ps
 - [ ] Backup manual testado
 - [x] Este documento preenchido
 
+Nota pos-MDJ20/cutover: a stack MDJ-21 permanece concluida; importacao de dados, ligacao das flags Django em producao e validacoes de scanner/API foram registradas em `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md`. O backup manual testado segue como pendencia operacional porque nao ha evidencia registrada neste documento.
+
 ### CI/CD (2026-06-19)
 
 - GitHub secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_DEPLOY_PATH`
@@ -98,4 +100,5 @@ docker compose -f /opt/producao/docker-compose.prod.yml ps
 ## Proximo marco
 
 1. Backup manual testado (`scripts/infra/backup_postgres.sh`)
-2. **MDJ-20** — importacao snapshot Supabase
+2. MDJ-19 — limpeza legado Supabase browser e checklist de desligamento remoto
+3. Pendencias pos-cutover registradas na MDJ-20: spot-check `/media/` e primeiro registro novo apenas via Django

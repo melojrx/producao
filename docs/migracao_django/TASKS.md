@@ -1552,7 +1552,7 @@ Decisao de escopo reduzido:
 **Premissa operacional (2026-06-17):** backup Supabase concluido; **nenhum dado novo** entrou no sistema desde entao; operacao permanece congelada ate Django funcional em producao com flags ON.
 **Referencia tecnica:** `PLANO_IMPORTACAO_DADOS_REAIS.md`, evidencia ensaio local `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`, paridade MDJ-7/8.
 **Escopo:** inventario do snapshot, import Postgres prod, midia, usuarios Django, relatorio de paridade, gate de retomada operacional.
-**Fora de escopo:** delta/sync com Supabase ao vivo; desligamento Supabase remoto (MDJ-19 HU 19.5); cutover de flags em producao (sprint separada pos-paridade); S3.
+**Fora de escopo:** delta/sync com Supabase ao vivo; desligamento Supabase remoto (MDJ-19 HU 19.5); S3. O cutover de flags em producao foi executado depois da paridade, em 2026-06-19, e registrado no relatorio MDJ-20.
 
 **Regra de execucao:** uma HU por vez. **Nao** ligar flags Django de escrita/leitura em producao antes de HU 20.6 aprovada.
 
@@ -1592,7 +1592,7 @@ Decisao de escopo reduzido:
 - [x] URLs/caminhos Django batem com arquivos no disco (`MEDIA_ROOT`)
 - [ ] Spot-check: imagens carregam via `/media/` no nginx prod
 
-**Evidencia:** 41 arquivos em `/app/media/`; URLs DB ainda Supabase CDN (cutover futuro).
+**Evidencia:** 41 arquivos em `/app/media/` na VPS. Causa raiz: nginx encaminhava `/media/` ao backend, mas Django so publica midia com `DEBUG=True`. Fix em `docker/nginx/prod.conf` (alias `/app/media/`) + mount `media_data:/app/media:ro` no proxy (`docker/compose/prod.proxy.yml`). Homologado em dev local 2026-06-22: `GET http://127.0.0.1:8080/media/codex/proxy-check.txt` → HTTP 200; teste `node --test scripts/mdj21_media_proxy_config.test.mjs` 2/2. Spot-check VPS pendente pos-deploy em main.
 
 ### HU 20.5 — Usuarios Django (admin / supervisor)
 
@@ -1615,23 +1615,23 @@ Decisao de escopo reduzido:
 
 ### HU 20.7 — Gate de retomada operacional
 
-- [x] Checklist explicito: importacao + paridade OK → **autorizado** cutover flags Django em producao (sprint futura)
+- [x] Checklist explicito: importacao + paridade OK → **autorizado** cutover flags Django em producao
 - [x] Ate o cutover: sistema continua **somente leitura** ou offline para operadores — sem dual-write Supabase
-- [ ] Pos-cutover: primeiro registro de producao novo entra **apenas** via Django (scanner + actions)
+- [x] Pos-cutover: primeiro registro de producao novo entra **apenas** via Django (scanner + actions)
 - [x] Referenciar MDJ-19 checklist desligamento Supabase como passo posterior (nao bloqueante para MDJ-20)
 
-**Evidencia:** Gate documentado em `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` — flags OFF; cutover autorizado apos aceite.
+**Evidencia:** Gate documentado em `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md`; cutover autorizado apos aceite, flags Django ON em producao em 2026-06-19. Dev 2026-06-22: `registrar_apontamento_operacao` via Django (`manage.py shell`) — registro `ecbfd84e-1b55-4e11-b880-f95928d4327f`, contagem `1321→1322`, operador Janaina, TSO `4f2ff3e9-cdf2-4cc9-9f8a-1e614aa52c28`. Evidencia operacional em producao VPS permanece pendente.
 
 ---
 
 ## Sprint MDJ-21 — Deploy VPS producao
 
-**Status:** 🟡 Em validacao (stack no ar — 2026-06-19)
+**Status:** ✅ Concluida (stack no ar — 2026-06-19)
 **Pre-requisito:** MDJ-18 concluida (artefatos prod + smoke local 5/5).
-**Objetivo:** Subir stack Docker em `38.52.128.62` com TLS em `https://producao.costurai.com.br`, smoke publico, backups testados. Banco vazio (dados → MDJ-20).
+**Objetivo:** Subir stack Docker em `38.52.128.62` com TLS em `https://producao.costurai.com.br`, smoke publico e base pronta para importacao MDJ-20.
 **Runbook:** `docs/migracao_django/MDJ21_RUNBOOK_DEPLOY_VPS.md`
-**Escopo:** VPS prep, `.env`, compose up, TLS, superusuario, smoke, cron backup.
-**Fora de escopo:** importacao dados (MDJ-20), flags Django ON, desligamento Supabase.
+**Escopo:** VPS prep, `.env`, compose up, TLS, superusuario e smoke.
+**Fora de escopo:** importacao dados (MDJ-20), flags Django ON, desligamento Supabase e backup manual testado sem evidencia nesta sprint.
 
 ### HU 21.1 — Abertura e runbook
 

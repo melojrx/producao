@@ -123,6 +123,8 @@ Diferencas controladas (mesmas de `MDJ_PRE_MDJ9_IMPORTACAO_REAL.md`):
 - 41 arquivos copiados para `/app/media/` (produtos + operacoes)
 - URLs no banco permanecem apontando Supabase Storage (compativel enquanto Supabase ativo)
 - Arquivos locais disponiveis para cutover futuro de URLs
+- Auditoria read-only em 2026-06-22: arquivo real encontrado em `/app/media/operacoes/5af9b936-7789-479e-bccf-303393bc0089/1776976008975-36ce80df-7fae-4871-bb60-f7b2876b567a.jpg`, mas `GET /media/operacoes/...jpg` retornou HTTP 404 via `127.0.0.1:8080` e via backend `127.0.0.1:8002`.
+- Causa provavel: nginx prod encaminha `/media/` para o backend; o Django so registra rota de media local quando `DEBUG=True`. Em producao `DEBUG=False`, entao o volume existe, mas nao esta publicado por rota/alias.
 
 ---
 
@@ -151,7 +153,7 @@ Com JWT admin via proxy:
 ## Gate retomada operacional (HU 20.7)
 
 - [x] Importacao + paridade OK
-- [ ] **Cutover flags Django ON** — sprint separada (autorizado apos aceite)
+- [x] **Cutover flags Django ON** — executado em 2026-06-19 apos aceite
 - [ ] Primeiro registro novo apenas via Django (pos-cutover)
 - [ ] MDJ-19 HU 19.5 desligamento Supabase — posterior, aceite explicito
 
@@ -169,4 +171,6 @@ Com JWT admin via proxy:
 ## Proximo marco
 
 1. Homologacao manual no browser (`/login`, `/scanner`, `/admin/dashboard`) com flags ON
-2. MDJ-19 — desligamento Supabase remoto (aceite explicito)
+2. Deploy fix `/media/` (nginx alias + volume no proxy) na VPS e spot-check da imagem `operacoes/5af9b936-...jpg`
+3. Primeiro registro novo via Django em producao VPS (dev validado 2026-06-22 — registro `ecbfd84e-...`)
+4. MDJ-19 — limpeza legado Supabase browser e checklist de desligamento remoto (aceite explicito)

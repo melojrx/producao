@@ -1,8 +1,4 @@
 import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
-import {
-  listarIndicadoresQualidadeTurnoComClient,
-  listarResumoQualidadeTurnoComClient,
-} from '@/lib/queries/qualidade'
 import { createClient } from '@/lib/supabase/client'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
 import { listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient } from '@/lib/queries/turno-capacidade-atual-base'
@@ -739,6 +735,10 @@ export async function buscarPlanejamentoTurnoPorIdClient(
   }
   const quantidadeRealizadaAtualPorOperacaoId =
     await listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient(supabase, operacoesSecao)
+  const {
+    listarIndicadoresQualidadeTurnoComClient,
+    listarResumoQualidadeTurnoComClient,
+  } = await import('@/lib/queries/qualidade')
   const qualidadeTurno = await listarResumoQualidadeTurnoComClient(
     supabase,
     turno.id,
