@@ -1,5 +1,7 @@
 import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import { createClient } from '@/lib/supabase/client'
+import type { ResumoQualidadeTurnoResult } from '@/lib/queries/qualidade-turno-client-base'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
 import { listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient } from '@/lib/queries/turno-capacidade-atual-base'
 import {
@@ -33,6 +35,7 @@ import type {
   TurnoSetorV2,
   TurnoV2,
 } from '@/types'
+import type { QualidadeIndicadoresTurnoV2 } from '@/types'
 import type { Tables } from '@/types/supabase'
 
 type TurnoRow = Tables<'turnos'>
@@ -735,21 +738,30 @@ export async function buscarPlanejamentoTurnoPorIdClient(
   }
   const quantidadeRealizadaAtualPorOperacaoId =
     await listarQuantidadeRealizadaAtualPorOperacaoDoTurnoComClient(supabase, operacoesSecao)
-  const {
-    listarIndicadoresQualidadeTurnoComClient,
-    listarResumoQualidadeTurnoComClient,
-  } = await import('@/lib/queries/qualidade')
-  const qualidadeTurno = await listarResumoQualidadeTurnoComClient(
-    supabase,
-    turno.id,
-    ops,
-    secoesSetorOp,
-    operacoesSecao
-  )
-  const indicadoresQualidadeTurno = await listarIndicadoresQualidadeTurnoComClient(
-    supabase,
-    turno.id
-  )
+
+  let qualidadeTurno: ResumoQualidadeTurnoResult = {
+    resumoTurno: null,
+    resumoOps: [],
+  }
+  let indicadoresQualidadeTurno: QualidadeIndicadoresTurnoV2 | null = null
+
+  if (!estaUsandoDjango('dashboard_reads')) {
+    const {
+      listarIndicadoresQualidadeTurnoComClient,
+      listarResumoQualidadeTurnoComClient,
+    } = await import('@/lib/queries/qualidade-turno-client-base')
+    qualidadeTurno = await listarResumoQualidadeTurnoComClient(
+      supabase,
+      turno.id,
+      ops,
+      secoesSetorOp,
+      operacoesSecao
+    )
+    indicadoresQualidadeTurno = await listarIndicadoresQualidadeTurnoComClient(
+      supabase,
+      turno.id
+    )
+  }
 
   const demandasSetorBrutas = await listarTurnoSetorDemandas(turno.id, ops)
   const demandasSetorFluxo = enriquecerDemandasSetorComFila(
