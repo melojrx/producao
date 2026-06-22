@@ -1,5 +1,10 @@
+/**
+ * Queries client-side de turno V2 via Supabase Realtime (rollback).
+ * Com cutover Django ON, o dashboard usa Server Actions (`dashboard-turno`, `meta-grupo-turno`)
+ * e polling — este modulo nao deve ser invocado (`deveUsarSupabaseBrowser()` false).
+ */
 import { listarResumoEficienciaOperacionalTurnoComClient } from '@/lib/queries/eficiencia-operacional-turno-base'
-import { estaUsandoDjango } from '@/lib/django/flags'
+import { deveUsarSupabaseBrowser, estaUsandoDjango } from '@/lib/django/flags'
 import { createClient } from '@/lib/supabase/client'
 import type { ResumoQualidadeTurnoResult } from '@/lib/queries/qualidade-turno-client-base'
 import { listarTurnoSetorOperacoesDoTurnoComClient } from '@/lib/queries/turno-setor-operacoes-base'
@@ -812,6 +817,10 @@ export async function buscarPlanejamentoTurnoPorIdClient(
 }
 
 export async function buscarTurnoAbertoOuUltimoEncerradoClient(): Promise<PlanejamentoTurnoDashboardV2 | null> {
+  if (!deveUsarSupabaseBrowser()) {
+    return null
+  }
+
   const turnoAberto = await buscarTurnoBase('aberto')
 
   if (turnoAberto) {

@@ -20,7 +20,9 @@
 | `/media/` em producao | ✅ Fix nginx alias + volume (2026-06-22) |
 | Login + dashboard admin prod | ✅ JWT Django SSR (fix cookies RSC 2026-06-22) |
 | Limpeza legado Supabase browser | 🟡 MDJ-19 em andamento (HU 19.1–19.3 parcial) |
-| Desligamento Supabase remoto | ⏸️ Checklist HU 19.5 — aceite explicito pendente |
+| Desligamento Supabase remoto | ⏸️ HU 19.5 — checklist parcial; aceite explicito pendente |
+
+**Smoke prod (2026-06-22):** 11/11 OK — inclui `cutover-producao-registros` (55 items).
 
 **Dominio producao:** `https://producao.costurai.com.br` — DNS A → VPS `38.52.128.62` (Hostinger).
 

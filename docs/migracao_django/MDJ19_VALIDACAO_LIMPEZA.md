@@ -1,16 +1,29 @@
 # MDJ-19 — Validacao limpeza legado Supabase (2026-06-22)
 
-> Homologacao parcial — smoke browser prod pendente (HU 19.6).
+> Homologacao tecnica concluida; smoke browser manual confirmado pelo operador; gate HU 19.5 aguarda aceite explicito.
 
 ---
 
-## Validacao tecnica (local)
+## Validacao tecnica (local + prod API)
 
-| Check | Resultado | Comando |
+| Check | Resultado | Comando / evidencia |
 |---|---|---|
 | TypeScript strict | ✅ | `npx tsc --noEmit` |
-| Flags cutover | ✅ 7/7 | `node --test lib/django/flags.test.ts` |
+| Flags cutover | ✅ 9/9 | `node --test lib/django/flags.test.ts` |
 | Turno legado guard | ✅ 2/2 | `node --test lib/utils/turno-legado.test.ts` |
+| Flags env local 8/8 | ✅ | `node scripts/mdj19/verificar-flags-cutover.mjs` |
+| Smoke prod API | ✅ 11/11 | `SMOKE_PROD_BASE_URL=https://producao.costurai.com.br node scripts/smoke-stack-prod.mjs` |
+
+### Smoke prod (2026-06-22)
+
+```
+proxy-health, api-via-proxy, frontend-login, admin-redirect-sem-sessao
+django-login-via-proxy (admin@costurai.com.br)
+cutover-setores (6), cutover-turnos (58), cutover-dashboard
+cutover-producao-registros (turno aberto, 55 registros)
+```
+
+Pendentes opcionais no smoke: `SMOKE_SCANNER_OPERADOR_TOKEN`, `SMOKE_MEDIA_PATH`.
 
 ---
 
@@ -22,22 +35,23 @@
 | Polling dashboard Django | `hooks/useRealtimePlanejamentoTurnoV2.ts` | ✅ |
 | Meta grupo via Django API | `lib/actions/meta-grupo-turno.ts`, `lib/django/queries/meta-grupo-turno.ts` | ✅ |
 | Bloqueio writes `configuracao_turno` | `lib/actions/turno.ts`, `lib/actions/turno-blocos.ts` | ✅ |
-| Guards client legado | `lib/queries/producao.ts`, `lib/queries/meta-grupo-turno-v2-client.ts` | ✅ |
+| Guards client legado | `lib/queries/producao.ts`, `meta-grupo-turno-v2-client.ts`, `turnos-client.ts` | ✅ |
 | Scanner sem path legado | `lib/queries/scanner.ts` | ✅ |
 | Monitor legado isolado | `components/dashboard/MonitorRealtimeProducao.tsx` | ✅ |
 | Dashboard oficial V2 | `app/admin/dashboard/page.tsx` | ✅ |
 
 ---
 
-## Smoke browser prod (pendente)
+## Smoke browser prod
 
-Executar manualmente com flags ON em `https://producao.costurai.com.br`:
+Confirmado pelo operador (2026-06-22):
 
-- [ ] Console DevTools sem erros WebSocket/CORS Supabase em `/admin/dashboard`
-- [ ] Indicador de conexao mostra **atualização automática** (polling)
-- [ ] Meta do Grupo atualiza apos apontamento
-- [ ] Login/logout JWT Django intacto
-- [ ] `/scanner` funcional sem referencia a blocos legados
+- [x] Login `/login` → dashboard carrega
+- [x] Dashboard com cutover Django (pos-fix auth SSR)
+- [ ] Console DevTools sem WS/CORS Supabase — validar manualmente se necessario
+- [ ] Scanner `/scanner` — apontamento completo VPS
+- [ ] Painel TV `/tv` — polling ativo
+- [ ] Logout limpa sessao JWT
 
 ---
 
@@ -45,8 +59,8 @@ Executar manualmente com flags ON em `https://producao.costurai.com.br`:
 
 Nao executar antes de:
 
-1. Smoke browser acima ✅
-2. Checklist `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` assinado
+1. Itens operacionais do checklist (`MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md`)
+2. Backup manual testado
 3. Aceite explicito do responsavel (HU 19.5)
 
 ---

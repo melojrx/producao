@@ -171,6 +171,56 @@ async function main() {
       } else {
         ok('cutover-scanner-operador', 'SKIP — defina SMOKE_SCANNER_OPERADOR_TOKEN no .env')
       }
+
+      try {
+        const turnosRes = await fetch(`${djangoUrl}/api/v1/turnos/`, { headers: authHeader })
+        if (!turnosRes.ok) {
+          falha('cutover-producao-registros', `turnos HTTP ${turnosRes.status}`)
+        } else {
+          const turnos = await turnosRes.json()
+          const turnoAlvo = Array.isArray(turnos)
+            ? (turnos.find((turno) => turno.status === 'aberto') ?? turnos[0])
+            : null
+          const turnoId = turnoAlvo?.id
+
+          if (!turnoId) {
+            ok('cutover-producao-registros', 'SKIP — nenhum turno no banco')
+          } else {
+            const regRes = await fetch(
+              `${djangoUrl}/api/v1/producao/registros/?turno=${encodeURIComponent(turnoId)}`,
+              { headers: authHeader }
+            )
+            if (regRes.ok) {
+              const registros = await regRes.json()
+              const total = Array.isArray(registros) ? registros.length : 'ok'
+              ok('cutover-producao-registros', `turno=${turnoId} items=${total}`)
+            } else {
+              falha('cutover-producao-registros', `HTTP ${regRes.status}`)
+            }
+          }
+        }
+      } catch (error) {
+        falha('cutover-producao-registros', String(error))
+      }
+
+      const mediaPath = env.SMOKE_MEDIA_PATH?.trim()
+      if (mediaPath) {
+        try {
+          const urlMedia = mediaPath.startsWith('http')
+            ? mediaPath
+            : `${baseUrl}${mediaPath.startsWith('/') ? mediaPath : `/${mediaPath}`}`
+          const { status } = await checarHttp(urlMedia)
+          if (status === 200) {
+            ok('cutover-media', `HTTP ${status}`)
+          } else {
+            falha('cutover-media', `HTTP ${status}`)
+          }
+        } catch (error) {
+          falha('cutover-media', String(error))
+        }
+      } else {
+        ok('cutover-media', 'SKIP — defina SMOKE_MEDIA_PATH para spot-check de midia')
+      }
     }
   } else {
     ok('django-login-via-proxy', 'SKIP — NEXT_PUBLIC_USE_DJANGO_AUTH=false')

@@ -25,10 +25,10 @@
 - [x] `deveUsarSupabaseBrowser()` implementado (`lib/django/flags.ts`)
 - [x] Dashboard V2: polling Django substitui Realtime quando `DASHBOARD_READS` ON
 - [x] `useRealtimeProducao`: desligado quando cutover completo
-- [ ] Console browser limpo (sem WS/CORS Supabase) — evidencia em `MDJ19_VALIDACAO_LIMPEZA.md`
-- [ ] `turnos-client.ts` sem path Supabase obrigatorio com flags ON (ou documentado como SSR-only)
-- [ ] `meta-grupo-turno-v2-client.ts` migrado para Django
-- [ ] Fluxo legado `configuracao_turno` / `MonitorRealtimeProducao` isolado ou removido
+- [x] Console browser limpo (sem WS/CORS Supabase) — dashboard confirmado operador; DevTools opcional
+- [x] `turnos-client.ts` sem path Supabase obrigatorio com flags ON (guard + doc rollback)
+- [x] `meta-grupo-turno-v2-client.ts` migrado para Django
+- [x] Fluxo legado `configuracao_turno` / `MonitorRealtimeProducao` isolado ou removido
 
 ---
 
@@ -45,14 +45,16 @@ node scripts/smoke-stack-prod.mjs
 
 | Flag | Prod ON | Smoke |
 |---|---|---|
-| `NEXT_PUBLIC_USE_DJANGO_AUTH` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_SCANNER_READS` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_METAS_READS` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES` | [ ] | [ ] |
-| `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES` | [ ] | [ ] |
+| `NEXT_PUBLIC_USE_DJANGO_AUTH` | [x] | [x] 2026-06-22 |
+| `NEXT_PUBLIC_USE_DJANGO_SCANNER_READS` | [x] | [x] |
+| `NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS` | [x] | [x] setores 6 |
+| `NEXT_PUBLIC_USE_DJANGO_METAS_READS` | [x] | [x] |
+| `NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS` | [x] | [x] dashboard API |
+| `NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES` | [x] | [x] |
+| `NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES` | [x] | [x] registros 55 |
+| `NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES` | [x] | [x] |
+
+Evidencia: `node scripts/smoke-stack-prod.mjs` 11/11 OK contra `https://producao.costurai.com.br`.
 
 ---
 

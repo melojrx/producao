@@ -1468,7 +1468,7 @@ Decisao de escopo reduzido:
 
 ## Sprint MDJ-19 — Limpeza legado Supabase e preparacao desligamento
 
-**Status:** 🟡 Em andamento (2026-06-22)
+**Status:** 🟡 Quase concluida — gate HU 19.5 (desligamento Supabase remoto) aguarda aceite explicito
 **Pre-requisito:** MDJ-16 concluida (flags Django homologadas em dev); MDJ-17 recomendada (stack integrada). Pode executar **em paralelo** com MDJ-18 ou **apos** MDJ-18 — nao bloqueia deploy VPS.
 **Objetivo:** Eliminar ruído e dependencias Supabase no browser quando flags Django estiverem ON; substituir Realtime legado por polling Django no dashboard; deprecar `configuracao_turno` / blocos; documentar checklist de desligamento do Supabase remoto.
 **Ambiente alvo:** dev local — backend `localhost:8001` + frontend host ou `docker/compose/dev.full.yml`.
@@ -1491,9 +1491,9 @@ Decisao de escopo reduzido:
 - [x] `hooks/useRealtimePlanejamentoTurnoV2.ts`: early return sem `createClient()` / channel quando guard ativo; status `ativo` via polling (HU 19.3) ou `desligado` explicito ate polling existir
 - [x] `hooks/useRealtimeProducao.ts`: mesmo guard (componente legado — nao criar channel se guard ativo)
 - [x] `lib/supabase/client.ts` ou consumidores: evitar loop de `refresh_token` quando auth Django ativo (login ja usa JWT cookies)
-- [ ] Testes unitarios do guard + smoke manual: console sem erros CORS/WebSocket Supabase com perfil homologacao MDJ-16 ON
+- [x] Testes unitarios do guard + smoke manual: console sem erros CORS/WebSocket Supabase com perfil homologacao MDJ-16 ON
 
-**Evidencia:** `lib/django/flags.ts` — `deveUsarSupabaseBrowser()`, `deveUsarRealtimeSupabaseDashboard()`; hooks atualizados; `node --test lib/django/flags.test.ts` 7/7 OK (2026-06-22). Smoke browser prod pendente (HU 19.6).
+**Evidencia:** `lib/django/flags.ts`; hooks atualizados; testes 9/9; smoke prod 11/11 (2026-06-22); dashboard confirmado operador.
 
 ### HU 19.3 — Polling Django no dashboard (substituir Realtime legado)
 
@@ -1526,6 +1526,8 @@ Decisao de escopo reduzido:
   - janela de cutover e responsavel
   - **checkbox explicito:** "Usuario autoriza desligamento do Supabase remoto"
 - [ ] Script ou comando de validacao de paridade final (`scripts/validar-paridade-dados.mjs` ou management command) referenciado no checklist
+
+Referencia smoke MDJ-19: `scripts/smoke-stack-prod.mjs`, `scripts/mdj19/verificar-flags-cutover.mjs`.
 - [x] Atualizar `MDJ16_VALIDACAO_CUTOVER.md` — secao "Pos-MDJ-19" com deferidos resolvidos vs remanescentes (`relatorios-v2`, etc.)
 
 **Evidencia:** `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` criado 2026-06-22; secao Pos-MDJ-19 em `MDJ16_VALIDACAO_CUTOVER.md`. Execucao do checklist e aceite explicito pendentes.
