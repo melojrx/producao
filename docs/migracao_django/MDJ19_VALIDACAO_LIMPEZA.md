@@ -11,6 +11,7 @@
 | TypeScript strict | ✅ | `npx tsc --noEmit` |
 | Flags cutover | ✅ 9/9 | `node --test lib/django/flags.test.ts` |
 | Turno legado guard | ✅ 2/2 | `node --test lib/utils/turno-legado.test.ts` |
+| Hooks dashboard sem Supabase browser | ✅ | `useRealtimePlanejamentoTurnoV2` + `useMetaGrupoTurnoV2` usam apenas Server Actions |
 | Flags env local 8/8 | ✅ | `node scripts/mdj19/verificar-flags-cutover.mjs` |
 | Smoke prod API | ✅ 11/11 | `SMOKE_PROD_BASE_URL=https://producao.costurai.com.br node scripts/smoke-stack-prod.mjs` |
 

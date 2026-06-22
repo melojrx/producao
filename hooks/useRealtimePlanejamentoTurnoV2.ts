@@ -2,10 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { buscarPlanejamentoTurnoDashboardAction } from '@/lib/actions/dashboard-turno'
-import { deveUsarRealtimeSupabaseDashboard } from '@/lib/django/flags'
 import { INTERVALO_POLLING_DASHBOARD_MS } from '@/lib/constants'
-import { createClient } from '@/lib/supabase/client'
-import { buscarTurnoAbertoOuUltimoEncerradoClient } from '@/lib/queries/turnos-client'
 import type { PlanejamentoTurnoDashboardV2 } from '@/types'
 
 export type StatusConexaoPlanejamentoTurnoV2 =
@@ -44,23 +41,12 @@ export interface UseRealtimePlanejamentoTurnoV2Resultado {
   recarregar: () => Promise<void>
 }
 
-async function carregarSnapshotPlanejamentoSupabase(): Promise<PlanejamentoTurnoDashboardV2 | null> {
-  return buscarTurnoAbertoOuUltimoEncerradoClient()
-}
-
-async function carregarSnapshotPlanejamentoDjango(): Promise<PlanejamentoTurnoDashboardV2 | null> {
-  return buscarPlanejamentoTurnoDashboardAction()
-}
-
 export function useRealtimePlanejamentoTurnoV2(
   initialPlanning: PlanejamentoTurnoDashboardV2 | null
 ): UseRealtimePlanejamentoTurnoV2Resultado {
-  const usaRealtimeSupabase = deveUsarRealtimeSupabaseDashboard()
   const [planejamento, setPlanejamento] = useState<PlanejamentoTurnoDashboardV2 | null>(initialPlanning)
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null)
-  const [statusConexao, setStatusConexao] = useState<StatusConexaoPlanejamentoTurnoV2>(
-    usaRealtimeSupabase ? 'conectando' : 'polling'
-  )
+  const [statusConexao, setStatusConexao] = useState<StatusConexaoPlanejamentoTurnoV2>('polling')
   const [estaCarregando, setEstaCarregando] = useState(initialPlanning === null)
   const [erro, setErro] = useState<string | null>(null)
   const recargaEmAndamentoRef = useRef<Promise<void> | null>(null)
@@ -71,6 +57,7 @@ export function useRealtimePlanejamentoTurnoV2(
       setUltimaAtualizacao(new Date())
       setErro(null)
       setEstaCarregando(false)
+      setStatusConexao('polling')
     })
   }, [])
 
@@ -89,16 +76,9 @@ export function useRealtimePlanejamentoTurnoV2(
 
     setEstaCarregando(true)
 
-    const carregar = usaRealtimeSupabase
-      ? carregarSnapshotPlanejamentoSupabase
-      : carregarSnapshotPlanejamentoDjango
-
-    const recarga = carregar()
+    const recarga = buscarPlanejamentoTurnoDashboardAction()
       .then((snapshot) => {
         aplicarSnapshot(snapshot)
-        if (!usaRealtimeSupabase) {
-          setStatusConexao('polling')
-        }
       })
       .catch((error: unknown) => {
         const mensagem =
@@ -113,7 +93,7 @@ export function useRealtimePlanejamentoTurnoV2(
 
     recargaEmAndamentoRef.current = recarga
     return recarga
-  }, [aplicarSnapshot, registrarErro, usaRealtimeSupabase])
+  }, [aplicarSnapshot, registrarErro])
 
   useEffect(() => {
     if (initialPlanning) {
@@ -122,97 +102,18 @@ export function useRealtimePlanejamentoTurnoV2(
   }, [initialPlanning])
 
   useEffect(() => {
-    if (!usaRealtimeSupabase) {
-      if (!initialPlanning) {
-        void recarregar()
-      }
-
-      const intervalo = window.setInterval(() => {
-        void recarregar()
-      }, INTERVALO_POLLING_DASHBOARD_MS)
-
-      return () => {
-        window.clearInterval(intervalo)
-      }
-    }
-
-    const supabase = createClient()
-    const channel = supabase
-      .channel('dashboard-planejamento-turno-v2')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'turnos',
-        },
-        () => {
-          void recarregar()
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'turno_ops',
-        },
-        () => {
-          void recarregar()
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'turno_setor_ops',
-        },
-        () => {
-          void recarregar()
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'turno_setor_operacoes',
-        },
-        () => {
-          void recarregar()
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'registros_producao',
-        },
-        () => {
-          void recarregar()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setStatusConexao('ativo')
-          return
-        }
-
-        if (status === 'CHANNEL_ERROR') {
-          registrarErro('Não foi possível conectar a dashboard V2 ao Realtime do Supabase.')
-        }
-      })
-
     if (!initialPlanning) {
       void recarregar()
     }
 
+    const intervalo = window.setInterval(() => {
+      void recarregar()
+    }, INTERVALO_POLLING_DASHBOARD_MS)
+
     return () => {
-      void supabase.removeChannel(channel)
+      window.clearInterval(intervalo)
     }
-  }, [initialPlanning, recarregar, registrarErro, usaRealtimeSupabase])
+  }, [initialPlanning, recarregar])
 
   return {
     planejamento,

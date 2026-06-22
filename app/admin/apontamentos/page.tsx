@@ -5,6 +5,7 @@ import { PainelApontamentosSupervisor } from '@/components/apontamentos/PainelAp
 import { PainelQualidadeSupervisor } from '@/components/apontamentos/PainelQualidadeSupervisor'
 import { PainelMetaMensalApontamentos } from '@/components/apontamentos/PainelMetaMensalApontamentos'
 import { obterPerfilRevisorQualidadeOpcional } from '@/lib/auth/obter-perfil-revisor-qualidade'
+import { executarQueryAdminDjango } from '@/lib/auth/tratar-erro-sessao-django'
 import { listarTurnoSetorOperacoesDoTurno } from '@/lib/queries/apontamentos'
 import { buscarMetaMensalCompetencia } from '@/lib/queries/metas-mensais'
 import { listarOperadores } from '@/lib/queries/operadores'
@@ -64,9 +65,9 @@ export default async function AdminApontamentosPage(props: {
   const perfilRevisor = await obterPerfilRevisorQualidadeOpcional()
 
   const [planejamentoAtual, produtos, contextoMetaMensal] = await Promise.all([
-    buscarTurnoAbertoOuUltimoEncerrado(),
-    listarProdutos(),
-    buscarMetaMensalCompetencia(competenciaSelecionada),
+    executarQueryAdminDjango(() => buscarTurnoAbertoOuUltimoEncerrado()),
+    executarQueryAdminDjango(() => listarProdutos()),
+    executarQueryAdminDjango(() => buscarMetaMensalCompetencia(competenciaSelecionada)),
   ])
   const planejamento =
     planejamentoAtual?.origem === 'aberto'
@@ -123,11 +124,13 @@ export default async function AdminApontamentosPage(props: {
   }
 
   const [operacoesTurno, defeitosCatalogo] = await Promise.all([
-    listarTurnoSetorOperacoesDoTurno(planejamento.turno.id),
-    listarCatalogoDefeitosQualidade(),
+    executarQueryAdminDjango(() => listarTurnoSetorOperacoesDoTurno(planejamento.turno.id)),
+    executarQueryAdminDjango(() => listarCatalogoDefeitosQualidade()),
   ])
   const precisaFallbackOperadores = planejamento.operadores.length === 0
-  const operadoresAtivos = precisaFallbackOperadores ? await listarOperadores() : []
+  const operadoresAtivos = precisaFallbackOperadores
+    ? await executarQueryAdminDjango(() => listarOperadores())
+    : []
   const planejamentoComOperadores = precisaFallbackOperadores
     ? {
         ...planejamento,

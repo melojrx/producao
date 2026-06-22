@@ -14,8 +14,5 @@ export async function listarRegistrosMetaGrupoTurnoV2Action(
     return listarRegistrosMetaGrupoTurnoV2Django(turnoId, turnoOpIds)
   }
 
-  const { listarRegistrosMetaGrupoTurnoV2 } = await import(
-    '@/lib/queries/meta-grupo-turno-v2-client'
-  )
-  return listarRegistrosMetaGrupoTurnoV2(turnoOpIds)
+  return []
 }

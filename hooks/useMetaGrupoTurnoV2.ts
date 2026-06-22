@@ -2,8 +2,6 @@
 
 import { startTransition, useEffect, useMemo, useState } from 'react'
 import { listarRegistrosMetaGrupoTurnoV2Action } from '@/lib/actions/meta-grupo-turno'
-import { listarRegistrosMetaGrupoTurnoV2 } from '@/lib/queries/meta-grupo-turno-v2-client'
-import { deveUsarRealtimeSupabaseDashboard } from '@/lib/django/flags'
 import {
   calcularMetaGrupoTurnoV2,
   criarComparativoMetaGrupoHora,
@@ -42,7 +40,6 @@ export function useMetaGrupoTurnoV2(
   }, [planejamento])
 
   const turnoOpIdsKey = planejamento?.ops.map((op) => op.id).join('|') ?? ''
-  const usaSupabaseMetaGrupo = deveUsarRealtimeSupabaseDashboard()
 
   useEffect(() => {
     if (!planejamento) {
@@ -58,11 +55,8 @@ export function useMetaGrupoTurnoV2(
     setEstaCarregando(true)
 
     const turnoOpIds = planejamento.ops.map((op) => op.id)
-    const promessa = usaSupabaseMetaGrupo
-      ? listarRegistrosMetaGrupoTurnoV2(turnoOpIds)
-      : listarRegistrosMetaGrupoTurnoV2Action(planejamento.turno.id, turnoOpIds)
 
-    promessa
+    listarRegistrosMetaGrupoTurnoV2Action(planejamento.turno.id, turnoOpIds)
       .then((resultado) => {
         if (!ativo) {
           return
@@ -92,7 +86,7 @@ export function useMetaGrupoTurnoV2(
     return () => {
       ativo = false
     }
-  }, [planejamento, refreshKey, turnoOpIdsKey, usaSupabaseMetaGrupo])
+  }, [planejamento, refreshKey, turnoOpIdsKey])
 
   const comparativoPorHora = useMemo(() => {
     if (!planejamento) {
@@ -106,11 +100,7 @@ export function useMetaGrupoTurnoV2(
       planejamento.demandasSetor ?? [],
       planejamento.operacoesSecao
     )
-  }, [
-    planejamento,
-    registros,
-    resumoMetaGrupo.metaGrupo,
-  ])
+  }, [planejamento, registros, resumoMetaGrupo.metaGrupo])
 
   return {
     comparativoPorHora,
