@@ -7,12 +7,7 @@ import {
   resolverSessaoAdminDjango,
   type AdminSessionUser,
 } from '@/lib/auth/sessao-django'
-import { obterUsuarioAtualDjango, refreshAccessToken } from '@/lib/django/auth.ts'
-import {
-  limparSessaoJwtCookies,
-  obterTokensJwtDosCookies,
-  persistirSessaoJwtCookies,
-} from '@/lib/django/cookies.ts'
+import { obterUsuarioAtualDjango } from '@/lib/django/auth.ts'
 import { estaUsandoDjango } from '@/lib/django/flags.ts'
 import { buscarPapelAdminPorAuthUserId } from '@/lib/queries/usuarios-sistema'
 
@@ -52,10 +47,6 @@ export function getAuthorizationErrorMessage(error: unknown): string | null {
 
 async function obterSessaoAdminDjango(): Promise<AdminSession | null> {
   return resolverSessaoAdminDjango({
-    obterTokens: obterTokensJwtDosCookies,
-    persistirTokens: persistirSessaoJwtCookies,
-    limparTokens: limparSessaoJwtCookies,
-    refreshAccessToken,
     obterUsuarioAtual: obterUsuarioAtualDjango,
   })
 }

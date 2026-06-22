@@ -1,8 +1,10 @@
 import { MonitorPlanejamentoTurnoV2 } from '@/components/dashboard/MonitorPlanejamentoTurnoV2'
+import { DjangoTokenAusenteError } from '@/lib/django/queries/obter-token-servidor'
 import { buscarResumoMetaMensalDashboard } from '@/lib/queries/metas-mensais'
 import { listarProdutos } from '@/lib/queries/produtos'
 import { buscarTurnoAbertoOuUltimoEncerrado } from '@/lib/queries/turnos'
 import { normalizarCompetenciaMensal, obterCompetenciaMesAtual } from '@/lib/utils/data'
+import { redirect } from 'next/navigation'
 import type { ProdutoListItem } from '@/types'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -21,8 +23,18 @@ export default async function AdminDashboardPage(props: {
 
   const [produtosCatalogoResultado, planejamentoTurnoV2, resumoMetaMensal] = await Promise.all([
     listarProdutos().catch(() => [] as ProdutoListItem[]),
-    buscarTurnoAbertoOuUltimoEncerrado(),
-    buscarResumoMetaMensalDashboard(competenciaSelecionada),
+    buscarTurnoAbertoOuUltimoEncerrado().catch((error: unknown) => {
+      if (error instanceof DjangoTokenAusenteError) {
+        redirect('/login?erro=sessao-expirada')
+      }
+      throw error
+    }),
+    buscarResumoMetaMensalDashboard(competenciaSelecionada).catch((error: unknown) => {
+      if (error instanceof DjangoTokenAusenteError) {
+        redirect('/login?erro=sessao-expirada')
+      }
+      throw error
+    }),
   ])
 
   return (

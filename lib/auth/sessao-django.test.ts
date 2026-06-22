@@ -62,17 +62,12 @@ test('mapearUsuarioDjangoParaSessaoAdmin expoe email para AdminShell', () => {
 test('resolverSessaoAdminDjango retorna sessao com access token valido', async () => {
   const accessValido = criarTokenJwtComExpiracao(Math.floor(Date.now() / 1000) + 3600)
 
-  const sessao = await resolverSessaoAdminDjango({
-    obterTokens: async () => ({ accessToken: accessValido, refreshToken: 'refresh-1' }),
-    persistirTokens: async () => {},
-    limparTokens: async () => {
-      throw new Error('nao deveria limpar tokens')
+  const sessao = await resolverSessaoAdminDjango(
+    {
+      obterUsuarioAtual: async () => usuarioAdminAtivo,
     },
-    refreshAccessToken: async () => {
-      throw new Error('nao deveria renovar token')
-    },
-    obterUsuarioAtual: async () => usuarioAdminAtivo,
-  })
+    { accessTokenOverride: accessValido }
+  )
 
   assert.deepEqual(sessao, {
     user: { id: 'usr-1', email: 'admin@teste.com' },
@@ -80,38 +75,29 @@ test('resolverSessaoAdminDjango retorna sessao com access token valido', async (
   })
 })
 
-test('resolverSessaoAdminDjango renova access expirado com refresh', async () => {
-  const accessExpirado = criarTokenJwtComExpiracao(Math.floor(Date.now() / 1000) - 60)
+test('resolverSessaoAdminDjango usa token informado para validar /me', async () => {
   const accessNovo = criarTokenJwtComExpiracao(Math.floor(Date.now() / 1000) + 3600)
-  const tokensPersistidos: string[] = []
 
-  const sessao = await resolverSessaoAdminDjango({
-    obterTokens: async () => ({ accessToken: accessExpirado, refreshToken: 'refresh-1' }),
-    persistirTokens: async (access, refresh) => {
-      tokensPersistidos.push(access, refresh)
+  const sessao = await resolverSessaoAdminDjango(
+    {
+      obterUsuarioAtual: async (token) => {
+        assert.equal(token, accessNovo)
+        return usuarioSupervisorAtivo
+      },
     },
-    limparTokens: async () => {
-      throw new Error('nao deveria limpar tokens')
-    },
-    refreshAccessToken: async () => ({ access: accessNovo }),
-    obterUsuarioAtual: async (token) => {
-      assert.equal(token, accessNovo)
-      return usuarioSupervisorAtivo
-    },
-  })
+    { accessTokenOverride: accessNovo }
+  )
 
   assert.equal(sessao?.role, 'supervisor')
-  assert.deepEqual(tokensPersistidos, [accessNovo, 'refresh-1'])
 })
 
-test('resolverSessaoAdminDjango retorna null sem tokens', async () => {
-  const sessao = await resolverSessaoAdminDjango({
-    obterTokens: async () => ({}),
-    persistirTokens: async () => {},
-    limparTokens: async () => {},
-    refreshAccessToken: async () => ({ access: 'novo' }),
-    obterUsuarioAtual: async () => usuarioAdminAtivo,
-  })
+test('resolverSessaoAdminDjango retorna null sem token', async () => {
+  const sessao = await resolverSessaoAdminDjango(
+    {
+      obterUsuarioAtual: async () => usuarioAdminAtivo,
+    },
+    { accessTokenOverride: null }
+  )
 
   assert.equal(sessao, null)
 })
@@ -119,38 +105,32 @@ test('resolverSessaoAdminDjango retorna null sem tokens', async () => {
 test('resolverSessaoAdminDjango retorna null para usuario sem papel admin', async () => {
   const accessValido = criarTokenJwtComExpiracao(Math.floor(Date.now() / 1000) + 3600)
 
-  const sessao = await resolverSessaoAdminDjango({
-    obterTokens: async () => ({ accessToken: accessValido }),
-    persistirTokens: async () => {},
-    limparTokens: async () => {},
-    refreshAccessToken: async () => ({ access: 'novo' }),
-    obterUsuarioAtual: async () => ({
-      ...usuarioAdminAtivo,
-      ativo: false,
-    }),
-  })
+  const sessao = await resolverSessaoAdminDjango(
+    {
+      obterUsuarioAtual: async () => ({
+        ...usuarioAdminAtivo,
+        ativo: false,
+      }),
+    },
+    { accessTokenOverride: accessValido }
+  )
 
   assert.equal(sessao, null)
 })
 
-test('resolverSessaoAdminDjango limpa cookies apos 401 em /me', async () => {
+test('resolverSessaoAdminDjango retorna null apos falha em /me', async () => {
   const accessValido = criarTokenJwtComExpiracao(Math.floor(Date.now() / 1000) + 3600)
-  let limpouCookies = false
 
-  const sessao = await resolverSessaoAdminDjango({
-    obterTokens: async () => ({ accessToken: accessValido }),
-    persistirTokens: async () => {},
-    limparTokens: async () => {
-      limpouCookies = true
+  const sessao = await resolverSessaoAdminDjango(
+    {
+      obterUsuarioAtual: async () => {
+        const erro = new Error('Credenciais invalidas.')
+        ;(erro as Error & { status: number }).status = 401
+        throw erro
+      },
     },
-    refreshAccessToken: async () => ({ access: 'novo' }),
-    obterUsuarioAtual: async () => {
-      const erro = new Error('Credenciais invalidas.')
-      ;(erro as Error & { status: number }).status = 401
-      throw erro
-    },
-  })
+    { accessTokenOverride: accessValido }
+  )
 
   assert.equal(sessao, null)
-  assert.equal(limpouCookies, true)
 })

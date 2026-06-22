@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers'
+import 'server-only'
 
-import { DJANGO_ACCESS_TOKEN_COOKIE } from '../session.ts'
+import { resolverAccessTokenDjangoLeitura } from './resolver-token-servidor.ts'
 
 export class DjangoTokenAusenteError extends Error {
   constructor() {
@@ -12,14 +12,11 @@ export class DjangoTokenAusenteError extends Error {
 }
 
 export async function obterAccessTokenDjango(): Promise<string> {
-  const cookieStore = await cookies()
-  const tokenCookie = cookieStore.get(DJANGO_ACCESS_TOKEN_COOKIE)?.value
-
-  if (tokenCookie) {
-    return tokenCookie
+  const tokenRequest = await resolverAccessTokenDjangoLeitura()
+  if (tokenRequest) {
+    return tokenRequest
   }
 
-  // Somente para testes locais com flag cadastros_reads ligada antes da HU 16.11.
   const devToken = process.env.DJANGO_DEV_ACCESS_TOKEN?.trim()
   if (devToken) {
     return devToken

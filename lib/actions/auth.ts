@@ -83,6 +83,7 @@ export async function entrarAdmin(
 export async function sairAdmin(): Promise<void> {
   if (estaUsandoDjango('auth')) {
     await limparSessaoJwtCookies()
+    redirect('/login')
   }
 
   const supabase = await createClient()
