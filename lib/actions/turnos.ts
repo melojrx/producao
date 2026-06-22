@@ -1409,6 +1409,7 @@ export async function encerrarTurno(
   }
 
   revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/apontamentos')
   revalidatePath('/scanner')
 
   return {

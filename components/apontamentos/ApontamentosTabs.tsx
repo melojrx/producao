@@ -10,32 +10,22 @@ import {
 } from '@/lib/utils/apontamentos-tabs'
 
 interface ApontamentosTabsProps {
-  gestaoMensal: ReactNode
-  operacaoTurno: ReactNode
-  qualidadeTurno: ReactNode
+  conteudoAtivo: ReactNode
   abaInicial?: ApontamentosTabId
 }
 
 export function ApontamentosTabs({
-  gestaoMensal,
-  operacaoTurno,
-  qualidadeTurno,
+  conteudoAtivo,
   abaInicial = 'gestao_mensal',
 }: ApontamentosTabsProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [abaAtiva, setAbaAtiva] = useState<ApontamentosTabId>(abaInicial)
+
   useEffect(() => {
     setAbaAtiva(abaInicial)
   }, [abaInicial])
-
-  const conteudoAtivo =
-    abaAtiva === 'gestao_mensal'
-      ? gestaoMensal
-      : abaAtiva === 'operacao_turno'
-        ? operacaoTurno
-        : qualidadeTurno
 
   const abas: Array<{
     id: ApontamentosTabId
