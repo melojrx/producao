@@ -5,6 +5,9 @@ import {
   getAuthorizationErrorMessage,
   requireAdminUser,
 } from '@/lib/auth/require-admin-user'
+import { criarMetaMensalDjango, editarMetaMensalDjango } from '@/lib/django/actions/metas-mensais'
+import { DjangoApiError } from '@/lib/django/client'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   normalizarCompetenciaMensal,
@@ -96,6 +99,11 @@ function validarInput(input: SalvarMetaMensalInput): { erro?: string; competenci
   return { competencia }
 }
 
+function revalidarPaginasMetaMensal(): void {
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/apontamentos')
+}
+
 export async function criarMetaMensal(
   input: SalvarMetaMensalInput
 ): Promise<MetaMensalActionState> {
@@ -107,6 +115,31 @@ export async function criarMetaMensal(
   const validacao = validarInput(input)
   if (validacao.erro || !validacao.competencia) {
     return { erro: validacao.erro, sucesso: false }
+  }
+
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      const metaMensal = await criarMetaMensalDjango({
+        ...input,
+        competencia: validacao.competencia,
+      })
+      revalidarPaginasMetaMensal()
+
+      return {
+        sucesso: true,
+        metaMensal,
+      }
+    } catch (error) {
+      if (error instanceof DjangoApiError) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      if (error instanceof Error) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      throw error
+    }
   }
 
   const observacao = input.observacao?.trim() ? input.observacao.trim() : null
@@ -136,7 +169,7 @@ export async function criarMetaMensal(
     }
   }
 
-  revalidatePath('/admin/dashboard')
+  revalidarPaginasMetaMensal()
 
   return {
     sucesso: true,
@@ -174,6 +207,31 @@ export async function editarMetaMensal(
   const validacao = validarInput(input)
   if (validacao.erro || !validacao.competencia) {
     return { erro: validacao.erro, sucesso: false }
+  }
+
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      const metaMensal = await editarMetaMensalDjango({
+        ...input,
+        competencia: validacao.competencia,
+      })
+      revalidarPaginasMetaMensal()
+
+      return {
+        sucesso: true,
+        metaMensal,
+      }
+    } catch (error) {
+      if (error instanceof DjangoApiError) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      if (error instanceof Error) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      throw error
+    }
   }
 
   const observacao = input.observacao?.trim() ? input.observacao.trim() : null
@@ -226,7 +284,7 @@ export async function editarMetaMensal(
     }
   }
 
-  revalidatePath('/admin/dashboard')
+  revalidarPaginasMetaMensal()
 
   return {
     sucesso: true,

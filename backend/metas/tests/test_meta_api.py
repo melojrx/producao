@@ -82,3 +82,51 @@ class MetaMensalApiTests(APITestCase):
         self.assertEqual(payload["meta_pecas"], 3000)
         self.assertGreaterEqual(payload["alcancado_mes"], 60)
         self.assertEqual(len(payload["evolucao_diaria"]), 30)
+
+    def test_cria_meta_mensal(self) -> None:
+        response = self.client.post(
+            reverse("meta-mensal-list"),
+            {
+                "competencia": "2026-07-01",
+                "meta_pecas": 2500,
+                "dias_produtivos": 21,
+                "observacao": "Nova meta",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        payload = response.json()
+        self.assertEqual(payload["meta_pecas"], 2500)
+        self.assertEqual(payload["competencia"], "2026-07-01")
+
+    def test_bloqueia_meta_duplicada(self) -> None:
+        response = self.client.post(
+            reverse("meta-mensal-list"),
+            {
+                "competencia": "2026-06-01",
+                "meta_pecas": 2500,
+                "dias_produtivos": 21,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Já existe uma meta mensal", response.json()["detail"])
+
+    def test_edita_meta_mensal(self) -> None:
+        response = self.client.patch(
+            reverse("meta-mensal-detail", args=[self.meta.id]),
+            {
+                "competencia": "2026-06-01",
+                "meta_pecas": 3200,
+                "dias_produtivos": 20,
+                "observacao": "Meta ajustada",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["meta_pecas"], 3200)
+        self.assertEqual(payload["dias_produtivos"], 20)
