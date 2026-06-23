@@ -19,6 +19,8 @@ const FLAGS = [
   'NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES',
 ]
 
+const FLAGS_RUNTIME_SERVIDOR = FLAGS.map((flag) => flag.replace('NEXT_PUBLIC_', 'USE_'))
+
 function parseEnvFile(path) {
   const env = {}
   if (!existsSync(path)) {
@@ -49,8 +51,8 @@ function flagAtiva(env, nome) {
 }
 
 const env = {
-  ...parseEnvFile(resolve(ROOT, '.env.local')),
   ...parseEnvFile(resolve(ROOT, '.env')),
+  ...parseEnvFile(resolve(ROOT, '.env.local')),
 }
 
 let falhas = 0
@@ -65,10 +67,22 @@ for (const flag of FLAGS) {
   }
 }
 
+for (const flag of FLAGS_RUNTIME_SERVIDOR) {
+  const ativa = flagAtiva(env, flag)
+  if (ativa) {
+    console.log(`OK  ${flag} (runtime SSR)`)
+  } else {
+    console.error(`OFF ${flag} (runtime SSR) — adicione ao .env da VPS para corrigir SSR sem rebuild`)
+    falhas += 1
+  }
+}
+
 console.log('')
 if (falhas === 0) {
-  console.log(`MDJ-19 flags: ${FLAGS.length}/${FLAGS.length} ON`)
+  const total = FLAGS.length + FLAGS_RUNTIME_SERVIDOR.length
+  console.log(`MDJ-19 flags: ${total}/${total} ON`)
 } else {
-  console.error(`MDJ-19 flags: ${FLAGS.length - falhas}/${FLAGS.length} ON — cutover incompleto`)
+  const total = FLAGS.length + FLAGS_RUNTIME_SERVIDOR.length
+  console.error(`MDJ-19 flags: ${total - falhas}/${total} ON — cutover incompleto`)
   process.exit(1)
 }

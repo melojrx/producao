@@ -5,6 +5,9 @@ import {
   getAuthorizationErrorMessage,
   requireAdminUser,
 } from '@/lib/auth/require-admin-user'
+import { encerrarTurnoDjango } from '@/lib/django/actions/turnos'
+import { DjangoApiError } from '@/lib/django/client'
+import { estaUsandoDjango } from '@/lib/django/flags'
 import { buscarPlanejamentoTurnoPorId } from '@/lib/queries/turnos'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ABRIR_TURNO_FORM_FIELDS } from '@/lib/utils/turno-formulario'
@@ -1403,9 +1406,21 @@ export async function encerrarTurno(
     return { sucesso: false, erro: 'Nenhum turno aberto foi encontrado para encerramento.' }
   }
 
-  const { erro } = await encerrarTurnoInternamente(turnoAlvoId)
-  if (erro) {
-    return { sucesso: false, erro }
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      await encerrarTurnoDjango(turnoAlvoId)
+    } catch (error) {
+      if (error instanceof DjangoApiError) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      throw error
+    }
+  } else {
+    const { erro } = await encerrarTurnoInternamente(turnoAlvoId)
+    if (erro) {
+      return { sucesso: false, erro }
+    }
   }
 
   revalidatePath('/admin/dashboard')

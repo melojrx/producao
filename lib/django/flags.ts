@@ -1,4 +1,4 @@
-const VALORES_VERDADEIROS_DJANGO = new Set(['1', 'true', 'yes'])
+export const VALORES_VERDADEIROS_DJANGO = new Set(['1', 'true', 'yes'])
 
 export type ModuloDjangoCutover =
   | 'scanner_reads'
@@ -21,6 +21,18 @@ export const FLAG_POR_MODULO: Record<ModuloDjangoCutover, string> = {
   qualidade_writes: 'NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES',
 }
 
+/** Flags server-side (runtime Docker). Corrigem SSR quando NEXT_PUBLIC_* foi embutido OFF no build. */
+export const FLAG_RUNTIME_SERVIDOR_POR_MODULO: Record<ModuloDjangoCutover, string> = {
+  scanner_reads: 'USE_DJANGO_SCANNER_READS',
+  cadastros_reads: 'USE_DJANGO_CADASTROS_READS',
+  metas_reads: 'USE_DJANGO_METAS_READS',
+  dashboard_reads: 'USE_DJANGO_DASHBOARD_READS',
+  auth: 'USE_DJANGO_AUTH',
+  admin_writes: 'USE_DJANGO_ADMIN_WRITES',
+  producao_writes: 'USE_DJANGO_PRODUCAO_WRITES',
+  qualidade_writes: 'USE_DJANGO_QUALIDADE_WRITES',
+}
+
 function lerFlagBooleana(value: string | undefined): boolean {
   if (!value) {
     return false
@@ -30,9 +42,25 @@ function lerFlagBooleana(value: string | undefined): boolean {
   return VALORES_VERDADEIROS_DJANGO.has(normalizado)
 }
 
+function lerFlagModulo(nomeEnv: string | undefined): boolean {
+  return lerFlagBooleana(nomeEnv)
+}
+
+function estaUsandoDjangoNoServidor(modulo: ModuloDjangoCutover): boolean {
+  const flagRuntime = FLAG_RUNTIME_SERVIDOR_POR_MODULO[modulo]
+  if (lerFlagModulo(process.env[flagRuntime])) {
+    return true
+  }
+
+  return lerFlagModulo(process.env[FLAG_POR_MODULO[modulo]])
+}
+
 export function estaUsandoDjango(modulo: ModuloDjangoCutover): boolean {
-  const nomeEnv = FLAG_POR_MODULO[modulo]
-  return lerFlagBooleana(process.env[nomeEnv])
+  if (typeof window === 'undefined') {
+    return estaUsandoDjangoNoServidor(modulo)
+  }
+
+  return lerFlagModulo(process.env[FLAG_POR_MODULO[modulo]])
 }
 
 export function obterFlagsDjangoCutover(): Record<ModuloDjangoCutover, boolean> {

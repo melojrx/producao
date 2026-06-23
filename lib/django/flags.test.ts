@@ -141,3 +141,15 @@ test('deveUsarSupabaseBrowser retorna true quando alguma flag OFF', () => {
   assert.equal(deveUsarSupabaseBrowser(), true)
   restaurarEnvFlags(snapshot)
 })
+
+test('estaUsandoDjango no servidor usa USE_DJANGO_* em runtime quando NEXT_PUBLIC OFF', () => {
+  const snapshot = salvarEnvFlags()
+  limparEnvFlags()
+  process.env.NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS = 'false'
+  process.env.USE_DJANGO_CADASTROS_READS = 'true'
+
+  assert.equal(estaUsandoDjango('cadastros_reads'), true)
+
+  restaurarEnvFlags(snapshot)
+  delete process.env.USE_DJANGO_CADASTROS_READS
+})

@@ -41,6 +41,10 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+echo "==> Validar flags cutover Django (.env)"
+bash scripts/mdj19/sync-runtime-django-flags.sh .env
+node scripts/mdj19/verificar-flags-cutover.mjs
+
 echo "==> Validar compose"
 docker compose -f "${COMPOSE_FILE}" config >/dev/null
 
