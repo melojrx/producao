@@ -19,7 +19,7 @@ const FLAGS = [
   'NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES',
 ]
 
-const FLAGS_RUNTIME_SERVIDOR = FLAGS.map((flag) => flag.replace('NEXT_PUBLIC_', 'USE_'))
+const FLAGS_RUNTIME_SERVIDOR = FLAGS.map((flag) => flag.replace('NEXT_PUBLIC_', ''))
 
 function parseEnvFile(path) {
   const env = {}
