@@ -1,4 +1,8 @@
-import type { RegistrarProducaoOperacaoInput, RegistrarProducaoOperacaoResultado } from '@/lib/actions/producao'
+import type {
+  RegistrarApontamentosSupervisorActionState,
+  RegistrarProducaoOperacaoInput,
+  RegistrarProducaoOperacaoResultado,
+} from '@/lib/actions/producao'
 import { resolverUsuarioDjangoAutenticadoOpcional } from '@/lib/auth/resolver-usuario-django'
 import { djangoFetch } from '../client.ts'
 import { obterAccessTokenDjango } from '../queries/obter-token-servidor.ts'
@@ -93,4 +97,60 @@ export async function registrarProducaoOperacaoDjango(
   }
 
   return mapearResultadoApontamentoDjango(registro, operacao, demanda, turnoOp)
+}
+
+interface LancamentoSupervisorDjango {
+  operadorId: string
+  turnoSetorOperacaoId: string
+  quantidade: number
+}
+
+function montarMensagemApontamentosSupervisor(
+  totalLancamentos: number,
+  ultimoResultado: RegistrarProducaoOperacaoResultado
+): string {
+  const quantidadeSecao = ultimoResultado.quantidadeRealizadaSecao ?? 0
+  const saldoSecao = ultimoResultado.saldoRestanteSecao ?? 0
+
+  return `${totalLancamentos} lançamento(s) registrados. Seção com ${quantidadeSecao} unidade(s) consolidadas e saldo ${saldoSecao}.`
+}
+
+export async function registrarApontamentosSupervisorDjango(
+  lancamentos: LancamentoSupervisorDjango[]
+): Promise<RegistrarApontamentosSupervisorActionState> {
+  const usuarioDjangoId = await resolverUsuarioDjangoAutenticadoOpcional()
+  if (!usuarioDjangoId) {
+    return { sucesso: false, erro: 'Sua sessão expirou. Faça login novamente.' }
+  }
+
+  let ultimoResultado: RegistrarProducaoOperacaoResultado | null = null
+
+  for (const lancamento of lancamentos) {
+    try {
+      ultimoResultado = await registrarProducaoOperacaoDjango({
+        operadorId: lancamento.operadorId,
+        turnoSetorOperacaoId: lancamento.turnoSetorOperacaoId,
+        quantidade: lancamento.quantidade,
+        origemApontamento: 'supervisor_manual',
+        usuarioSistemaId: usuarioDjangoId,
+      })
+    } catch (error) {
+      return {
+        sucesso: false,
+        erro: mapearErroAcaoProducaoDjango(error),
+      }
+    }
+  }
+
+  if (!ultimoResultado) {
+    return {
+      sucesso: false,
+      erro: 'Não foi possível registrar os apontamentos do supervisor.',
+    }
+  }
+
+  return {
+    sucesso: true,
+    mensagem: montarMensagemApontamentosSupervisor(lancamentos.length, ultimoResultado),
+  }
 }

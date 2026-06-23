@@ -3,7 +3,6 @@ import test from 'node:test'
 
 import { DjangoApiError } from '../client.ts'
 import {
-  APONTAMENTO_SUPERVISOR_LOTE_SEM_EQUIVALENTE_DJANGO,
   construirPayloadApontamentoDjango,
   mapearErroAcaoProducaoDjango,
   mapearResultadoApontamentoDjango,
@@ -102,8 +101,4 @@ test('mapearResultadoApontamentoDjango enriquece agregados quando disponiveis', 
   assert.equal(resultado.saldoRestanteSecao, 20)
   assert.equal(resultado.quantidadeRealizadaTurnoOp, 30)
   assert.equal(resultado.statusTurnoOp, 'em_andamento')
-})
-
-test('batch supervisor permanece deferido para Supabase', () => {
-  assert.equal(APONTAMENTO_SUPERVISOR_LOTE_SEM_EQUIVALENTE_DJANGO, true)
 })

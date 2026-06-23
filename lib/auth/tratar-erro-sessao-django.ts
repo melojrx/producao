@@ -1,11 +1,13 @@
 import 'server-only'
 
 import { redirect } from 'next/navigation'
+import { deveRedirecionarSessaoDjangoExpirada } from '@/lib/auth/deve-redirecionar-sessao-django'
 import { resolverAccessTokenDjangoLeitura } from '@/lib/django/queries/resolver-token-servidor'
-import { DjangoTokenAusenteError } from '@/lib/django/queries/obter-token-servidor'
+
+export { deveRedirecionarSessaoDjangoExpirada } from '@/lib/auth/deve-redirecionar-sessao-django'
 
 export function redirecionarSeSessaoDjangoExpirada(error: unknown): never {
-  if (error instanceof DjangoTokenAusenteError) {
+  if (deveRedirecionarSessaoDjangoExpirada(error)) {
     redirect('/login?erro=sessao-expirada')
   }
 

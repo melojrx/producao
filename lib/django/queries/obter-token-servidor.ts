@@ -1,15 +1,9 @@
 import 'server-only'
 
+import { DjangoTokenAusenteError } from '../errors.ts'
 import { resolverAccessTokenDjangoLeitura } from './resolver-token-servidor.ts'
 
-export class DjangoTokenAusenteError extends Error {
-  constructor() {
-    super(
-      'Login Django necessario: token JWT ausente. Configure o cookie django_access_token (HU 16.11) ou DJANGO_DEV_ACCESS_TOKEN apenas em desenvolvimento.'
-    )
-    this.name = 'DjangoTokenAusenteError'
-  }
-}
+export { DjangoTokenAusenteError } from '../errors.ts'
 
 export async function obterAccessTokenDjango(): Promise<string> {
   const tokenRequest = await resolverAccessTokenDjangoLeitura()

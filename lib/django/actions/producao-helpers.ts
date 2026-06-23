@@ -146,6 +146,3 @@ export function mapearErroAcaoProducaoDjango(error: unknown): string {
 
   return 'Não foi possível registrar a produção na operação da demanda do setor.'
 }
-
-/** MDJ-10 não expõe batch supervisor — registrarApontamentosSupervisor permanece Supabase. */
-export const APONTAMENTO_SUPERVISOR_LOTE_SEM_EQUIVALENTE_DJANGO = true

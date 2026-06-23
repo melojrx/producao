@@ -5,7 +5,7 @@ import {
   getAuthorizationErrorMessage,
   requireAdminUser,
 } from '@/lib/auth/require-admin-user'
-import { encerrarTurnoDjango } from '@/lib/django/actions/turnos'
+import { abrirTurnoDjango, encerrarTurnoDjango } from '@/lib/django/actions/turnos'
 import { DjangoApiError } from '@/lib/django/client'
 import { estaUsandoDjango } from '@/lib/django/flags'
 import { buscarPlanejamentoTurnoPorId } from '@/lib/queries/turnos'
@@ -1062,9 +1062,35 @@ export async function abrirTurno(
 
     numerosOp.add(numeroOp)
 
-    const { erro: erroProduto } = await validarProdutoPlanejado(op.produtoId)
-    if (erroProduto) {
-      return { sucesso: false, erro: erroProduto }
+    if (!estaUsandoDjango('admin_writes')) {
+      const { erro: erroProduto } = await validarProdutoPlanejado(op.produtoId)
+      if (erroProduto) {
+        return { sucesso: false, erro: erroProduto }
+      }
+    }
+  }
+
+  if (estaUsandoDjango('admin_writes')) {
+    try {
+      const planejamento = await abrirTurnoDjango(input)
+      revalidatePath('/admin/dashboard')
+      revalidatePath('/admin/apontamentos')
+      revalidatePath('/scanner')
+
+      return {
+        sucesso: true,
+        data: planejamento,
+      }
+    } catch (error) {
+      if (error instanceof DjangoApiError) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      if (error instanceof Error) {
+        return { sucesso: false, erro: error.message }
+      }
+
+      throw error
     }
   }
 

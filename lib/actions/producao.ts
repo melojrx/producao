@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import {
   mapearErroAcaoProducaoDjango,
+  registrarApontamentosSupervisorDjango,
   registrarProducaoOperacaoDjango,
 } from '@/lib/django/actions/producao'
 import { estaUsandoDjango } from '@/lib/django/flags'
@@ -306,8 +307,7 @@ export async function registrarProducaoOperacao(
 }
 
 /**
- * Batch supervisor (RPC registrar_producao_supervisor_em_lote).
- * MDJ-10 não expõe equivalente Django — permanece Supabase mesmo com producao_writes=true.
+ * Batch supervisor — Django: sequência de POST /producao/apontamentos/ por lançamento.
  */
 export async function registrarApontamentosSupervisor(
   _previousState: RegistrarApontamentosSupervisorActionState,
@@ -326,6 +326,19 @@ export async function registrarApontamentosSupervisor(
       sucesso: false,
       erro: parsedLancamentos.erro ?? 'Não foi possível validar os lançamentos informados.',
     }
+  }
+
+  if (estaUsandoDjango('producao_writes')) {
+    const resultado = await registrarApontamentosSupervisorDjango(parsedLancamentos.data)
+
+    if (resultado.sucesso) {
+      revalidatePath('/admin/apontamentos')
+      revalidatePath('/admin/dashboard')
+      revalidatePath('/admin/relatorios')
+      revalidatePath('/scanner')
+    }
+
+    return resultado
   }
 
   const supabaseServer = await createClient()
