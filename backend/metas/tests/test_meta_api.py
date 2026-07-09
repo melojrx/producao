@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from django.test import override_settings
 from django.urls import reverse
@@ -10,6 +10,8 @@ from accounts.tests.support import criar_usuario_supervisor
 from metas.models import MetaMensal
 from produtos.models import Produto
 from turnos.models import Turno, TurnoOp, TurnoSetor, TurnoSetorDemanda
+
+DJANGO_DATETIME_AWARE_JUNHO_2026 = timezone.make_aware(datetime(2026, 6, 15, 10, 0, 0))
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
@@ -28,7 +30,7 @@ class MetaMensalApiTests(APITestCase):
         produto = Produto.objects.create(codigo="REF-100", nome="Camisa Polo", tp_produto_min="10.0000")
         turno = Turno.objects.create(
             status=Turno.Status.ABERTO,
-            data_hora_abertura=timezone.now(),
+            data_hora_abertura=DJANGO_DATETIME_AWARE_JUNHO_2026,
             operadores_disponiveis=10,
             minutos_turno=480,
         )
