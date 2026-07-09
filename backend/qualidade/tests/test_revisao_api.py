@@ -37,7 +37,6 @@ class RevisaoQualidadeOperacionalApiTests(APITestCase):
         )
         self.produto = Produto.objects.create(codigo="PROD-QUAL", nome="Produto Qualidade")
         self.revisor = User.objects.create_user(
-            username="revisor",
             email="revisor@test.com",
             password="senha-teste",
             papel=User.Papel.SUPERVISOR,
@@ -45,7 +44,6 @@ class RevisaoQualidadeOperacionalApiTests(APITestCase):
             pode_revisar_qualidade=True,
         )
         self.outro_revisor = User.objects.create_user(
-            username="outro-revisor",
             email="outro-revisor@test.com",
             password="senha-teste",
             papel=User.Papel.SUPERVISOR,
@@ -156,7 +154,6 @@ class RevisaoQualidadeOperacionalApiTests(APITestCase):
 
     def test_bloqueia_supervisor_sem_permissao_de_revisar_qualidade(self) -> None:
         supervisor_sem_permissao = User.objects.create_user(
-            username="supervisor-sem-qualidade",
             email="supervisor-sem-qualidade@test.com",
             password="senha-teste",
             papel=User.Papel.SUPERVISOR,

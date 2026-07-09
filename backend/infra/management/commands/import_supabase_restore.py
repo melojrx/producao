@@ -154,7 +154,6 @@ class Command(BaseCommand):
             user, _created = User.objects.update_or_create(
                 id=row["id"],
                 defaults={
-                    "username": email,
                     "email": email,
                     "nome": row.get("nome") or "",
                     "papel": normalize_user_papel(row.get("papel")),

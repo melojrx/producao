@@ -1,3 +1,4 @@
+from django.contrib.auth import authenticate
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -9,12 +10,35 @@ from accounts.tests.support import criar_usuario_admin, criar_usuario_supervisor
 
 
 class AutenticarUsuarioAdministrativoTests(TestCase):
+    def test_modelo_usa_email_como_campo_de_login(self) -> None:
+        self.assertEqual(User.USERNAME_FIELD, "email")
+
+    def test_sincroniza_username_legado_com_email(self) -> None:
+        usuario = criar_usuario_supervisor(email="Sup@Example.com", senha="senha-123")
+
+        self.assertEqual(usuario.email, "sup@example.com")
+        self.assertEqual(usuario.username, "sup@example.com")
+
     def test_autentica_supervisor_ativo(self) -> None:
         usuario = criar_usuario_supervisor(email="sup@example.com", senha="senha-123")
 
         autenticado = autenticar_usuario_administrativo(email="sup@example.com", senha="senha-123")
 
         self.assertEqual(autenticado.id, usuario.id)
+
+    def test_autentica_por_email_mesmo_com_username_legado_divergente(self) -> None:
+        usuario = criar_usuario_supervisor(email="legado@example.com", senha="senha-123")
+        User.objects.filter(id=usuario.id).update(username="admin-legado")
+
+        autenticado_django = authenticate(email="legado@example.com", password="senha-123")
+        autenticado_servico = autenticar_usuario_administrativo(
+            email="legado@example.com",
+            senha="senha-123",
+        )
+
+        self.assertIsNotNone(autenticado_django)
+        self.assertEqual(autenticado_django.id, usuario.id)
+        self.assertEqual(autenticado_servico.id, usuario.id)
 
     def test_bloqueia_usuario_inativo(self) -> None:
         usuario = criar_usuario_supervisor(email="inativo@example.com", senha="senha-123")

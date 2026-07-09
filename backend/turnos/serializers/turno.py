@@ -28,7 +28,7 @@ class TurnoSerializer(serializers.ModelSerializer):
 class TurnoDetailSerializer(serializers.ModelSerializer):
     """Serializer para Turno com recursos aninhados."""
 
-    encerrado_por_nome = serializers.CharField(source="encerrado_por.username", read_only=True, allow_null=True)
+    encerrado_por_nome = serializers.CharField(source="encerrado_por.identificacao", read_only=True, allow_null=True)
 
     class Meta:
         from turnos.models import Turno

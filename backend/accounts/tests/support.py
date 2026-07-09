@@ -7,7 +7,6 @@ def criar_usuario_admin(*, email: str = "admin@test.com", senha: str = "senha-te
     usuario, _created = User.objects.get_or_create(
         email=email,
         defaults={
-            "username": email,
             "nome": "Admin Teste",
             "papel": User.Papel.ADMIN,
             "ativo": True,
@@ -32,7 +31,6 @@ def criar_usuario_supervisor(
     usuario, _created = User.objects.get_or_create(
         email=email,
         defaults={
-            "username": email,
             "nome": "Supervisor Teste",
             "papel": User.Papel.SUPERVISOR,
             "ativo": True,

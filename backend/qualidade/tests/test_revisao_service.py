@@ -46,7 +46,7 @@ class RevisaoQualidadeServiceTests(TestCase):
         )
         self.produto = Produto.objects.create(codigo="PROD-QUAL", nome="Produto Qualidade")
         self.revisor = User.objects.create_user(
-            username="revisor-qualidade",
+            email="revisor-qualidade@test.com",
             password="senha-teste",
             pode_revisar_qualidade=True,
         )

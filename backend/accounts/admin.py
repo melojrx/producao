@@ -6,7 +6,8 @@ from accounts.models import Operador, User
 
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
-    fieldsets = DjangoUserAdmin.fieldsets + (
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
         (
             "Perfil administrativo",
             {
@@ -19,16 +20,35 @@ class UserAdmin(DjangoUserAdmin):
                 )
             },
         ),
-    )
-    add_fieldsets = DjangoUserAdmin.add_fieldsets + (
         (
-            "Perfil administrativo",
+            "Permissões",
             {
                 "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("Datas importantes", {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "password1",
+                    "password2",
                     "nome",
                     "papel",
                     "pode_revisar_qualidade",
                     "ativo",
+                    "is_staff",
+                    "is_superuser",
                 )
             },
         ),
@@ -43,7 +63,7 @@ class UserAdmin(DjangoUserAdmin):
         "is_staff",
     ]
     list_filter = ["papel", "ativo", "is_active", "pode_revisar_qualidade"]
-    search_fields = ["email", "nome", "username"]
+    search_fields = ["email", "nome"]
     ordering = ["email"]
 
 

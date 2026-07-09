@@ -49,7 +49,7 @@ class QualidadeDetalheSerializer(serializers.ModelSerializer):
 class QualidadeRegistroSerializer(serializers.ModelSerializer):
     """Serializer para QualidadeRegistro - revisao de qualidade."""
 
-    revisor_nome = serializers.CharField(source="revisor.username", read_only=True)
+    revisor_nome = serializers.CharField(source="revisor.identificacao", read_only=True)
     turno_status = serializers.CharField(source="turno.status", read_only=True, allow_null=True)
     numero_op = serializers.CharField(source="turno_op.numero_op", read_only=True)
     operacao_nome = serializers.CharField(source="turno_setor_operacao.operacao.descricao", read_only=True, allow_null=True)

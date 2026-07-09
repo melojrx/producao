@@ -84,7 +84,7 @@ class QualidadeDefeitoServiceTests(TestCase):
         self.assertTrue(QualidadeDefeito.objects.filter(id=defeito.id).exists())
 
     def _criar_historico_qualidade(self, defeito: QualidadeDefeito) -> None:
-        usuario = User.objects.create_user(username="revisor", password="senha-teste")
+        usuario = User.objects.create_user(email="revisor@test.com", password="senha-teste")
         setor = Setor.objects.create(codigo="QUAL", nome="Qualidade")
         operacao = Operacao.objects.create(
             codigo="OP-QUAL",

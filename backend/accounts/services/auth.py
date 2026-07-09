@@ -14,7 +14,7 @@ def autenticar_usuario_administrativo(*, email: str, senha: str) -> User:
     if not email_normalizado or not senha:
         raise AuthServiceError("Email e senha são obrigatórios.")
 
-    usuario = authenticate(username=email_normalizado, password=senha)
+    usuario = authenticate(email=email_normalizado, password=senha)
     if usuario is None:
         usuario = User.objects.filter(email__iexact=email_normalizado).first()
         if usuario is None or not usuario.check_password(senha):
