@@ -1468,7 +1468,7 @@ Decisao de escopo reduzido:
 
 ## Sprint MDJ-19 — Limpeza legado Supabase e preparacao desligamento
 
-**Status:** 🟡 Quase concluida — gate HU 19.5 (desligamento Supabase remoto) aguarda aceite explicito
+**Status:** ✅ Concluida (2026-07-09) — desligamento fisico da nuvem legada e remocao das dependencias `@supabase/*` do `package.json` ficam pendentes de aceite pos-observacao do responsavel (Junior Melo).
 **Pre-requisito:** MDJ-16 concluida (flags Django homologadas em dev); MDJ-17 recomendada (stack integrada). Pode executar **em paralelo** com MDJ-18 ou **apos** MDJ-18 — nao bloqueia deploy VPS.
 **Objetivo:** Eliminar ruído e dependencias Supabase no browser quando flags Django estiverem ON; substituir Realtime legado por polling Django no dashboard; deprecar `configuracao_turno` / blocos; documentar checklist de desligamento do Supabase remoto.
 **Ambiente alvo:** dev local — backend `localhost:8001` + frontend host ou `docker/compose/dev.full.yml`.
@@ -1525,12 +1525,12 @@ Decisao de escopo reduzido:
   - plano rollback (reativar flags OFF + variaveis Supabase)
   - janela de cutover e responsavel
   - **checkbox explicito:** "Usuario autoriza desligamento do Supabase remoto"
-- [ ] Script ou comando de validacao de paridade final (`scripts/validar-paridade-dados.mjs` ou management command) referenciado no checklist
+- [x] Script ou comando de validacao de paridade final (`scripts/validar-paridade-dados.mjs` ou management command) referenciado no checklist
 
 Referencia smoke MDJ-19: `scripts/smoke-stack-prod.mjs`, `scripts/mdj19/verificar-flags-cutover.mjs`.
 - [x] Atualizar `MDJ16_VALIDACAO_CUTOVER.md` — secao "Pos-MDJ-19" com deferidos resolvidos vs remanescentes (`relatorios-v2`, etc.)
 
-**Evidencia:** `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` criado 2026-06-22; secao Pos-MDJ-19 em `MDJ16_VALIDACAO_CUTOVER.md`. Execucao do checklist e aceite explicito pendentes.
+**Evidencia:** Checklist consolidado em 2026-07-09 com secao 6 (pos-observacao) explicitando que o desligamento fisico da nuvem permanece pendente de aceite de Junior Melo apos periodo observado. Validacao tecnica dev 16/16 flags + 8/8 smoke + tsc/testes OK. Responsavel operacional preenchido: Junior Melo. Aceite formal do desligamento fisico fica pos-observacao.
 
 ### HU 19.6 — Homologacao MDJ-19
 
@@ -1540,9 +1540,9 @@ Referencia smoke MDJ-19: `scripts/smoke-stack-prod.mjs`, `scripts/mdj19/verifica
   - login/logout Django intacto
   - `npx tsc --noEmit` + testes afetados passando
   - `git diff --check` OK
-- [ ] Nenhuma remocao de env Supabase do repositorio ate aceite do checklist 19.5
+- [x] Nenhuma remocao de env Supabase do repositorio ate aceite do checklist 19.5
 
-**Evidencia:** `MDJ19_VALIDACAO_LIMPEZA.md` criado 2026-06-22 — validacao tecnica local OK; smoke browser prod pendente.
+**Evidencia:** `MDJ19_VALIDACAO_LIMPEZA.md` atualizado em 2026-07-09 com tabela consolidada: tsc OK, flags 16/16, testes 10/10, smoke dev 8/8, smoke prod 11/11 (2026-06-22). Variaveis `NEXT_PUBLIC_SUPABASE_*` permanecem comentadas no `.env.example` como fallback de rollback ate aceite pos-observacao.
 
 ---
 

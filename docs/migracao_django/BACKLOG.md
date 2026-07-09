@@ -28,7 +28,7 @@
 | MDJ-16 | Cutover controlado por modulo (dev local) | ✅ Concluida (2026-06-17) | Feature flags + frontend apontando para Django em dev (`localhost:8001`) com fallback Supabase; relatorio `MDJ16_VALIDACAO_CUTOVER.md` |
 | MDJ-17 | Stack Docker dev integrada | ✅ Concluida (2026-06-17) | Compose modular: `docker/compose/dev.full.yml` + wrappers raiz — `MDJ17_VALIDACAO_STACK_DEV.md`, `MDJ17_DOCKER_AUDIT.md` |
 | MDJ-18 | VPS, dominio e producao | ✅ Concluida (pre-deploy) | Compose prod Docker (back+front+db+nginx), `producao.costurai.com.br`, `MDJ18_VALIDACAO_PRODUCAO.md` |
-| MDJ-19 | Limpeza legado Supabase e preparacao desligamento | 🟡 **Em andamento** | HU 19.1–19.3 parcial; checklist criado; desligamento remoto aguarda aceite HU 19.5 |
+| MDJ-19 | Limpeza legado Supabase e preparacao desligamento | ✅ **Concluida** (2026-07-09) | HU 19.1-19.6 concluidas; desligamento fisico da nuvem e remocao de `@supabase/*` do `package.json` ficam pendentes de aceite pos-observacao de Junior Melo |
 | MDJ-20 | Migracao de dados producao (snapshot congelado) | ✅ Concluida | Import one-shot 2026-06-19 — ver `MDJ20_VALIDACAO_IMPORTACAO_PRODUCAO.md` |
 | MDJ-21 | Deploy VPS producao | ✅ Concluida | Stack em `38.52.128.62`, TLS e smoke publico — ver `MDJ21_VALIDACAO_DEPLOY_VPS.md`; backup manual segue pendencia operacional |
 
@@ -52,17 +52,17 @@ Arquitetura alvo (visao de longo prazo):
 | **B — Stack integrada** | MDJ-17 | ✅ Concluida (2026-06-17) | Compose modular dev: `docker/compose/dev.full.yml`. |
 | **C — Producao** | MDJ-18 + MDJ-21 | ✅ Concluida | MDJ-18 entregou compose prod; MDJ-21 executou deploy em `producao.costurai.com.br`. Media em volume local — **S3 fora de escopo**. |
 | **D — Dados producao** | MDJ-20 | ✅ Concluida | Snapshot congelado (backup ja feito; zero dados novos) → Postgres prod + midia + paridade. |
-| **E — Pos-cutover** | MDJ-19 | 🟡 Em andamento | Guards browser ✅; polling dashboard ✅ parcial; HU 19.4–19.6 abertas; checklist desligamento documentado. |
+| **E — Pos-cutover** | MDJ-19 | ✅ Concluida (2026-07-09) | Guards browser, polling dashboard, deprecacao legado e checklist final; desligamento fisico da nuvem fica pós-observação. |
 
-**Regras atuais (jun/2026):**
+**Regras atuais (jul/2026):**
 
-- **Proximo marco:** concluir MDJ-19 (HU 19.4–19.6) e executar checklist desligamento Supabase com aceite explicito.
+- **Proximo marco:** periodo de observacao em producao; depois disso, desligamento fisico da nuvem legada e remocao de `@supabase/*` do `package.json` (sprint futura pos-aceite de Junior Melo).
 - Visao consolidada: `ESTADO_ATUAL.md`.
-- **Flags Django ON** em producao desde 2026-06-19 apos MDJ-20; desligamento Supabase remoto ainda exige checklist e aceite explicito.
+- **Flags Django ON** em producao desde 2026-06-19 apos MDJ-20; nuvem legada permanece intacta em standby.
 - Storage de imagens: volume Docker local (`media_data`), como na MDJ-14.
 - **S3 fora de escopo** ate nova decisao explicita.
 - Dev: `npm run dev` + compose dev **ou** `npm run dev:docker`.
-- Backup Supabase **congelado** — sem novos dados desde o backup; importacao MDJ-20 e one-shot.
+- Snapshot congelado (backup 2026-05-31); importacao MDJ-20 e one-shot.
 
 Arquitetura alvo (referencia):
 

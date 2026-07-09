@@ -158,18 +158,20 @@ Visao consolidada: `ESTADO_ATUAL.md`.
 
 ---
 
-## Pos-MDJ-19 — deferidos resolvidos vs remanescentes (2026-06-22)
+## Pos-MDJ-19 — deferidos resolvidos vs remanescentes (atualizado 2026-07-09)
 
 | Deferido MDJ-16 | Status pos-MDJ-19 | Observacao |
 |---|---|---|
 | `relatorios-v2.ts` Supabase | ✅ Resolvido | Cutover Django em prod (2026-06-20) |
-| Realtime dashboard V2 | 🟡 Parcial | Polling Django quando `DASHBOARD_READS` ON (HU 19.3) |
+| Realtime dashboard V2 | ✅ Resolvido | Polling Django quando `DASHBOARD_READS` ON (HU 19.3) |
 | Auth SSR JWT cookies | ✅ Resolvido | Fix refresh sem mutar cookies RSC (2026-06-22, commit `e55292b`) |
-| `turnos-client.ts` Supabase | 🟡 Remanescente | Fallback quando polling OFF; meta-grupo ainda Supabase |
-| `registrarApontamentosSupervisor` batch | ⏳ Pos-MDJ-19 | Endpoint batch Django futuro |
-| `registrarProducao` legado V1 | ⏳ HU 19.4 | Deprecar fluxo `configuracao_turno` |
-| `MonitorRealtimeProducao` | ⏳ HU 19.4 | Isolar do dashboard principal |
-| Eficiencia/qualidade operacional vazios path Django | 🟡 Remanescente | Mapper Django parcial |
+| `turnos-client.ts` Supabase | ✅ Resolvido | Guard + fallback apenas para rollback; path Django e padrao com flags ON |
+| `registrarApontamentosSupervisor` batch | 🟡 Remanescente | Endpoint batch Django futuro (nao bloqueante) |
+| `registrarProducao` legado V1 | ✅ Resolvido | Fluxo `configuracao_turno` deprecado (HU 19.4) |
+| `MonitorRealtimeProducao` | ✅ Resolvido | Isolado do dashboard principal (HU 19.4) |
+| Eficiencia/qualidade operacional vazios path Django | 🟡 Remanescente | Mapper Django parcial (nao bloqueante para MDJ-19) |
+| Desligamento fisico da nuvem legada | ⏸️ Pos-observacao | Gate no `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md` secao 6 — pendente aceite de Junior Melo |
+| Remocao `@supabase/*` do `package.json` | ⏸️ Pos-observacao | Sprint futura pos-aceite |
 
 Inventario completo: `MDJ19_INVENTARIO_SUPABASE_BROWSER.md`. Gate desligamento: `MDJ19_CHECKLIST_DESLIGAMENTO_SUPABASE.md`.
 
