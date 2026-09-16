@@ -59,9 +59,22 @@ docker exec producao-prod-backend-1 du -sb /app/media
 | Marco | Data/hora | Evidência agregada | Resultado |
 | --- | --- | --- | --- |
 | Homologação do Swarm | Pendente | serviços, health, static e media | — |
-| Backup e restore ensaiado | Pendente | hashes, migrations, tabelas e mídia | — |
+| Backup e restore ensaiado | 2026-09-16 12:01 UTC | dump e mídia validados; 29 tabelas, 26 migrations, 41 arquivos, 7.287.585 bytes | Aprovado |
 | Cutover público | Pendente | domínio, fluxo autenticado e rollback | — |
 | Parada reversível da VPS | Pendente | containers parados e volumes presentes | — |
+
+### Evidência do restore ensaiado
+
+- Snapshot VPS: `20260916T120152Z`; dump PostgreSQL custom e arquivo de mídia
+  validados antes da transferência.
+- SHA-256 do dump: `db5ae8fff257d9d56b5b877b8fc72885a21a7474d5e4cb734d353c577b3975fa`.
+- SHA-256 da mídia: `565db510d6bf42c9a2cb24576b02fcd46fde98e5495200e02c19583ced2a35b4`.
+- Restore isolado em `producao_restore_postgres_data` e
+  `producao_restore_media`: 29 tabelas de usuário, 26 migrations, 41 arquivos
+  e 7.287.585 bytes reais de mídia, iguais à fonte no momento do snapshot.
+
+Os volumes e o container temporários foram mantidos para inspeção. Eles não são
+o destino definitivo e não foram expostos por Traefik, Tunnel ou DNS.
 
 ## Rollback
 
