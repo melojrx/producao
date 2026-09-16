@@ -6,6 +6,8 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
+from pcp_project.media_views import serve_media
+
 
 def healthcheck(_request):
     from django.db import connection
@@ -40,3 +42,5 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+elif getattr(settings, "SERVE_MEDIA_FILES", False):
+    urlpatterns += [path("media/<path:path>", serve_media, name="serve_media")]
