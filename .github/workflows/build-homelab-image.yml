@@ -66,6 +66,6 @@ jobs:
 
       - name: Stage release only
         run: |
-          sh scripts/deploy-homelab.sh --stage-only \
+          sudo /usr/local/sbin/stage-producao-release \
             "ghcr.io/melojrx/producao-backend@${{ needs.publish.outputs.backend_digest }}" \
             "ghcr.io/melojrx/producao-frontend@${{ needs.publish.outputs.frontend_digest }}"

@@ -2,14 +2,15 @@
 set -eu
 
 PRODUCAO_ROOT='/srv/producao'
-release_directory=${1:?Usage: deploy-producao <release-directory> <backend-digest> <frontend-digest>}
-backend_image=${2:?Usage: deploy-producao <release-directory> <backend-digest> <frontend-digest>}
-frontend_image=${3:?Usage: deploy-producao <release-directory> <backend-digest> <frontend-digest>}
+CONTROLLER='/usr/local/lib/producao/deploy-stack.sh'
+release_directory=${1:?Usage: deploy-producao <release-directory>}
 
 case "$release_directory" in "$PRODUCAO_ROOT"/releases/sha256-*) ;; *) printf '%s\n' 'Invalid release directory.' >&2; exit 1 ;; esac
-[ -r "$release_directory/scripts/homelab/deploy-stack.sh" ] || { printf '%s\n' 'Release controller is not readable.' >&2; exit 1; }
+[ "$#" -eq 1 ] || { printf '%s\n' 'Usage: deploy-producao <release-directory>' >&2; exit 1; }
+[ -x "$CONTROLLER" ] || { printf '%s\n' 'Root-owned deploy controller is not executable.' >&2; exit 1; }
+[ -r "$release_directory/images.env" ] || { printf '%s\n' 'Release images are not readable.' >&2; exit 1; }
 if find "$release_directory" -xdev \( ! -user root -o -perm /022 \) -print -quit | grep -q .; then
   printf '%s\n' 'Release contents must be root-owned and not group/world writable.' >&2
   exit 1
 fi
-exec "$release_directory/scripts/homelab/deploy-stack.sh" "$release_directory" "$backend_image" "$frontend_image"
+exec "$CONTROLLER" "$release_directory"

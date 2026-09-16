@@ -1,0 +1,14 @@
+[Unit]
+Description=GitHub Actions Runner (melojrx-producao.homelab-producao-deploy)
+After=network-online.target
+
+[Service]
+ExecStart=/opt/actions-runner-producao/runsvc.sh
+User=runner-producao
+WorkingDirectory=/opt/actions-runner-producao
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+
+[Install]
+WantedBy=multi-user.target

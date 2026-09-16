@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+
+PRODUCAO_ROOT='/srv/producao'
+
+validate_producao_image() {
+  component=$1
+  image_reference=$2
+  case "$component" in backend|frontend) ;; *) printf 'Invalid component: %s\n' "$component" >&2; exit 1 ;; esac
+
+  prefix="ghcr.io/melojrx/producao-$component@sha256:"
+  case "$image_reference" in "$prefix"*) digest=${image_reference#"$prefix"} ;; *) printf 'Invalid image reference: %s\n' "$image_reference" >&2; exit 1 ;; esac
+  case "$digest" in ''|*[!0123456789abcdef]*) printf 'Invalid image reference: %s\n' "$image_reference" >&2; exit 1 ;; esac
+  [ "${#digest}" -eq 64 ] || { printf 'Invalid image reference: %s\n' "$image_reference" >&2; exit 1; }
+}
+
+[ "$#" -eq 2 ] || { printf '%s\n' 'Usage: stage-producao <backend-digest> <frontend-digest>' >&2; exit 1; }
+backend_image=$1
+frontend_image=$2
+
+validate_producao_image backend "$backend_image"
+validate_producao_image frontend "$frontend_image"
+
+backend_digest=${backend_image#ghcr.io/melojrx/producao-backend@sha256:}
+frontend_digest=${frontend_image#ghcr.io/melojrx/producao-frontend@sha256:}
+release_directory="$PRODUCAO_ROOT/releases/sha256-$backend_digest-$frontend_digest"
+
+install -d -m 0750 -o root -g root "$release_directory"
+rm -rf "$release_directory/deploy" "$release_directory/scripts"
+umask 027
+printf 'PRODUCAO_BACKEND_IMAGE=%s\nPRODUCAO_FRONTEND_IMAGE=%s\n' "$backend_image" "$frontend_image" > "$release_directory/images.env"
+chown root:root "$release_directory/images.env"
+chmod 0640 "$release_directory/images.env"
+
+printf '%s\n' "Release staged at $release_directory"

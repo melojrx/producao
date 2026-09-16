@@ -1,0 +1,1 @@
+runner-producao ALL=(root) NOPASSWD: /usr/local/sbin/stage-producao-release *
