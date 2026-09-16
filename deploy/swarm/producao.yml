@@ -1,0 +1,161 @@
+version: "3.8"
+
+x-placement: &homelab-placement
+  constraints:
+    - node.hostname == homelab
+
+x-update: &safe-update
+  parallelism: 1
+  order: start-first
+  delay: 10s
+  monitor: 60s
+  failure_action: rollback
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pcp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-pcp_user}
+      POSTGRES_PASSWORD_FILE: /run/secrets/producao_postgres_password
+    secrets:
+      - producao_postgres_password
+    networks:
+      - producao_backend
+    volumes:
+      - producao_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement: *homelab-placement
+
+  migrate:
+    image: ${PRODUCAO_BACKEND_IMAGE:?set PRODUCAO_BACKEND_IMAGE}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        export DJANGO_SECRET_KEY="$$(cat /run/secrets/producao_django_secret_key)"
+        export POSTGRES_PASSWORD="$$(cat /run/secrets/producao_postgres_password)"
+        exec ./docker-entrypoint-migrate.sh
+    environment: &backend-environment
+      DJANGO_SETTINGS_MODULE: pcp_project.config.production
+      POSTGRES_DB: ${POSTGRES_DB:-pcp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-pcp_user}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?set ALLOWED_HOSTS}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?set CSRF_TRUSTED_ORIGINS}
+      MEDIA_ROOT: /app/media
+      MEDIA_URL: /media/
+      STATIC_ROOT: /app/staticfiles
+      STATIC_URL: /static/
+      SERVE_MEDIA_FILES: "true"
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-true}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-true}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-31536000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    secrets:
+      - producao_django_secret_key
+      - producao_postgres_password
+    networks:
+      - producao_backend
+    volumes:
+      - producao_media:/app/media
+    deploy:
+      replicas: 0
+      restart_policy:
+        condition: none
+      placement: *homelab-placement
+
+  backend:
+    image: ${PRODUCAO_BACKEND_IMAGE:?set PRODUCAO_BACKEND_IMAGE}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        export DJANGO_SECRET_KEY="$$(cat /run/secrets/producao_django_secret_key)"
+        export POSTGRES_PASSWORD="$$(cat /run/secrets/producao_postgres_password)"
+        exec ./docker-entrypoint-web.sh
+    environment: *backend-environment
+    secrets:
+      - producao_django_secret_key
+      - producao_postgres_password
+    networks:
+      - edge
+      - producao_backend
+    volumes:
+      - producao_media:/app/media
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; request=urllib.request.Request('http://127.0.0.1:8000/health/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(request, timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement: *homelab-placement
+      update_config: *safe-update
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=edge
+        - traefik.http.routers.producao-backend.rule=Host(`producao.costurai.com.br`) && (PathPrefix(`/api/v1/`) || PathPrefix(`/django-admin/`) || PathPrefix(`/health/`) || PathPrefix(`/media/`) || PathPrefix(`/static/`))
+        - traefik.http.routers.producao-backend.priority=100
+        - traefik.http.routers.producao-backend.entrypoints=web
+        - traefik.http.middlewares.producao-forwarded-https.headers.customrequestheaders.X-Forwarded-Proto=https
+        - traefik.http.routers.producao-backend.middlewares=producao-forwarded-https
+        - traefik.http.services.producao-backend.loadbalancer.server.port=8000
+
+  frontend:
+    image: ${PRODUCAO_FRONTEND_IMAGE:?set PRODUCAO_FRONTEND_IMAGE}
+    environment:
+      DJANGO_API_URL: http://backend:8000
+    networks:
+      - edge
+      - producao_backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement: *homelab-placement
+      update_config: *safe-update
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=edge
+        - traefik.http.routers.producao-frontend.rule=Host(`producao.costurai.com.br`)
+        - traefik.http.routers.producao-frontend.priority=1
+        - traefik.http.routers.producao-frontend.entrypoints=web
+        - traefik.http.services.producao-frontend.loadbalancer.server.port=3000
+
+volumes:
+  producao_postgres_data:
+  producao_media:
+
+networks:
+  edge:
+    external: true
+  producao_backend:
+    driver: overlay
+    internal: true
+
+secrets:
+  producao_django_secret_key:
+    external: true
+  producao_postgres_password:
+    external: true

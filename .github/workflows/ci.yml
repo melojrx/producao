@@ -42,6 +42,14 @@ jobs:
           docker compose -f docker-compose.dev.yml config >/dev/null
           docker compose -f docker-compose.prod.yml config >/dev/null
 
+      - name: Validar manifests Swarm do Homelab
+        env:
+          PRODUCAO_BACKEND_IMAGE: ghcr.io/melojrx/producao-backend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          PRODUCAO_FRONTEND_IMAGE: ghcr.io/melojrx/producao-frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          ALLOWED_HOSTS: producao.costurai.com.br
+          CSRF_TRUSTED_ORIGINS: https://producao.costurai.com.br
+        run: docker stack config -c deploy/swarm/producao.yml -c deploy/swarm/producao-edge.yml >/dev/null
+
   django-tests:
     name: Django tests
     runs-on: ubuntu-latest

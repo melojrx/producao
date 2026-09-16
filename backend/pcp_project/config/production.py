@@ -72,6 +72,11 @@ DATABASES = {
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media")))  # noqa: F405
 MEDIA_URL = os.environ.get("MEDIA_URL", "/media/")
 MEDIA_BASE_URL = os.environ.get("MEDIA_BASE_URL", "")
+SERVE_MEDIA_FILES = os.environ.get("SERVE_MEDIA_FILES", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 STATIC_ROOT = Path(os.environ.get("STATIC_ROOT", str(BASE_DIR / "staticfiles")))  # noqa: F405
 STATIC_URL = os.environ.get("STATIC_URL", "/static/")

@@ -1,0 +1,71 @@
+name: Build Homelab Images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: producao-homelab-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish immutable GHCR images
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      backend_digest: ${{ steps.backend.outputs.digest }}
+      frontend_digest: ${{ steps.frontend.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          target: web
+          platforms: linux/amd64
+          push: true
+          provenance: true
+          sbom: true
+          tags: ghcr.io/melojrx/producao-backend:${{ github.sha }}
+
+      - id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frontend/Dockerfile.prod
+          platforms: linux/amd64
+          push: true
+          provenance: true
+          sbom: true
+          build-args: |
+            NEXT_PUBLIC_DJANGO_API_URL=https://producao.costurai.com.br
+          tags: ghcr.io/melojrx/producao-frontend:${{ github.sha }}
+
+  promote:
+    name: Stage approved digests on Homelab
+    needs: publish
+    runs-on: [self-hosted, homelab-producao-deploy]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage release only
+        run: |
+          sh scripts/deploy-homelab.sh --stage-only \
+            "ghcr.io/melojrx/producao-backend@${{ needs.publish.outputs.backend_digest }}" \
+            "ghcr.io/melojrx/producao-frontend@${{ needs.publish.outputs.frontend_digest }}"
