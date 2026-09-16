@@ -55,6 +55,14 @@ jobs:
           sbom: true
           build-args: |
             NEXT_PUBLIC_DJANGO_API_URL=https://producao.costurai.com.br
+            NEXT_PUBLIC_USE_DJANGO_SCANNER_READS=true
+            NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS=true
+            NEXT_PUBLIC_USE_DJANGO_METAS_READS=true
+            NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS=true
+            NEXT_PUBLIC_USE_DJANGO_AUTH=true
+            NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES=true
+            NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES=true
+            NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES=true
           tags: ghcr.io/melojrx/producao-frontend:${{ github.sha }}
 
   promote:

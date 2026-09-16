@@ -119,6 +119,14 @@ services:
     image: ${PRODUCAO_FRONTEND_IMAGE:?set PRODUCAO_FRONTEND_IMAGE}
     environment:
       DJANGO_API_URL: http://backend:8000
+      USE_DJANGO_SCANNER_READS: "true"
+      USE_DJANGO_CADASTROS_READS: "true"
+      USE_DJANGO_METAS_READS: "true"
+      USE_DJANGO_DASHBOARD_READS: "true"
+      USE_DJANGO_AUTH: "true"
+      USE_DJANGO_ADMIN_WRITES: "true"
+      USE_DJANGO_PRODUCAO_WRITES: "true"
+      USE_DJANGO_QUALIDADE_WRITES: "true"
     networks:
       - edge
       - producao_backend
