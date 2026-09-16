@@ -10,6 +10,14 @@ chaves privadas ou valores de variáveis de ambiente.
   checkout, `git pull` ou `docker build` da aplicação.
 - O PostgreSQL não é publicado externamente. Dados, mídia, secrets, rede,
   runner e concorrência terão nomes exclusivos iniciados por `producao_`.
+
+O job de staging roda no próprio Homelab e chama exclusivamente
+`/usr/local/sbin/stage-producao-release` via `sudo`. Esse wrapper aceita apenas
+dois digests GHCR e grava apenas esses metadados em `/srv/producao/releases`
+com propriedade `root`; ele não lê nem executa conteúdo do checkout. O runner
+usa uma conta de serviço sem login, com esse único privilégio. O controlador e
+os manifestos de deploy ficam root-owned em `/usr/local/lib/producao`; a
+promoção continua restrita a `/usr/local/sbin/deploy-producao-release`.
 - No destino não haverá Nginx: WhiteNoise entrega `/static/` a partir da
   imagem; o Django entrega `/media/` somente quando `SERVE_MEDIA_FILES=true`.
 - Backup/restauração de produção, mudança de Cloudflare/DNS, corte de tráfego
