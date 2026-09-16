@@ -46,13 +46,26 @@ function lerFlagModulo(nomeEnv: string | undefined): boolean {
   return lerFlagBooleana(nomeEnv)
 }
 
+function obterFlagPublicaDjango(modulo: ModuloDjangoCutover): string | undefined {
+  switch (modulo) {
+    case 'scanner_reads': return process.env.NEXT_PUBLIC_USE_DJANGO_SCANNER_READS
+    case 'cadastros_reads': return process.env.NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS
+    case 'metas_reads': return process.env.NEXT_PUBLIC_USE_DJANGO_METAS_READS
+    case 'dashboard_reads': return process.env.NEXT_PUBLIC_USE_DJANGO_DASHBOARD_READS
+    case 'auth': return process.env.NEXT_PUBLIC_USE_DJANGO_AUTH
+    case 'admin_writes': return process.env.NEXT_PUBLIC_USE_DJANGO_ADMIN_WRITES
+    case 'producao_writes': return process.env.NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES
+    case 'qualidade_writes': return process.env.NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES
+  }
+}
+
 function estaUsandoDjangoNoServidor(modulo: ModuloDjangoCutover): boolean {
   const flagRuntime = FLAG_RUNTIME_SERVIDOR_POR_MODULO[modulo]
   if (lerFlagModulo(process.env[flagRuntime])) {
     return true
   }
 
-  return lerFlagModulo(process.env[FLAG_POR_MODULO[modulo]])
+  return lerFlagModulo(obterFlagPublicaDjango(modulo))
 }
 
 export function estaUsandoDjango(modulo: ModuloDjangoCutover): boolean {
@@ -60,7 +73,7 @@ export function estaUsandoDjango(modulo: ModuloDjangoCutover): boolean {
     return estaUsandoDjangoNoServidor(modulo)
   }
 
-  return lerFlagModulo(process.env[FLAG_POR_MODULO[modulo]])
+  return lerFlagModulo(obterFlagPublicaDjango(modulo))
 }
 
 export function obterFlagsDjangoCutover(): Record<ModuloDjangoCutover, boolean> {
