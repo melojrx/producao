@@ -35,6 +35,22 @@ Plano e ledger desta recuperação:
 As seções abaixo preservam o histórico do planejamento de setembro, não o
 estado operacional atual.
 
+### Limite identificado no aceite de escrita
+
+O código atual ainda não implementa todas as mutações administrativas no
+Django. `lib/actions/produtos.ts`, `lib/actions/operacoes.ts` e
+`lib/actions/usuarios-sistema.ts` continuam usando `createAdminClient()` do
+legado, enquanto `ProdutoViewSet`, os viewsets de cadastros e
+`UsuarioSistemaViewSet` são `ReadOnlyModelViewSet`. Isso é confirmado pelo
+código, não atribuído à queda de energia nem corrigido com flags.
+
+Consequência: login, sessão, permissões e leituras podem ser homologados
+separadamente, mas criar/editar esses cadastros exige completar os contratos
+de escrita no Django e encaminhar suas Server Actions. Não reativar o banco
+legado para contornar essa pendência; o PostgreSQL do Homelab permanece a
+fonte operacional. A recuperação de infraestrutura não deve ser apresentada
+como conclusão integral dessa migração funcional.
+
 Este runbook acompanha a migração de `producao.costurai.com.br` da VPS para o
 Homelab. Ele registra evidências operacionais sem incluir senhas, tokens,
 chaves privadas ou valores de variáveis de ambiente.
