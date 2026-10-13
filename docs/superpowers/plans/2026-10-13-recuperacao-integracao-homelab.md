@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Branch de trabalho criada a partir de `main`, sem worktree ou subagentes.
+- Branch de trabalho criada a partir de `main`, sem worktree; implementação inline com revisão pontual somente leitura.
 - Sem novos pacotes, alteração de domínio, schema, dados produtivos ou volumes.
 - Sem Nginx; WhiteNoise para estáticos e Django para mídia.
 - Publicação por digest GHCR e controlador root-owned; sem build/checkout no Homelab.
