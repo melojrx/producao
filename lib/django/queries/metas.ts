@@ -8,6 +8,7 @@ import {
   type DjangoMetaMensalResumoDashboardJson,
 } from './metas-mappers.ts'
 import { obterAccessTokenDjango } from './obter-token-servidor.ts'
+import { construirCaminhoResumoMetas } from './metas-paths.ts'
 
 const PREFIXO_METAS = '/api/v1/metas'
 
@@ -28,12 +29,12 @@ async function buscarRecursoMetasOuNull<T>(path: string): Promise<T | null> {
   }
 }
 
-function resolverCompetenciaQuery(competenciaSelecionada?: string): string {
+function resolverCompetenciaResumo(competenciaSelecionada?: string): string {
   const competencia =
     normalizarCompetenciaMensal(competenciaSelecionada ?? obterCompetenciaMesAtual()) ??
     obterCompetenciaMesAtual()
 
-  return `?competencia=${encodeURIComponent(competencia)}`
+  return competencia
 }
 
 export async function buscarMetaMensalCompetenciaDjango(
@@ -60,7 +61,7 @@ export async function buscarResumoMetaMensalDashboardDjango(
   competenciaSelecionada?: string
 ): Promise<ReturnType<typeof mapearResumoMetaMensalDashboardDjango>> {
   const resposta = await djangoFetchMetas<DjangoMetaMensalResumoDashboardJson>(
-    `/resumo${resolverCompetenciaQuery(competenciaSelecionada)}`
+    construirCaminhoResumoMetas(resolverCompetenciaResumo(competenciaSelecionada))
   )
 
   return mapearResumoMetaMensalDashboardDjango(resposta)

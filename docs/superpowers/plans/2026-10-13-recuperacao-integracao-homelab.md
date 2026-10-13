@@ -54,3 +54,9 @@
 ## Rollback
 
 Preservar o diretório de release anterior e a cópia dos manifestos/controlador. Reverter esses artefatos e o digest anterior se a promoção falhar. Não restaurar banco nem sincronizar a VPS: dados atuais do Homelab são a fonte operacional.
+
+## Gate funcional intermediário
+
+Em 2026-10-13, workflow `38452677061` passou CI/publicação/staging. O controlador concluiu rollout e health integrado. Login público do admin criou sessão e `/admin/usuarios` renderizou corretamente. A dashboard revelou uma URL legada sem barra final (`/api/v1/metas/resumo?competencia=...`), anteriormente mascarada pelo follow automático. O Django registra `/api/v1/metas/resumo/`.
+
+Correção adicional no mesmo escopo: `lib/django/queries/metas.ts` usa o construtor puro `metas-paths.ts`, com teste de pathname canônico e competência preservada. A proteção contra redirect permanece. A aplicação não foi declarada recuperada neste gate intermediário; exige nova imagem e repetição do aceite da dashboard.
