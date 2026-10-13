@@ -1,4 +1,5 @@
 import type { DjangoErroDetalhes } from './types.ts'
+import { DJANGO_API_TIMEOUT_MS } from '../constants.ts'
 
 export const DJANGO_API_URL_PADRAO = 'http://localhost:8001'
 export const DJANGO_API_URL_SERVIDOR_PADRAO = DJANGO_API_URL_PADRAO
@@ -117,6 +118,18 @@ export async function djangoFetch<T>(
   const { accessToken, body, fetchImpl = fetch, headers, ...restInit } = options
 
   const requestHeaders = new Headers(headers)
+  const url = construirUrlAbsoluta(path)
+
+  // Configuração privada do servidor: o tráfego público original usa HTTPS,
+  // mas Next.js e Django se comunicam por HTTP na overlay isolada do Homelab.
+  if (
+    typeof window === 'undefined' &&
+    process.env.DJANGO_INTERNAL_API_HTTPS === 'true' &&
+    process.env.DJANGO_API_URL &&
+    new URL(url).protocol === 'http:'
+  ) {
+    requestHeaders.set('X-Forwarded-Proto', 'https')
+  }
 
   if (accessToken) {
     requestHeaders.set('Authorization', `Bearer ${accessToken}`)
@@ -126,13 +139,19 @@ export async function djangoFetch<T>(
     requestHeaders.set('Content-Type', 'application/json')
   }
 
-  const response = await fetchImpl(construirUrlAbsoluta(path), {
+  const response = await fetchImpl(url, {
     ...restInit,
+    redirect: 'manual',
+    signal: options.signal ?? AbortSignal.timeout(DJANGO_API_TIMEOUT_MS),
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
   const payload = parseJsonResposta(await response.text())
+
+  if (response.status >= 300 && response.status < 400) {
+    throw new DjangoApiError(response.status, 'A API Django retornou um redirecionamento inesperado. Verifique a configuração interna de HTTPS.')
+  }
 
   if (!response.ok) {
     const { message, details } = extrairMensagemErro(payload)
