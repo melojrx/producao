@@ -36,6 +36,28 @@ wait_for_migration() { attempt=1; while [ "$attempt" -le 60 ]; do states=$(docke
 wait_for_container_health() { service=$1; attempt=1; while [ "$attempt" -le 60 ]; do container_id=$(docker ps --filter "label=com.docker.swarm.service.name=$service" --filter status=running --format '{{.ID}}' | sed -n '1p'); if [ -n "$container_id" ]; then health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id"); [ "$health" = healthy ] && return 0; [ "$health" = unhealthy ] && return 1; fi; sleep 2; attempt=$((attempt + 1)); done; return 1; }
 show_service_diagnostics() { docker service ps --no-trunc "$1" >&2 || :; docker service logs --tail 100 "$1" >&2 || :; }
 
+wait_for_service_update() {
+  service=$1
+  expected_image=$2
+  attempt=1
+  while [ "$attempt" -le 90 ]; do
+    update_state=$(docker service inspect --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}' "$service")
+    case "$update_state" in
+      paused|rollback_started|rollback_paused|rollback_completed) return 1 ;;
+      ''|completed)
+        container_id=$(docker ps --filter "label=com.docker.swarm.service.name=$service" --filter status=running --format '{{.ID}}' | sed -n '1p')
+        if [ -n "$container_id" ]; then
+          running_image=$(docker inspect --format '{{.Config.Image}}' "$container_id")
+          [ "$running_image" = "$expected_image" ] && return 0
+        fi
+        ;;
+    esac
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
 [ "$#" -eq 1 ] || fail 'Usage: deploy-stack.sh <release-directory>'
 release_directory=$1
 case "$release_directory" in "$PRODUCAO_ROOT"/releases/sha256-*) ;; *) fail 'Invalid release directory.' ;; esac
@@ -60,7 +82,15 @@ docker service update --with-registry-auth --image "$PRODUCAO_BACKEND_IMAGE" --f
 if ! wait_for_migration; then show_service_diagnostics "$MIGRATE_SERVICE"; docker service scale --detach=true "$MIGRATE_SERVICE=0" || :; fail 'Migration did not complete successfully.'; fi
 docker service scale --detach=true "$MIGRATE_SERVICE=0"
 docker stack deploy --with-registry-auth --resolve-image never -c "$stack_file" "$STACK_NAME"
-if ! wait_for_service_replicas "$BACKEND_SERVICE" '1/1' || ! wait_for_service_replicas "$FRONTEND_SERVICE" '1/1' || ! wait_for_container_health "$BACKEND_SERVICE" || ! wait_for_container_health "$FRONTEND_SERVICE"; then show_service_diagnostics "$BACKEND_SERVICE"; show_service_diagnostics "$FRONTEND_SERVICE"; docker service rollback "$BACKEND_SERVICE" || :; docker service rollback "$FRONTEND_SERVICE" || :; fail 'Release did not reach the expected replica count.'; fi
+if ! wait_for_service_update "$BACKEND_SERVICE" "$PRODUCAO_BACKEND_IMAGE" || ! wait_for_service_update "$FRONTEND_SERVICE" "$PRODUCAO_FRONTEND_IMAGE" || ! wait_for_service_replicas "$BACKEND_SERVICE" '1/1' || ! wait_for_service_replicas "$FRONTEND_SERVICE" '1/1' || ! wait_for_container_health "$BACKEND_SERVICE" || ! wait_for_container_health "$FRONTEND_SERVICE"; then show_service_diagnostics "$BACKEND_SERVICE"; show_service_diagnostics "$FRONTEND_SERVICE"; docker service rollback "$BACKEND_SERVICE" || :; docker service rollback "$FRONTEND_SERVICE" || :; fail 'Release did not converge to the approved images and healthy tasks.'; fi
 backend_container=$(docker ps --filter "label=com.docker.swarm.service.name=$BACKEND_SERVICE" --filter status=running --format '{{.ID}}' | sed -n '1p'); [ -n "$backend_container" ] || fail 'Backend container is not running.'
 docker exec "$backend_container" python -c "import urllib.request; request=urllib.request.Request('http://127.0.0.1:8000/health/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(request, timeout=5)" >/dev/null
+frontend_container=$(docker ps --filter "label=com.docker.swarm.service.name=$FRONTEND_SERVICE" --filter status=running --format '{{.ID}}' | sed -n '1p')
+[ -n "$frontend_container" ] || fail 'Frontend container is not running.'
+if ! docker exec "$frontend_container" node /app/frontend-healthcheck.mjs; then
+  show_service_diagnostics "$FRONTEND_SERVICE"
+  docker service rollback "$BACKEND_SERVICE" || :
+  docker service rollback "$FRONTEND_SERVICE" || :
+  fail 'Frontend could not reach Django, database or the JWT boundary.'
+fi
 printf '%s\n' "Produção release is ready: $PRODUCAO_BACKEND_IMAGE $PRODUCAO_FRONTEND_IMAGE"

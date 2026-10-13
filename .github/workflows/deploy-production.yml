@@ -1,8 +1,12 @@
-name: Deploy Production
+name: Rollback VPS (manual legado)
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      confirm_vps_rollback:
+        description: 'Digite VPS-ROLLBACK-APROVADO somente após autorizar o retorno à VPS'
+        required: true
+        type: string
 
 concurrency:
   group: production-deploy
@@ -20,6 +24,10 @@ jobs:
       name: production
       url: https://producao.costurai.com.br
     steps:
+      - name: Exigir autorização específica de rollback
+        env:
+          CONFIRM_VPS_ROLLBACK: ${{ inputs.confirm_vps_rollback }}
+        run: test "$CONFIRM_VPS_ROLLBACK" = 'VPS-ROLLBACK-APROVADO'
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:

@@ -1,5 +1,63 @@
 # Migração do Produção para o Homelab
 
+## Recuperação da integração — 2026-10-13
+
+**Aceite de acesso concluído:** pipeline `38454865050`, release funcional
+`2252579`. Login público admin/supervisor, sessão, logout, dashboard,
+restrição de usuários, leituras operacionais e mídia foram validados.
+Scanner abriu na imagem final; câmera e escrita produtiva não foram
+executadas. PR4 permanece aberta; o gatilho legado VPS só será removido
+da branch canônica depois do merge. O ledger completo está no plano abaixo.
+
+O diagnóstico pós-reinicialização identificou dois conflitos no caminho SSR:
+o hostname interno não estava autorizado no Django e a chamada HTTP interna
+era redirecionada para HTTPS na porta sem TLS. A rede foi verificada com
+redirecionamento desativado: a mesma API respondeu `301` sem o protocolo
+encaminhado e `200` quando corretamente sinalizado. Isso não comprova que a
+queda causou o conflito; os artefatos já continham a inconsistência.
+
+Contrato de deploy corrigido:
+
+- Browser: `https://producao.costurai.com.br` via Tunnel/Traefik.
+- SSR/Server Actions: `http://producao-api:8000` na overlay privada; o alias
+  não é registrado na rede externa `edge`.
+- `DJANGO_INTERNAL_API_HTTPS=true` é uma configuração privada do frontend,
+  que sinaliza o protocolo original somente no servidor, sem env pública.
+- Django mantém redirecionamento HTTPS, HSTS e cookies seguros. Seu
+  `ALLOWED_HOSTS` recebe `producao-api` pelo manifesto versionado.
+- O cliente não segue redirecionamentos da API nem aguarda indefinidamente.
+- A imagem frontend contém `/app/frontend-healthcheck.mjs`; o healthcheck
+  verifica frontend, Django, PostgreSQL e exigência de JWT em `/accounts/me/`.
+- O controlador root-owned aguarda o rollout concluído e confere digests
+  efetivos antes de validar a comunicação pelo frontend.
+- O workflow legado da VPS não executa em pushes; retorno à VPS é manual,
+  condicionado a autorização específica e reconciliação de dados.
+
+Baseline somente leitura em 2026-10-13: 1.321 registros de produção, 60 turnos,
+26 migrações e 41 arquivos de mídia. As contas de teste foram criadas antes
+da recuperação, mas seu aceite exige login, sessão e permissões reais.
+
+Plano e ledger desta recuperação:
+[`2026-10-13-recuperacao-integracao-homelab.md`](../superpowers/plans/2026-10-13-recuperacao-integracao-homelab.md).
+As seções abaixo preservam o histórico do planejamento de setembro, não o
+estado operacional atual.
+
+### Limite identificado no aceite de escrita
+
+O código atual ainda não implementa todas as mutações administrativas no
+Django. `lib/actions/produtos.ts`, `lib/actions/operacoes.ts` e
+`lib/actions/usuarios-sistema.ts` continuam usando `createAdminClient()` do
+legado, enquanto `ProdutoViewSet`, os viewsets de cadastros e
+`UsuarioSistemaViewSet` são `ReadOnlyModelViewSet`. Isso é confirmado pelo
+código, não atribuído à queda de energia nem corrigido com flags.
+
+Consequência: login, sessão, permissões e leituras podem ser homologados
+separadamente, mas criar/editar esses cadastros exige completar os contratos
+de escrita no Django e encaminhar suas Server Actions. Não reativar o banco
+legado para contornar essa pendência; o PostgreSQL do Homelab permanece a
+fonte operacional. A recuperação de infraestrutura não deve ser apresentada
+como conclusão integral dessa migração funcional.
+
 Este runbook acompanha a migração de `producao.costurai.com.br` da VPS para o
 Homelab. Ele registra evidências operacionais sem incluir senhas, tokens,
 chaves privadas ou valores de variáveis de ambiente.

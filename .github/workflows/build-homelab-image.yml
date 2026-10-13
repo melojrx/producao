@@ -55,6 +55,7 @@ jobs:
           sbom: true
           build-args: |
             NEXT_PUBLIC_DJANGO_API_URL=https://producao.costurai.com.br
+            NEXT_PUBLIC_SCANNER_V2_ENABLED=true
             NEXT_PUBLIC_USE_DJANGO_SCANNER_READS=true
             NEXT_PUBLIC_USE_DJANGO_CADASTROS_READS=true
             NEXT_PUBLIC_USE_DJANGO_METAS_READS=true

@@ -11,6 +11,7 @@ export const OPERACAO_IMAGENS_MIME_TYPES = ['image/jpeg', 'image/png', 'image/we
 export const OPERACAO_IMAGENS_MAX_BYTES = 5 * 1024 * 1024
 export const SUPABASE_FETCH_RETRY_TENTATIVAS = 2
 export const SUPABASE_FETCH_RETRY_DELAY_MS = 150
+export const DJANGO_API_TIMEOUT_MS = 15_000
 /** Intervalo de refresh do dashboard V2 quando cutover Django ativo (substitui Realtime Supabase). */
 export const INTERVALO_POLLING_DASHBOARD_MS = 15_000
 export type QRTipo = typeof QR_TIPOS[number]

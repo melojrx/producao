@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
 
 const moduloClientUrl = new URL('./client.ts', import.meta.url)
 const {
@@ -119,4 +121,79 @@ test('djangoFetch lanca DjangoApiError com erros de campo em resposta 400', asyn
       return true
     }
   )
+})
+
+test('SSR autorizado comunica por HTTP privado sem redirecionar POST para HTTPS', async (contexto) => {
+  const envUrl = process.env.DJANGO_API_URL
+  const envHttps = process.env.DJANGO_INTERNAL_API_HTTPS
+  const servidor = createServer((request, response) => {
+    if (request.headers['x-forwarded-proto'] !== 'https') {
+      response.writeHead(301, { Location: '/redirecionamento-indevido/' }).end()
+      return
+    }
+    response.setHeader('Content-Type', 'application/json')
+    response.end(JSON.stringify({ metodo: request.method, protocolo: 'https' }))
+  })
+  contexto.after(async () => {
+    if (envUrl === undefined) delete process.env.DJANGO_API_URL
+    else process.env.DJANGO_API_URL = envUrl
+    if (envHttps === undefined) delete process.env.DJANGO_INTERNAL_API_HTTPS
+    else process.env.DJANGO_INTERNAL_API_HTTPS = envHttps
+    servidor.closeAllConnections()
+    await new Promise<void>((resolve) => servidor.close(() => resolve()))
+  })
+  servidor.listen(0, '127.0.0.1')
+  await once(servidor, 'listening')
+  const endereco = servidor.address()
+  assert.ok(endereco && typeof endereco !== 'string')
+  process.env.DJANGO_API_URL = `http://127.0.0.1:${endereco.port}`
+  process.env.DJANGO_INTERNAL_API_HTTPS = 'true'
+
+  const resposta = await djangoFetch('/api/v1/accounts/login/', {
+    method: 'POST',
+    body: { email: 'teste@example.com', senha: 'fixture-sem-credencial-real' },
+  })
+  assert.deepEqual(resposta, { metodo: 'POST', protocolo: 'https' })
+})
+
+test('djangoFetch nao segue redirecionamentos nem repassa credenciais a outro destino', async () => {
+  await assert.rejects(() => djangoFetch('/api/v1/accounts/login/', {
+    method: 'POST',
+    fetchImpl: async (_input, init) => {
+      assert.equal(init?.redirect, 'manual')
+      return new Response(null, { status: 301, headers: { Location: 'https://outro.test/' } })
+    },
+  }), (error: unknown) => {
+    assert.ok(error instanceof DjangoApiError)
+    assert.equal(error.status, 301)
+    return true
+  })
+})
+
+test('HTTPS encaminhado fica restrito ao servidor com URL HTTP e flag explicita', async (contexto) => {
+  const envUrl = process.env.DJANGO_API_URL
+  const envHttps = process.env.DJANGO_INTERNAL_API_HTTPS
+  const descriptorWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  contexto.after(() => {
+    if (envUrl === undefined) delete process.env.DJANGO_API_URL
+    else process.env.DJANGO_API_URL = envUrl
+    if (envHttps === undefined) delete process.env.DJANGO_INTERNAL_API_HTTPS
+    else process.env.DJANGO_INTERNAL_API_HTTPS = envHttps
+    if (descriptorWindow) Object.defineProperty(globalThis, 'window', descriptorWindow)
+    else Reflect.deleteProperty(globalThis, 'window')
+  })
+  const semHeaderForcado = async (_input: RequestInfo | URL, init?: RequestInit) => {
+    assert.equal(new Headers(init?.headers).has('X-Forwarded-Proto'), false)
+    assert.ok(init?.signal instanceof AbortSignal)
+    return new Response('{}', { status: 200 })
+  }
+  process.env.DJANGO_API_URL = 'http://producao-api:8000'
+  delete process.env.DJANGO_INTERNAL_API_HTTPS
+  await djangoFetch('/health/', { fetchImpl: semHeaderForcado })
+  process.env.DJANGO_INTERNAL_API_HTTPS = 'true'
+  process.env.DJANGO_API_URL = 'https://producao.costurai.com.br'
+  await djangoFetch('/health/', { fetchImpl: semHeaderForcado })
+  process.env.DJANGO_API_URL = 'http://producao-api:8000'
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {} })
+  await djangoFetch('/health/', { fetchImpl: semHeaderForcado })
 })

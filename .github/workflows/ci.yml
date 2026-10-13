@@ -20,11 +20,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - run: npm ci
       - run: npx tsc --noEmit
+      - name: Regressão da integração Next.js e Django
+        run: |
+          node --test --experimental-strip-types lib/django/client.test.ts lib/django/queries/metas-paths.test.ts
+          node --test scripts/homelab/frontend-healthcheck.test.mjs
       # ESLint: reativar quando divida de warnings legacy for tratada (MDJ pos-deploy)
       # - run: npm run lint
 

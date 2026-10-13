@@ -17,6 +17,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ARG NEXT_PUBLIC_DJANGO_API_URL=http://localhost:8080
+ARG NEXT_PUBLIC_SCANNER_V2_ENABLED=false
 ARG NEXT_PUBLIC_SUPABASE_URL=
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ARG NEXT_PUBLIC_USE_DJANGO_SCANNER_READS=false
@@ -29,6 +30,7 @@ ARG NEXT_PUBLIC_USE_DJANGO_PRODUCAO_WRITES=false
 ARG NEXT_PUBLIC_USE_DJANGO_QUALIDADE_WRITES=false
 
 ENV NEXT_PUBLIC_DJANGO_API_URL=$NEXT_PUBLIC_DJANGO_API_URL
+ENV NEXT_PUBLIC_SCANNER_V2_ENABLED=$NEXT_PUBLIC_SCANNER_V2_ENABLED
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_USE_DJANGO_SCANNER_READS=$NEXT_PUBLIC_USE_DJANGO_SCANNER_READS
@@ -59,6 +61,7 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --chown=nextjs:nodejs scripts/homelab/frontend-healthcheck.mjs ./frontend-healthcheck.mjs
 
 USER nextjs
 
