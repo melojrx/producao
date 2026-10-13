@@ -44,12 +44,20 @@
 
 **Files:** `docs/migracao_homelab/README.md` e este plano.
 
-- [ ] Registrar commit; push da branch e execução manual de `build-homelab-image.yml` com `--ref codex/recuperacao-integracao-homelab`. CI deve passar antes de publicar.
-- [ ] Criar backup dos manifestos/controlador atuais, conferir hashes e instalar os artefatos de infraestrutura revisados como root-owned.
-- [ ] Promover os digests produzidos usando `/usr/local/sbin/deploy-producao-release <diretorio-da-release>`.
-- [ ] Conferir UpdateStatus concluído, imagens por digest, volumes existentes e serviços saudáveis; `/health/`, login e mídia públicos devem responder corretamente.
-- [ ] Validar formulário, sessão, dashboard e gestão de usuários para admin; supervisor deve acessar dashboard e ser bloqueado na gestão de usuários. Não criar apontamentos produtivos durante validação.
-- [ ] Registrar evidências e limites de aceite, inclusive diferença entre testes de leitura/permissões e homologação operacional com escrita.
+- [x] Registrar commit; push da branch e execução manual de `build-homelab-image.yml` com `--ref codex/recuperacao-integracao-homelab`. CI deve passar antes de publicar.
+- [x] Criar backup dos manifestos/controlador atuais, conferir hashes e instalar os artefatos de infraestrutura revisados como root-owned.
+- [x] Promover os digests produzidos usando `/usr/local/sbin/deploy-producao-release <diretorio-da-release>`.
+- [x] Conferir UpdateStatus concluído, imagens por digest, volumes existentes e serviços saudáveis; `/health/`, login e mídia públicos devem responder corretamente.
+- [x] Validar formulário, sessão, dashboard e gestão de usuários para admin; supervisor deve acessar dashboard e ser bloqueado na gestão de usuários. Não criar apontamentos produtivos durante validação.
+- [x] Registrar evidências e limites de aceite, inclusive diferença entre testes de leitura/permissões e homologação operacional com escrita.
+
+**Aceite da recuperação em 2026-10-13, 16:33 America/Fortaleza:** workflow final `38454865050` concluído com sucesso; código funcional `2252579`; backend `sha256:db30082f731c092aaa92f319d41a5ce4eca05a7ca7eb5c6af90ad7b53b1abb64`; frontend `sha256:15ea0f5d5912df3b56549932d25927ec0b97e82c240003c4db30ac7cf3abb1e0`. Ambos com `UpdateStatus=completed` e containers healthy. Controlador concluiu `Frontend, Django, banco e fronteira JWT: OK`.
+
+**Evidência funcional:** admin fez login público, acessou usuários e dashboard operacional, e logout voltou ao login. Supervisor fez login público, abriu dashboard e foi redirecionado ao tentar `/admin/usuarios`; API admin usuários `200`, supervisor `403`. Leituras de metas, produtos, operadores e turnos `200` para ambos. Apontamentos, produtos, relatórios e TV renderizaram. Scanner final mostrou `Escaneie o QR operacional` e ativação manual da câmera. Não foi ativada a câmera nem lançado apontamento. Mídia real pública `200 image/jpeg`, health público `200`.
+
+**Preservação:** 1.321 registros, 60 turnos, 26 migrações, 41 mídias; volume ativo `producao_producao_media`. Backup de configuração/controlador/manifesto em `/srv/producao/backups/recuperacao-20261013-zj79O2`, root-owned e configuração com modo0600. Release anterior preservada.
+
+**Limites e integração:** PR4 aberta e pronta para revisão; sem merge nesta etapa. A alteração do gatilho VPS está na branch/PR e só se torna canônica após merge. Mutações administrativas legadas não foram convertidas nesta recuperação: produtos/operações/usuários ainda exigem completar escrita Django. Recuperação de acesso não equivale à homologação dessas escritas nem à execução de produção/qualidade/câmera.
 
 ## Rollback
 

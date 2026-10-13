@@ -2,6 +2,13 @@
 
 ## Recuperação da integração — 2026-10-13
 
+**Aceite de acesso concluído:** pipeline `38454865050`, release funcional
+`2252579`. Login público admin/supervisor, sessão, logout, dashboard,
+restrição de usuários, leituras operacionais e mídia foram validados.
+Scanner abriu na imagem final; câmera e escrita produtiva não foram
+executadas. PR4 permanece aberta; o gatilho legado VPS só será removido
+da branch canônica depois do merge. O ledger completo está no plano abaixo.
+
 O diagnóstico pós-reinicialização identificou dois conflitos no caminho SSR:
 o hostname interno não estava autorizado no Django e a chamada HTTP interna
 era redirecionada para HTTPS na porta sem TLS. A rede foi verificada com
